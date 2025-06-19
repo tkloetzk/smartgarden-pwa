@@ -191,11 +191,15 @@ export interface FertilizationProtocol {
     method: ApplicationMethod;
   };
 }
+export interface WaterAmount {
+  value: number;
+  unit: "oz" | "ml" | "cups" | "gallons" | "liters";
+}
 
 // Care activity detail types - using discriminated unions
 export interface WateringDetails {
   type: "water";
-  amount: string;
+  amount: WaterAmount;
   moistureReading?: MoistureReading;
   method?: WateringMethod;
   runoffObserved?: boolean;

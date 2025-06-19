@@ -149,7 +149,8 @@ const baseCareSchema = z.object({
 
 const wateringSchema = baseCareSchema.extend({
   type: z.literal("water"),
-  amount: z.string().min(1, "Water amount is required"),
+  waterValue: z.number().min(0.1, "Water amount must be greater than 0"),
+  waterUnit: z.enum(["oz", "ml", "cups", "liters", "gallons"]),
   moistureBefore: z.number().min(1).max(10).optional(),
   moistureAfter: z.number().min(1).max(10).optional(),
   applicationMethod: z
@@ -220,6 +221,8 @@ export function CareLogForm({
       plantId: preselectedPlantId || "",
       type: "water",
       date: new Date().toISOString().split("T")[0],
+      waterValue: undefined,
+      waterUnit: "oz",
     },
   });
 
@@ -404,7 +407,10 @@ export function CareLogForm({
         case "water":
           activityDetails = {
             type: "water" as const,
-            amount: data.amount,
+            amount: {
+              value: data.waterValue,
+              unit: data.waterUnit,
+            },
             moistureReading:
               data.moistureBefore && data.moistureAfter
                 ? {
@@ -486,22 +492,29 @@ export function CareLogForm({
 
         {/* Core watering information */}
         <div>
-          <label
-            htmlFor="amount"
-            className="block text-sm font-medium text-gray-700 mb-2"
-          >
+          <label className="block text-sm font-medium text-gray-700 mb-2">
             Water Amount *
           </label>
-          <input
-            id="amount"
-            type="text"
-            {...register("amount")}
-            className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-garden-500 focus:border-transparent"
-            placeholder="e.g., 32 oz, 1 gallon, 500ml"
-          />
-          <p className="mt-1 text-xs text-gray-500">
-            Record the total amount of water given to this plant
-          </p>
+          <div className="flex gap-2">
+            <input
+              type="number"
+              min="0"
+              step="0.1"
+              {...register("waterValue", { valueAsNumber: true })}
+              className="flex-1 p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-garden-500"
+              placeholder="Amount"
+            />
+            <select
+              {...register("waterUnit")}
+              className="w-24 p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-garden-500"
+            >
+              <option value="oz">oz</option>
+              <option value="ml">ml</option>
+              <option value="cups">cups</option>
+              <option value="liters">L</option>
+              <option value="gallons">gal</option>
+            </select>
+          </div>
         </div>
 
         {/* Progressive disclosure toggle for detailed tracking */}
@@ -892,7 +905,7 @@ export function CareLogForm({
               <option value="">Select a plant...</option>
               {plants.map((plant) => (
                 <option key={plant.id} value={plant.id}>
-                  {plant.name || plant.varietyId} - {plant.location}
+                  {plant.name || plant.varietyName} - {plant.location}
                 </option>
               ))}
             </select>
