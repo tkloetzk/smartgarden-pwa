@@ -7,14 +7,6 @@ const config: Config = {
   setupFilesAfterEnv: ["<rootDir>/src/setupTests.ts"],
   moduleNameMapper: {
     "^@/(.*)$": "<rootDir>/src/$1",
-    "^@/components/(.*)$": "<rootDir>/src/components/$1",
-    "^@/pages/(.*)$": "<rootDir>/src/pages/$1",
-    "^@/hooks/(.*)$": "<rootDir>/src/hooks/$1",
-    "^@/services/(.*)$": "<rootDir>/src/services/$1",
-    "^@/types/(.*)$": "<rootDir>/src/types/$1",
-    "^@/utils/(.*)$": "<rootDir>/src/utils/$1",
-    "^@/data/(.*)$": "<rootDir>/src/data/$1",
-    "^@/db/(.*)$": "<rootDir>/src/db/$1",
   },
   collectCoverageFrom: [
     "src/**/*.{ts,tsx}",
@@ -40,4 +32,5 @@ const config: Config = {
   },
   moduleFileExtensions: ["ts", "tsx", "js", "jsx", "json"],
 };
+
 export default config;

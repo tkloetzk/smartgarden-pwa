@@ -20,9 +20,12 @@ export interface VarietyTimeline {
 // src/utils/growthStage.ts - Add debugging version temporarily
 export function calculateCurrentStageWithVariety(
   plantedDate: Date,
-  variety: VarietyRecord,
+  variety: VarietyRecord | undefined,
   currentDate: Date = new Date()
 ): GrowthStage {
+  if (!variety) {
+    return "germination"; // Default fallback
+  }
   const daysSincePlanting = differenceInDays(currentDate, plantedDate);
   const timeline = variety.growthTimeline;
 

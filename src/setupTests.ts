@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 // src/setupTests.ts
 import "@testing-library/jest-dom";
 import "fake-indexeddb/auto";
@@ -6,16 +7,17 @@ import "fake-indexeddb/auto";
 import { TextEncoder, TextDecoder } from "util";
 
 // Polyfill TextEncoder/TextDecoder for Node.js environment
-global.TextEncoder = TextEncoder;
+global.TextEncoder = TextEncoder as typeof global.TextEncoder;
 global.TextDecoder = TextDecoder as typeof global.TextDecoder;
 
 // Polyfill crypto.randomUUID for Node.js test environment
 if (!global.crypto) {
   global.crypto = {
-    randomUUID: () => "test-uuid",
+    randomUUID: () =>
+      "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx" as `${string}-${string}-${string}-${string}-${string}`,
     getRandomValues: <T extends ArrayBufferView | null>(array: T): T => array,
     subtle: {} as SubtleCrypto,
-  } as Crypto;
+  } as unknown as Crypto;
 }
 
 if (!global.crypto.randomUUID) {
@@ -27,12 +29,16 @@ if (!global.crypto.randomUUID) {
         const v = c === "x" ? r : (r & 0x3) | 0x8;
         return v.toString(16);
       }
-    );
+    ) as `${string}-${string}-${string}-${string}-${string}`;
   };
 }
 
 // Mock PWA-specific APIs
 global.IntersectionObserver = class IntersectionObserver {
+  root: Element | null = null;
+  rootMargin: string = "0px";
+  thresholds: ReadonlyArray<number> = [0];
+
   constructor() {}
   observe() {
     return null;
@@ -43,7 +49,10 @@ global.IntersectionObserver = class IntersectionObserver {
   unobserve() {
     return null;
   }
-};
+  takeRecords(): IntersectionObserverEntry[] {
+    return [];
+  }
+} as any;
 
 // Mock navigator properties for PWA testing
 Object.defineProperty(navigator, "onLine", {
@@ -85,10 +94,38 @@ Object.defineProperty(navigator, "mediaDevices", {
 
 // Mock file API
 global.FileReader = class FileReader {
+  static readonly EMPTY = 0;
+  static readonly LOADING = 1;
+  static readonly DONE = 2;
+
   result: string | ArrayBuffer | null = null;
+  readyState: number = 0;
+  error: DOMException | null = null;
+
   readAsDataURL = jest.fn();
+  readAsText = jest.fn();
+  readAsArrayBuffer = jest.fn();
+  readAsBinaryString = jest.fn();
   addEventListener = jest.fn();
-};
+  removeEventListener = jest.fn();
+  dispatchEvent = jest.fn();
+  abort = jest.fn();
+
+  onload: ((this: FileReader, ev: ProgressEvent<FileReader>) => any) | null =
+    null;
+  onerror: ((this: FileReader, ev: ProgressEvent<FileReader>) => any) | null =
+    null;
+  onabort: ((this: FileReader, ev: ProgressEvent<FileReader>) => any) | null =
+    null;
+  onloadstart:
+    | ((this: FileReader, ev: ProgressEvent<FileReader>) => any)
+    | null = null;
+  onloadend: ((this: FileReader, ev: ProgressEvent<FileReader>) => any) | null =
+    null;
+  onprogress:
+    | ((this: FileReader, ev: ProgressEvent<FileReader>) => any)
+    | null = null;
+} as any;
 
 if (!global.structuredClone) {
   global.structuredClone = <T>(obj: T): T => {

@@ -26,9 +26,9 @@ describe("Stage Calculation Integration", () => {
       const albion = varieties.find((v) => v.name === "Albion Strawberries");
       expect(albion).toBeDefined();
 
-      // Create plant with 103 days ago planting date
+      // CREATE THE PLANT - this was missing!
       const plantedDate = subDays(new Date(), 103);
-      const plantId = await plantService.addPlant({
+      await plantService.addPlant({
         varietyId: albion!.id,
         varietyName: albion!.name,
         name: "Test Strawberry",

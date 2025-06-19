@@ -7,17 +7,7 @@ import { StatusBadge } from "@/components/ui/StatusBadge";
 import { plantService, PlantRecord } from "@/types/database";
 import { CareSchedulingService } from "@/services/careSchedulingService";
 import { useDynamicStage } from "@/hooks/useDynamicStage";
-
-interface UpcomingTask {
-  id: string;
-  plantId: string;
-  name: string;
-  task: string;
-  dueIn: string;
-  priority: "low" | "medium" | "high";
-  plantStage: string;
-  dueDate: Date;
-}
+import { UpcomingTask } from "@/types/scheduling";
 
 function PlantStageDisplay({ plant }: { plant: PlantRecord }) {
   const calculatedStage = useDynamicStage(plant);

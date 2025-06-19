@@ -97,6 +97,7 @@ describe("Dashboard", () => {
       {
         id: "1",
         varietyId: "astro-arugula",
+        varietyName: "Astro Arugula", // ADD THIS
         name: "My Arugula",
         plantedDate: new Date("2024-01-01"),
         currentStage: "vegetative" as const,
@@ -156,6 +157,7 @@ describe("Dashboard", () => {
       {
         id: "1",
         varietyId: "astro-arugula",
+        varietyName: "Astro Arugula", // ADD THIS
         name: "My Arugula",
         plantedDate: new Date("2024-01-01"),
         currentStage: "vegetative" as const,
@@ -189,6 +191,7 @@ describe("Dashboard", () => {
       {
         id: "1",
         varietyId: "astro-arugula",
+        varietyName: "Astro Arugula", // ADD THIS
         name: "My Arugula",
         plantedDate: new Date("2024-01-01"),
         currentStage: "vegetative" as const,
@@ -238,6 +241,7 @@ describe("Dashboard", () => {
         {
           id: "1",
           varietyId: "astro-arugula",
+          varietyName: "Astro Arugula", // ADD THIS
           name: "My Arugula",
           plantedDate: new Date("2024-01-01"),
           currentStage: "vegetative" as const,
@@ -275,6 +279,7 @@ describe("Dashboard", () => {
       {
         id: "1",
         varietyId: "astro-arugula",
+        varietyName: "Astro Arugula", // ADD THIS
         name: "My Arugula",
         plantedDate: new Date("2024-01-01"),
         currentStage: "vegetative" as const,
@@ -288,6 +293,7 @@ describe("Dashboard", () => {
       {
         id: "2",
         varietyId: "baby-spinach",
+        varietyName: "Baby Spinach", // ADD THIS
         name: "Spinach Plant",
         plantedDate: new Date("2024-01-05"),
         currentStage: "seedling" as const,

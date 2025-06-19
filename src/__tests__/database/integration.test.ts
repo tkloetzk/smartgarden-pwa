@@ -48,8 +48,11 @@ describe("Database Integration", () => {
       const varieties = await varietyService.getAllVarieties();
       const arugula = varieties.find((v) => v.name.includes("Arugula"));
 
+      expect(arugula).toBeDefined(); // Add this check
+
       const plantId = await plantService.addPlant({
         varietyId: arugula!.id,
+        varietyName: arugula!.name, // Add missing varietyName
         name: "Test Arugula",
         plantedDate: new Date("2024-01-01"),
         currentStage: "seedling",
@@ -58,15 +61,20 @@ describe("Database Integration", () => {
         isActive: true,
       });
 
-      // Add care activity
+      // Add care activity with proper discriminated union
       const careId = await careService.addCareActivity({
         plantId,
         type: "water",
         date: new Date("2024-01-02"),
         details: {
+          type: "water", // Required for discriminated union
           amount: "200ml",
-          moistureBefore: 3,
-          moistureAfter: 7,
+          moistureReading: {
+            // Use proper structure
+            before: 3,
+            after: 7,
+            scale: "1-10" as const,
+          },
         },
       });
 
@@ -90,6 +98,7 @@ describe("Database Integration", () => {
       await expect(
         plantService.addPlant({
           varietyId: "test",
+          varietyName: "Test Variety", // Add missing varietyName
           plantedDate: new Date(),
           currentStage: "seedling",
           location: "test",
@@ -107,6 +116,7 @@ describe("Database Integration", () => {
     it("queues operations correctly", async () => {
       const plantId = await plantService.addPlant({
         varietyId: "test-variety",
+        varietyName: "Test Variety Name", // Add missing varietyName
         plantedDate: new Date(),
         currentStage: "germination",
         location: "test",
@@ -133,6 +143,7 @@ describe("Database Integration", () => {
       // First add a plant
       const plantId = await plantService.addPlant({
         varietyId: "test-variety",
+        varietyName: "Test Variety Name", // Add missing varietyName
         plantedDate: new Date(),
         currentStage: "germination",
         location: "test",
@@ -140,13 +151,15 @@ describe("Database Integration", () => {
         isActive: true,
       });
 
-      // Add care activity
+      // Add care activity with proper structure
       const careId = await careService.addCareActivity({
         plantId,
-        type: "water",
+        type: "harvest",
         date: new Date(),
         details: {
-          amount: "200ml",
+          type: "harvest", // Required for discriminated union
+          amount: "200g",
+          quality: "good", // Required for HarvestDetails
         },
       });
 

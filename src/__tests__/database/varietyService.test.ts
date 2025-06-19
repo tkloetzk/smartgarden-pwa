@@ -182,26 +182,22 @@ describe("varietyService", () => {
 
       varieties.forEach((variety) => {
         if (variety.protocols?.lighting) {
-          Object.entries(variety.protocols.lighting).forEach(
-            ([stage, protocol]) => {
-              expect(protocol.ppfd?.min).toBeGreaterThan(0);
-              expect(protocol.ppfd?.max).toBeGreaterThanOrEqual(
-                protocol.ppfd.min
-              );
-              expect(protocol.ppfd?.unit).toBe("µmol/m²/s");
-              expect(protocol.photoperiod?.hours).toBeGreaterThan(0);
-              expect(protocol.photoperiod?.hours).toBeLessThanOrEqual(24);
-              expect(protocol.dli?.min).toBeGreaterThan(0);
-              expect(protocol.dli?.max).toBeGreaterThanOrEqual(
-                protocol.dli.min
-              );
-              expect(protocol.dli?.unit).toBe("mol/m²/day");
+          Object.entries(variety.protocols.lighting).forEach(([, protocol]) => {
+            expect(protocol.ppfd?.min).toBeGreaterThan(0);
+            expect(protocol.ppfd?.max).toBeGreaterThanOrEqual(
+              protocol.ppfd.min
+            );
+            expect(protocol.ppfd?.unit).toBe("µmol/m²/s");
+            expect(protocol.photoperiod?.hours).toBeGreaterThan(0);
+            expect(protocol.photoperiod?.hours).toBeLessThanOrEqual(24);
+            expect(protocol.dli?.min).toBeGreaterThan(0);
+            expect(protocol.dli?.max).toBeGreaterThanOrEqual(protocol.dli.min);
+            expect(protocol.dli?.unit).toBe("mol/m²/day");
 
-              // console.log(
-              //   `Validated lighting protocol for ${variety.name} - ${stage}`
-              // );
-            }
-          );
+            // console.log(
+            //   `Validated lighting protocol for ${variety.name} - ${stage}`
+            // );
+          });
         }
       });
     });

@@ -18,6 +18,3 @@ export * from "./scheduling";
 
 // User settings
 export * from "./user";
-
-// Containers
-export * from "./containers";
