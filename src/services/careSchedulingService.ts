@@ -7,6 +7,7 @@ import {
 } from "@/types/database";
 import { GrowthStage } from "@/types/core";
 import { calculateCurrentStage } from "@/utils/growthStage";
+import { getPlantDisplayName } from "@/utils/plantDisplay"; // Add this import
 import { UpcomingTask } from "@/types/scheduling";
 import { addDays, differenceInDays } from "date-fns";
 
@@ -93,7 +94,7 @@ export class CareSchedulingService {
       return {
         id: `water-${plant.id}`,
         plantId: plant.id,
-        name: plant.name || plant.varietyId,
+        name: getPlantDisplayName(plant), // Use the utility function here
         task: "Check water level",
         dueIn: this.formatDueIn(nextDueDate),
         priority: this.calculatePriority(daysOverdue),
@@ -133,7 +134,7 @@ export class CareSchedulingService {
       return {
         id: `observe-${plant.id}`,
         plantId: plant.id,
-        name: plant.name || plant.varietyId,
+        name: getPlantDisplayName(plant), // Use the utility function here
         task: "Health check & photo",
         dueIn: this.formatDueIn(nextDueDate),
         priority: this.calculatePriority(daysOverdue),

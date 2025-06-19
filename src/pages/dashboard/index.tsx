@@ -8,6 +8,7 @@ import { plantService, PlantRecord } from "@/types/database";
 import { CareSchedulingService } from "@/services/careSchedulingService";
 import { UpcomingTask } from "@/types/scheduling";
 import PlantStageDisplay from "@/components/plant/PlantStageDisplay";
+import { getPlantDisplayName } from "@/utils/plantDisplay";
 
 const Dashboard = () => {
   const [plants, setPlants] = useState<PlantRecord[]>([]);
@@ -30,6 +31,7 @@ const Dashboard = () => {
       ]);
 
       setPlants(plantsData);
+      console.log("Tasks Data:", tasksData);
       setUpcomingTasks(tasksData);
     } catch (error) {
       console.error("Failed to load dashboard data:", error);
@@ -37,17 +39,6 @@ const Dashboard = () => {
     } finally {
       setIsLoading(false);
     }
-  }
-
-  // Helper function to get the display name for a plant
-  function getPlantDisplayName(plant: PlantRecord): string {
-    // If user gave it a custom name, use that
-    if (plant.name) {
-      return plant.name;
-    }
-
-    // Otherwise, use the stored variety name instead of formatting varietyId
-    return plant.varietyName || "Unknown Plant";
   }
 
   // Helper function to map task priority to StatusBadge status
