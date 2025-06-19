@@ -256,6 +256,7 @@ export interface PlantRecord extends BaseRecord {
   notes?: string[];
 }
 
+// src/types/database.ts - Add the missing fields
 export interface VarietyRecord extends TimestampedRecord {
   name: string;
   category: PlantCategory;
@@ -274,6 +275,8 @@ export interface VarietyRecord extends TimestampedRecord {
     };
   };
   isCustom?: boolean;
+  isEverbearing?: boolean; // ← ADD THIS
+  productiveLifespan?: number; // ← ADD THIS
 }
 
 export interface CareRecord extends TimestampedRecord {

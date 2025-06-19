@@ -4,6 +4,14 @@ import { Card, CardContent } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { plantService, PlantRecord } from "@/types/database";
 import { Link } from "react-router-dom";
+import { useDynamicStage } from "@/hooks/useDynamicStage"; // Add this import
+
+// Add this component
+function PlantStageDisplay({ plant }: { plant: PlantRecord }) {
+  const calculatedStage = useDynamicStage(plant);
+
+  return <div>🌱 Stage: {calculatedStage}</div>;
+}
 
 const Plants: React.FC = () => {
   const [plants, setPlants] = useState<PlantRecord[]>([]);
@@ -47,8 +55,6 @@ const Plants: React.FC = () => {
     );
   }
 
-  console.log("Loaded plants:", plants);
-
   return (
     <div className="p-4 space-y-4">
       {/* Header */}
@@ -85,12 +91,12 @@ const Plants: React.FC = () => {
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
                     <h3 className="font-medium text-gray-900 mb-1">
-                      {plant.name || plant.varietyId}
+                      {plant.name || plant.varietyName}
                     </h3>
                     <div className="space-y-1 text-sm text-gray-600">
                       <div>📍 {plant.location}</div>
                       <div>📦 {plant.container}</div>
-                      <div>🌱 Stage: {plant.currentStage}</div>
+                      <PlantStageDisplay plant={plant} /> {/* ← Updated! */}
                       <div>
                         📅 Planted: {formatDate(plant.plantedDate)} (
                         {getDaysSincePlanting(plant.plantedDate)} days ago)

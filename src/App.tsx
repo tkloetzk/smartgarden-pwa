@@ -8,8 +8,11 @@ import AddPlant from "./pages/plants/AddPlant";
 import Navigation from "./components/Navigation";
 import "./App.css";
 import LogCare from "./pages/care/LogCare";
+import { useAppInitialization } from "./hooks/useAppInitialization";
 
 function App() {
+  useAppInitialization(); // Add this line
+
   useEffect(() => {
     // Initialize the database with seed varieties on app start
     initializeDatabase();

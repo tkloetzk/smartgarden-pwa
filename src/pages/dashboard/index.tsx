@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { plantService, PlantRecord } from "@/types/database";
 import { CareSchedulingService } from "@/services/careSchedulingService";
+import { useDynamicStage } from "@/hooks/useDynamicStage";
 
 interface UpcomingTask {
   id: string;
@@ -16,6 +17,16 @@ interface UpcomingTask {
   priority: "low" | "medium" | "high";
   plantStage: string;
   dueDate: Date;
+}
+
+function PlantStageDisplay({ plant }: { plant: PlantRecord }) {
+  const calculatedStage = useDynamicStage(plant);
+
+  return (
+    <div className="text-sm font-medium text-gray-600 capitalize">
+      Stage: {calculatedStage}
+    </div>
+  );
 }
 
 const Dashboard = () => {
@@ -222,9 +233,8 @@ const Dashboard = () => {
                   <div className="font-bold text-gray-900 mb-1">
                     {getPlantDisplayName(plant)}
                   </div>
-                  <div className="text-sm text-gray-600 mb-2">
-                    Stage: {plant.currentStage}
-                  </div>
+                  <PlantStageDisplay plant={plant} />
+
                   <StatusBadge status="healthy" size="sm" />
                 </div>
                 <div className="text-right">

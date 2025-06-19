@@ -1,21 +1,17 @@
+// src/services/growthStageService.ts - Use the new function
 import { plantService, varietyService } from "@/types/database";
-import { calculateCurrentStage } from "@/utils/growthStage";
-// src/services/growthStageService.ts
+import { calculateCurrentStageWithVariety } from "@/utils/growthStage"; // Updated import
+
 export class GrowthStageService {
   static async updatePlantStages(): Promise<void> {
     const plants = await plantService.getActivePlants();
 
     for (const plant of plants) {
       const variety = await varietyService.getVariety(plant.varietyId);
-
-      // Check if variety is everbearing
-      const isEverbearing = variety?.isEverbearing || false;
-
-      const currentStage = calculateCurrentStage(
+      // Use the enhanced function that considers everbearing characteristics
+      const currentStage = calculateCurrentStageWithVariety(
         plant.plantedDate,
-        variety.growthTimeline,
-        new Date(),
-        isEverbearing
+        variety
       );
 
       if (currentStage !== plant.currentStage) {

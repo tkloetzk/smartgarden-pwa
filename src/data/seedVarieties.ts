@@ -1,3 +1,5 @@
+import { PlantCategory } from "@/types";
+
 interface StageSpecificWateringProtocol {
   [stageName: string]: {
     trigger: {
@@ -127,7 +129,7 @@ interface ComprehensivePlantProtocols {
 
 export interface SeedVariety {
   name: string;
-  category: string;
+  category: PlantCategory;
   growthTimeline: {
     germination: number;
     seedling: number;

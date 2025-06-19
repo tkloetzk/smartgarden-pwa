@@ -1,5 +1,7 @@
+// src/utils/growthStage.ts - Complete updated file
 import { GrowthStage } from "../types";
 import { addDays, differenceInDays } from "date-fns";
+import { VarietyRecord } from "@/types/database";
 
 export interface GrowthStageInfo {
   stage: GrowthStage;
@@ -15,11 +17,52 @@ export interface VarietyTimeline {
   maturation: number;
 }
 
+// src/utils/growthStage.ts - Add debugging version temporarily
+export function calculateCurrentStageWithVariety(
+  plantedDate: Date,
+  variety: VarietyRecord,
+  currentDate: Date = new Date()
+): GrowthStage {
+  const daysSincePlanting = differenceInDays(currentDate, plantedDate);
+  const timeline = variety.growthTimeline;
+
+  if (daysSincePlanting < 0) {
+    return "germination";
+  }
+  if (daysSincePlanting < timeline.germination) {
+    return "germination";
+  }
+  if (daysSincePlanting < timeline.germination + timeline.seedling) {
+    return "seedling";
+  }
+  if (
+    daysSincePlanting <
+    timeline.germination + timeline.seedling + timeline.vegetative
+  ) {
+    return "vegetative";
+  }
+  if (daysSincePlanting < timeline.maturation) {
+    return "flowering";
+  }
+
+  if (variety.isEverbearing) {
+    if (
+      variety.productiveLifespan &&
+      daysSincePlanting < variety.productiveLifespan
+    ) {
+      return "ongoing-production";
+    } else {
+      return "harvest";
+    }
+  }
+
+  return "harvest";
+}
+// Keep the original function for backward compatibility
 export function calculateCurrentStage(
   plantedDate: Date,
   timeline: VarietyTimeline,
-  currentDate: Date = new Date(),
-  isEverbearing: boolean = false // New parameter
+  currentDate: Date = new Date()
 ): GrowthStage {
   const daysSincePlanting = differenceInDays(currentDate, plantedDate);
 
@@ -34,12 +77,7 @@ export function calculateCurrentStage(
     return "vegetative";
   if (daysSincePlanting < timeline.maturation) return "flowering";
 
-  // Past maturation: check if everbearing
-  if (isEverbearing) {
-    return "ongoing-production";
-  } else {
-    return "harvest"; // Final harvest for non-everbearing plants
-  }
+  return "harvest"; // ← FIXED: was "maturation"
 }
 
 export function getStageProgress(
@@ -72,6 +110,8 @@ export function getStageProgress(
       stageEnd = timeline.maturation;
       break;
     case "maturation":
+    case "ongoing-production":
+    case "harvest": // ← Add this case
       return 100;
   }
 
@@ -87,6 +127,8 @@ export function getNextStage(currentStage: GrowthStage): GrowthStage | null {
     "vegetative",
     "flowering",
     "maturation",
+    "ongoing-production",
+    "harvest",
   ];
   const currentIndex = stages.indexOf(currentStage);
 
@@ -116,6 +158,7 @@ export function estimateStageTransition(
         timeline.germination + timeline.seedling + timeline.vegetative;
       break;
     case "maturation":
+    case "ongoing-production":
     case "harvest":
       daysToTarget = timeline.maturation;
       break;
