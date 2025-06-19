@@ -6,18 +6,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { plantService, PlantRecord } from "@/types/database";
 import { CareSchedulingService } from "@/services/careSchedulingService";
-import { useDynamicStage } from "@/hooks/useDynamicStage";
 import { UpcomingTask } from "@/types/scheduling";
-
-function PlantStageDisplay({ plant }: { plant: PlantRecord }) {
-  const calculatedStage = useDynamicStage(plant);
-
-  return (
-    <div className="text-sm font-medium text-gray-600 capitalize">
-      Stage: {calculatedStage}
-    </div>
-  );
-}
+import PlantStageDisplay from "@/components/plant/PlantStageDisplay";
 
 const Dashboard = () => {
   const [plants, setPlants] = useState<PlantRecord[]>([]);
