@@ -27,4 +27,28 @@ dist-ssr
 *.sln
 *.sw?
 # Testing
-coverage/
+coverage/.DS_Store
+.DS_Store?
+**/.DS_Store
+# macOS
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+
+# Environment
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Temporary files
+*.tmp
+*.temp

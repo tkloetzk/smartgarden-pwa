@@ -7,6 +7,16 @@ def print_directory_structure(root_dir, prefix=""):
             # Skip the node_modules directory
             if item == "node_modules":
                 continue
+            if item == "__pycache__":
+                continue
+            if item == ".git":
+                continue
+            if item == ".vscode":
+                continue
+            if item == ".idea":
+                continue
+            if item == ".DS_Store":
+                continue
             print(f"{prefix}├── {item}/")
             print_directory_structure(path, prefix + "│   ")
         else:

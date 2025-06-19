@@ -1,14 +1,15 @@
 // src/App.tsx
-import React, { useEffect } from "react";
+import { useEffect } from "react";
 import { Routes, Route } from "react-router-dom";
-import { initializeDatabase } from "./db/seedData";
+
 import Dashboard from "./pages/dashboard";
 import Plants from "./pages/plants/Plants";
 import AddPlant from "./pages/plants/AddPlant";
-import Navigation from "./components/Navigation";
-import "./App.css";
 import LogCare from "./pages/care/LogCare";
+import Navigation from "./components/Navigation";
 import { useAppInitialization } from "./hooks/useAppInitialization";
+import { initializeDatabase } from "./db/seedData";
+import "./App.css";
 
 function App() {
   useAppInitialization(); // Add this line
