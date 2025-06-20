@@ -15,6 +15,7 @@ import {
 import PlantStageDisplay from "@/components/plant/PlantStageDisplay";
 import NextTaskDisplay from "@/components/plant/NextTaskDisplay";
 import CareHistory from "@/components/plant/CareHistory";
+import PlantReminderSettings from "@/components/plant/PlantReminderSettings";
 import { formatDate, getDaysSincePlanting } from "@/utils/dateUtils";
 import { getPlantDisplayName } from "@/utils/plantDisplay";
 
@@ -27,9 +28,9 @@ const PlantDetail: React.FC = () => {
   const [careHistory, setCareHistory] = useState<CareRecord[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [showReminderSettings, setShowReminderSettings] = useState(false); // Add this state
 
   useEffect(() => {
-    // Early return if plantId is undefined
     if (!plantId) {
       setError("No plant ID provided");
       setIsLoading(false);
@@ -37,12 +38,10 @@ const PlantDetail: React.FC = () => {
     }
 
     async function loadPlantDetails() {
-      // TypeScript now knows plantId is defined here
       try {
         setIsLoading(true);
         setError(null);
 
-        // Load plant, variety, and care history in parallel
         const [plantData, careHistoryData] = await Promise.all([
           plantService.getPlant(plantId as string),
           careService.getPlantCareHistory(plantId as string),
@@ -56,7 +55,6 @@ const PlantDetail: React.FC = () => {
         setPlant(plantData);
         setCareHistory(careHistoryData);
 
-        // Load variety data
         if (plantData.varietyId) {
           const varietyData = await varietyService.getVariety(
             plantData.varietyId
@@ -74,18 +72,9 @@ const PlantDetail: React.FC = () => {
     loadPlantDetails();
   }, [plantId]);
 
-  function handleBackClick() {
-    navigate("/plants");
-  }
-
-  function handleLogCare() {
-    // Add type guard for plantId
-    if (!plantId) {
-      console.error("Cannot log care: no plant ID");
-      return;
-    }
-    navigate(`/log-care?plantId=${plantId}`);
-  }
+  const handlePlantUpdate = (updatedPlant: PlantRecord) => {
+    setPlant(updatedPlant);
+  };
 
   if (isLoading) {
     return (
@@ -95,20 +84,21 @@ const PlantDetail: React.FC = () => {
     );
   }
 
-  if (error || !plant || !plantId) {
+  if (error || !plant) {
     return (
-      <div className="p-4">
-        <Card>
-          <CardContent className="p-8 text-center">
-            <div className="text-4xl mb-4">❌</div>
-            <h3 className="text-lg font-medium text-gray-900 mb-2">
-              {error || "Plant not found"}
-            </h3>
-            <Button onClick={handleBackClick} variant="outline">
-              Back to Plants
-            </Button>
-          </CardContent>
-        </Card>
+      <div className="min-h-screen flex flex-col items-center justify-center p-4">
+        <div className="text-center max-w-md">
+          <span className="text-6xl mb-4 block">🌱</span>
+          <h2 className="text-xl font-semibold text-gray-900 mb-2">
+            {error || "Plant not found"}
+          </h2>
+          <p className="text-gray-600 mb-4">
+            We couldn't load the details for this plant.
+          </p>
+          <Button onClick={() => navigate(-1)} variant="outline">
+            Go Back
+          </Button>
+        </div>
       </div>
     );
   }
@@ -116,32 +106,33 @@ const PlantDetail: React.FC = () => {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
-      <div className="bg-white border-b border-gray-200 sticky top-0 z-10">
+      <div className="bg-white border-b border-gray-200">
         <div className="p-4">
-          <div className="flex items-center gap-3 mb-3">
-            <Button variant="ghost" onClick={handleBackClick} className="p-2">
-              <svg
-                className="w-5 h-5"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M15 19l-7-7 7-7"
-                />
-              </svg>
+          <div className="flex items-center justify-between mb-4">
+            <Button
+              variant="outline"
+              onClick={() => navigate(-1)}
+              className="flex items-center gap-2"
+            >
+              <span>←</span>
+              Back
             </Button>
-            <h1 className="text-xl font-bold text-gray-900 flex-1">
-              {getPlantDisplayName(plant)}
-            </h1>
+            <Button
+              variant="outline"
+              onClick={() => setShowReminderSettings(!showReminderSettings)}
+              className="flex items-center gap-2"
+            >
+              <span>⚙️</span>
+              {showReminderSettings ? "Hide" : "Settings"}
+            </Button>
           </div>
 
-          {/* Quick action buttons */}
-          <div className="flex gap-2">
-            <Button onClick={handleLogCare} className="flex-1">
+          <h1 className="text-2xl font-bold text-gray-900 mb-2">
+            {getPlantDisplayName(plant)}
+          </h1>
+
+          <div className="flex gap-3">
+            <Button className="flex-1">
               <span className="mr-2">💧</span>
               Log Care
             </Button>
@@ -154,6 +145,24 @@ const PlantDetail: React.FC = () => {
       </div>
 
       <div className="p-4 space-y-4">
+        {/* Reminder Settings - Show when toggled */}
+        {showReminderSettings && plant && (
+          <Card className="border-blue-200 bg-blue-50/30">
+            <CardHeader>
+              <CardTitle className="text-lg flex items-center gap-2">
+                <span>🔔</span>
+                Notification Settings
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <PlantReminderSettings
+                plant={plant}
+                onUpdate={handlePlantUpdate}
+              />
+            </CardContent>
+          </Card>
+        )}
+
         {/* Plant Overview Card */}
         <Card>
           <CardHeader>
@@ -194,7 +203,7 @@ const PlantDetail: React.FC = () => {
               </div>
             )}
 
-            {/* Variety Info */}
+            {/* Category */}
             {variety && variety.category && (
               <div>
                 <span className="font-medium text-gray-600">Category:</span>
@@ -241,9 +250,37 @@ const PlantDetail: React.FC = () => {
             <div>
               <span className="font-medium text-gray-600">Next Task:</span>
               <div className="mt-1">
-                <NextTaskDisplay plantId={plantId} className="text-base" />
+                <NextTaskDisplay plantId={plantId!} className="text-base" />
               </div>
             </div>
+
+            {/* Reminder Preferences Summary */}
+            {plant.reminderPreferences && (
+              <div>
+                <span className="font-medium text-gray-600">
+                  Active Reminders:
+                </span>
+                <div className="text-gray-900 text-sm mt-1 flex flex-wrap gap-2">
+                  {Object.entries(plant.reminderPreferences)
+                    .filter(([, enabled]) => enabled)
+                    .map(([type]) => (
+                      <span
+                        key={type}
+                        className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-100 text-emerald-800 capitalize"
+                      >
+                        {type === "observation" ? "Health Checks" : type}
+                      </span>
+                    ))}
+                  {Object.values(plant.reminderPreferences).every(
+                    (enabled) => !enabled
+                  ) && (
+                    <span className="text-gray-500 text-xs">
+                      All reminders disabled
+                    </span>
+                  )}
+                </div>
+              </div>
+            )}
 
             {/* Notes */}
             {plant.notes && plant.notes.length > 0 && (
@@ -262,7 +299,7 @@ const PlantDetail: React.FC = () => {
         </Card>
 
         {/* Care History */}
-        <CareHistory plantId={plantId} careHistory={careHistory} />
+        <CareHistory careHistory={careHistory} />
       </div>
     </div>
   );

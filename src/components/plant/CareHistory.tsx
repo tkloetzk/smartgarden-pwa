@@ -6,11 +6,10 @@ import { CareRecord } from "@/types/database";
 import CareActivityItem from "./CareActivityItem";
 
 interface CareHistoryProps {
-  plantId: string;
   careHistory: CareRecord[];
 }
 
-const CareHistory: React.FC<CareHistoryProps> = ({ plantId, careHistory }) => {
+const CareHistory: React.FC<CareHistoryProps> = ({ careHistory }) => {
   const [showAll, setShowAll] = useState(false);
   const [filter, setFilter] = useState<string>("all");
 
