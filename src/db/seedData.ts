@@ -14,15 +14,15 @@ export async function initializeDatabase() {
 
   try {
     isInitializing = true;
-    console.log("Starting database initialization...");
+    //console.log("Starting database initialization...");
 
     const existingVarieties = await varietyService.getAllVarieties();
 
     // Create a more robust duplicate check using names
     const existingNames = new Set(existingVarieties.map((v) => v.name.trim()));
 
-    console.log(`Found ${existingVarieties.length} existing varieties`);
-    console.log("Existing variety names:", [...existingNames]);
+    // console.log(`Found ${existingVarieties.length} existing varieties`);
+    // console.log("Existing variety names:", [...existingNames]);
 
     const varietiesToAdd = seedVarieties.filter(
       (variety) => !existingNames.has(variety.name.trim())

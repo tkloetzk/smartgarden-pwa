@@ -258,6 +258,13 @@ export interface PlantRecord extends BaseRecord {
   soilMix?: string;
   isActive: boolean;
   notes?: string[];
+  reminderPreferences?: {
+    watering: boolean;
+    fertilizing: boolean;
+    observation: boolean;
+    lighting: boolean;
+    pruning: boolean;
+  };
 }
 
 // src/types/database.ts - Add the missing fields

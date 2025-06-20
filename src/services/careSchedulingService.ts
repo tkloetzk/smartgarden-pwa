@@ -106,6 +106,53 @@ export class CareSchedulingService {
     return null;
   }
 
+  static async getNextTaskForPlant(
+    plantId: string
+  ): Promise<UpcomingTask | null> {
+    const plants = await plantService.getActivePlants();
+    const plant = plants.find((p) => p.id === plantId);
+
+    if (!plant) return null;
+
+    try {
+      const variety = await varietyService.getVariety(plant.varietyId);
+      if (!variety) return null;
+
+      // Update plant stage if needed
+      const currentStage = calculateCurrentStage(
+        plant.plantedDate,
+        variety.growthTimeline
+      );
+
+      if (currentStage !== plant.currentStage) {
+        await plantService.updatePlant(plant.id, {
+          currentStage,
+          updatedAt: new Date(),
+        });
+      }
+
+      // Check for tasks and return the most urgent one
+      const tasks: UpcomingTask[] = [];
+
+      const wateringTask = await this.createWateringTask(plant, currentStage);
+      if (wateringTask) tasks.push(wateringTask);
+
+      const observationTask = await this.createObservationTask(
+        plant,
+        currentStage
+      );
+      if (observationTask) tasks.push(observationTask);
+
+      // Return the most urgent task (sorted by due date)
+      if (tasks.length === 0) return null;
+
+      return tasks.sort((a, b) => a.dueDate.getTime() - b.dueDate.getTime())[0];
+    } catch (error) {
+      console.error(`Error processing tasks for plant ${plantId}:`, error);
+      return null;
+    }
+  }
+
   private static async createObservationTask(
     plant: PlantRecord,
     currentStage: GrowthStage

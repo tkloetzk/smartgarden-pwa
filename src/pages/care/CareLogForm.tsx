@@ -233,6 +233,15 @@ export function CareLogForm({
   const moistureBefore = watch("moistureBefore");
   const moistureAfter = watch("moistureAfter");
 
+  useEffect(() => {
+    if (preselectedPlantId && plants.length > 0) {
+      const plant = plants.find((p) => p.id === preselectedPlantId);
+      if (plant) {
+        setValue("plantId", preselectedPlantId);
+      }
+    }
+  }, [plants, preselectedPlantId, setValue]);
+
   // This function gets the moisture protocol for a specific plant
   const getPlantMoistureProtocol = useCallback(
     async (plantId: string) => {

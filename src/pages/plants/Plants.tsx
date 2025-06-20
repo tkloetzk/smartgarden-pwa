@@ -1,10 +1,12 @@
-// src/pages/Plants.tsx
+// Update src/pages/plants/Plants.tsx - make plant cards clickable
 import React, { useState, useEffect } from "react";
 import { Card, CardContent } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { plantService, PlantRecord } from "@/types/database";
 import { Link } from "react-router-dom";
-import PlantStageDisplay from "@/components/plant/PlantStageDisplay"; // Add this import
+import PlantStageDisplay from "@/components/plant/PlantStageDisplay";
+import NextTaskDisplay from "@/components/plant/NextTaskDisplay";
+import { formatDate, getDaysSincePlanting } from "@/utils/dateUtils"; // Update import
 
 const Plants: React.FC = () => {
   const [plants, setPlants] = useState<PlantRecord[]>([]);
@@ -24,21 +26,6 @@ const Plants: React.FC = () => {
       setIsLoading(false);
     }
   }
-
-  const formatDate = (date: Date) => {
-    return new Intl.DateTimeFormat("en-US", {
-      month: "short",
-      day: "numeric",
-      year: "numeric",
-    }).format(date);
-  };
-
-  const getDaysSincePlanting = (plantedDate: Date) => {
-    const now = new Date();
-    const diffTime = Math.abs(now.getTime() - plantedDate.getTime());
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    return diffDays;
-  };
 
   if (isLoading) {
     return (
@@ -79,36 +66,46 @@ const Plants: React.FC = () => {
       ) : (
         <div className="space-y-4">
           {plants.map((plant) => (
-            <Card key={plant.id}>
-              <CardContent className="p-4">
-                <div className="flex items-start justify-between">
-                  <div className="flex-1">
-                    <h3 className="font-medium text-gray-900 mb-1">
-                      {plant.name || plant.varietyName}
-                    </h3>
-                    <div className="space-y-1 text-sm text-gray-600">
-                      <div>📍 {plant.location}</div>
-                      <div>📦 {plant.container}</div>
-                      <PlantStageDisplay
-                        plant={plant}
-                        showEmoji={true}
-                        className="text-sm text-gray-600 mb-2"
-                      />
-                      <div>
-                        📅 Planted: {formatDate(plant.plantedDate)} (
-                        {getDaysSincePlanting(plant.plantedDate)} days ago)
+            <Link
+              key={plant.id}
+              to={`/plants/${plant.id}`} // Make the entire card clickable
+              className="block"
+            >
+              <Card className="cursor-pointer hover:shadow-md transition-shadow">
+                <CardContent className="p-4">
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <h3 className="font-medium text-gray-900 mb-1">
+                        {plant.name || plant.varietyName}
+                      </h3>
+                      <div className="space-y-1 text-sm text-gray-600">
+                        <div>📍 {plant.location}</div>
+                        <div>📦 {plant.container}</div>
+                        <PlantStageDisplay
+                          plant={plant}
+                          showEmoji={true}
+                          className="text-sm text-gray-600 mb-2"
+                        />
+                        <div>
+                          📅 Planted: {formatDate(plant.plantedDate)} (
+                          {getDaysSincePlanting(plant.plantedDate)} days ago)
+                        </div>
+                        <NextTaskDisplay
+                          plantId={plant.id}
+                          className="mt-2 font-medium"
+                        />
                       </div>
+                      {plant.notes && plant.notes.length > 0 && (
+                        <div className="mt-2 text-sm text-gray-500">
+                          📝 {plant.notes[0]}
+                        </div>
+                      )}
                     </div>
-                    {plant.notes && plant.notes.length > 0 && (
-                      <div className="mt-2 text-sm text-gray-500">
-                        📝 {plant.notes[0]}
-                      </div>
-                    )}
+                    <div className="text-3xl ml-4">🌿</div>
                   </div>
-                  <div className="text-3xl ml-4">🌿</div>
-                </div>
-              </CardContent>
-            </Card>
+                </CardContent>
+              </Card>
+            </Link>
           ))}
         </div>
       )}
