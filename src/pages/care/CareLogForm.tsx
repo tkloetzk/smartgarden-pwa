@@ -1,55 +1,83 @@
-// src/components/care/CareLogForm.tsx
+// src/pages/care/CareLogForm.tsx
 import { useState, useEffect, useCallback } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Button } from "@/components/ui/Button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import {
-  careService,
   plantService,
+  careService,
   varietyService,
   PlantRecord,
   VarietyRecord,
 } from "@/types/database";
+import { Button } from "@/components/ui/Button";
 import { PhotoCapture } from "./PhotoCapture";
 import { calculateCurrentStage } from "@/utils/growthStage";
-import {
-  CategoryMoistureDefaults,
-  GrowthStage,
-  MoistureProtocolInfo,
-} from "@/types";
+import { GrowthStage } from "@/types/core";
 import toast from "react-hot-toast";
+import {
+  SmartDefaultsService,
+  SmartDefaults,
+  QuickCompletionValues,
+} from "@/services/smartDefaultsService";
+import QuickCompletionButtons from "@/pages/care/QuickCompletionButtons";
 
+// Enhanced moisture validation types
 interface MoistureValidationMessage {
-  type: "success" | "warning" | "info" | "error";
   field: "before" | "after" | "source";
   message: string;
-  color: string; // Tailwind classes - definitely UI-specific
+  color: string;
 }
 
 interface MoistureValidationResult {
   validations: MoistureValidationMessage[];
-  protocol: MoistureProtocolInfo; // Imported from types/care.ts
+  isValid: boolean;
 }
 
-// These validation functions belong HERE in CareLogForm since they're for care logging
+interface CategoryMoistureDefaults {
+  trigger: [number, number];
+  target: [number, number];
+}
+
+interface PlantMoistureProtocol {
+  trigger: [number, number];
+  target: [number, number];
+  varietyName: string;
+  currentStage: GrowthStage;
+  isDefault: boolean;
+  source: "protocol" | "category" | "universal";
+}
+
+// Extract moisture ranges for a specific stage from variety protocols
 function extractMoistureRangesForStage(
   variety: VarietyRecord,
   stage: GrowthStage
-): MoistureProtocolInfo {
-  // Add explicit return type
-  // 1. First try: Custom moisture protocols stored in variety
-  if (variety.moistureProtocols?.[stage]) {
-    const protocol = variety.moistureProtocols[stage]!;
-    return {
-      trigger: [protocol.trigger.min, protocol.trigger.max] as [number, number],
-      target: [protocol.target.min, protocol.target.max] as [number, number],
-      varietyName: variety.name,
-      currentStage: stage,
-      isDefault: false,
-      source: "custom" as const, // Type assertion here
-    };
+): PlantMoistureProtocol | null {
+  // 1. First try: Stage-specific protocol
+  const stageProtocol = variety.protocols?.watering?.[stage] as {
+    trigger?: { moistureLevel?: string | number };
+    target?: { moistureLevel?: string | number };
+  };
+
+  if (
+    stageProtocol?.trigger?.moistureLevel &&
+    stageProtocol?.target?.moistureLevel
+  ) {
+    const triggerRange = parseMoistureRange(
+      stageProtocol.trigger.moistureLevel
+    );
+    const targetRange = parseMoistureRange(stageProtocol.target.moistureLevel);
+
+    if (triggerRange && targetRange) {
+      return {
+        trigger: triggerRange,
+        target: targetRange,
+        varietyName: variety.name || "Unknown",
+        currentStage: stage,
+        isDefault: false,
+        source: "protocol",
+      };
+    }
   }
 
   // 2. Second try: Category-based defaults
@@ -57,10 +85,10 @@ function extractMoistureRangesForStage(
   if (categoryDefaults) {
     return {
       ...categoryDefaults,
-      varietyName: variety.name,
+      varietyName: variety.name || "Unknown",
       currentStage: stage,
       isDefault: false,
-      source: "category" as const, // Type assertion here
+      source: "category",
     };
   }
 
@@ -68,11 +96,34 @@ function extractMoistureRangesForStage(
   return {
     trigger: [3, 4] as [number, number],
     target: [6, 7] as [number, number],
-    varietyName: variety.name,
+    varietyName: variety.name || "Unknown",
     currentStage: stage,
     isDefault: true,
-    source: "universal" as const, // Type assertion here
+    source: "universal",
   };
+}
+
+function parseMoistureRange(value: string | number): [number, number] | null {
+  if (typeof value === "number") {
+    return [value, value];
+  }
+
+  if (typeof value === "string") {
+    // Handle ranges like "3-4" or "6-7"
+    const rangeMatch = value.match(/(\d+(?:\.\d+)?)-(\d+(?:\.\d+)?)/);
+    if (rangeMatch) {
+      return [parseFloat(rangeMatch[1]), parseFloat(rangeMatch[2])];
+    }
+
+    // Handle single values like "3" or "6"
+    const singleMatch = value.match(/(\d+(?:\.\d+)?)/);
+    if (singleMatch) {
+      const num = parseFloat(singleMatch[1]);
+      return [num, num];
+    }
+  }
+
+  return null;
 }
 
 function getCategoryBasedDefaults(
@@ -136,10 +187,10 @@ function getCategoryBasedDefaults(
     },
   };
 
-  return categoryProtocols[category]?.[stage];
+  return categoryProtocols[category]?.[stage] || null;
 }
 
-// Schema definitions remain the same...
+// Schema definitions
 const baseCareSchema = z.object({
   plantId: z.string().min(1, "Please select a plant"),
   type: z.enum(["water", "fertilize", "observe", "harvest", "transplant"]),
@@ -208,6 +259,12 @@ export function CareLogForm({
   const [moistureValidation, setMoistureValidation] =
     useState<MoistureValidationResult | null>(null);
 
+  // State for smart defaults
+  const [smartDefaults, setSmartDefaults] = useState<SmartDefaults | null>(
+    null
+  );
+  const [isLoadingDefaults, setIsLoadingDefaults] = useState(false);
+
   const {
     register,
     handleSubmit,
@@ -227,11 +284,24 @@ export function CareLogForm({
   });
 
   const activityType = watch("type");
-
-  // Watch values for moisture validation
   const selectedPlantId = watch("plantId");
   const moistureBefore = watch("moistureBefore");
   const moistureAfter = watch("moistureAfter");
+
+  // Load plants on component mount
+  useEffect(() => {
+    const loadPlants = async () => {
+      try {
+        const plantList = await plantService.getActivePlants();
+        setPlants(plantList);
+      } catch (error) {
+        console.error("Failed to load plants:", error);
+        toast.error("Failed to load plants");
+      }
+    };
+
+    loadPlants();
+  }, []);
 
   useEffect(() => {
     if (preselectedPlantId && plants.length > 0) {
@@ -241,6 +311,46 @@ export function CareLogForm({
       }
     }
   }, [plants, preselectedPlantId, setValue]);
+
+  // Load smart defaults when plant is selected
+  useEffect(() => {
+    const loadSmartDefaults = async () => {
+      if (!selectedPlantId || !plants.length) {
+        setSmartDefaults(null);
+        return;
+      }
+
+      const plant = plants.find((p) => p.id === selectedPlantId);
+      if (!plant) return;
+
+      try {
+        setIsLoadingDefaults(true);
+        const defaults = await SmartDefaultsService.getDefaultsForPlant(plant);
+        setSmartDefaults(defaults);
+
+        // Auto-apply watering defaults when watering is selected
+        if (activityType === "water" && defaults?.watering) {
+          setValue("waterValue", defaults.watering.suggestedAmount);
+          setValue("waterUnit", defaults.watering.unit);
+        }
+      } catch (error) {
+        console.error("Error loading smart defaults:", error);
+      } finally {
+        setIsLoadingDefaults(false);
+      }
+    };
+
+    loadSmartDefaults();
+  }, [selectedPlantId, plants, activityType, setValue]);
+
+  // Helper function to apply quick completion values
+  const handleQuickComplete = (values: QuickCompletionValues) => {
+    Object.entries(values).forEach(([key, value]) => {
+      if (value !== undefined) {
+        setValue(key as keyof CareFormData, value);
+      }
+    });
+  };
 
   // This function gets the moisture protocol for a specific plant
   const getPlantMoistureProtocol = useCallback(
@@ -275,116 +385,88 @@ export function CareLogForm({
       moistureBefore?: number,
       moistureAfter?: number
     ): Promise<MoistureValidationResult | null> => {
-      if (!plantId || !moistureBefore) return null;
-
       const protocol = await getPlantMoistureProtocol(plantId);
       if (!protocol) return null;
 
-      const [triggerMin, triggerMax] = protocol.trigger;
-      const [targetMin, targetMax] = protocol.target;
+      const validations: MoistureValidationMessage[] = [];
 
-      const validations: MoistureValidationMessage[] = []; // Explicitly type the array
-
-      // Add source context so users understand where the protocol comes from
-      let sourceMessage = "";
-      switch (protocol.source) {
-        case "custom":
-          sourceMessage = "✨ Using your custom protocol";
-          break;
-        case "category":
-          sourceMessage = `📂 Using ${protocol.varietyName} category defaults`;
-          break;
-        case "universal":
-          sourceMessage = "🔧 Using universal defaults - consider customizing";
-          break;
-      }
-
-      // Validate before watering reading - using type assertions
-      if (moistureBefore <= triggerMin - 1) {
-        validations.push({
-          type: "warning" as const, // Type assertion ensures literal type
-          field: "before" as const,
-          message: `🚨 Very dry for ${protocol.varietyName}! Water at ${triggerMin}-${triggerMax}.`,
-          color: "text-red-600",
-        });
-      } else if (moistureBefore > triggerMax + 1) {
-        validations.push({
-          type: "info" as const,
-          field: "before" as const,
-          message: `💡 ${protocol.varietyName} may not need water yet. Usually water at ${triggerMin}-${triggerMax}.`,
-          color: "text-orange-600",
-        });
-      } else if (moistureBefore >= triggerMin && moistureBefore <= triggerMax) {
-        validations.push({
-          type: "success" as const,
-          field: "before" as const,
-          message: `✅ Perfect timing for ${protocol.varietyName}!`,
-          color: "text-green-600",
-        });
-      }
-
-      // Validate after watering reading if provided
-      if (moistureAfter) {
-        if (moistureAfter > targetMax + 1) {
+      // Validate "before" reading against trigger range
+      if (moistureBefore !== undefined) {
+        const [triggerMin, triggerMax] = protocol.trigger;
+        if (moistureBefore >= triggerMin && moistureBefore <= triggerMax) {
           validations.push({
-            type: "warning" as const,
-            field: "after" as const,
-            message: `⚠️ Very wet for ${protocol.varietyName}. Target: ${targetMin}-${targetMax}. Check drainage.`,
-            color: "text-orange-600",
+            field: "before",
+            message: `✓ Perfect timing! ${triggerMin}-${triggerMax} is ideal for watering.`,
+            color: "text-green-600",
           });
-        } else if (moistureAfter < targetMin) {
+        } else if (moistureBefore > triggerMax) {
           validations.push({
-            type: "info" as const,
-            field: "after" as const,
-            message: `💧 Could use more water. Target: ${targetMin}-${targetMax}.`,
+            field: "before",
+            message: `ℹ️ Plant still moist (${triggerMin}-${triggerMax} recommended for watering).`,
             color: "text-blue-600",
           });
-        } else if (moistureAfter >= targetMin && moistureAfter <= targetMax) {
+        } else {
           validations.push({
-            type: "success" as const,
-            field: "after" as const,
-            message: `🎯 Perfect moisture level achieved!`,
+            field: "before",
+            message: `⚠️ Very dry! Watering at ${triggerMin}-${triggerMax} prevents stress.`,
+            color: "text-orange-600",
+          });
+        }
+      }
+
+      // Validate "after" reading against target range
+      if (moistureAfter !== undefined) {
+        const [targetMin, targetMax] = protocol.target;
+        if (moistureAfter >= targetMin && moistureAfter <= targetMax) {
+          validations.push({
+            field: "after",
+            message: `✓ Perfect! Target range ${targetMin}-${targetMax} achieved.`,
             color: "text-green-600",
+          });
+        } else if (moistureAfter > targetMax) {
+          validations.push({
+            field: "after",
+            message: `⚠️ Over-watered. Target is ${targetMin}-${targetMax}. Allow drying time.`,
+            color: "text-orange-600",
+          });
+        } else {
+          validations.push({
+            field: "after",
+            message: `ℹ️ Could use more water. Target: ${targetMin}-${targetMax}.`,
+            color: "text-blue-600",
           });
         }
       }
 
       // Add source information
+      const sourceMessages = {
+        protocol: `Using ${protocol.varietyName} ${protocol.currentStage} stage protocol`,
+        category: `Using category-based guidance for ${protocol.currentStage} stage`,
+        universal: `Using universal defaults (variety protocol incomplete)`,
+      };
+
       validations.push({
-        type: "info" as const,
-        field: "source" as const,
-        message: sourceMessage,
-        color: "text-gray-600",
+        field: "source",
+        message: sourceMessages[protocol.source],
+        color: protocol.isDefault ? "text-gray-500" : "text-gray-700",
       });
 
       return {
         validations,
-        protocol,
+        isValid: true, // We're just providing guidance, not blocking
       };
     },
     [getPlantMoistureProtocol]
   );
 
-  // Load plants when component mounts
+  // Update moisture validation when readings change
   useEffect(() => {
-    loadPlants();
-  }, []);
-
-  // Update photos in form when captured
-  useEffect(() => {
-    if (activityType === "observe") {
-      setValue("photos", capturedPhotos);
-    }
-  }, [capturedPhotos, activityType, setValue]);
-
-  // Moisture validation effect - this runs when moisture readings change
-  useEffect(() => {
-    if (selectedPlantId && moistureBefore) {
+    if (selectedPlantId && (moistureBefore || moistureAfter)) {
       getMoistureValidationForPlant(
         selectedPlantId,
         moistureBefore,
         moistureAfter
-      ).then((result) => setMoistureValidation(result));
+      ).then(setMoistureValidation);
     } else {
       setMoistureValidation(null);
     }
@@ -395,33 +477,38 @@ export function CareLogForm({
     getMoistureValidationForPlant,
   ]);
 
-  async function loadPlants() {
-    try {
-      const activePlants = await plantService.getActivePlants();
-      setPlants(activePlants);
-    } catch (error) {
-      console.error("Failed to load plants:", error);
-      toast.error("Failed to load plants. Please refresh the page.");
-    }
-  }
+  useEffect(() => {
+    const loadPlants = async () => {
+      try {
+        const activePlants = await plantService.getActivePlants();
+        setPlants(activePlants);
+      } catch (error) {
+        console.error("Failed to load plants:", error);
+        toast.error("Failed to load plants");
+      }
+    };
 
-  async function onSubmit(data: CareFormData) {
-    setIsLoading(true);
-    setSubmitError(null);
+    loadPlants();
+  }, []);
 
+  const onSubmit = async (data: CareFormData) => {
     try {
-      let activityDetails;
+      setIsLoading(true);
+      setSubmitError(null);
+
+      // Build the care record with proper structure
+      let careDetails;
 
       switch (data.type) {
         case "water":
-          activityDetails = {
-            type: "water" as const,
+          careDetails = {
+            type: "water",
             amount: {
               value: data.waterValue,
               unit: data.waterUnit,
             },
             moistureReading:
-              data.moistureBefore && data.moistureAfter
+              showDetailedTracking && data.moistureBefore && data.moistureAfter
                 ? {
                     before: data.moistureBefore,
                     after: data.moistureAfter,
@@ -435,8 +522,8 @@ export function CareLogForm({
           break;
 
         case "fertilize":
-          activityDetails = {
-            type: "fertilize" as const,
+          careDetails = {
+            type: "fertilize",
             product: data.product,
             dilution: data.dilution,
             amount: data.amount,
@@ -445,21 +532,24 @@ export function CareLogForm({
           break;
 
         case "observe":
-          activityDetails = {
-            type: "observe" as const,
+          careDetails = {
+            type: "observe",
             healthAssessment: data.healthAssessment,
             observations: data.observations,
-            photos: data.photos,
+            photos: capturedPhotos,
             notes: data.notes,
           };
           break;
+
+        default:
+          throw new Error(`Unsupported activity type: ${data.type}`);
       }
 
       await careService.addCareActivity({
         plantId: data.plantId,
         type: data.type,
         date: new Date(data.date),
-        details: activityDetails,
+        details: careDetails,
       });
 
       toast.success("Care activity logged successfully!");
@@ -469,114 +559,141 @@ export function CareLogForm({
     } catch (error) {
       console.error("Failed to log care activity:", error);
       setSubmitError("Failed to log care activity. Please try again.");
+      toast.error("Failed to log care activity");
     } finally {
       setIsLoading(false);
     }
-  }
+  };
 
   function renderWateringFields() {
+    const selectedPlant = plants.find((p) => p.id === selectedPlantId);
+
     return (
       <>
-        {/* Plant-specific protocol information banner */}
-        {moistureValidation?.protocol && (
-          <div className="bg-green-50 border border-green-200 rounded-lg p-3 mb-4">
-            <h4 className="font-medium text-green-900 text-sm">
-              🌱 {moistureValidation.protocol.varietyName} Protocol
-            </h4>
-            <div className="text-xs text-green-700 mt-1 grid grid-cols-2 gap-2">
+        {/* Smart Defaults Section */}
+        {smartDefaults?.watering && (
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+            <div className="flex items-start justify-between">
               <div>
-                Water when: {moistureValidation.protocol.trigger[0]}-
-                {moistureValidation.protocol.trigger[1]}
+                <h4 className="text-sm font-medium text-blue-900 mb-1">
+                  💡 Smart Suggestion
+                </h4>
+                <p className="text-sm text-blue-700">
+                  {smartDefaults.watering.reasoning}
+                </p>
+                <div className="flex items-center mt-2 text-xs text-blue-600">
+                  <span
+                    className={`inline-block w-2 h-2 rounded-full mr-1 ${
+                      smartDefaults.watering.confidence === "high"
+                        ? "bg-green-500"
+                        : smartDefaults.watering.confidence === "medium"
+                        ? "bg-yellow-500"
+                        : "bg-red-500"
+                    }`}
+                  />
+                  {smartDefaults.watering.confidence} confidence
+                </div>
               </div>
-              <div>
-                Target level: {moistureValidation.protocol.target[0]}-
-                {moistureValidation.protocol.target[1]}
+              <div className="text-right">
+                <div className="text-lg font-semibold text-blue-900">
+                  {smartDefaults.watering.suggestedAmount}{" "}
+                  {smartDefaults.watering.unit}
+                </div>
+                <button
+                  type="button"
+                  onClick={() =>
+                    handleQuickComplete({
+                      waterValue: smartDefaults.watering!.suggestedAmount,
+                      waterUnit: smartDefaults.watering!.unit,
+                    })
+                  }
+                  className="text-xs text-blue-600 hover:text-blue-800 underline"
+                >
+                  Use this amount
+                </button>
               </div>
-            </div>
-            <div className="text-xs text-green-600 mt-1">
-              Current stage: {moistureValidation.protocol.currentStage}
             </div>
           </div>
         )}
 
-        {/* Core watering information */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Water Amount *
-          </label>
-          <div className="flex gap-2">
+        {/* Quick Action Buttons */}
+        {selectedPlant && (
+          <QuickCompletionButtons
+            plant={selectedPlant}
+            activityType="water"
+            onQuickComplete={handleQuickComplete}
+            className="mb-4"
+          />
+        )}
+
+        <div className="grid grid-cols-3 gap-4">
+          <div className="col-span-2">
+            <label
+              htmlFor="waterValue"
+              className="block text-sm font-medium text-gray-700 mb-2"
+            >
+              Water Amount *
+            </label>
             <input
+              id="waterValue"
               type="number"
-              min="0"
               step="0.1"
+              min="0.1"
               {...register("waterValue", { valueAsNumber: true })}
-              className="flex-1 p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-garden-500"
+              className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-garden-500 focus:border-transparent"
               placeholder="Amount"
             />
+            {"waterValue" in errors && errors.waterValue && (
+              <p className="mt-1 text-sm text-red-600">
+                {errors.waterValue.message}
+              </p>
+            )}
+          </div>
+
+          <div>
+            <label
+              htmlFor="waterUnit"
+              className="block text-sm font-medium text-gray-700 mb-2"
+            >
+              Unit *
+            </label>
             <select
+              id="waterUnit"
               {...register("waterUnit")}
-              className="w-24 p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-garden-500"
+              className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-garden-500 focus:border-transparent"
             >
               <option value="oz">oz</option>
               <option value="ml">ml</option>
               <option value="cups">cups</option>
-              <option value="liters">L</option>
-              <option value="gallons">gal</option>
+              <option value="liters">liters</option>
+              <option value="gallons">gallons</option>
             </select>
           </div>
         </div>
 
-        {/* Progressive disclosure toggle for detailed tracking */}
-        <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg border border-gray-200">
-          <div className="flex-1">
-            <h4 className="font-medium text-gray-900 flex items-center">
-              📊 Detailed Moisture Tracking
-              {showDetailedTracking && (
-                <span className="ml-2 text-green-600">✓ Enabled</span>
-              )}
-            </h4>
-            <p className="text-sm text-gray-600 mt-1">
-              Record moisture meter readings to learn your plants' water
-              consumption patterns and optimize timing
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={() => setShowDetailedTracking(!showDetailedTracking)}
-            className={`ml-4 relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-garden-500 focus:ring-offset-2 ${
-              showDetailedTracking ? "bg-garden-600" : "bg-gray-300"
-            }`}
-            aria-label={
-              showDetailedTracking
-                ? "Disable detailed tracking"
-                : "Enable detailed tracking"
-            }
+        {/* Show detailed tracking checkbox */}
+        <div className="flex items-center">
+          <input
+            id="showDetailedTracking"
+            type="checkbox"
+            checked={showDetailedTracking}
+            onChange={(e) => setShowDetailedTracking(e.target.checked)}
+            className="h-4 w-4 text-garden-600 border-gray-300 rounded focus:ring-garden-500"
+          />
+          <label
+            htmlFor="showDetailedTracking"
+            className="ml-2 text-sm text-gray-700"
           >
-            <span
-              className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                showDetailedTracking ? "translate-x-6" : "translate-x-1"
-              }`}
-            />
-          </button>
+            📊 Track moisture readings & method
+          </label>
         </div>
 
-        {/* Detailed moisture tracking fields */}
+        {/* Additional detailed tracking fields */}
         {showDetailedTracking && (
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 space-y-4">
-            <div className="flex items-start">
-              <div className="text-blue-600 mr-2 mt-1">💡</div>
-              <div>
-                <h4 className="font-medium text-blue-900 mb-1">
-                  Understanding Moisture Tracking
-                </h4>
-                <p className="text-sm text-blue-700">
-                  Recording moisture levels before and after watering helps you
-                  understand how quickly your plants consume water. This data
-                  enables you to predict when they'll need water next and avoid
-                  both under and over-watering.
-                </p>
-              </div>
-            </div>
+          <div className="space-y-4 p-4 bg-gray-50 rounded-lg border border-gray-200">
+            <h4 className="text-sm font-medium text-gray-900">
+              Detailed Tracking
+            </h4>
 
             <div className="grid grid-cols-2 gap-4">
               <div>
@@ -584,7 +701,7 @@ export function CareLogForm({
                   htmlFor="moistureBefore"
                   className="block text-sm font-medium text-gray-700 mb-2"
                 >
-                  Before Watering (1-10)
+                  Moisture Before (1-10 scale)
                 </label>
                 <input
                   id="moistureBefore"
@@ -597,7 +714,7 @@ export function CareLogForm({
                   placeholder="e.g., 3"
                 />
                 <p className="mt-1 text-xs text-gray-500">
-                  Most plants need water when meter reads 3-4
+                  1 = bone dry, 10 = waterlogged
                 </p>
 
                 {/* Plant-specific validation feedback for before reading */}
@@ -619,9 +736,9 @@ export function CareLogForm({
                     </p>
                   ))}
 
-                {"moistureBefore" in errors && errors?.moistureBefore && (
+                {"moistureBefore" in errors && errors.moistureBefore && (
                   <p className="mt-1 text-sm text-red-600">
-                    {errors?.moistureBefore.message}
+                    {errors.moistureBefore.message}
                   </p>
                 )}
               </div>
@@ -631,7 +748,7 @@ export function CareLogForm({
                   htmlFor="moistureAfter"
                   className="block text-sm font-medium text-gray-700 mb-2"
                 >
-                  After Watering (1-10)
+                  Moisture After (1-10 scale)
                 </label>
                 <input
                   id="moistureAfter"
@@ -674,34 +791,6 @@ export function CareLogForm({
               </div>
             </div>
 
-            {/* Application method and runoff fields remain the same... */}
-            <div>
-              <label
-                htmlFor="applicationMethod"
-                className="block text-sm font-medium text-gray-700 mb-2"
-              >
-                Application Method
-              </label>
-              <select
-                id="applicationMethod"
-                {...register("applicationMethod")}
-                className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-garden-500"
-              >
-                <option value="">Select method...</option>
-                <option value="top-watering">
-                  💧 Top Watering (most common)
-                </option>
-                <option value="bottom-watering">
-                  ⬆️ Bottom Watering (for sensitive plants)
-                </option>
-                <option value="drip">🩸 Drip System</option>
-                <option value="misting">💨 Misting (seedlings/humidity)</option>
-              </select>
-              <p className="mt-1 text-xs text-gray-500">
-                Different methods affect how plants absorb water
-              </p>
-            </div>
-
             <div className="flex items-start">
               <input
                 id="runoffObserved"
@@ -741,276 +830,318 @@ export function CareLogForm({
     );
   }
 
-  // Rest of the component methods remain the same...
+  function renderFertilizingFields() {
+    const selectedPlant = plants.find((p) => p.id === selectedPlantId);
+
+    return (
+      <>
+        {/* Smart Fertilizer Suggestions */}
+        {smartDefaults?.fertilizer && (
+          <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-4">
+            <h4 className="text-sm font-medium text-green-900 mb-2">
+              💡 Smart Suggestion
+            </h4>
+            <p className="text-sm text-green-700 mb-3">
+              {smartDefaults.fertilizer.reasoning}
+            </p>
+            <div className="space-y-2">
+              {smartDefaults.fertilizer.products.map((product, index) => (
+                <button
+                  key={index}
+                  type="button"
+                  onClick={() =>
+                    handleQuickComplete({
+                      product: product.name,
+                      dilution: product.dilution,
+                      amount: product.amount,
+                    })
+                  }
+                  className="block w-full text-left p-2 bg-white border border-green-200 rounded hover:bg-green-50 transition-colors"
+                >
+                  <div className="font-medium text-green-900">
+                    {product.name}
+                  </div>
+                  <div className="text-xs text-green-600">
+                    {product.dilution} • {product.amount}
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Quick Action Buttons */}
+        {selectedPlant && (
+          <QuickCompletionButtons
+            plant={selectedPlant}
+            activityType="fertilize"
+            onQuickComplete={handleQuickComplete}
+            className="mb-4"
+          />
+        )}
+
+        <div>
+          <label
+            htmlFor="product"
+            className="block text-sm font-medium text-gray-700 mb-2"
+          >
+            Fertilizer Product *
+          </label>
+          <input
+            id="product"
+            type="text"
+            {...register("product")}
+            className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-garden-500 focus:border-transparent"
+            placeholder="e.g., Neptune's Harvest Fish & Seaweed"
+          />
+          {"product" in errors && errors.product && (
+            <p className="mt-1 text-sm text-red-600">
+              {errors.product.message}
+            </p>
+          )}
+        </div>
+
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <label
+              htmlFor="dilution"
+              className="block text-sm font-medium text-gray-700 mb-2"
+            >
+              Dilution Ratio *
+            </label>
+            <input
+              id="dilution"
+              type="text"
+              {...register("dilution")}
+              className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-garden-500 focus:border-transparent"
+              placeholder="e.g., 1 tbsp/gal, half strength"
+            />
+            {"dilution" in errors && errors.dilution && (
+              <p className="mt-1 text-sm text-red-600">
+                {errors.dilution.message}
+              </p>
+            )}
+          </div>
+
+          <div>
+            <label
+              htmlFor="amount"
+              className="block text-sm font-medium text-gray-700 mb-2"
+            >
+              Application Amount *
+            </label>
+            <input
+              id="amount"
+              type="text"
+              {...register("amount")}
+              className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-garden-500 focus:border-transparent"
+              placeholder="e.g., 16 oz, apply until runoff"
+            />
+            {"amount" in errors && errors.amount && (
+              <p className="mt-1 text-sm text-red-600">
+                {errors.amount.message}
+              </p>
+            )}
+          </div>
+        </div>
+      </>
+    );
+  }
+
+  function renderObservationFields() {
+    return (
+      <>
+        <div>
+          <label
+            htmlFor="healthAssessment"
+            className="block text-sm font-medium text-gray-700 mb-2"
+          >
+            Health Assessment *
+          </label>
+          <select
+            id="healthAssessment"
+            {...register("healthAssessment")}
+            className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-garden-500 focus:border-transparent"
+          >
+            <option value="">Select assessment...</option>
+            <option value="excellent">🌟 Excellent</option>
+            <option value="good">😊 Good</option>
+            <option value="fair">😐 Fair</option>
+            <option value="concerning">😟 Concerning</option>
+            <option value="critical">🚨 Critical</option>
+          </select>
+          {"healthAssessment" in errors && errors.healthAssessment && (
+            <p className="mt-1 text-sm text-red-600">
+              {errors.healthAssessment.message}
+            </p>
+          )}
+        </div>
+
+        <div>
+          <label
+            htmlFor="observations"
+            className="block text-sm font-medium text-gray-700 mb-2"
+          >
+            Observations *
+          </label>
+          <textarea
+            id="observations"
+            rows={4}
+            {...register("observations")}
+            className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-garden-500 focus:border-transparent"
+            placeholder="Describe what you observed (growth, color, pests, diseases, etc.)"
+          />
+          {"observations" in errors && errors.observations && (
+            <p className="mt-1 text-sm text-red-600">
+              {errors.observations.message}
+            </p>
+          )}
+        </div>
+
+        <PhotoCapture
+          photos={capturedPhotos}
+          onPhotosChange={setCapturedPhotos}
+          maxPhotos={5}
+        />
+      </>
+    );
+  }
+
   function renderActivitySpecificFields() {
     switch (activityType) {
       case "water":
         return renderWateringFields();
-
       case "fertilize":
-        return (
-          <>
-            <div>
-              <label
-                htmlFor="product"
-                className="block text-sm font-medium text-gray-700 mb-2"
-              >
-                Fertilizer Product *
-              </label>
-              <input
-                id="product"
-                type="text"
-                {...register("product")}
-                className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-garden-500 focus:border-transparent"
-                placeholder="e.g., Neptune's Harvest Fish & Seaweed"
-              />
-              {"product" in errors && errors.product && (
-                <p className="mt-1 text-sm text-red-600">
-                  {errors.product.message}
-                </p>
-              )}
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label
-                  htmlFor="dilution"
-                  className="block text-sm font-medium text-gray-700 mb-2"
-                >
-                  Dilution Ratio *
-                </label>
-                <input
-                  id="dilution"
-                  type="text"
-                  {...register("dilution")}
-                  className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-garden-500 focus:border-transparent"
-                  placeholder="e.g., 1 tbsp/gal, half strength"
-                />
-                {"dilution" in errors && errors.dilution && (
-                  <p className="mt-1 text-sm text-red-600">
-                    {errors.dilution.message}
-                  </p>
-                )}
-              </div>
-
-              <div>
-                <label
-                  htmlFor="amount"
-                  className="block text-sm font-medium text-gray-700 mb-2"
-                >
-                  Application Amount *
-                </label>
-                <input
-                  id="amount"
-                  type="text"
-                  {...register("amount")}
-                  className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-garden-500 focus:border-transparent"
-                  placeholder="e.g., 4 oz per plant"
-                />
-                {"amount" in errors && errors.amount && (
-                  <p className="mt-1 text-sm text-red-600">
-                    {errors.amount.message}
-                  </p>
-                )}
-              </div>
-            </div>
-          </>
-        );
-
+        return renderFertilizingFields();
       case "observe":
-        return (
-          <>
-            <div>
-              <label
-                htmlFor="healthAssessment"
-                className="block text-sm font-medium text-gray-700 mb-2"
-              >
-                Health Assessment *
-              </label>
-              <select
-                id="healthAssessment"
-                {...register("healthAssessment")}
-                className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-garden-500 focus:border-transparent"
-              >
-                <option value="">Select health status...</option>
-                <option value="excellent">🌟 Excellent</option>
-                <option value="good">✅ Good</option>
-                <option value="fair">⚠️ Fair</option>
-                <option value="concerning">🔶 Concerning</option>
-                <option value="critical">🚨 Critical</option>
-              </select>
-              {"healthAssessment" in errors && errors.healthAssessment && (
-                <p className="mt-1 text-sm text-red-600">
-                  {errors.healthAssessment.message}
-                </p>
-              )}
-            </div>
-
-            <div>
-              <label
-                htmlFor="observations"
-                className="block text-sm font-medium text-gray-700 mb-2"
-              >
-                Detailed Observations *
-              </label>
-              <textarea
-                id="observations"
-                {...register("observations")}
-                rows={4}
-                className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-garden-500 focus:border-transparent"
-                placeholder="Describe what you observe: leaf color, growth patterns, any issues, etc."
-              />
-              {"observations" in errors && errors.observations && (
-                <p className="mt-1 text-sm text-red-600">
-                  {errors.observations.message}
-                </p>
-              )}
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Photos (Optional)
-              </label>
-              <PhotoCapture
-                photos={capturedPhotos}
-                onPhotosChange={setCapturedPhotos}
-                maxPhotos={5}
-              />
-            </div>
-          </>
-        );
-
+        return renderObservationFields();
       default:
         return null;
     }
   }
 
   return (
-    <Card className="max-w-2xl mx-auto">
-      <CardHeader>
-        <CardTitle>Log Care Activity</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-          {submitError && (
-            <div className="p-4 bg-red-50 border border-red-200 rounded-md">
-              <p className="text-sm text-red-600">{submitError}</p>
-            </div>
+    <div className="max-w-2xl mx-auto p-6 bg-white rounded-lg shadow-sm">
+      <div className="mb-6">
+        <h2 className="text-2xl font-bold text-gray-900 mb-2">
+          Log Care Activity
+        </h2>
+        <p className="text-gray-600">
+          Record care activities to track your plants' progress and optimize
+          their health.
+        </p>
+      </div>
+
+      <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+        {submitError && (
+          <div className="bg-red-50 border border-red-200 rounded-md p-4">
+            <p className="text-sm text-red-600">{submitError}</p>
+          </div>
+        )}
+
+        {/* Plant Selection */}
+        <div>
+          <label
+            htmlFor="plantId"
+            className="block text-sm font-medium text-gray-700 mb-2"
+          >
+            Plant *
+          </label>
+          <select
+            id="plantId"
+            {...register("plantId")}
+            className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-garden-500 focus:border-transparent"
+          >
+            <option value="">Select a plant...</option>
+            {plants.map((plant) => (
+              <option key={plant.id} value={plant.id}>
+                {plant.name || plant.varietyName} - {plant.location}
+              </option>
+            ))}
+          </select>
+          {errors.plantId && (
+            <p className="mt-1 text-sm text-red-600">
+              {errors.plantId.message}
+            </p>
           )}
+        </div>
 
-          {/* Plant selection */}
-          <div>
-            <label
-              htmlFor="plantId"
-              className="block text-sm font-medium text-gray-700 mb-2"
-            >
-              Plant *
-            </label>
-            <select
-              id="plantId"
-              {...register("plantId")}
-              className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-garden-500 focus:border-transparent"
-            >
-              <option value="">Select a plant...</option>
-              {plants.map((plant) => (
-                <option key={plant.id} value={plant.id}>
-                  {plant.name || plant.varietyName} - {plant.location}
-                </option>
-              ))}
-            </select>
-            {errors.plantId && (
-              <p className="mt-1 text-sm text-red-600">
-                {errors.plantId.message}
-              </p>
-            )}
-          </div>
+        {/* Activity Type */}
+        <div>
+          <label
+            htmlFor="type"
+            className="block text-sm font-medium text-gray-700 mb-2"
+          >
+            Activity Type *
+          </label>
+          <select
+            id="type"
+            {...register("type")}
+            className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-garden-500 focus:border-transparent"
+          >
+            <option value="water">💧 Watering</option>
+            <option value="fertilize">🌱 Fertilizing</option>
+            <option value="observe">👁️ Observation</option>
+            <option value="harvest">🌾 Harvest</option>
+            <option value="transplant">🪴 Transplant</option>
+          </select>
+        </div>
 
-          {/* Activity type selection */}
-          <div>
-            <label
-              htmlFor="type"
-              className="block text-sm font-medium text-gray-700 mb-2"
-            >
-              Activity Type *
-            </label>
-            <select
-              id="type"
-              {...register("type")}
-              className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-garden-500 focus:border-transparent"
-            >
-              <option value="water">💧 Watering</option>
-              <option value="fertilize">🌱 Fertilizing</option>
-              <option value="observe">👁️ Observation</option>
-              <option value="harvest">🌾 Harvest</option>
-              <option value="transplant">🪴 Transplant</option>
-            </select>
-            {errors.type && (
-              <p className="mt-1 text-sm text-red-600">{errors.type.message}</p>
-            )}
-          </div>
+        {/* Date */}
+        <div>
+          <label
+            htmlFor="date"
+            className="block text-sm font-medium text-gray-700 mb-2"
+          >
+            Date *
+          </label>
+          <input
+            id="date"
+            type="date"
+            {...register("date")}
+            className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-garden-500 focus:border-transparent"
+          />
+          {errors.date && (
+            <p className="mt-1 text-sm text-red-600">{errors.date.message}</p>
+          )}
+        </div>
 
-          {/* Date selection */}
-          <div>
-            <label
-              htmlFor="date"
-              className="block text-sm font-medium text-gray-700 mb-2"
-            >
-              Date *
-            </label>
-            <input
-              id="date"
-              type="date"
-              {...register("date")}
-              className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-garden-500 focus:border-transparent"
-            />
-            {errors.date && (
-              <p className="mt-1 text-sm text-red-600">{errors.date.message}</p>
-            )}
-          </div>
+        {/* Activity-specific fields */}
+        {renderActivitySpecificFields()}
 
-          {/* Activity-specific fields */}
-          {renderActivitySpecificFields()}
+        {/* Notes */}
+        <div>
+          <label
+            htmlFor="notes"
+            className="block text-sm font-medium text-gray-700 mb-2"
+          >
+            Notes (optional)
+          </label>
+          <textarea
+            id="notes"
+            rows={3}
+            {...register("notes")}
+            className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-garden-500 focus:border-transparent"
+            placeholder="Any additional observations or notes..."
+          />
+        </div>
 
-          {/* General notes */}
-          <div>
-            <label
-              htmlFor="notes"
-              className="block text-sm font-medium text-gray-700 mb-2"
-            >
-              Additional Notes
-            </label>
-            <textarea
-              id="notes"
-              {...register("notes")}
-              rows={3}
-              className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-garden-500 focus:border-transparent"
-              placeholder="Any additional observations or notes..."
-            />
-            {errors.notes && (
-              <p className="mt-1 text-sm text-red-600">
-                {errors.notes.message}
-              </p>
-            )}
-          </div>
-
-          {/* Form actions */}
-          <div className="flex gap-4 pt-4">
-            <Button
-              type="submit"
-              variant="primary"
-              disabled={isLoading}
-              className="flex-1"
-            >
-              {isLoading ? "Logging Activity..." : "Log Activity"}
+        {/* Submit buttons */}
+        <div className="flex gap-4">
+          <Button
+            type="submit"
+            disabled={isLoading || isLoadingDefaults}
+            className="flex-1"
+          >
+            {isLoading ? "Logging..." : "Log Activity"}
+          </Button>
+          {onCancel && (
+            <Button type="button" variant="outline" onClick={onCancel}>
+              Cancel
             </Button>
-            {onCancel && (
-              <Button type="button" variant="outline" onClick={onCancel}>
-                Cancel
-              </Button>
-            )}
-          </div>
-        </form>
-      </CardContent>
-    </Card>
+          )}
+        </div>
+      </form>
+    </div>
   );
 }

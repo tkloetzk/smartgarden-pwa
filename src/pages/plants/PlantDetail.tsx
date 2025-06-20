@@ -1,6 +1,6 @@
 // src/pages/plants/PlantDetail.tsx
 import React, { useState, useEffect } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, Link } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { LoadingSpinner } from "@/components/ui/LoadingSpinner";
@@ -132,10 +132,12 @@ const PlantDetail: React.FC = () => {
           </h1>
 
           <div className="flex gap-3">
-            <Button className="flex-1">
-              <span className="mr-2">💧</span>
-              Log Care
-            </Button>
+            <Link to="/log-care">
+              <Button className="flex-1">
+                <span className="mr-2">💧</span>
+                Log Care
+              </Button>
+            </Link>
             <Button variant="outline" className="flex-1">
               <span className="mr-2">📷</span>
               Add Photo
@@ -255,12 +257,13 @@ const PlantDetail: React.FC = () => {
             </div>
 
             {/* Reminder Preferences Summary */}
+            {/* Reminder Preferences Summary */}
             {plant.reminderPreferences && (
               <div>
                 <span className="font-medium text-gray-600">
                   Active Reminders:
                 </span>
-                <div className="text-gray-900 text-sm mt-1 flex flex-wrap gap-2">
+                <div className="text-gray-900 text-sm mt-1 flex flex-wrap justify-center gap-2">
                   {Object.entries(plant.reminderPreferences)
                     .filter(([, enabled]) => enabled)
                     .map(([type]) => (

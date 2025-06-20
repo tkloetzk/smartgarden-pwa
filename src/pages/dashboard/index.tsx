@@ -1,6 +1,6 @@
 // src/pages/dashboard/index.tsx
 import { useState, useEffect } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom"; // Add useNavigate import
 import { Button } from "@/components/ui/Button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import { StatusBadge } from "@/components/ui/StatusBadge";
@@ -11,10 +11,19 @@ import PlantStageDisplay from "@/components/plant/PlantStageDisplay";
 import { getPlantDisplayName } from "@/utils/plantDisplay";
 
 const Dashboard = () => {
+  const navigate = useNavigate(); // Add this line
   const [plants, setPlants] = useState<PlantRecord[]>([]);
   const [upcomingTasks, setUpcomingTasks] = useState<UpcomingTask[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  const handlePlantClick = (plantId: string) => {
+    navigate(`/plants/${plantId}`);
+  };
+
+  const handleTaskClick = (task: UpcomingTask) => {
+    navigate(`/plants/${task.plantId}`);
+  };
 
   useEffect(() => {
     loadDashboardData();
@@ -155,7 +164,8 @@ const Dashboard = () => {
                 {upcomingTasks.slice(0, 3).map((task) => (
                   <div
                     key={task.id}
-                    className="flex items-center justify-between p-4 bg-gradient-to-r from-blue-50 to-white rounded-xl border border-blue-100"
+                    onClick={() => handleTaskClick(task)} // Add this
+                    className="flex items-center justify-between p-4 bg-gradient-to-r from-blue-50 to-white rounded-xl border border-blue-100 cursor-pointer hover:bg-blue-100" // Add cursor-pointer and hover
                   >
                     <div className="flex-1">
                       <div className="font-bold text-gray-900 mb-1">
@@ -198,7 +208,8 @@ const Dashboard = () => {
             {plants.slice(0, 3).map((plant) => (
               <div
                 key={plant.id}
-                className="flex items-center justify-between p-4 bg-gradient-to-r from-emerald-50 to-white rounded-xl border border-emerald-100"
+                onClick={() => handlePlantClick(plant.id)} // Add this
+                className="flex items-center justify-between p-4 bg-gradient-to-r from-emerald-50 to-white rounded-xl border border-emerald-100 cursor-pointer hover:bg-emerald-100" // Add cursor-pointer and hover
               >
                 <div className="flex-1">
                   <div className="font-bold text-gray-900 mb-1">
@@ -216,11 +227,13 @@ const Dashboard = () => {
                 </div>
               </div>
             ))}
-            <Link to="/plants" className="block">
-              <Button variant="outline" className="w-full">
-                View All Plants →
-              </Button>
-            </Link>
+            {plants.length > 3 && (
+              <Link to="/plants" className="block">
+                <Button variant="outline" className="w-full">
+                  View All Plants ({plants.length})
+                </Button>
+              </Link>
+            )}
           </CardContent>
         </Card>
 
