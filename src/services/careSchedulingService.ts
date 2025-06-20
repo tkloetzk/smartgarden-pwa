@@ -13,43 +13,85 @@ import { addDays, differenceInDays } from "date-fns";
 
 export class CareSchedulingService {
   static async getUpcomingTasks(): Promise<UpcomingTask[]> {
-    const plants = await plantService.getActivePlants();
-    const tasks: UpcomingTask[] = [];
+    try {
+      const plants = await plantService.getActivePlants();
+      const allTasks: UpcomingTask[] = [];
 
-    for (const plant of plants) {
-      try {
-        const variety = await varietyService.getVariety(plant.varietyId);
-        if (!variety) continue;
+      for (const plant of plants) {
+        const plantTasks = await this.getTasksForPlant(plant);
 
-        // Update plant stage if needed
-        const currentStage = calculateCurrentStage(
-          plant.plantedDate,
-          variety.growthTimeline
-        );
+        // Filter tasks based on reminder preferences
+        const filteredTasks = plantTasks.filter((task) => {
+          if (!plant.reminderPreferences) return true; // Show all if no preferences set
 
-        if (currentStage !== plant.currentStage) {
-          await plantService.updatePlant(plant.id, {
-            currentStage,
-            updatedAt: new Date(),
-          });
-        }
+          // Map task types to preference keys
+          const taskTypeMap: Record<
+            string,
+            keyof typeof plant.reminderPreferences
+          > = {
+            "Check water level": "watering",
+            Water: "watering",
+            Fertilize: "fertilizing",
+            Observe: "observation",
+            "Check lighting": "lighting",
+            Prune: "pruning",
+            "Health check": "observation",
+          };
 
-        // Check for watering task
-        const wateringTask = await this.createWateringTask(plant, currentStage);
-        if (wateringTask) tasks.push(wateringTask);
+          const preferenceKey = taskTypeMap[task.task];
+          return preferenceKey
+            ? plant.reminderPreferences[preferenceKey]
+            : true;
+        });
 
-        // Check for observation task
-        const observationTask = await this.createObservationTask(
-          plant,
-          currentStage
-        );
-        if (observationTask) tasks.push(observationTask);
-      } catch (error) {
-        console.error(`Error processing tasks for plant ${plant.id}:`, error);
+        allTasks.push(...filteredTasks);
       }
-    }
 
-    return tasks.sort((a, b) => a.dueDate.getTime() - b.dueDate.getTime());
+      return allTasks.sort((a, b) => a.dueDate.getTime() - b.dueDate.getTime());
+    } catch (error) {
+      console.error("Error getting upcoming tasks:", error);
+      return [];
+    }
+  }
+
+  private static async getTasksForPlant(
+    plant: PlantRecord
+  ): Promise<UpcomingTask[]> {
+    try {
+      const variety = await varietyService.getVariety(plant.varietyId);
+      if (!variety) return [];
+
+      // Update plant stage if needed
+      const currentStage = calculateCurrentStage(
+        plant.plantedDate,
+        variety.growthTimeline
+      );
+
+      if (currentStage !== plant.currentStage) {
+        await plantService.updatePlant(plant.id, {
+          currentStage,
+          updatedAt: new Date(),
+        });
+      }
+
+      const tasks: UpcomingTask[] = [];
+
+      // Check for watering task
+      const wateringTask = await this.createWateringTask(plant, currentStage);
+      if (wateringTask) tasks.push(wateringTask);
+
+      // Check for observation task
+      const observationTask = await this.createObservationTask(
+        plant,
+        currentStage
+      );
+      if (observationTask) tasks.push(observationTask);
+
+      return tasks;
+    } catch (error) {
+      console.error(`Error processing tasks for plant ${plant.id}:`, error);
+      return [];
+    }
   }
 
   private static async createWateringTask(
@@ -106,53 +148,6 @@ export class CareSchedulingService {
     return null;
   }
 
-  static async getNextTaskForPlant(
-    plantId: string
-  ): Promise<UpcomingTask | null> {
-    const plants = await plantService.getActivePlants();
-    const plant = plants.find((p) => p.id === plantId);
-
-    if (!plant) return null;
-
-    try {
-      const variety = await varietyService.getVariety(plant.varietyId);
-      if (!variety) return null;
-
-      // Update plant stage if needed
-      const currentStage = calculateCurrentStage(
-        plant.plantedDate,
-        variety.growthTimeline
-      );
-
-      if (currentStage !== plant.currentStage) {
-        await plantService.updatePlant(plant.id, {
-          currentStage,
-          updatedAt: new Date(),
-        });
-      }
-
-      // Check for tasks and return the most urgent one
-      const tasks: UpcomingTask[] = [];
-
-      const wateringTask = await this.createWateringTask(plant, currentStage);
-      if (wateringTask) tasks.push(wateringTask);
-
-      const observationTask = await this.createObservationTask(
-        plant,
-        currentStage
-      );
-      if (observationTask) tasks.push(observationTask);
-
-      // Return the most urgent task (sorted by due date)
-      if (tasks.length === 0) return null;
-
-      return tasks.sort((a, b) => a.dueDate.getTime() - b.dueDate.getTime())[0];
-    } catch (error) {
-      console.error(`Error processing tasks for plant ${plantId}:`, error);
-      return null;
-    }
-  }
-
   private static async createObservationTask(
     plant: PlantRecord,
     currentStage: GrowthStage
@@ -174,15 +169,16 @@ export class CareSchedulingService {
       nextDueDate = addDays(plant.plantedDate, 3);
     }
 
-    if (nextDueDate <= addDays(new Date(), 3)) {
-      // Show observation tasks due within 3 days
+    // Only create task if due or overdue
+    if (nextDueDate <= addDays(new Date(), 1)) {
+      // Show tasks due within 1 day
       const daysOverdue = differenceInDays(new Date(), nextDueDate);
 
       return {
         id: `observe-${plant.id}`,
         plantId: plant.id,
-        name: getPlantDisplayName(plant), // Use the utility function here
-        task: "Health check & photo",
+        name: getPlantDisplayName(plant),
+        task: "Health check",
         dueIn: this.formatDueIn(nextDueDate),
         priority: this.calculatePriority(daysOverdue),
         plantStage: currentStage,
@@ -191,6 +187,45 @@ export class CareSchedulingService {
     }
 
     return null;
+  }
+
+  static async getNextTaskForPlant(
+    plantId: string
+  ): Promise<UpcomingTask | null> {
+    const plants = await plantService.getActivePlants();
+    const plant = plants.find((p) => p.id === plantId);
+
+    if (!plant) return null;
+
+    const tasks = await this.getTasksForPlant(plant);
+
+    // Filter by reminder preferences
+    const filteredTasks = tasks.filter((task) => {
+      if (!plant.reminderPreferences) return true;
+
+      const taskTypeMap: Record<
+        string,
+        keyof typeof plant.reminderPreferences
+      > = {
+        "Check water level": "watering",
+        Water: "watering",
+        Fertilize: "fertilizing",
+        Observe: "observation",
+        "Check lighting": "lighting",
+        Prune: "pruning",
+        "Health check": "observation",
+      };
+
+      const preferenceKey = taskTypeMap[task.task];
+      return preferenceKey ? plant.reminderPreferences[preferenceKey] : true;
+    });
+
+    // Return the most urgent task (sorted by due date)
+    if (filteredTasks.length === 0) return null;
+
+    return filteredTasks.sort(
+      (a, b) => a.dueDate.getTime() - b.dueDate.getTime()
+    )[0];
   }
 
   private static formatDueIn(dueDate: Date): string {
@@ -211,8 +246,8 @@ export class CareSchedulingService {
   private static calculatePriority(
     daysOverdue: number
   ): "low" | "medium" | "high" {
-    if (daysOverdue > 1) return "high";
-    if (daysOverdue >= 0) return "medium";
-    return "low";
+    if (daysOverdue >= 2) return "high"; // 2+ days overdue
+    if (daysOverdue >= 0) return "medium"; // Due today or overdue
+    return "low"; // Due in future
   }
 }

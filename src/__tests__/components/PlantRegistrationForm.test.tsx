@@ -485,6 +485,7 @@ describe("PlantRegistrationForm", () => {
         expect(mockPlantService.addPlant).toHaveBeenCalledWith({
           varietyId: "tomato-1",
           varietyName: "Roma Tomato",
+          name: "My Tomato Plant", // This is expected since we typed it
           plantedDate: expect.any(Date),
           currentStage: "germination",
           location: "Outdoor",
@@ -492,6 +493,13 @@ describe("PlantRegistrationForm", () => {
           soilMix: "Test soil mix",
           isActive: true,
           notes: [],
+          reminderPreferences: {
+            watering: true,
+            fertilizing: true,
+            observation: true,
+            lighting: true,
+            pruning: true,
+          },
         });
       });
 
@@ -568,6 +576,7 @@ describe("PlantRegistrationForm", () => {
         expect(mockPlantService.addPlant).toHaveBeenCalledWith({
           varietyId: "tomato-1",
           varietyName: "Roma Tomato",
+          name: undefined, // No name was entered in this test
           plantedDate: expect.any(Date),
           currentStage: "germination",
           location: "Outdoor",
@@ -575,6 +584,13 @@ describe("PlantRegistrationForm", () => {
           soilMix: "Test soil mix",
           isActive: true,
           notes: [],
+          reminderPreferences: {
+            watering: true,
+            fertilizing: true,
+            observation: true,
+            lighting: true,
+            pruning: true,
+          },
         });
       });
 
@@ -596,14 +612,11 @@ describe("PlantRegistrationForm", () => {
         ).toBeInTheDocument();
       });
 
-      // Wait for varieties to load and get select element
       const varietySelect = screen.getByLabelText(/plant variety/i);
       await user.selectOptions(varietySelect, "tomato-1");
 
-      // Set location to outdoor
       await toggleLocationToOutdoor(user);
 
-      // Select raised bed
       const raisedBedRadio = screen.getByDisplayValue("raised-bed");
       await user.click(raisedBedRadio);
 
@@ -615,7 +628,6 @@ describe("PlantRegistrationForm", () => {
         screen.getByDisplayValue("custom-dimensions");
       await user.click(customDimensionsRadio);
 
-      // Fill dimensions
       await waitFor(() => {
         expect(screen.getByLabelText("Width")).toBeInTheDocument();
       });
@@ -644,6 +656,7 @@ describe("PlantRegistrationForm", () => {
         expect(mockPlantService.addPlant).toHaveBeenCalledWith({
           varietyId: "tomato-1",
           varietyName: "Roma Tomato",
+          name: undefined, // No name was entered in this test
           plantedDate: expect.any(Date),
           currentStage: "germination",
           location: "Outdoor",
@@ -651,6 +664,13 @@ describe("PlantRegistrationForm", () => {
           soilMix: "Test soil mix",
           isActive: true,
           notes: [],
+          reminderPreferences: {
+            watering: true,
+            fertilizing: true,
+            observation: true,
+            lighting: true,
+            pruning: true,
+          },
         });
       });
 
@@ -665,15 +685,12 @@ describe("PlantRegistrationForm", () => {
         expect(mockVarietyService.getAllVarieties).toHaveBeenCalled();
       });
 
-      // fillRequiredFields now handles waiting for varieties internally
       await fillRequiredFields(user);
 
-      // Set required date
       const dateInput = screen.getByLabelText(/planting date/i);
       await user.clear(dateInput);
       await user.type(dateInput, "2024-01-15");
 
-      // Now the button should show "Register Plant"
       await waitFor(() => {
         expect(screen.getByText("Register Plant")).toBeInTheDocument();
       });
@@ -688,6 +705,13 @@ describe("PlantRegistrationForm", () => {
             location: "Outdoor",
             plantedDate: expect.any(Date),
             soilMix: "Test soil mix",
+            reminderPreferences: {
+              watering: true,
+              fertilizing: true,
+              observation: true,
+              lighting: true,
+              pruning: true,
+            },
           })
         );
       });

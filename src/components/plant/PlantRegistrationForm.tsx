@@ -10,9 +10,9 @@ import { CustomVarietyForm } from "./CustomVarietyForm";
 import toast from "react-hot-toast";
 import SoilMixtureSelector from "./SoilMixtureSelector";
 import { Switch } from "@/components/ui/Switch";
+import ReminderPreferencesSection from "@/components/plant/ReminderPreferencesSection";
 import { cn } from "@/utils/cn";
 
-// Update the schema to make soil mix required again
 const plantSchema = z.object({
   varietyId: z.string().min(1, "Please select a variety"),
   name: z.string().optional(),
@@ -28,7 +28,7 @@ const plantSchema = z.object({
   customWidth: z.string().optional(),
   customLength: z.string().optional(),
   customDepth: z.string().optional(),
-  soilMix: z.string().min(1, "Please select a soil mixture"), // Back to required
+  soilMix: z.string().min(1, "Please select a soil mixture"),
   notes: z.string().optional(),
 });
 
@@ -89,6 +89,13 @@ export function PlantRegistrationForm({
   const [isLoading, setIsLoading] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [showCustomVarietyForm, setShowCustomVarietyForm] = useState(false);
+  const [reminderPreferences, setReminderPreferences] = useState({
+    watering: true,
+    fertilizing: true,
+    observation: true,
+    lighting: true,
+    pruning: true,
+  });
 
   const {
     register,
@@ -104,11 +111,11 @@ export function PlantRegistrationForm({
     defaultValues: {
       name: "",
       plantedDate: new Date().toISOString().split("T")[0],
-      containerType: "", // Change from null to empty string
-      containerSize: "", // Change from null to empty string
+      containerType: "",
+      containerSize: "",
       soilMix: "",
       notes: "",
-      location: false, // Add this default
+      location: false,
     },
   });
 
@@ -119,8 +126,6 @@ export function PlantRegistrationForm({
     loadVarieties();
   }, []);
 
-  // Reset container size when container type changes
-  // Reset container size when container type changes
   useEffect(() => {
     if (selectedContainerType) {
       setValue("containerSize", "");
@@ -189,6 +194,7 @@ export function PlantRegistrationForm({
       await plantService.addPlant({
         varietyId: data.varietyId,
         varietyName,
+        name: data.name?.trim() || undefined,
         plantedDate: new Date(data.plantedDate),
         currentStage: "germination",
         location: locationString,
@@ -196,6 +202,7 @@ export function PlantRegistrationForm({
         soilMix: data.soilMix || undefined,
         isActive: true,
         notes: data.notes ? [data.notes] : [],
+        reminderPreferences, // This comes from state, not form data
       });
 
       toast.success(`${data.name || varietyName} registered successfully! 🌱`);
@@ -769,6 +776,11 @@ export function PlantRegistrationForm({
                 </p>
               )}
             </div>
+
+            <ReminderPreferencesSection
+              preferences={reminderPreferences}
+              onChange={setReminderPreferences}
+            />
             {/* Notes Field */}
             <div>
               <label
