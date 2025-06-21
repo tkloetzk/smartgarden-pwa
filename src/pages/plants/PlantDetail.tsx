@@ -160,7 +160,7 @@ const PlantDetail: React.FC = () => {
       <div className="p-4 space-y-4 bg-background">
         {/* Reminder Settings - Show when toggled */}
         {showReminderSettings && plant && (
-          <Card className="border-blue-200 bg-blue-50/30">
+          <Card className="border-border bg-muted/30">
             <CardHeader>
               <CardTitle className="text-lg flex items-center gap-2">
                 <span>🔔</span>

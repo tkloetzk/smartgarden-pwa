@@ -121,7 +121,7 @@ const Dashboard = () => {
   return (
     <>
       {/* Header */}
-      <div className="bg-gradient-to-r from-green-600 to-emerald-600 text-white p-6">
+      <div className="bg-gradient-to-r from-primary to-accent text-primary-foreground p-6">
         <h1 className="text-2xl font-bold mb-2">My Smart Garden</h1>
         <div className="flex items-center space-x-6">
           <div className="text-center">
