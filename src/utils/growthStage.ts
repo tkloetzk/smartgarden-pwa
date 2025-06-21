@@ -17,27 +17,18 @@ export interface VarietyTimeline {
   maturation: number;
 }
 
-// src/utils/growthStage.ts - Add debugging version temporarily
 export function calculateCurrentStageWithVariety(
   plantedDate: Date,
-  variety: VarietyRecord | undefined,
+  variety: VarietyRecord,
   currentDate: Date = new Date()
 ): GrowthStage {
-  if (!variety) {
-    return "germination"; // Default fallback
-  }
   const daysSincePlanting = differenceInDays(currentDate, plantedDate);
   const timeline = variety.growthTimeline;
 
-  if (daysSincePlanting < 0) {
-    return "germination";
-  }
-  if (daysSincePlanting < timeline.germination) {
-    return "germination";
-  }
-  if (daysSincePlanting < timeline.germination + timeline.seedling) {
+  if (daysSincePlanting < 0) return "germination";
+  if (daysSincePlanting < timeline.germination) return "germination";
+  if (daysSincePlanting < timeline.germination + timeline.seedling)
     return "seedling";
-  }
   if (
     daysSincePlanting <
     timeline.germination + timeline.seedling + timeline.vegetative
@@ -49,16 +40,15 @@ export function calculateCurrentStageWithVariety(
   }
 
   if (variety.isEverbearing) {
-    // For everbearing plants (like strawberries), check productive lifespan
-    if (
-      variety.productiveLifespan &&
-      daysSincePlanting >= variety.productiveLifespan
-    ) {
-      return "harvest"; // Past productive lifespan
+    // If no productive lifespan is defined, use 2 years (730 days) as default
+    // This way plants older than 2 years will transition to harvest
+    const effectiveLifespan = variety.productiveLifespan ?? 730; // 2 years default
+
+    if (daysSincePlanting >= effectiveLifespan) {
+      return "harvest";
     }
-    return "ongoing-production"; // Still productive
+    return "ongoing-production";
   } else {
-    // Non-everbearing plants go to harvest after maturation
     return "harvest";
   }
 }

@@ -39,6 +39,7 @@ const config: Config = {
     "^.+\\.(ts|tsx)$": "ts-jest",
   },
   moduleFileExtensions: ["ts", "tsx", "js", "jsx", "json"],
+  testPathIgnorePatterns: ["/__tests__/utils/testHelpers.tsx"],
 };
 
 export default config;

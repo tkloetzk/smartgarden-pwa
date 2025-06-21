@@ -52,13 +52,7 @@ export async function initializeDatabase() {
           isEverbearing: variety.isEverbearing,
           productiveLifespan: variety.productiveLifespan,
         });
-
-        console.log(`Added variety: ${variety.name}`);
       }
-
-      console.log(
-        `✅ Successfully added ${varietiesToAdd.length} new varieties`
-      );
     } else {
       console.log("✅ All seed varieties already exist in database");
     }

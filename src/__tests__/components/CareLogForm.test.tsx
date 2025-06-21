@@ -1,27 +1,35 @@
-// src/__tests__/components/CareLogForm.test.tsx
 import { describe, it, expect, beforeEach } from "@jest/globals";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { MemoryRouter } from "react-router-dom";
 import { CareLogForm } from "@/pages/care/CareLogForm";
 import { initializeDatabase } from "@/db/seedData";
 import { plantService } from "@/types/database";
 
+// Helper to render components with Router context
+const renderWithRouter = (
+  component: React.ReactElement,
+  initialEntries: string[] = ["/log-care"]
+) => {
+  return render(
+    <MemoryRouter initialEntries={initialEntries}>{component}</MemoryRouter>
+  );
+};
+
 describe("CareLogForm Pre-Selection", () => {
   beforeEach(async () => {
     await initializeDatabase();
-    // Clear any existing plants to ensure clean test state
     const { db } = await import("@/types/database");
     await db.plants.clear();
   });
 
   it("pre-selects plant when preselectedPlantId is provided", async () => {
-    // Create a test plant with all required properties
-    const testPlantId = await plantService.addPlant({
-      varietyId: "test-variety-1",
-      varietyName: "Test Plant",
-      name: "My Test Plant",
+    const plantId = await plantService.addPlant({
+      varietyId: "test-variety",
+      varietyName: "Test Variety",
+      name: "Test Plant",
       plantedDate: new Date(),
-      location: "Test Location",
+      location: "Location 1",
       container: "Container 1",
       currentStage: "vegetative",
       isActive: true,
@@ -29,47 +37,45 @@ describe("CareLogForm Pre-Selection", () => {
 
     const mockOnSuccess = jest.fn();
 
-    render(
-      <CareLogForm onSuccess={mockOnSuccess} preselectedPlantId={testPlantId} />
+    renderWithRouter(
+      <CareLogForm onSuccess={mockOnSuccess} preselectedPlantId={plantId} />
     );
 
-    // Wait for plants to load and form to render
-    await waitFor(() => {
-      const plantSelect = screen.getByLabelText(/Plant/i);
-      expect(plantSelect).toBeInTheDocument();
-    });
-
-    // Verify the plant appears in the options
-    await waitFor(() => {
-      const option = screen.getByText("My Test Plant - Test Location");
-      expect(option).toBeInTheDocument();
-    });
-
-    // Check if the plant is actually pre-selected in the dropdown
     await waitFor(() => {
       const plantSelect = screen.getByLabelText(/Plant/i) as HTMLSelectElement;
-      expect(plantSelect.value).toBe(testPlantId);
+      expect(plantSelect.value).toBe(plantId);
     });
   });
 
   it("shows normal plant selection when no preselectedPlantId is provided", async () => {
-    const mockOnSuccess = jest.fn();
-
-    render(<CareLogForm onSuccess={mockOnSuccess} />);
-
-    // Wait for component to render
-    await waitFor(() => {
-      const defaultOption = screen.getByText("Select a plant...");
-      expect(defaultOption).toBeInTheDocument();
+    await plantService.addPlant({
+      varietyId: "test-variety",
+      varietyName: "Test Variety",
+      name: "Test Plant",
+      plantedDate: new Date(),
+      location: "Location 1",
+      container: "Container 1",
+      currentStage: "vegetative",
+      isActive: true,
     });
 
-    // Verify no plant is pre-selected
-    const plantSelect = screen.getByLabelText(/Plant/i) as HTMLSelectElement;
-    expect(plantSelect.value).toBe("");
+    const mockOnSuccess = jest.fn();
+
+    renderWithRouter(<CareLogForm onSuccess={mockOnSuccess} />);
+
+    // Wait for plants to load first
+    await waitFor(() => {
+      const plantSelect = screen.getByLabelText(/Plant/i) as HTMLSelectElement;
+      expect(plantSelect.value).toBe("");
+    });
+
+    // Then check that the plant option appears
+    await waitFor(() => {
+      expect(screen.getByText("Test Plant - Location 1")).toBeInTheDocument();
+    });
   });
 
   it("allows user to change pre-selected plant", async () => {
-    // Create two test plants
     const plant1Id = await plantService.addPlant({
       varietyId: "test-variety-1",
       varietyName: "Plant One",
@@ -95,36 +101,32 @@ describe("CareLogForm Pre-Selection", () => {
     const mockOnSuccess = jest.fn();
     const user = userEvent.setup();
 
-    render(
+    renderWithRouter(
       <CareLogForm onSuccess={mockOnSuccess} preselectedPlantId={plant1Id} />
     );
 
-    // Wait for plants to load and components to render
+    // Wait for plants to load
     await waitFor(() => {
       expect(screen.getByText("Plant One - Location 1")).toBeInTheDocument();
       expect(screen.getByText("Plant Two - Location 2")).toBeInTheDocument();
     });
 
-    // Get the current value of the plant select after it loads and check for pre-selection
     await waitFor(() => {
       const plantSelect = screen.getByLabelText(/Plant/i) as HTMLSelectElement;
       expect(plantSelect.value).toBe(plant1Id);
     });
 
-    // Change to different plant
     const plantSelect = screen.getByLabelText(/Plant/i);
     await user.selectOptions(plantSelect, plant2Id);
 
-    // Verify the selection changed
     expect((plantSelect as HTMLSelectElement).value).toBe(plant2Id);
   });
 
   it("renders form with basic activity fields", async () => {
     const mockOnSuccess = jest.fn();
 
-    render(<CareLogForm onSuccess={mockOnSuccess} />);
+    renderWithRouter(<CareLogForm onSuccess={mockOnSuccess} />);
 
-    // Wait for component to render and check basic form structure
     await waitFor(() => {
       expect(screen.getByText("Log Care Activity")).toBeInTheDocument();
       expect(screen.getByLabelText(/Plant/i)).toBeInTheDocument();
@@ -132,7 +134,6 @@ describe("CareLogForm Pre-Selection", () => {
       expect(screen.getByLabelText(/Date/i)).toBeInTheDocument();
     });
 
-    // Check default activity type options
     expect(screen.getByText("💧 Watering")).toBeInTheDocument();
     expect(screen.getByText("🌱 Fertilizing")).toBeInTheDocument();
     expect(screen.getByText("👁️ Observation")).toBeInTheDocument();
@@ -141,24 +142,20 @@ describe("CareLogForm Pre-Selection", () => {
   it("shows watering fields when water activity is selected", async () => {
     const mockOnSuccess = jest.fn();
 
-    render(<CareLogForm onSuccess={mockOnSuccess} />);
+    renderWithRouter(<CareLogForm onSuccess={mockOnSuccess} />);
 
-    // Wait for component to render and check for water amount field by text content
     await waitFor(() => {
       expect(screen.getByText("Water Amount *")).toBeInTheDocument();
     });
 
-    // Check for water amount input field by placeholder
     expect(screen.getByPlaceholderText("Amount")).toBeInTheDocument();
 
-    // Check for water unit options
     expect(screen.getByText("oz")).toBeInTheDocument();
     expect(screen.getByText("ml")).toBeInTheDocument();
     expect(screen.getByText("cups")).toBeInTheDocument();
   });
 
   it("displays proper plant formatting in dropdown options", async () => {
-    // Create a plant with both name and varietyName to test the formatting
     await plantService.addPlant({
       varietyId: "test-variety",
       varietyName: "Cherry Tomato",
@@ -172,22 +169,18 @@ describe("CareLogForm Pre-Selection", () => {
 
     const mockOnSuccess = jest.fn();
 
-    render(<CareLogForm onSuccess={mockOnSuccess} />);
+    renderWithRouter(<CareLogForm onSuccess={mockOnSuccess} />);
 
-    // Wait for plants to load
     await waitFor(() => {
-      // Should display: name (if present) or varietyName - location
       const expectedText = "My Cherry Plant - Window Sill";
       expect(screen.getByText(expectedText)).toBeInTheDocument();
     });
   });
 
   it("handles plant without custom name correctly", async () => {
-    // Create a plant without a custom name
     await plantService.addPlant({
       varietyId: "test-variety",
       varietyName: "Roma Tomato",
-      // No custom name provided
       plantedDate: new Date(),
       location: "Greenhouse",
       container: "3 gallon pot",
@@ -197,11 +190,9 @@ describe("CareLogForm Pre-Selection", () => {
 
     const mockOnSuccess = jest.fn();
 
-    render(<CareLogForm onSuccess={mockOnSuccess} />);
+    renderWithRouter(<CareLogForm onSuccess={mockOnSuccess} />);
 
-    // Wait for plants to load
     await waitFor(() => {
-      // Should display: varietyName - location (since no custom name)
       const expectedText = "Roma Tomato - Greenhouse";
       expect(screen.getByText(expectedText)).toBeInTheDocument();
     });

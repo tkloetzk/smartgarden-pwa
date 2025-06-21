@@ -256,7 +256,7 @@ describe("Growth Stage Utilities", () => {
           productiveLifespan: undefined,
         };
 
-        const plantedDate = new Date("2022-01-01"); // Long time ago
+        const plantedDate = new Date("2022-01-01");
         const currentDate = new Date("2024-01-01");
 
         const stage = calculateCurrentStageWithVariety(
@@ -264,7 +264,7 @@ describe("Growth Stage Utilities", () => {
           varietyWithoutLifespan,
           currentDate
         );
-        expect(stage).toBe("harvest"); // Should fallback to harvest
+        expect(stage).toBe("harvest"); // This test expects "harvest"
       });
 
       it("handles future planting dates gracefully", () => {

@@ -23,7 +23,7 @@ interface QuickAction {
   label: string;
   emoji: string;
   action: () => void;
-  variant?: "primary" | "outline" | "destructive" | "secondary" | "ghost"; // Updated type
+  variant?: "primary" | "outline" | "destructive" | "secondary" | "ghost";
   isContextual?: boolean;
 }
 
@@ -122,7 +122,7 @@ const Dashboard = () => {
           label: `Water ${getPlantDisplayName(plant)}`,
           emoji: "💧",
           action: () => navigate(`/log-care?plantId=${plant.id}&type=water`),
-          variant: "primary", // Changed from "default" to "primary"
+          variant: "primary",
           isContextual: true,
         });
       }
@@ -142,13 +142,13 @@ const Dashboard = () => {
           emoji: "🌱",
           action: () =>
             navigate(`/log-care?plantId=${plant.id}&type=fertilize`),
-          variant: "primary", // Changed from "default" to "primary"
+          variant: "primary",
           isContextual: true,
         });
       }
     }
 
-    // Standard actions (always available) - removed "Add Plant"
+    // Standard actions (always available)
     const standardActions: QuickAction[] = [
       {
         id: "log-care",
@@ -173,8 +173,6 @@ const Dashboard = () => {
       },
     ];
 
-    // If we have contextual actions, show all standard actions
-    // If no contextual actions, show all standard actions
     return [...actions, ...standardActions];
   };
 
@@ -347,7 +345,7 @@ const Dashboard = () => {
             {quickActions.map((action) => (
               <Button
                 key={action.id}
-                variant={action.variant || "outline"} // This is fine since "outline" is valid
+                variant={action.variant || "outline"}
                 onClick={action.action}
                 className={`h-20 flex-col gap-1 ${
                   action.isContextual
