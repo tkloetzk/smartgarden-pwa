@@ -1,195 +1,235 @@
-// src/components/dashboard/TaskItem.tsx (completely redesigned)
+// src/pages/dashboard/TaskItem.tsx - Enhanced version
+
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/Button";
-import { UpcomingTask } from "@/types/scheduling";
+import { StatusBadge } from "@/components/ui/StatusBadge";
+import {
+  UpcomingTask,
+  QuickCompleteOption,
+  QuickCompletionValues,
+} from "@/types/scheduling";
 
 interface TaskItemProps {
   task: UpcomingTask;
-  onQuickAction?: (taskId: string, action: string) => void;
+  onQuickComplete?: (
+    taskId: string,
+    values: QuickCompletionValues
+  ) => Promise<void>;
+  onBypass?: (taskId: string, reason: string) => Promise<void>;
+  className?: string;
 }
 
-const TaskItem: React.FC<TaskItemProps> = ({ task, onQuickAction }) => {
+const TaskItem: React.FC<TaskItemProps> = ({
+  task,
+  onQuickComplete,
+  onBypass,
+  className = "",
+}) => {
   const navigate = useNavigate();
-  const [isExpanded, setIsExpanded] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [showBypassDialog, setShowBypassDialog] = useState(false);
+  const [bypassReason, setBypassReason] = useState("");
 
-  const getTaskInfo = (taskDescription: string, dueIn: string) => {
-    const taskLower = taskDescription.toLowerCase();
-
-    if (taskLower.includes("water")) {
-      return {
-        icon: "💧",
-        action: "Time to water",
-        description: "Check if soil feels dry, then water until runoff",
-        urgency: getUrgencyFromDueIn(dueIn),
-        urgencyColor: getUrgencyColor(dueIn),
-        quickActions: ["Water Now", "Not Needed", "Check Later"],
-      };
-    }
-
-    if (taskLower.includes("health") || taskLower.includes("observe")) {
-      return {
-        icon: "👀",
-        action: "Health check time",
-        description: "Look for pests, diseased leaves, or growth issues",
-        urgency: getUrgencyFromDueIn(dueIn),
-        urgencyColor: getUrgencyColor(dueIn),
-        quickActions: ["Looks Good", "Take Photo", "Found Issues"],
-      };
-    }
-
-    if (taskLower.includes("fertiliz")) {
-      return {
-        icon: "🌱",
-        action: "Feeding time",
-        description: "Apply nutrients to support healthy growth",
-        urgency: getUrgencyFromDueIn(dueIn),
-        urgencyColor: getUrgencyColor(dueIn),
-        quickActions: ["Fed Plant", "Skip This Week", "Check Growth"],
-      };
-    }
-
-    // Default case
-    return {
-      icon: "📋",
-      action: taskDescription,
-      description: "Complete this care task for your plant",
-      urgency: getUrgencyFromDueIn(dueIn),
-      urgencyColor: getUrgencyColor(dueIn),
-      quickActions: ["Done", "Skip", "View Plant"],
-    };
+  const handleTaskClick = () => {
+    navigate(`/plants/${task.plantId}`);
   };
 
-  const getUrgencyFromDueIn = (dueIn: string): string => {
-    if (dueIn.includes("overdue")) {
-      const days = dueIn.match(/\d+/)?.[0];
-      return `${days} days overdue`;
-    }
-    if (dueIn.includes("today")) {
-      return "Today";
-    }
-    if (dueIn.includes("tomorrow")) {
-      return "Tomorrow";
-    }
-    return dueIn;
-  };
+  const handleQuickComplete = async (option: QuickCompleteOption) => {
+    if (!onQuickComplete) return;
 
-  const getUrgencyColor = (dueIn: string): string => {
-    if (dueIn.includes("overdue"))
-      return "text-red-600 bg-red-50 border-red-200";
-    if (dueIn.includes("today"))
-      return "text-orange-600 bg-orange-50 border-orange-200";
-    return "text-blue-600 bg-blue-50 border-blue-200";
-  };
-
-  const handleQuickAction = (action: string) => {
-    if (onQuickAction) {
-      onQuickAction(task.id, action);
+    setIsLoading(true);
+    try {
+      await onQuickComplete(task.id, option.values);
+    } catch (error) {
+      console.error("Failed to quick complete task:", error);
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  const taskInfo = getTaskInfo(task.task, task.dueIn);
+  const handleBypass = async () => {
+    if (!onBypass || !bypassReason.trim()) return;
+
+    setIsLoading(true);
+    try {
+      await onBypass(task.id, bypassReason);
+      setShowBypassDialog(false);
+      setBypassReason("");
+    } catch (error) {
+      console.error("Failed to bypass task:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const getTaskIcon = (taskName: string) => {
+    const name = taskName.toLowerCase();
+    if (name.includes("water")) return "💧";
+    if (name.includes("fertiliz")) return "🌱";
+    if (name.includes("observe") || name.includes("health")) return "👁";
+    if (name.includes("prune") || name.includes("trim")) return "✂️";
+    return "📋";
+  };
+
+  const getStatusFromPriority = (priority: "low" | "medium" | "high") => {
+    switch (priority) {
+      case "high":
+        return "critical";
+      case "medium":
+        return "attention";
+      case "low":
+        return "healthy";
+      default:
+        return "healthy";
+    }
+  };
 
   return (
-    <div className={`rounded-xl border-2 ${taskInfo.urgencyColor} bg-card`}>
-      <div className="p-4">
-        {/* Header with plant name and action */}
-        <div className="flex items-start justify-between mb-3">
-          <div className="flex-1">
-            <div className="flex items-center gap-2 mb-1">
-              <span className="text-xl">{taskInfo.icon}</span>
-              <h3 className="font-bold text-foreground">{task.name}</h3>
+    <>
+      <div
+        className={`bg-card border border-border rounded-lg p-4 ${className}`}
+      >
+        {/* Task Header */}
+        <div className="cursor-pointer" onClick={handleTaskClick}>
+          <div className="flex items-start justify-between mb-3">
+            <div className="flex-1">
+              <div className="flex items-center gap-2 mb-1">
+                <span className="text-lg">{getTaskIcon(task.task)}</span>
+                <span className="font-semibold text-foreground">
+                  {task.name}
+                </span>
+              </div>
+              <div className="text-sm text-muted-foreground mb-2">
+                {task.task} • {task.dueIn}
+              </div>
+              <StatusBadge
+                status={getStatusFromPriority(task.priority)}
+                size="sm"
+              />
             </div>
-
-            <div className="font-semibold text-foreground mb-1">
-              {taskInfo.action}
-            </div>
-
-            <div className="text-sm text-muted-foreground">
-              {taskInfo.description}
-            </div>
-          </div>
-
-          {/* Urgency indicator */}
-          <div
-            className={`px-3 py-1 rounded-full text-xs font-medium border ${taskInfo.urgencyColor}`}
-          >
-            {taskInfo.urgency}
           </div>
         </div>
 
-        {/* Quick action buttons */}
-        <div className="flex flex-wrap gap-2 mb-2">
-          {taskInfo.quickActions.slice(0, 2).map((action) => (
+        {/* Action Buttons */}
+        <div className="flex gap-2 flex-wrap">
+          {/* Quick Complete Options */}
+          {task.quickCompleteOptions?.map((option, ind) => (
             <Button
-              key={action}
-              variant={
-                action.includes("Not") || action.includes("Skip")
-                  ? "outline"
-                  : "primary"
-              }
+              key={ind}
+              variant="outline"
               size="sm"
-              className="text-sm h-8"
-              onClick={() => handleQuickAction(action)}
+              onClick={() => handleQuickComplete(option)}
+              disabled={isLoading}
+              className="bg-green-50 border-green-200 text-green-700 hover:bg-green-100"
             >
-              {action}
+              {option.label}
             </Button>
           ))}
 
-          {taskInfo.quickActions.length > 2 && (
+          {/* Bypass Button */}
+          {task.canBypass && (
             <Button
-              variant="ghost"
+              variant="outline"
               size="sm"
-              className="text-sm h-8"
-              onClick={() => setIsExpanded(!isExpanded)}
+              onClick={() => setShowBypassDialog(true)}
+              disabled={isLoading}
+              className="bg-yellow-50 border-yellow-200 text-yellow-700 hover:bg-yellow-100"
             >
-              {isExpanded ? "Less" : "More"}
-              <svg
-                className={`w-3 h-3 ml-1 transition-transform ${
-                  isExpanded ? "rotate-180" : ""
-                }`}
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M19 9l-7 7-7-7"
-                />
-              </svg>
+              Bypass
             </Button>
           )}
+
+          {/* Log Manually Button */}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() =>
+              navigate(
+                `/care/log?plantId=${task.plantId}&activityType=${
+                  task.task.toLowerCase().includes("water")
+                    ? "water"
+                    : "fertilize"
+                }`
+              )
+            }
+            disabled={isLoading}
+          >
+            Log Manually
+          </Button>
         </div>
-
-        {/* Expanded actions */}
-        {isExpanded && (
-          <div className="flex flex-wrap gap-2 pt-2 border-t border-border">
-            {taskInfo.quickActions.slice(2).map((action) => (
-              <Button
-                key={action}
-                variant="primary"
-                size="sm"
-                className="text-sm h-8"
-                onClick={() => handleQuickAction(action)}
-              >
-                {action}
-              </Button>
-            ))}
-
-            <Button
-              variant="ghost"
-              size="sm"
-              className="text-sm h-8 text-blue-600"
-              onClick={() => navigate(`/plants/${task.plantId}`)}
-            >
-              View Plant Details →
-            </Button>
-          </div>
-        )}
       </div>
-    </div>
+
+      {/* Bypass Dialog */}
+      {showBypassDialog && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-background rounded-lg p-6 w-full max-w-md">
+            <h3 className="text-lg font-semibold mb-4">
+              Bypass Task: {task.task}
+            </h3>
+            <p className="text-sm text-muted-foreground mb-4">
+              Why are you skipping this task? This helps improve future
+              recommendations.
+            </p>
+
+            <div className="space-y-3 mb-4">
+              {[
+                "Plant looks healthy, doesn't need it yet",
+                "Soil still moist from recent rain/watering",
+                "Weather conditions not suitable",
+                "Plant dormant/not growing actively",
+                "Other reason",
+              ].map((reason) => (
+                <label
+                  key={reason}
+                  className="flex items-center space-x-2 cursor-pointer"
+                >
+                  <input
+                    type="radio"
+                    name="bypassReason"
+                    value={reason}
+                    checked={bypassReason === reason}
+                    onChange={(e) => setBypassReason(e.target.value)}
+                    className="text-primary"
+                  />
+                  <span className="text-sm">{reason}</span>
+                </label>
+              ))}
+            </div>
+
+            {bypassReason === "Other reason" && (
+              <textarea
+                placeholder="Please specify..."
+                value={bypassReason === "Other reason" ? "" : bypassReason}
+                onChange={(e) => setBypassReason(e.target.value)}
+                className="w-full p-3 border border-border rounded-md text-sm mb-4"
+                rows={3}
+              />
+            )}
+
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setShowBypassDialog(false);
+                  setBypassReason("");
+                }}
+                className="flex-1"
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={handleBypass}
+                disabled={!bypassReason.trim() || isLoading}
+                className="flex-1"
+              >
+                {isLoading ? "Bypassing..." : "Bypass Task"}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 };
 

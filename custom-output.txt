@@ -125,6 +125,7 @@ src/
       QuickCompletionButtons.tsx
     dashboard/
       index.tsx
+      TaskGroup.tsx
       TaskItem.tsx
     plants/
       AddPlant.tsx
@@ -136,6 +137,7 @@ src/
     careSchedulingService.ts
     growthStageService.ts
     smartDefaultsService.ts
+    taskGroupingService.ts
   styles/
     globals.css
   types/
@@ -179,6 +181,187 @@ vite.config.ts
 ================================================================
 Files
 ================================================================
+
+================
+File: src/pages/dashboard/TaskGroup.tsx
+================
+ 1: import React, { useState } from "react";
+ 2: import { Card, CardContent, CardHeader } from "@/components/ui/Card";
+ 3: import {
+ 4:   QuickCompletionValues,
+ 5:   TaskGroup as TaskGroupType,
+ 6: } from "@/types/scheduling";
+ 7: import TaskItem from "./TaskItem";
+ 8: 
+ 9: interface TaskGroupProps {
+10:   group: TaskGroupType;
+11:   onQuickComplete?: (
+12:     taskId: string,
+13:     values: QuickCompletionValues
+14:   ) => Promise<void>;
+15:   onBypass?: (taskId: string, reason: string) => Promise<void>;
+16:   onToggleExpanded?: (groupType: string) => void;
+17: }
+18: 
+19: const TaskGroup: React.FC<TaskGroupProps> = ({
+20:   group,
+21:   onQuickComplete,
+22:   onBypass,
+23:   onToggleExpanded,
+24: }) => {
+25:   const [isExpanded, setIsExpanded] = useState(group.isExpanded);
+26: 
+27:   const handleToggle = () => {
+28:     const newExpanded = !isExpanded;
+29:     setIsExpanded(newExpanded);
+30:     onToggleExpanded?.(group.type);
+31:   };
+32: 
+33:   const urgentTaskCount = group.tasks.filter(
+34:     (task) => task.priority === "high" || task.dueIn.includes("overdue")
+35:   ).length;
+36: 
+37:   return (
+38:     <Card className="w-full">
+39:       <CardHeader className="cursor-pointer hover:bg-muted/50 transition-colors">
+40:         <div
+41:           className="flex items-center justify-between"
+42:           onClick={handleToggle}
+43:         >
+44:           {}
+45:           <div className="flex items-center gap-3">
+46:             <span className="text-2xl">{group.emoji}</span>
+47:             <div>
+48:               <h3 className="text-lg font-semibold">{group.title}</h3>
+49:               <p className="text-sm text-muted-foreground">
+50:                 {group.tasks.length} task{group.tasks.length !== 1 ? "s" : ""}
+51:                 {urgentTaskCount > 0 && (
+52:                   <span className="ml-2 px-2 py-0.5 bg-red-100 text-red-700 rounded-full text-xs font-medium">
+53:                     {urgentTaskCount} urgent
+54:                   </span>
+55:                 )}
+56:               </p>
+57:             </div>
+58:           </div>
+59: 
+60:           <div className="flex items-center gap-2">
+61:             <svg
+62:               className={`w-5 h-5 transition-transform ${
+63:                 isExpanded ? "rotate-180" : ""
+64:               }`}
+65:               fill="none"
+66:               stroke="currentColor"
+67:               viewBox="0 0 24 24"
+68:             >
+69:               <path
+70:                 strokeLinecap="round"
+71:                 strokeLinejoin="round"
+72:                 strokeWidth={2}
+73:                 d="M19 9l-7 7-7-7"
+74:               />
+75:             </svg>
+76:           </div>
+77:         </div>
+78:       </CardHeader>
+79: 
+80:       {isExpanded && (
+81:         <CardContent className="pt-0">
+82:           <div className="space-y-3">
+83:             {group.tasks.map((task) => (
+84:               <TaskItem
+85:                 key={task.id}
+86:                 task={task}
+87:                 onQuickComplete={onQuickComplete}
+88:                 onBypass={onBypass}
+89:               />
+90:             ))}
+91:           </div>
+92:         </CardContent>
+93:       )}
+94:     </Card>
+95:   );
+96: };
+97: 
+98: export default TaskGroup;
+
+================
+File: src/services/taskGroupingService.ts
+================
+ 1: import { UpcomingTask, TaskGroup } from "@/types/scheduling";
+ 2: 
+ 3: export class TaskGroupingService {
+ 4:   static groupTasksByActivity(tasks: UpcomingTask[]): TaskGroup[] {
+ 5:     const groups: TaskGroup[] = [
+ 6:       {
+ 7:         type: "watering",
+ 8:         title: "Watering",
+ 9:         emoji: "💧",
+10:         tasks: [],
+11:         isExpanded: true,
+12:       },
+13:       {
+14:         type: "fertilizing",
+15:         title: "Fertilizing",
+16:         emoji: "🌱",
+17:         tasks: [],
+18:         isExpanded: true,
+19:       },
+20:       {
+21:         type: "observation",
+22:         title: "Health Checks",
+23:         emoji: "👁",
+24:         tasks: [],
+25:         isExpanded: true,
+26:       },
+27:       {
+28:         type: "maintenance",
+29:         title: "Maintenance",
+30:         emoji: "✂️",
+31:         tasks: [],
+32:         isExpanded: false,
+33:       },
+34:     ];
+35: 
+36: 
+37:     tasks.forEach((task) => {
+38:       const taskName = task.task.toLowerCase();
+39: 
+40:       if (taskName.includes("water") || taskName.includes("moisture")) {
+41:         groups[0].tasks.push(task);
+42:       } else if (taskName.includes("fertiliz") || taskName.includes("feed")) {
+43:         groups[1].tasks.push(task);
+44:       } else if (
+45:         taskName.includes("observe") ||
+46:         taskName.includes("health") ||
+47:         taskName.includes("check")
+48:       ) {
+49:         groups[2].tasks.push(task);
+50:       } else {
+51:         groups[3].tasks.push(task);
+52:       }
+53:     });
+54: 
+55: 
+56:     groups.forEach((group) => {
+57:       const hasHighPriority = group.tasks.some(
+58:         (task) => task.priority === "high"
+59:       );
+60:       if (hasHighPriority) {
+61:         group.isExpanded = true;
+62:       }
+63:     });
+64: 
+65: 
+66:     return groups.filter((group) => group.tasks.length > 0);
+67:   }
+68: 
+69:   static shouldExpandGroup(group: TaskGroup): boolean {
+70: 
+71:     return group.tasks.some(
+72:       (task) => task.priority === "high" || task.dueIn.includes("overdue")
+73:     );
+74:   }
+75: }
 
 ================
 File: public/vite.svg
@@ -3848,18 +4031,48 @@ File: src/types/scheduling.ts
  5:   task: string;
  6:   dueIn: string;
  7:   priority: "low" | "medium" | "high";
- 8:   plantStage: string;
- 9:   dueDate: Date;
+ 8:   quickCompleteOptions?: QuickCompleteOption[];
+ 9:   canBypass: boolean;
 10: }
 11: 
-12: export interface TaskRecommendation {
-13:   task: UpcomingTask;
-14:   protocol: {
-15:     expectedMoisture?: [number, number];
-16:     lastReading?: number;
-17:     daysSinceLastCare?: number;
-18:   };
+12: export interface TaskBypassReason {
+13:   id: string;
+14:   taskId: string;
+15:   plantId: string;
+16:   reason: string;
+17:   timestamp: Date;
+18:   userId?: string;
 19: }
+20: 
+21: export interface TaskGroup {
+22:   type: "watering" | "fertilizing" | "observation" | "maintenance";
+23:   title: string;
+24:   emoji: string;
+25:   tasks: UpcomingTask[];
+26:   isExpanded: boolean;
+27: }
+28: 
+29: export interface QuickCompleteOption {
+30:   label: string;
+31:   values: QuickCompletionValues;
+32: }
+33: 
+34: export interface QuickCompletionValues {
+35:   waterValue?: number;
+36:   waterUnit?: string;
+37:   product?: string;
+38:   dilution?: string;
+39:   amount?: string;
+40: }
+41: 
+42: export interface TaskRecommendation {
+43:   task: UpcomingTask;
+44:   protocol: {
+45:     expectedMoisture?: [number, number];
+46:     lastReading?: number;
+47:     daysSinceLastCare?: number;
+48:   };
+49: }
 
 ================
 File: src/types/user.ts
@@ -4443,7 +4656,7 @@ File: vite.config.ts
 ================
 File: src/__tests__/components/Dashboard.test.tsx
 ================
-  1: import { render, screen, waitFor, within } from "@testing-library/react";
+  1: import { render, screen, waitFor } from "@testing-library/react";
   2: import userEvent from "@testing-library/user-event";
   3: import { BrowserRouter } from "react-router-dom";
   4: import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -4452,346 +4665,394 @@ File: src/__tests__/components/Dashboard.test.tsx
   7: import { CareSchedulingService } from "@/services/careSchedulingService";
   8: 
   9: 
- 10: jest.mock("../../hooks/useFirstTimeUser", () => ({
- 11:   useFirstTimeUser: () => ({
- 12:     isFirstTime: false,
- 13:     isLoading: false,
- 14:     markOnboardingComplete: jest.fn(),
- 15:   }),
- 16: }));
- 17: 
- 18: 
- 19: jest.mock("../../types/database", () => ({
- 20:   plantService: {
- 21:     getActivePlants: jest.fn(),
- 22:     addPlant: jest.fn(),
- 23:     getPlant: jest.fn(),
- 24:     updatePlant: jest.fn(),
- 25:     deletePlant: jest.fn(),
- 26:   },
- 27: }));
- 28: 
- 29: 
- 30: jest.mock("@/services/careSchedulingService", () => ({
- 31:   CareSchedulingService: {
- 32:     getUpcomingTasks: jest.fn(),
- 33:   },
- 34: }));
- 35: 
- 36: const mockPlantService = plantService as jest.Mocked<typeof plantService>;
- 37: 
- 38: 
- 39: const mockCareSchedulingService = CareSchedulingService as jest.Mocked<
- 40:   typeof CareSchedulingService
- 41: >;
+ 10: jest.mock("@/services/smartDefaultsService", () => ({
+ 11:   SmartDefaultsService: {
+ 12:     getQuickCompletionOptions: jest.fn(),
+ 13:   },
+ 14: }));
+ 15: 
+ 16: jest.mock("@/services/taskGroupingService", () => ({
+ 17:   TaskGroupingService: {
+ 18:     groupTasksByActivity: jest.fn(),
+ 19:   },
+ 20: }));
+ 21: 
+ 22: 
+ 23: import { SmartDefaultsService } from "@/services/smartDefaultsService";
+ 24: import { TaskGroupingService } from "@/services/taskGroupingService";
+ 25: 
+ 26: const mockSmartDefaultsService = SmartDefaultsService as jest.Mocked<
+ 27:   typeof SmartDefaultsService
+ 28: >;
+ 29: const mockTaskGroupingService = TaskGroupingService as jest.Mocked<
+ 30:   typeof TaskGroupingService
+ 31: >;
+ 32: 
+ 33: 
+ 34: jest.mock("../../hooks/useFirstTimeUser", () => ({
+ 35:   useFirstTimeUser: () => ({
+ 36:     isFirstTime: false,
+ 37:     isLoading: false,
+ 38:     markOnboardingComplete: jest.fn(),
+ 39:   }),
+ 40: }));
+ 41: 
  42: 
- 43: function renderDashboard() {
- 44:   const queryClient = new QueryClient({
- 45:     defaultOptions: {
- 46:       queries: {
- 47:         retry: false,
- 48:       },
- 49:       mutations: { retry: false },
- 50:     },
- 51:   });
+ 43: jest.mock("../../types/database", () => ({
+ 44:   plantService: {
+ 45:     getActivePlants: jest.fn(),
+ 46:     addPlant: jest.fn(),
+ 47:     getPlant: jest.fn(),
+ 48:     updatePlant: jest.fn(),
+ 49:     deletePlant: jest.fn(),
+ 50:   },
+ 51: }));
  52: 
- 53:   return render(
- 54:     <QueryClientProvider client={queryClient}>
- 55:       <BrowserRouter>
- 56:         <Dashboard />
- 57:       </BrowserRouter>
- 58:     </QueryClientProvider>
- 59:   );
- 60: }
+ 53: 
+ 54: jest.mock("@/services/careSchedulingService", () => ({
+ 55:   CareSchedulingService: {
+ 56:     getUpcomingTasks: jest.fn(),
+ 57:   },
+ 58: }));
+ 59: 
+ 60: const mockPlantService = plantService as jest.Mocked<typeof plantService>;
  61: 
- 62: describe("Dashboard", () => {
- 63:   beforeEach(() => {
- 64:     jest.clearAllMocks();
- 65:   });
+ 62: 
+ 63: const mockCareSchedulingService = CareSchedulingService as jest.Mocked<
+ 64:   typeof CareSchedulingService
+ 65: >;
  66: 
- 67:   it("shows loading state initially", () => {
- 68:     mockPlantService.getActivePlants.mockImplementation(
- 69:       () => new Promise(() => {})
- 70:     );
- 71: 
- 72:     renderDashboard();
- 73: 
- 74:     expect(screen.getByText("Loading your garden...")).toBeInTheDocument();
+ 67: function renderDashboard() {
+ 68:   const queryClient = new QueryClient({
+ 69:     defaultOptions: {
+ 70:       queries: {
+ 71:         retry: false,
+ 72:       },
+ 73:       mutations: { retry: false },
+ 74:     },
  75:   });
  76: 
- 77:   it("displays empty state when no plants exist", async () => {
- 78:     mockPlantService.getActivePlants.mockResolvedValue([]);
- 79:     mockCareSchedulingService.getUpcomingTasks.mockResolvedValue([]);
- 80: 
- 81:     renderDashboard();
- 82: 
- 83:     await waitFor(() => {
- 84: 
- 85:       expect(screen.getByText("Start Your Digital Garden")).toBeInTheDocument();
- 86:       expect(
- 87:         screen.getByText(
- 88:           "Add your first plant to begin tracking its growth, scheduling care tasks, and building healthy growing habits."
- 89:         )
- 90:       ).toBeInTheDocument();
- 91:     });
- 92:   });
- 93: 
- 94:   it("displays plants and tasks when data exists", async () => {
- 95:     const mockPlants = [
- 96:       {
- 97:         id: "1",
- 98:         varietyId: "astro-arugula",
- 99:         varietyName: "Astro Arugula",
-100:         name: "My Arugula",
-101:         plantedDate: new Date("2024-01-01"),
-102:         currentStage: "vegetative" as const,
-103:         location: "Kitchen Window",
-104:         container: "4 inch pot",
-105:         isActive: true,
-106:         notes: [],
-107:         createdAt: new Date(),
-108:         updatedAt: new Date(),
-109:       },
-110:     ];
-111: 
-112:     const mockTasks = [
-113:       {
-114:         id: "water-1",
-115:         plantId: "1",
-116:         name: "My Arugula",
-117:         task: "Check water level",
-118:         dueIn: "2 days",
-119:         priority: "medium" as const,
-120:         plantStage: "vegetative",
-121:         dueDate: new Date(),
-122:       },
-123:     ];
-124: 
-125:     mockPlantService.getActivePlants.mockResolvedValue(mockPlants);
-126:     mockCareSchedulingService.getUpcomingTasks.mockResolvedValue(mockTasks);
-127: 
-128:     renderDashboard();
-129: 
-130:     await waitFor(() => {
-131: 
-132:       expect(screen.getByTestId("active-plants-count")).toHaveTextContent("1");
-133:       expect(screen.getByTestId("tasks-due-count")).toHaveTextContent("1");
-134: 
-135: 
-136:       expect(screen.getByText("Recent Plants")).toBeInTheDocument();
-137:       const recentPlantsContent = screen.getByTestId("recent-plants-content");
-138:       expect(recentPlantsContent).toBeInTheDocument();
-139: 
-140: 
-141:       expect(
-142:         within(recentPlantsContent).getByText("My Arugula")
-143:       ).toBeInTheDocument();
-144:       expect(
-145:         within(recentPlantsContent).getByText("Stage: vegetative")
-146:       ).toBeInTheDocument();
-147: 
-148: 
-149:       expect(screen.getByText("Today's Tasks")).toBeInTheDocument();
-150:       expect(screen.getByText("Check water level")).toBeInTheDocument();
-151:     });
-152:   });
-153: 
-154:   it("displays plants with no tasks", async () => {
-155:     const mockPlants = [
-156:       {
-157:         id: "1",
-158:         varietyId: "astro-arugula",
-159:         varietyName: "Astro Arugula",
-160:         name: "My Arugula",
-161:         plantedDate: new Date("2024-01-01"),
-162:         currentStage: "vegetative" as const,
-163:         location: "Kitchen Window",
-164:         container: "4 inch pot",
-165:         isActive: true,
-166:         notes: [],
-167:         createdAt: new Date(),
-168:         updatedAt: new Date(),
-169:       },
-170:     ];
-171: 
-172:     mockPlantService.getActivePlants.mockResolvedValue(mockPlants);
-173:     mockCareSchedulingService.getUpcomingTasks.mockResolvedValue([]);
-174: 
-175:     renderDashboard();
+ 77:   return render(
+ 78:     <QueryClientProvider client={queryClient}>
+ 79:       <BrowserRouter>
+ 80:         <Dashboard />
+ 81:       </BrowserRouter>
+ 82:     </QueryClientProvider>
+ 83:   );
+ 84: }
+ 85: 
+ 86: describe("Dashboard", () => {
+ 87:   beforeEach(() => {
+ 88:     jest.clearAllMocks();
+ 89:     mockSmartDefaultsService.getQuickCompletionOptions.mockResolvedValue([]);
+ 90:     mockTaskGroupingService.groupTasksByActivity.mockImplementation((tasks) => [
+ 91:       {
+ 92:         type: "watering",
+ 93:         title: "Watering",
+ 94:         emoji: "💧",
+ 95:         tasks: tasks.filter((task) =>
+ 96:           task.task.toLowerCase().includes("water")
+ 97:         ),
+ 98:         isExpanded: true,
+ 99:       },
+100:     ]);
+101:   });
+102: 
+103:   it("shows loading state initially", () => {
+104:     mockPlantService.getActivePlants.mockImplementation(
+105:       () => new Promise(() => {})
+106:     );
+107: 
+108:     renderDashboard();
+109: 
+110:     expect(screen.getByText("Loading your garden...")).toBeInTheDocument();
+111:   });
+112: 
+113:   it("displays empty state when no plants exist", async () => {
+114:     mockPlantService.getActivePlants.mockResolvedValue([]);
+115:     mockCareSchedulingService.getUpcomingTasks.mockResolvedValue([]);
+116: 
+117:     renderDashboard();
+118: 
+119:     await waitFor(() => {
+120: 
+121:       expect(screen.getByText("Welcome to SmartGarden!")).toBeInTheDocument();
+122:       expect(
+123:         screen.getByText("You don't have any plants yet. Let's get started!")
+124:       ).toBeInTheDocument();
+125:       expect(screen.getByText("Add Your First Plant")).toBeInTheDocument();
+126:     });
+127:   });
+128: 
+129:   it("displays plants and tasks when data exists", async () => {
+130:     const mockPlants = [
+131:       {
+132:         id: "1",
+133:         varietyId: "astro-arugula",
+134:         varietyName: "Astro Arugula",
+135:         name: "My Arugula",
+136:         plantedDate: new Date("2024-01-01"),
+137:         currentStage: "vegetative" as const,
+138:         location: "Kitchen Window",
+139:         container: "4 inch pot",
+140:         isActive: true,
+141:         notes: [],
+142:         createdAt: new Date(),
+143:         updatedAt: new Date(),
+144:       },
+145:     ];
+146: 
+147:     const mockTasks = [
+148:       {
+149:         id: "water-1",
+150:         plantId: "1",
+151:         name: "My Arugula",
+152:         task: "Check water level",
+153:         dueIn: "2 days",
+154:         priority: "medium" as const,
+155:         plantStage: "vegetative",
+156:         dueDate: new Date(),
+157:         canBypass: true,
+158:       },
+159:     ];
+160: 
+161:     mockPlantService.getActivePlants.mockResolvedValue(mockPlants);
+162:     mockCareSchedulingService.getUpcomingTasks.mockResolvedValue(mockTasks);
+163: 
+164:     renderDashboard();
+165: 
+166:     await waitFor(() => {
+167: 
+168:       expect(screen.getByText("Your Garden Dashboard")).toBeInTheDocument();
+169: 
+170: 
+171:       expect(screen.getByText("My Arugula")).toBeInTheDocument();
+172: 
+173: 
+174:       expect(screen.getByText(/Check water level/)).toBeInTheDocument();
+175: 
 176: 
-177:     await waitFor(() => {
+177:       expect(screen.getByText("Watering")).toBeInTheDocument();
 178: 
-179:       expect(screen.getByTestId("active-plants-count")).toHaveTextContent("1");
-180:       expect(screen.getByTestId("tasks-due-count")).toHaveTextContent("0");
+179: 
+180:       expect(screen.getByText("1 task")).toBeInTheDocument();
 181: 
 182: 
-183:       expect(screen.getByText("All caught up!")).toBeInTheDocument();
-184:       expect(screen.getByText("No tasks due today")).toBeInTheDocument();
-185:     });
-186:   });
-187: 
-188:   it("handles refresh functionality", async () => {
-189:     const mockPlants = [
-190:       {
-191:         id: "1",
-192:         varietyId: "astro-arugula",
-193:         varietyName: "Astro Arugula",
-194:         name: "My Arugula",
-195:         plantedDate: new Date("2024-01-01"),
-196:         currentStage: "vegetative" as const,
-197:         location: "Kitchen Window",
-198:         container: "4 inch pot",
-199:         isActive: true,
-200:         notes: [],
-201:         createdAt: new Date(),
-202:         updatedAt: new Date(),
-203:       },
-204:     ];
-205: 
-206:     mockPlantService.getActivePlants.mockResolvedValue(mockPlants);
-207:     mockCareSchedulingService.getUpcomingTasks.mockResolvedValue([]);
+183:       expect(screen.getByText("Quick Actions")).toBeInTheDocument();
+184: 
+185: 
+186:       expect(screen.getByText("Bypass")).toBeInTheDocument();
+187:       expect(screen.getByText("Log Manually")).toBeInTheDocument();
+188:     });
+189:   });
+190: 
+191:   it("displays dashboard with no pending tasks", async () => {
+192:     const mockPlants = [
+193:       {
+194:         id: "1",
+195:         varietyId: "astro-arugula",
+196:         varietyName: "Astro Arugula",
+197:         name: "My Arugula",
+198:         plantedDate: new Date("2024-01-01"),
+199:         currentStage: "vegetative" as const,
+200:         location: "Kitchen Window",
+201:         container: "4 inch pot",
+202:         isActive: true,
+203:         notes: [],
+204:         createdAt: new Date(),
+205:         updatedAt: new Date(),
+206:       },
+207:     ];
 208: 
-209:     renderDashboard();
-210: 
+209:     mockPlantService.getActivePlants.mockResolvedValue(mockPlants);
+210:     mockCareSchedulingService.getUpcomingTasks.mockResolvedValue([]);
 211: 
-212:     await waitFor(() => {
-213:       expect(screen.getByText("All caught up!")).toBeInTheDocument();
-214:     });
-215: 
-216: 
+212:     renderDashboard();
+213: 
+214:     await waitFor(() => {
+215:       expect(screen.getByText("Your Garden Dashboard")).toBeInTheDocument();
+216:       expect(screen.getByText("1 active plant growing")).toBeInTheDocument();
 217: 
 218: 
-219: 
-220:     expect(mockPlantService.getActivePlants).toHaveBeenCalledTimes(1);
-221:   });
-222: 
-223:   it("displays error state when service fails", async () => {
-224:     mockPlantService.getActivePlants.mockRejectedValue(
-225:       new Error("Database error")
-226:     );
-227: 
-228:     renderDashboard();
+219:       expect(screen.queryByText(/tasks? pending/)).not.toBeInTheDocument();
+220: 
+221: 
+222:       expect(screen.getByText("Watering")).toBeInTheDocument();
+223:       expect(screen.getByText("0 tasks")).toBeInTheDocument();
+224: 
+225: 
+226:       expect(screen.getByText("Quick Actions")).toBeInTheDocument();
+227:     });
+228:   });
 229: 
-230:     await waitFor(() => {
-231:       expect(screen.getByText("Failed to load plants")).toBeInTheDocument();
-232:       expect(screen.getByText("Try Again")).toBeInTheDocument();
-233:     });
-234:   });
-235: 
-236:   it("retries when error state try again button is clicked", async () => {
-237:     mockPlantService.getActivePlants
-238:       .mockRejectedValueOnce(new Error("Database error"))
-239:       .mockResolvedValueOnce([
-240:         {
-241:           id: "1",
-242:           varietyId: "astro-arugula",
-243:           varietyName: "Astro Arugula",
-244:           name: "My Arugula",
-245:           plantedDate: new Date("2024-01-01"),
-246:           currentStage: "vegetative" as const,
-247:           location: "Kitchen Window",
-248:           container: "4 inch pot",
-249:           isActive: true,
-250:           notes: [],
-251:           createdAt: new Date(),
-252:           updatedAt: new Date(),
-253:         },
-254:       ]);
-255:     mockCareSchedulingService.getUpcomingTasks.mockResolvedValue([]);
-256: 
-257:     renderDashboard();
-258: 
-259: 
-260:     await waitFor(() => {
-261:       expect(screen.getByText("Failed to load plants")).toBeInTheDocument();
-262:     });
-263: 
+230:   it("handles refresh functionality", async () => {
+231:     const mockPlants = [
+232:       {
+233:         id: "1",
+234:         varietyId: "astro-arugula",
+235:         varietyName: "Astro Arugula",
+236:         name: "My Arugula",
+237:         plantedDate: new Date("2024-01-01"),
+238:         currentStage: "vegetative" as const,
+239:         location: "Kitchen Window",
+240:         container: "4 inch pot",
+241:         isActive: true,
+242:         notes: [],
+243:         createdAt: new Date(),
+244:         updatedAt: new Date(),
+245:       },
+246:     ];
+247: 
+248:     mockPlantService.getActivePlants.mockResolvedValue(mockPlants);
+249:     mockCareSchedulingService.getUpcomingTasks.mockResolvedValue([]);
+250: 
+251:     renderDashboard();
+252: 
+253: 
+254:     await waitFor(() => {
+255:       expect(screen.getByText("Your Garden Dashboard")).toBeInTheDocument();
+256:       expect(screen.getByText("1 active plant growing")).toBeInTheDocument();
+257: 
+258:       expect(screen.getByText("0 tasks")).toBeInTheDocument();
+259:     });
+260: 
+261: 
+262:     expect(mockPlantService.getActivePlants).toHaveBeenCalledTimes(1);
+263:   });
 264: 
-265:     const tryAgainButton = screen.getByText("Try Again");
-266:     await userEvent.click(tryAgainButton);
-267: 
-268: 
-269:     await waitFor(() => {
-270:       expect(screen.getByTestId("active-plants-count")).toHaveTextContent("1");
-271:     });
-272: 
-273:     expect(mockPlantService.getActivePlants).toHaveBeenCalledTimes(2);
-274:   });
-275: 
-276:   it("shows multiple plants in recent plants section", async () => {
-277:     const mockPlants = [
-278:       {
-279:         id: "1",
-280:         varietyId: "astro-arugula",
-281:         varietyName: "Astro Arugula",
-282:         name: "My Arugula",
-283:         plantedDate: new Date("2024-01-01"),
-284:         currentStage: "vegetative" as const,
-285:         location: "Kitchen Window",
-286:         container: "4 inch pot",
-287:         isActive: true,
-288:         notes: [],
-289:         createdAt: new Date(),
-290:         updatedAt: new Date(),
-291:       },
-292:       {
-293:         id: "2",
-294:         varietyId: "baby-spinach",
-295:         varietyName: "Baby Spinach",
-296:         name: "Spinach Plant",
-297:         plantedDate: new Date("2024-01-05"),
-298:         currentStage: "seedling" as const,
-299:         location: "Main Bed",
-300:         container: "5 gallon bag",
-301:         isActive: true,
-302:         notes: [],
-303:         createdAt: new Date(),
-304:         updatedAt: new Date(),
-305:       },
-306:     ];
-307: 
-308:     const mockTasks = [
-309:       {
-310:         id: "water-1",
-311:         plantId: "1",
-312:         name: "My Arugula",
-313:         task: "Check water level",
-314:         dueIn: "2 days",
-315:         priority: "medium" as const,
-316:         plantStage: "vegetative",
-317:         dueDate: new Date(),
-318:       },
-319:       {
-320:         id: "water-2",
-321:         plantId: "2",
-322:         name: "Spinach Plant",
-323:         task: "Check water level",
-324:         dueIn: "1 day",
-325:         priority: "medium" as const,
-326:         plantStage: "seedling",
-327:         dueDate: new Date(),
-328:       },
-329:     ];
-330: 
-331:     mockPlantService.getActivePlants.mockResolvedValue(mockPlants);
-332:     mockCareSchedulingService.getUpcomingTasks.mockResolvedValue(mockTasks);
-333: 
-334:     renderDashboard();
-335: 
-336:     await waitFor(() => {
-337:       expect(screen.getByTestId("active-plants-count")).toHaveTextContent("2");
-338:       expect(screen.getByTestId("tasks-due-count")).toHaveTextContent("2");
-339: 
-340:       const recentPlantsContent = screen.getByTestId("recent-plants-content");
-341:       expect(
-342:         within(recentPlantsContent).getByText("My Arugula")
-343:       ).toBeInTheDocument();
-344:       expect(
-345:         within(recentPlantsContent).getByText("Spinach Plant")
-346:       ).toBeInTheDocument();
-347:     });
-348:   });
-349: });
+265:   it("displays error state when service fails", async () => {
+266:     mockPlantService.getActivePlants.mockRejectedValue(
+267:       new Error("Database error")
+268:     );
+269: 
+270:     renderDashboard();
+271: 
+272:     await waitFor(() => {
+273:       expect(
+274:         screen.getByText("Failed to load dashboard data")
+275:       ).toBeInTheDocument();
+276:       expect(screen.getByText("Try Again")).toBeInTheDocument();
+277:     });
+278:   });
+279: 
+280:   it("retries when error state try again button is clicked", async () => {
+281:     mockPlantService.getActivePlants
+282:       .mockRejectedValueOnce(new Error("Database error"))
+283:       .mockResolvedValueOnce([
+284:         {
+285:           id: "1",
+286:           varietyId: "astro-arugula",
+287:           varietyName: "Astro Arugula",
+288:           name: "My Arugula",
+289:           plantedDate: new Date("2024-01-01"),
+290:           currentStage: "vegetative" as const,
+291:           location: "Kitchen Window",
+292:           container: "4 inch pot",
+293:           isActive: true,
+294:           notes: [],
+295:           createdAt: new Date(),
+296:           updatedAt: new Date(),
+297:         },
+298:       ]);
+299:     mockCareSchedulingService.getUpcomingTasks.mockResolvedValue([]);
+300: 
+301:     renderDashboard();
+302: 
+303: 
+304:     await waitFor(() => {
+305:       expect(
+306:         screen.getByText("Failed to load dashboard data")
+307:       ).toBeInTheDocument();
+308:     });
+309: 
+310: 
+311:     const tryAgainButton = screen.getByText("Try Again");
+312:     await userEvent.click(tryAgainButton);
+313: 
+314: 
+315:     await waitFor(() => {
+316:       expect(screen.getByText("Your Garden Dashboard")).toBeInTheDocument();
+317:       expect(screen.getByText("1 active plant growing")).toBeInTheDocument();
+318:     });
+319: 
+320:     expect(mockPlantService.getActivePlants).toHaveBeenCalledTimes(2);
+321:   });
+322: 
+323:   it("shows multiple plants in recent plants section", async () => {
+324:     const mockPlants = [
+325:       {
+326:         id: "1",
+327:         varietyId: "astro-arugula",
+328:         varietyName: "Astro Arugula",
+329:         name: "My Arugula",
+330:         plantedDate: new Date("2024-01-01"),
+331:         currentStage: "vegetative" as const,
+332:         location: "Kitchen Window",
+333:         container: "4 inch pot",
+334:         isActive: true,
+335:         notes: [],
+336:         createdAt: new Date(),
+337:         updatedAt: new Date(),
+338:       },
+339:       {
+340:         id: "2",
+341:         varietyId: "baby-spinach",
+342:         varietyName: "Baby Spinach",
+343:         name: "Spinach Plant",
+344:         plantedDate: new Date("2024-01-05"),
+345:         currentStage: "seedling" as const,
+346:         location: "Main Bed",
+347:         container: "5 gallon bag",
+348:         isActive: true,
+349:         notes: [],
+350:         createdAt: new Date(),
+351:         updatedAt: new Date(),
+352:       },
+353:     ];
+354: 
+355:     const mockTasks = [
+356:       {
+357:         id: "water-1",
+358:         plantId: "1",
+359:         name: "My Arugula",
+360:         task: "Check water level",
+361:         dueIn: "2 days",
+362:         priority: "medium" as const,
+363:         plantStage: "vegetative",
+364:         dueDate: new Date(),
+365:         canBypass: true,
+366:       },
+367:       {
+368:         id: "water-2",
+369:         plantId: "2",
+370:         name: "Spinach Plant",
+371:         task: "Check water level",
+372:         dueIn: "1 day",
+373:         priority: "medium" as const,
+374:         plantStage: "seedling",
+375:         dueDate: new Date(),
+376:         canBypass: true,
+377:       },
+378:     ];
+379: 
+380:     mockPlantService.getActivePlants.mockResolvedValue(mockPlants);
+381:     mockCareSchedulingService.getUpcomingTasks.mockResolvedValue(mockTasks);
+382: 
+383:     renderDashboard();
+384: 
+385:     await waitFor(() => {
+386:       expect(screen.getByText("Your Garden Dashboard")).toBeInTheDocument();
+387: 
+388: 
+389:       expect(screen.getByText(/2 active plants? growing/)).toBeInTheDocument();
+390:       expect(screen.getByText(/2 tasks? pending/)).toBeInTheDocument();
+391: 
+392: 
+393:       expect(screen.getByText("My Arugula")).toBeInTheDocument();
+394:       expect(screen.getByText("Spinach Plant")).toBeInTheDocument();
+395:     });
+396:   });
+397: });
 
 ================
 File: src/__tests__/components/PlantRegistrationForm.test.tsx
@@ -11118,198 +11379,237 @@ File: src/pages/dashboard/TaskItem.tsx
   1: import React, { useState } from "react";
   2: import { useNavigate } from "react-router-dom";
   3: import { Button } from "@/components/ui/Button";
-  4: import { UpcomingTask } from "@/types/scheduling";
-  5: 
-  6: interface TaskItemProps {
-  7:   task: UpcomingTask;
-  8:   onQuickAction?: (taskId: string, action: string) => void;
-  9: }
+  4: import { StatusBadge } from "@/components/ui/StatusBadge";
+  5: import {
+  6:   UpcomingTask,
+  7:   QuickCompleteOption,
+  8:   QuickCompletionValues,
+  9: } from "@/types/scheduling";
  10: 
- 11: const TaskItem: React.FC<TaskItemProps> = ({ task, onQuickAction }) => {
- 12:   const navigate = useNavigate();
- 13:   const [isExpanded, setIsExpanded] = useState(false);
- 14: 
- 15:   const getTaskInfo = (taskDescription: string, dueIn: string) => {
- 16:     const taskLower = taskDescription.toLowerCase();
- 17: 
- 18:     if (taskLower.includes("water")) {
- 19:       return {
- 20:         icon: "💧",
- 21:         action: "Time to water",
- 22:         description: "Check if soil feels dry, then water until runoff",
- 23:         urgency: getUrgencyFromDueIn(dueIn),
- 24:         urgencyColor: getUrgencyColor(dueIn),
- 25:         quickActions: ["Water Now", "Not Needed", "Check Later"],
- 26:       };
- 27:     }
- 28: 
- 29:     if (taskLower.includes("health") || taskLower.includes("observe")) {
- 30:       return {
- 31:         icon: "👀",
- 32:         action: "Health check time",
- 33:         description: "Look for pests, diseased leaves, or growth issues",
- 34:         urgency: getUrgencyFromDueIn(dueIn),
- 35:         urgencyColor: getUrgencyColor(dueIn),
- 36:         quickActions: ["Looks Good", "Take Photo", "Found Issues"],
- 37:       };
- 38:     }
- 39: 
- 40:     if (taskLower.includes("fertiliz")) {
- 41:       return {
- 42:         icon: "🌱",
- 43:         action: "Feeding time",
- 44:         description: "Apply nutrients to support healthy growth",
- 45:         urgency: getUrgencyFromDueIn(dueIn),
- 46:         urgencyColor: getUrgencyColor(dueIn),
- 47:         quickActions: ["Fed Plant", "Skip This Week", "Check Growth"],
- 48:       };
- 49:     }
- 50: 
+ 11: interface TaskItemProps {
+ 12:   task: UpcomingTask;
+ 13:   onQuickComplete?: (
+ 14:     taskId: string,
+ 15:     values: QuickCompletionValues
+ 16:   ) => Promise<void>;
+ 17:   onBypass?: (taskId: string, reason: string) => Promise<void>;
+ 18:   className?: string;
+ 19: }
+ 20: 
+ 21: const TaskItem: React.FC<TaskItemProps> = ({
+ 22:   task,
+ 23:   onQuickComplete,
+ 24:   onBypass,
+ 25:   className = "",
+ 26: }) => {
+ 27:   const navigate = useNavigate();
+ 28:   const [isLoading, setIsLoading] = useState(false);
+ 29:   const [showBypassDialog, setShowBypassDialog] = useState(false);
+ 30:   const [bypassReason, setBypassReason] = useState("");
+ 31: 
+ 32:   const handleTaskClick = () => {
+ 33:     navigate(`/plants/${task.plantId}`);
+ 34:   };
+ 35: 
+ 36:   const handleQuickComplete = async (option: QuickCompleteOption) => {
+ 37:     if (!onQuickComplete) return;
+ 38: 
+ 39:     setIsLoading(true);
+ 40:     try {
+ 41:       await onQuickComplete(task.id, option.values);
+ 42:     } catch (error) {
+ 43:       console.error("Failed to quick complete task:", error);
+ 44:     } finally {
+ 45:       setIsLoading(false);
+ 46:     }
+ 47:   };
+ 48: 
+ 49:   const handleBypass = async () => {
+ 50:     if (!onBypass || !bypassReason.trim()) return;
  51: 
- 52:     return {
- 53:       icon: "📋",
- 54:       action: taskDescription,
- 55:       description: "Complete this care task for your plant",
- 56:       urgency: getUrgencyFromDueIn(dueIn),
- 57:       urgencyColor: getUrgencyColor(dueIn),
- 58:       quickActions: ["Done", "Skip", "View Plant"],
- 59:     };
- 60:   };
- 61: 
- 62:   const getUrgencyFromDueIn = (dueIn: string): string => {
- 63:     if (dueIn.includes("overdue")) {
- 64:       const days = dueIn.match(/\d+/)?.[0];
- 65:       return `${days} days overdue`;
- 66:     }
- 67:     if (dueIn.includes("today")) {
- 68:       return "Today";
- 69:     }
- 70:     if (dueIn.includes("tomorrow")) {
- 71:       return "Tomorrow";
- 72:     }
- 73:     return dueIn;
- 74:   };
- 75: 
- 76:   const getUrgencyColor = (dueIn: string): string => {
- 77:     if (dueIn.includes("overdue"))
- 78:       return "text-red-600 bg-red-50 border-red-200";
- 79:     if (dueIn.includes("today"))
- 80:       return "text-orange-600 bg-orange-50 border-orange-200";
- 81:     return "text-blue-600 bg-blue-50 border-blue-200";
- 82:   };
- 83: 
- 84:   const handleQuickAction = (action: string) => {
- 85:     if (onQuickAction) {
- 86:       onQuickAction(task.id, action);
- 87:     }
- 88:   };
- 89: 
- 90:   const taskInfo = getTaskInfo(task.task, task.dueIn);
- 91: 
- 92:   return (
- 93:     <div className={`rounded-xl border-2 ${taskInfo.urgencyColor} bg-card`}>
- 94:       <div className="p-4">
- 95:         {}
- 96:         <div className="flex items-start justify-between mb-3">
- 97:           <div className="flex-1">
- 98:             <div className="flex items-center gap-2 mb-1">
- 99:               <span className="text-xl">{taskInfo.icon}</span>
-100:               <h3 className="font-bold text-foreground">{task.name}</h3>
-101:             </div>
-102: 
-103:             <div className="font-semibold text-foreground mb-1">
-104:               {taskInfo.action}
-105:             </div>
-106: 
-107:             <div className="text-sm text-muted-foreground">
-108:               {taskInfo.description}
-109:             </div>
-110:           </div>
+ 52:     setIsLoading(true);
+ 53:     try {
+ 54:       await onBypass(task.id, bypassReason);
+ 55:       setShowBypassDialog(false);
+ 56:       setBypassReason("");
+ 57:     } catch (error) {
+ 58:       console.error("Failed to bypass task:", error);
+ 59:     } finally {
+ 60:       setIsLoading(false);
+ 61:     }
+ 62:   };
+ 63: 
+ 64:   const getTaskIcon = (taskName: string) => {
+ 65:     const name = taskName.toLowerCase();
+ 66:     if (name.includes("water")) return "💧";
+ 67:     if (name.includes("fertiliz")) return "🌱";
+ 68:     if (name.includes("observe") || name.includes("health")) return "👁";
+ 69:     if (name.includes("prune") || name.includes("trim")) return "✂️";
+ 70:     return "📋";
+ 71:   };
+ 72: 
+ 73:   const getStatusFromPriority = (priority: "low" | "medium" | "high") => {
+ 74:     switch (priority) {
+ 75:       case "high":
+ 76:         return "critical";
+ 77:       case "medium":
+ 78:         return "attention";
+ 79:       case "low":
+ 80:         return "healthy";
+ 81:       default:
+ 82:         return "healthy";
+ 83:     }
+ 84:   };
+ 85: 
+ 86:   return (
+ 87:     <>
+ 88:       <div
+ 89:         className={`bg-card border border-border rounded-lg p-4 ${className}`}
+ 90:       >
+ 91:         {}
+ 92:         <div className="cursor-pointer" onClick={handleTaskClick}>
+ 93:           <div className="flex items-start justify-between mb-3">
+ 94:             <div className="flex-1">
+ 95:               <div className="flex items-center gap-2 mb-1">
+ 96:                 <span className="text-lg">{getTaskIcon(task.task)}</span>
+ 97:                 <span className="font-semibold text-foreground">
+ 98:                   {task.name}
+ 99:                 </span>
+100:               </div>
+101:               <div className="text-sm text-muted-foreground mb-2">
+102:                 {task.task} • {task.dueIn}
+103:               </div>
+104:               <StatusBadge
+105:                 status={getStatusFromPriority(task.priority)}
+106:                 size="sm"
+107:               />
+108:             </div>
+109:           </div>
+110:         </div>
 111: 
-112:           {}
-113:           <div
-114:             className={`px-3 py-1 rounded-full text-xs font-medium border ${taskInfo.urgencyColor}`}
-115:           >
-116:             {taskInfo.urgency}
-117:           </div>
-118:         </div>
-119: 
-120:         {}
-121:         <div className="flex flex-wrap gap-2 mb-2">
-122:           {taskInfo.quickActions.slice(0, 2).map((action) => (
-123:             <Button
-124:               key={action}
-125:               variant={
-126:                 action.includes("Not") || action.includes("Skip")
-127:                   ? "outline"
-128:                   : "primary"
-129:               }
-130:               size="sm"
-131:               className="text-sm h-8"
-132:               onClick={() => handleQuickAction(action)}
-133:             >
-134:               {action}
-135:             </Button>
-136:           ))}
-137: 
-138:           {taskInfo.quickActions.length > 2 && (
-139:             <Button
-140:               variant="ghost"
-141:               size="sm"
-142:               className="text-sm h-8"
-143:               onClick={() => setIsExpanded(!isExpanded)}
-144:             >
-145:               {isExpanded ? "Less" : "More"}
-146:               <svg
-147:                 className={`w-3 h-3 ml-1 transition-transform ${
-148:                   isExpanded ? "rotate-180" : ""
-149:                 }`}
-150:                 fill="none"
-151:                 stroke="currentColor"
-152:                 viewBox="0 0 24 24"
-153:               >
-154:                 <path
-155:                   strokeLinecap="round"
-156:                   strokeLinejoin="round"
-157:                   strokeWidth={2}
-158:                   d="M19 9l-7 7-7-7"
-159:                 />
-160:               </svg>
-161:             </Button>
-162:           )}
-163:         </div>
-164: 
-165:         {}
-166:         {isExpanded && (
-167:           <div className="flex flex-wrap gap-2 pt-2 border-t border-border">
-168:             {taskInfo.quickActions.slice(2).map((action) => (
-169:               <Button
-170:                 key={action}
-171:                 variant="primary"
-172:                 size="sm"
-173:                 className="text-sm h-8"
-174:                 onClick={() => handleQuickAction(action)}
-175:               >
-176:                 {action}
-177:               </Button>
-178:             ))}
-179: 
-180:             <Button
-181:               variant="ghost"
-182:               size="sm"
-183:               className="text-sm h-8 text-blue-600"
-184:               onClick={() => navigate(`/plants/${task.plantId}`)}
-185:             >
-186:               View Plant Details →
-187:             </Button>
-188:           </div>
-189:         )}
-190:       </div>
-191:     </div>
-192:   );
-193: };
-194: 
-195: export default TaskItem;
+112:         {}
+113:         <div className="flex gap-2 flex-wrap">
+114:           {}
+115:           {task.quickCompleteOptions?.map((option, ind) => (
+116:             <Button
+117:               key={ind}
+118:               variant="outline"
+119:               size="sm"
+120:               onClick={() => handleQuickComplete(option)}
+121:               disabled={isLoading}
+122:               className="bg-green-50 border-green-200 text-green-700 hover:bg-green-100"
+123:             >
+124:               {option.label}
+125:             </Button>
+126:           ))}
+127: 
+128:           {}
+129:           {task.canBypass && (
+130:             <Button
+131:               variant="outline"
+132:               size="sm"
+133:               onClick={() => setShowBypassDialog(true)}
+134:               disabled={isLoading}
+135:               className="bg-yellow-50 border-yellow-200 text-yellow-700 hover:bg-yellow-100"
+136:             >
+137:               Bypass
+138:             </Button>
+139:           )}
+140: 
+141:           {}
+142:           <Button
+143:             variant="outline"
+144:             size="sm"
+145:             onClick={() =>
+146:               navigate(
+147:                 `/care/log?plantId=${task.plantId}&activityType=${
+148:                   task.task.toLowerCase().includes("water")
+149:                     ? "water"
+150:                     : "fertilize"
+151:                 }`
+152:               )
+153:             }
+154:             disabled={isLoading}
+155:           >
+156:             Log Manually
+157:           </Button>
+158:         </div>
+159:       </div>
+160: 
+161:       {}
+162:       {showBypassDialog && (
+163:         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+164:           <div className="bg-background rounded-lg p-6 w-full max-w-md">
+165:             <h3 className="text-lg font-semibold mb-4">
+166:               Bypass Task: {task.task}
+167:             </h3>
+168:             <p className="text-sm text-muted-foreground mb-4">
+169:               Why are you skipping this task? This helps improve future
+170:               recommendations.
+171:             </p>
+172: 
+173:             <div className="space-y-3 mb-4">
+174:               {[
+175:                 "Plant looks healthy, doesn't need it yet",
+176:                 "Soil still moist from recent rain/watering",
+177:                 "Weather conditions not suitable",
+178:                 "Plant dormant/not growing actively",
+179:                 "Other reason",
+180:               ].map((reason) => (
+181:                 <label
+182:                   key={reason}
+183:                   className="flex items-center space-x-2 cursor-pointer"
+184:                 >
+185:                   <input
+186:                     type="radio"
+187:                     name="bypassReason"
+188:                     value={reason}
+189:                     checked={bypassReason === reason}
+190:                     onChange={(e) => setBypassReason(e.target.value)}
+191:                     className="text-primary"
+192:                   />
+193:                   <span className="text-sm">{reason}</span>
+194:                 </label>
+195:               ))}
+196:             </div>
+197: 
+198:             {bypassReason === "Other reason" && (
+199:               <textarea
+200:                 placeholder="Please specify..."
+201:                 value={bypassReason === "Other reason" ? "" : bypassReason}
+202:                 onChange={(e) => setBypassReason(e.target.value)}
+203:                 className="w-full p-3 border border-border rounded-md text-sm mb-4"
+204:                 rows={3}
+205:               />
+206:             )}
+207: 
+208:             <div className="flex gap-2">
+209:               <Button
+210:                 variant="outline"
+211:                 onClick={() => {
+212:                   setShowBypassDialog(false);
+213:                   setBypassReason("");
+214:                 }}
+215:                 className="flex-1"
+216:               >
+217:                 Cancel
+218:               </Button>
+219:               <Button
+220:                 onClick={handleBypass}
+221:                 disabled={!bypassReason.trim() || isLoading}
+222:                 className="flex-1"
+223:               >
+224:                 {isLoading ? "Bypassing..." : "Bypass Task"}
+225:               </Button>
+226:             </div>
+227:           </div>
+228:         </div>
+229:       )}
+230:     </>
+231:   );
+232: };
+233: 
+234: export default TaskItem;
 
 ================
 File: src/pages/plants/AddPlant.tsx
@@ -15898,939 +16198,921 @@ File: src/pages/care/CareLogForm.tsx
  246:   onSuccess?: () => void;
  247:   onCancel?: () => void;
  248:   preselectedPlantId?: string;
- 249:   preselectedActivityType?:
- 250:     | "water"
- 251:     | "fertilize"
- 252:     | "observe"
- 253:     | "harvest"
- 254:     | "transplant";
- 255: }
- 256: 
- 257: export function CareLogForm({
- 258:   onSuccess,
- 259:   onCancel,
- 260:   preselectedPlantId,
- 261:   preselectedActivityType,
- 262: }: CareLogFormProps) {
- 263:   const [plants, setPlants] = useState<PlantRecord[]>([]);
- 264:   const [isLoading, setIsLoading] = useState(false);
- 265:   const [submitError, setSubmitError] = useState<string | null>(null);
- 266:   const [capturedPhotos, setCapturedPhotos] = useState<string[]>([]);
- 267:   const [showDetailedTracking, setShowDetailedTracking] = useState(false);
- 268:   const [searchParams] = useSearchParams();
+ 249:   preselectedActivityType?: "water" | "fertilize" | "observe";
+ 250: }
+ 251: 
+ 252: export function CareLogForm({
+ 253:   onSuccess,
+ 254:   onCancel,
+ 255:   preselectedPlantId,
+ 256:   preselectedActivityType,
+ 257: }: CareLogFormProps) {
+ 258:   const [plants, setPlants] = useState<PlantRecord[]>([]);
+ 259:   const [isLoading, setIsLoading] = useState(false);
+ 260:   const [submitError, setSubmitError] = useState<string | null>(null);
+ 261:   const [capturedPhotos, setCapturedPhotos] = useState<string[]>([]);
+ 262:   const [showDetailedTracking, setShowDetailedTracking] = useState(false);
+ 263:   const [searchParams] = useSearchParams();
+ 264: 
+ 265: 
+ 266:   const [moistureValidation, setMoistureValidation] =
+ 267:     useState<MoistureValidationResult | null>(null);
+ 268: 
  269: 
- 270:   const initialPlantId =
- 271:     preselectedPlantId || searchParams.get("plantId") || "";
- 272:   const initialActivityType =
- 273:     preselectedActivityType || searchParams.get("type") || "water";
+ 270:   const [smartDefaults, setSmartDefaults] = useState<SmartDefaults | null>(
+ 271:     null
+ 272:   );
+ 273:   const [isLoadingDefaults, setIsLoadingDefaults] = useState(false);
  274: 
- 275: 
- 276:   const [moistureValidation, setMoistureValidation] =
- 277:     useState<MoistureValidationResult | null>(null);
- 278: 
- 279: 
- 280:   const [smartDefaults, setSmartDefaults] = useState<SmartDefaults | null>(
- 281:     null
- 282:   );
- 283:   const [isLoadingDefaults, setIsLoadingDefaults] = useState(false);
- 284: 
- 285:   const {
- 286:     register,
- 287:     handleSubmit,
- 288:     watch,
- 289:     formState: { errors },
- 290:     reset,
- 291:     setValue,
- 292:   } = useForm<CareFormData>({
- 293:     resolver: zodResolver(careFormSchema),
- 294:     defaultValues: {
- 295:       plantId: preselectedPlantId || searchParams.get("plantId") || "",
- 296:       type:
- 297:         (searchParams.get("type") as "water" | "fertilize" | "observe") ||
- 298:         "water",
- 299:       date: new Date().toISOString().split("T")[0],
- 300:       waterValue: undefined,
- 301:       waterUnit: "oz",
- 302:     },
- 303:   });
- 304: 
- 305:   const activityType = watch("type");
- 306:   const selectedPlantId = watch("plantId");
- 307:   const moistureBefore = watch("moistureBefore");
- 308:   const moistureAfter = watch("moistureAfter");
- 309: 
- 310: 
- 311:   useEffect(() => {
- 312:     const loadPlants = async () => {
- 313:       try {
- 314:         const plantList = await plantService.getActivePlants();
- 315:         setPlants(plantList);
- 316:       } catch (error) {
- 317:         console.error("Failed to load plants:", error);
- 318:         toast.error("Failed to load plants");
- 319:       }
- 320:     };
- 321: 
- 322:     loadPlants();
- 323:   }, []);
- 324: 
- 325:   useEffect(() => {
- 326:     const plantIdToSet = preselectedPlantId || searchParams.get("plantId");
- 327:     if (plantIdToSet && plants.length > 0) {
- 328:       const plant = plants.find((p) => p.id === plantIdToSet);
- 329:       if (plant) {
- 330:         setValue("plantId", plantIdToSet);
- 331:       }
- 332:     }
- 333:   }, [plants, preselectedPlantId, searchParams, setValue]);
- 334: 
- 335:   useEffect(() => {
- 336:     const activityTypeToSet = searchParams.get("type");
- 337:     if (activityTypeToSet) {
- 338:       setValue("type", activityTypeToSet as any);
- 339:     }
- 340:   }, [searchParams, setValue]);
- 341: 
- 342: 
- 343:   useEffect(() => {
- 344:     const loadSmartDefaults = async () => {
- 345:       if (!selectedPlantId || !plants.length) {
- 346:         setSmartDefaults(null);
- 347:         return;
- 348:       }
- 349: 
- 350:       const plant = plants.find((p) => p.id === selectedPlantId);
- 351:       if (!plant) return;
+ 275:   const {
+ 276:     register,
+ 277:     handleSubmit,
+ 278:     watch,
+ 279:     formState: { errors },
+ 280:     reset,
+ 281:     setValue,
+ 282:   } = useForm<CareFormData>({
+ 283:     resolver: zodResolver(careFormSchema),
+ 284:     defaultValues: {
+ 285:       plantId: preselectedPlantId || searchParams.get("plantId") || "",
+ 286:       type:
+ 287:         preselectedActivityType ||
+ 288:         (searchParams.get("type") as "water" | "fertilize" | "observe") ||
+ 289:         "water",
+ 290:       date: new Date().toISOString().split("T")[0],
+ 291:       waterValue: undefined,
+ 292:       waterUnit: "oz",
+ 293:     },
+ 294:   });
+ 295: 
+ 296:   const activityType = watch("type");
+ 297:   const selectedPlantId = watch("plantId");
+ 298:   const moistureBefore = watch("moistureBefore");
+ 299:   const moistureAfter = watch("moistureAfter");
+ 300: 
+ 301: 
+ 302:   useEffect(() => {
+ 303:     const loadPlants = async () => {
+ 304:       try {
+ 305:         const plantList = await plantService.getActivePlants();
+ 306:         setPlants(plantList);
+ 307:       } catch (error) {
+ 308:         console.error("Failed to load plants:", error);
+ 309:         toast.error("Failed to load plants");
+ 310:       }
+ 311:     };
+ 312: 
+ 313:     loadPlants();
+ 314:   }, []);
+ 315: 
+ 316:   useEffect(() => {
+ 317:     const plantIdToSet = preselectedPlantId || searchParams.get("plantId");
+ 318:     if (plantIdToSet && plants.length > 0) {
+ 319:       const plant = plants.find((p) => p.id === plantIdToSet);
+ 320:       if (plant) {
+ 321:         setValue("plantId", plantIdToSet);
+ 322:       }
+ 323:     }
+ 324:   }, [plants, preselectedPlantId, searchParams, setValue]);
+ 325: 
+ 326:   useEffect(() => {
+ 327:     const activityTypeToSet =
+ 328:       preselectedActivityType || searchParams.get("type");
+ 329:     if (
+ 330:       activityTypeToSet &&
+ 331:       ["water", "fertilize", "observe"].includes(activityTypeToSet)
+ 332:     ) {
+ 333:       setValue("type", activityTypeToSet as "water" | "fertilize" | "observe");
+ 334:     }
+ 335:   }, [searchParams, preselectedActivityType, setValue]);
+ 336: 
+ 337: 
+ 338:   useEffect(() => {
+ 339:     const loadSmartDefaults = async () => {
+ 340:       if (!selectedPlantId || !plants.length) {
+ 341:         setSmartDefaults(null);
+ 342:         return;
+ 343:       }
+ 344: 
+ 345:       const plant = plants.find((p) => p.id === selectedPlantId);
+ 346:       if (!plant) return;
+ 347: 
+ 348:       try {
+ 349:         setIsLoadingDefaults(true);
+ 350:         const defaults = await SmartDefaultsService.getDefaultsForPlant(plant);
+ 351:         setSmartDefaults(defaults);
  352: 
- 353:       try {
- 354:         setIsLoadingDefaults(true);
- 355:         const defaults = await SmartDefaultsService.getDefaultsForPlant(plant);
- 356:         setSmartDefaults(defaults);
- 357: 
- 358: 
- 359:         if (activityType === "water" && defaults?.watering) {
- 360:           setValue("waterValue", defaults.watering.suggestedAmount);
- 361:           setValue("waterUnit", defaults.watering.unit);
- 362:         }
- 363:       } catch (error) {
- 364:         console.error("Error loading smart defaults:", error);
- 365:       } finally {
- 366:         setIsLoadingDefaults(false);
- 367:       }
- 368:     };
- 369: 
- 370:     loadSmartDefaults();
- 371:   }, [selectedPlantId, plants, activityType, setValue]);
- 372: 
- 373: 
- 374:   const handleQuickComplete = (values: QuickCompletionValues) => {
- 375:     Object.entries(values).forEach(([key, value]) => {
- 376:       if (value !== undefined) {
- 377:         setValue(key as keyof CareFormData, value);
- 378:       }
- 379:     });
- 380:   };
- 381: 
+ 353: 
+ 354:         if (activityType === "water" && defaults?.watering) {
+ 355:           setValue("waterValue", defaults.watering.suggestedAmount);
+ 356:           setValue("waterUnit", defaults.watering.unit);
+ 357:         }
+ 358:       } catch (error) {
+ 359:         console.error("Error loading smart defaults:", error);
+ 360:       } finally {
+ 361:         setIsLoadingDefaults(false);
+ 362:       }
+ 363:     };
+ 364: 
+ 365:     loadSmartDefaults();
+ 366:   }, [selectedPlantId, plants, activityType, setValue]);
+ 367: 
+ 368: 
+ 369:   const handleQuickComplete = (values: QuickCompletionValues) => {
+ 370:     Object.entries(values).forEach(([key, value]) => {
+ 371:       if (value !== undefined) {
+ 372:         setValue(key as keyof CareFormData, value);
+ 373:       }
+ 374:     });
+ 375:   };
+ 376: 
+ 377: 
+ 378:   const getPlantMoistureProtocol = useCallback(
+ 379:     async (plantId: string) => {
+ 380:       const plant = plants.find((p) => p.id === plantId);
+ 381:       if (!plant) return null;
  382: 
- 383:   const getPlantMoistureProtocol = useCallback(
- 384:     async (plantId: string) => {
- 385:       const plant = plants.find((p) => p.id === plantId);
- 386:       if (!plant) return null;
+ 383:       try {
+ 384:         const variety = await varietyService.getVariety(plant.varietyId);
+ 385:         if (!variety) return null;
+ 386: 
  387: 
- 388:       try {
- 389:         const variety = await varietyService.getVariety(plant.varietyId);
- 390:         if (!variety) return null;
- 391: 
+ 388:         const currentStage = calculateCurrentStage(
+ 389:           plant.plantedDate,
+ 390:           variety.growthTimeline
+ 391:         );
  392: 
- 393:         const currentStage = calculateCurrentStage(
- 394:           plant.plantedDate,
- 395:           variety.growthTimeline
- 396:         );
- 397: 
- 398: 
- 399:         return extractMoistureRangesForStage(variety, currentStage);
- 400:       } catch (error) {
- 401:         console.error("Error fetching plant moisture protocol:", error);
- 402:         return null;
- 403:       }
- 404:     },
- 405:     [plants]
- 406:   );
- 407: 
- 408: 
- 409:   const getMoistureValidationForPlant = useCallback(
- 410:     async (
- 411:       plantId: string,
- 412:       moistureBefore?: number,
- 413:       moistureAfter?: number
- 414:     ): Promise<MoistureValidationResult | null> => {
- 415:       const protocol = await getPlantMoistureProtocol(plantId);
- 416:       if (!protocol) return null;
- 417: 
- 418:       const validations: MoistureValidationMessage[] = [];
- 419: 
- 420: 
- 421:       if (moistureBefore !== undefined) {
- 422:         const [triggerMin, triggerMax] = protocol.trigger;
- 423:         if (moistureBefore >= triggerMin && moistureBefore <= triggerMax) {
- 424:           validations.push({
- 425:             field: "before",
- 426:             message: `✓ Perfect timing! ${triggerMin}-${triggerMax} is ideal for watering.`,
- 427:             color: "text-green-600",
- 428:           });
- 429:         } else if (moistureBefore > triggerMax) {
- 430:           validations.push({
- 431:             field: "before",
- 432:             message: `ℹ️ Plant still moist (${triggerMin}-${triggerMax} recommended for watering).`,
- 433:             color: "text-blue-600",
- 434:           });
- 435:         } else {
- 436:           validations.push({
- 437:             field: "before",
- 438:             message: `⚠️ Very dry! Watering at ${triggerMin}-${triggerMax} prevents stress.`,
- 439:             color: "text-orange-600",
- 440:           });
- 441:         }
- 442:       }
- 443: 
- 444: 
- 445:       if (moistureAfter !== undefined) {
- 446:         const [targetMin, targetMax] = protocol.target;
- 447:         if (moistureAfter >= targetMin && moistureAfter <= targetMax) {
- 448:           validations.push({
- 449:             field: "after",
- 450:             message: `✓ Perfect! Target range ${targetMin}-${targetMax} achieved.`,
- 451:             color: "text-green-600",
- 452:           });
- 453:         } else if (moistureAfter > targetMax) {
- 454:           validations.push({
- 455:             field: "after",
- 456:             message: `⚠️ Over-watered. Target is ${targetMin}-${targetMax}. Allow drying time.`,
- 457:             color: "text-orange-600",
- 458:           });
- 459:         } else {
- 460:           validations.push({
- 461:             field: "after",
- 462:             message: `ℹ️ Could use more water. Target: ${targetMin}-${targetMax}.`,
- 463:             color: "text-blue-600",
- 464:           });
- 465:         }
- 466:       }
- 467: 
- 468: 
- 469:       const sourceMessages = {
- 470:         protocol: `Using ${protocol.varietyName} ${protocol.currentStage} stage protocol`,
- 471:         category: `Using category-based guidance for ${protocol.currentStage} stage`,
- 472:         universal: `Using universal defaults (variety protocol incomplete)`,
- 473:       };
- 474: 
- 475:       validations.push({
- 476:         field: "source",
- 477:         message: sourceMessages[protocol.source],
- 478:         color: protocol.isDefault ? "text-muted-foreground" : "text-foreground",
- 479:       });
- 480: 
- 481:       return {
- 482:         validations,
- 483:         isValid: true,
- 484:       };
- 485:     },
- 486:     [getPlantMoistureProtocol]
- 487:   );
- 488: 
- 489: 
- 490:   useEffect(() => {
- 491:     if (selectedPlantId && (moistureBefore || moistureAfter)) {
- 492:       getMoistureValidationForPlant(
- 493:         selectedPlantId,
- 494:         moistureBefore,
- 495:         moistureAfter
- 496:       ).then(setMoistureValidation);
- 497:     } else {
- 498:       setMoistureValidation(null);
- 499:     }
- 500:   }, [
- 501:     selectedPlantId,
- 502:     moistureBefore,
- 503:     moistureAfter,
- 504:     getMoistureValidationForPlant,
- 505:   ]);
+ 393: 
+ 394:         return extractMoistureRangesForStage(variety, currentStage);
+ 395:       } catch (error) {
+ 396:         console.error("Error fetching plant moisture protocol:", error);
+ 397:         return null;
+ 398:       }
+ 399:     },
+ 400:     [plants]
+ 401:   );
+ 402: 
+ 403: 
+ 404:   const getMoistureValidationForPlant = useCallback(
+ 405:     async (
+ 406:       plantId: string,
+ 407:       moistureBefore?: number,
+ 408:       moistureAfter?: number
+ 409:     ): Promise<MoistureValidationResult | null> => {
+ 410:       const protocol = await getPlantMoistureProtocol(plantId);
+ 411:       if (!protocol) return null;
+ 412: 
+ 413:       const validations: MoistureValidationMessage[] = [];
+ 414: 
+ 415: 
+ 416:       if (moistureBefore !== undefined) {
+ 417:         const [triggerMin, triggerMax] = protocol.trigger;
+ 418:         if (moistureBefore >= triggerMin && moistureBefore <= triggerMax) {
+ 419:           validations.push({
+ 420:             field: "before",
+ 421:             message: `✓ Perfect timing! ${triggerMin}-${triggerMax} is ideal for watering.`,
+ 422:             color: "text-green-600",
+ 423:           });
+ 424:         } else if (moistureBefore > triggerMax) {
+ 425:           validations.push({
+ 426:             field: "before",
+ 427:             message: `ℹ️ Plant still moist (${triggerMin}-${triggerMax} recommended for watering).`,
+ 428:             color: "text-blue-600",
+ 429:           });
+ 430:         } else {
+ 431:           validations.push({
+ 432:             field: "before",
+ 433:             message: `⚠️ Very dry! Watering at ${triggerMin}-${triggerMax} prevents stress.`,
+ 434:             color: "text-orange-600",
+ 435:           });
+ 436:         }
+ 437:       }
+ 438: 
+ 439: 
+ 440:       if (moistureAfter !== undefined) {
+ 441:         const [targetMin, targetMax] = protocol.target;
+ 442:         if (moistureAfter >= targetMin && moistureAfter <= targetMax) {
+ 443:           validations.push({
+ 444:             field: "after",
+ 445:             message: `✓ Perfect! Target range ${targetMin}-${targetMax} achieved.`,
+ 446:             color: "text-green-600",
+ 447:           });
+ 448:         } else if (moistureAfter > targetMax) {
+ 449:           validations.push({
+ 450:             field: "after",
+ 451:             message: `⚠️ Over-watered. Target is ${targetMin}-${targetMax}. Allow drying time.`,
+ 452:             color: "text-orange-600",
+ 453:           });
+ 454:         } else {
+ 455:           validations.push({
+ 456:             field: "after",
+ 457:             message: `ℹ️ Could use more water. Target: ${targetMin}-${targetMax}.`,
+ 458:             color: "text-blue-600",
+ 459:           });
+ 460:         }
+ 461:       }
+ 462: 
+ 463: 
+ 464:       const sourceMessages = {
+ 465:         protocol: `Using ${protocol.varietyName} ${protocol.currentStage} stage protocol`,
+ 466:         category: `Using category-based guidance for ${protocol.currentStage} stage`,
+ 467:         universal: `Using universal defaults (variety protocol incomplete)`,
+ 468:       };
+ 469: 
+ 470:       validations.push({
+ 471:         field: "source",
+ 472:         message: sourceMessages[protocol.source],
+ 473:         color: protocol.isDefault ? "text-muted-foreground" : "text-foreground",
+ 474:       });
+ 475: 
+ 476:       return {
+ 477:         validations,
+ 478:         isValid: true,
+ 479:       };
+ 480:     },
+ 481:     [getPlantMoistureProtocol]
+ 482:   );
+ 483: 
+ 484: 
+ 485:   useEffect(() => {
+ 486:     if (selectedPlantId && (moistureBefore || moistureAfter)) {
+ 487:       getMoistureValidationForPlant(
+ 488:         selectedPlantId,
+ 489:         moistureBefore,
+ 490:         moistureAfter
+ 491:       ).then(setMoistureValidation);
+ 492:     } else {
+ 493:       setMoistureValidation(null);
+ 494:     }
+ 495:   }, [
+ 496:     selectedPlantId,
+ 497:     moistureBefore,
+ 498:     moistureAfter,
+ 499:     getMoistureValidationForPlant,
+ 500:   ]);
+ 501: 
+ 502:   const onSubmit = async (data: CareFormData) => {
+ 503:     try {
+ 504:       setIsLoading(true);
+ 505:       setSubmitError(null);
  506: 
- 507:   useEffect(() => {
- 508:     const loadPlants = async () => {
- 509:       try {
- 510:         const activePlants = await plantService.getActivePlants();
- 511:         setPlants(activePlants);
- 512:       } catch (error) {
- 513:         console.error("Failed to load plants:", error);
- 514:         toast.error("Failed to load plants");
- 515:       }
- 516:     };
- 517: 
- 518:     loadPlants();
- 519:   }, []);
- 520: 
- 521:   const onSubmit = async (data: CareFormData) => {
- 522:     try {
- 523:       setIsLoading(true);
- 524:       setSubmitError(null);
- 525: 
- 526: 
- 527:       let careDetails: CareActivityDetails;
- 528: 
- 529:       switch (data.type) {
- 530:         case "water": {
- 531:           const wateringDetails: WateringDetails = {
- 532:             type: "water" as const,
- 533:             amount: {
- 534:               value: data.waterValue,
- 535:               unit: data.waterUnit,
- 536:             },
- 537:             moistureReading:
- 538:               showDetailedTracking && data.moistureBefore && data.moistureAfter
- 539:                 ? {
- 540:                     before: data.moistureBefore,
- 541:                     after: data.moistureAfter,
- 542:                     scale: "1-10" as const,
- 543:                   }
- 544:                 : undefined,
- 545:             method: data.applicationMethod,
- 546:             runoffObserved: data.runoffObserved,
- 547:             notes: data.notes,
- 548:           };
- 549:           careDetails = wateringDetails;
- 550:           break;
- 551:         }
- 552: 
- 553:         case "fertilize": {
- 554:           const fertilizingDetails: FertilizingDetails = {
- 555:             type: "fertilize" as const,
- 556:             product: data.product,
- 557:             dilution: data.dilution,
- 558:             amount: data.amount,
- 559:             notes: data.notes,
- 560:           };
- 561:           careDetails = fertilizingDetails;
- 562:           break;
- 563:         }
- 564: 
- 565:         case "observe": {
- 566:           const observationDetails: ObservationDetails = {
- 567:             type: "observe" as const,
- 568:             healthAssessment: data.healthAssessment,
- 569:             observations: data.observations,
- 570:             photos: capturedPhotos,
- 571:             notes: data.notes,
- 572:           };
- 573:           careDetails = observationDetails;
- 574:           break;
- 575:         }
- 576: 
- 577:         default:
- 578:           throw new Error(`Unsupported activity type: ${data.type as string}`);
- 579:       }
- 580: 
- 581:       await careService.addCareActivity({
- 582:         plantId: data.plantId,
- 583:         type: data.type,
- 584:         date: new Date(data.date),
- 585:         details: careDetails,
- 586:       });
- 587: 
- 588:       toast.success("Care activity logged successfully!");
- 589:       reset();
- 590:       setCapturedPhotos([]);
- 591:       onSuccess?.();
- 592:     } catch (error) {
- 593:       console.error("Failed to log care activity:", error);
- 594:       setSubmitError("Failed to log care activity. Please try again.");
- 595:       toast.error("Failed to log care activity");
- 596:     } finally {
- 597:       setIsLoading(false);
- 598:     }
- 599:   };
- 600: 
- 601:   function renderWateringFields() {
- 602:     const selectedPlant = plants.find((p) => p.id === selectedPlantId);
- 603: 
- 604:     return (
- 605:       <>
- 606:         {}
- 607:         {smartDefaults?.watering && (
- 608:           <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
- 609:             <div className="flex items-start justify-between">
- 610:               <div>
- 611:                 <h4 className="text-sm font-medium text-blue-900 mb-1">
- 612:                   💡 Smart Suggestion
- 613:                 </h4>
- 614:                 <p className="text-sm text-blue-700">
- 615:                   {smartDefaults.watering.reasoning}
- 616:                 </p>
- 617:                 <div className="flex items-center mt-2 text-xs text-blue-600">
- 618:                   <span
- 619:                     className={`inline-block w-2 h-2 rounded-full mr-1 ${
- 620:                       smartDefaults.watering.confidence === "high"
- 621:                         ? "bg-green-500"
- 622:                         : smartDefaults.watering.confidence === "medium"
- 623:                         ? "bg-yellow-500"
- 624:                         : "bg-red-500"
- 625:                     }`}
- 626:                   />
- 627:                   {smartDefaults.watering.confidence} confidence
- 628:                 </div>
+ 507: 
+ 508:       let careDetails: CareActivityDetails;
+ 509: 
+ 510:       switch (data.type) {
+ 511:         case "water": {
+ 512:           const wateringDetails: WateringDetails = {
+ 513:             type: "water" as const,
+ 514:             amount: {
+ 515:               value: data.waterValue,
+ 516:               unit: data.waterUnit,
+ 517:             },
+ 518:             moistureReading:
+ 519:               showDetailedTracking && data.moistureBefore && data.moistureAfter
+ 520:                 ? {
+ 521:                     before: data.moistureBefore,
+ 522:                     after: data.moistureAfter,
+ 523:                     scale: "1-10" as const,
+ 524:                   }
+ 525:                 : undefined,
+ 526:             method: data.applicationMethod,
+ 527:             runoffObserved: data.runoffObserved,
+ 528:             notes: data.notes,
+ 529:           };
+ 530:           careDetails = wateringDetails;
+ 531:           break;
+ 532:         }
+ 533: 
+ 534:         case "fertilize": {
+ 535:           const fertilizingDetails: FertilizingDetails = {
+ 536:             type: "fertilize" as const,
+ 537:             product: data.product,
+ 538:             dilution: data.dilution,
+ 539:             amount: data.amount,
+ 540:             notes: data.notes,
+ 541:           };
+ 542:           careDetails = fertilizingDetails;
+ 543:           break;
+ 544:         }
+ 545: 
+ 546:         case "observe": {
+ 547:           const observationDetails: ObservationDetails = {
+ 548:             type: "observe" as const,
+ 549:             healthAssessment: data.healthAssessment,
+ 550:             observations: data.observations,
+ 551:             photos: capturedPhotos,
+ 552:             notes: data.notes,
+ 553:           };
+ 554:           careDetails = observationDetails;
+ 555:           break;
+ 556:         }
+ 557: 
+ 558:         default: {
+ 559:           throw new Error(`Unsupported activity type`);
+ 560:         }
+ 561:       }
+ 562: 
+ 563:       await careService.addCareActivity({
+ 564:         plantId: data.plantId,
+ 565:         type: data.type,
+ 566:         date: new Date(data.date),
+ 567:         details: careDetails,
+ 568:       });
+ 569: 
+ 570:       toast.success("Care activity logged successfully!");
+ 571:       reset();
+ 572:       setCapturedPhotos([]);
+ 573:       onSuccess?.();
+ 574:     } catch (error) {
+ 575:       console.error("Failed to log care activity:", error);
+ 576:       setSubmitError("Failed to log care activity. Please try again.");
+ 577:       toast.error("Failed to log care activity");
+ 578:     } finally {
+ 579:       setIsLoading(false);
+ 580:     }
+ 581:   };
+ 582: 
+ 583:   function renderWateringFields() {
+ 584:     const selectedPlant = plants.find((p) => p.id === selectedPlantId);
+ 585: 
+ 586:     return (
+ 587:       <>
+ 588:         {}
+ 589:         {smartDefaults?.watering && (
+ 590:           <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+ 591:             <div className="flex items-start justify-between">
+ 592:               <div>
+ 593:                 <h4 className="text-sm font-medium text-blue-900 mb-1">
+ 594:                   💡 Smart Suggestion
+ 595:                 </h4>
+ 596:                 <p className="text-sm text-blue-700">
+ 597:                   {smartDefaults.watering.reasoning}
+ 598:                 </p>
+ 599:                 <div className="flex items-center mt-2 text-xs text-blue-600">
+ 600:                   <span
+ 601:                     className={`inline-block w-2 h-2 rounded-full mr-1 ${
+ 602:                       smartDefaults.watering.confidence === "high"
+ 603:                         ? "bg-green-500"
+ 604:                         : smartDefaults.watering.confidence === "medium"
+ 605:                         ? "bg-yellow-500"
+ 606:                         : "bg-red-500"
+ 607:                     }`}
+ 608:                   />
+ 609:                   {smartDefaults.watering.confidence} confidence
+ 610:                 </div>
+ 611:               </div>
+ 612:               <div className="text-right">
+ 613:                 <div className="text-lg font-semibold text-blue-900">
+ 614:                   {smartDefaults.watering.suggestedAmount}{" "}
+ 615:                   {smartDefaults.watering.unit}
+ 616:                 </div>
+ 617:                 <button
+ 618:                   type="button"
+ 619:                   onClick={() =>
+ 620:                     handleQuickComplete({
+ 621:                       waterValue: smartDefaults.watering!.suggestedAmount,
+ 622:                       waterUnit: smartDefaults.watering!.unit,
+ 623:                     })
+ 624:                   }
+ 625:                   className="text-xs text-blue-600 hover:text-blue-800 underline"
+ 626:                 >
+ 627:                   Use this amount
+ 628:                 </button>
  629:               </div>
- 630:               <div className="text-right">
- 631:                 <div className="text-lg font-semibold text-blue-900">
- 632:                   {smartDefaults.watering.suggestedAmount}{" "}
- 633:                   {smartDefaults.watering.unit}
- 634:                 </div>
- 635:                 <button
- 636:                   type="button"
- 637:                   onClick={() =>
- 638:                     handleQuickComplete({
- 639:                       waterValue: smartDefaults.watering!.suggestedAmount,
- 640:                       waterUnit: smartDefaults.watering!.unit,
- 641:                     })
- 642:                   }
- 643:                   className="text-xs text-blue-600 hover:text-blue-800 underline"
- 644:                 >
- 645:                   Use this amount
- 646:                 </button>
- 647:               </div>
- 648:             </div>
- 649:           </div>
- 650:         )}
- 651: 
- 652:         {}
- 653:         {selectedPlant && (
- 654:           <QuickCompletionButtons
- 655:             plant={selectedPlant}
- 656:             activityType="water"
- 657:             onQuickComplete={handleQuickComplete}
- 658:             className="mb-4"
- 659:           />
- 660:         )}
- 661: 
- 662:         <div className="grid grid-cols-3 gap-4">
- 663:           <div className="col-span-2">
- 664:             <label
- 665:               htmlFor="waterValue"
- 666:               className="block text-sm font-medium text-foreground mb-2"
- 667:             >
- 668:               Water Amount *
- 669:             </label>
- 670:             <input
- 671:               id="waterValue"
- 672:               type="number"
- 673:               step="0.1"
- 674:               min="0.1"
- 675:               {...register("waterValue", { valueAsNumber: true })}
- 676:               className="w-full p-3 bg-card text-card-foreground border border-border rounded-md focus:ring-2 focus:ring-ring focus:border-ring"
- 677:               placeholder="Amount"
- 678:             />
- 679:             {"waterValue" in errors && errors.waterValue && (
- 680:               <p className="mt-1 text-sm text-red-600">
- 681:                 {errors.waterValue.message}
- 682:               </p>
- 683:             )}
- 684:           </div>
- 685: 
- 686:           <div>
- 687:             <label
- 688:               htmlFor="waterUnit"
- 689:               className="block text-sm font-medium text-foreground mb-2"
- 690:             >
- 691:               Unit *
- 692:             </label>
- 693:             <select
- 694:               id="waterUnit"
- 695:               {...register("waterUnit")}
- 696:               className="w-full p-3 bg-card text-card-foreground border border-border rounded-md focus:ring-2 focus:ring-ring focus:border-ring"
- 697:             >
- 698:               <option value="oz">oz</option>
- 699:               <option value="ml">ml</option>
- 700:               <option value="cups">cups</option>
- 701:               <option value="liters">liters</option>
- 702:               <option value="gallons">gallons</option>
- 703:             </select>
- 704:           </div>
- 705:         </div>
- 706: 
- 707:         {}
- 708:         <div className="flex items-center">
- 709:           <input
- 710:             id="showDetailedTracking"
- 711:             type="checkbox"
- 712:             checked={showDetailedTracking}
- 713:             onChange={(e) => setShowDetailedTracking(e.target.checked)}
- 714:             className="h-4 w-4 text-garden-600 border-border rounded focus:ring-garden-500"
- 715:           />
- 716:           <label
- 717:             htmlFor="showDetailedTracking"
- 718:             className="ml-2 text-sm text-foreground"
- 719:           >
- 720:             📊 Track moisture readings & method
- 721:           </label>
- 722:         </div>
- 723: 
- 724:         {}
- 725:         {showDetailedTracking && (
- 726:           <div className="space-y-4 p-4 bg-background rounded-lg border border-border">
- 727:             <h4 className="text-sm font-medium text-foreground">
- 728:               Detailed Tracking
- 729:             </h4>
- 730: 
- 731:             <div className="grid grid-cols-2 gap-4">
- 732:               <div>
- 733:                 <label
- 734:                   htmlFor="moistureBefore"
- 735:                   className="block text-sm font-medium text-foreground mb-2"
- 736:                 >
- 737:                   Moisture Before (1-10 scale)
- 738:                 </label>
- 739:                 <input
- 740:                   id="moistureBefore"
- 741:                   type="number"
- 742:                   min="1"
- 743:                   max="10"
- 744:                   step="0.5"
- 745:                   {...register("moistureBefore", { valueAsNumber: true })}
- 746:                   className="w-full p-3 border border-border rounded-md focus:ring-2 focus:ring-garden-500"
- 747:                   placeholder="e.g., 3"
- 748:                 />
- 749:                 <p className="mt-1 text-xs text-muted-foreground">
- 750:                   1 = bone dry, 10 = waterlogged
- 751:                 </p>
- 752: 
- 753:                 {}
- 754:                 {moistureValidation?.validations
- 755:                   ?.filter((v) => v.field === "before")
- 756:                   .map((validation, idx) => (
- 757:                     <p
- 758:                       key={idx}
- 759:                       className={`mt-1 text-xs ${validation.color} flex items-start`}
- 760:                     >
- 761:                       <span className="flex-shrink-0 mr-1">
- 762:                         {validation.message.split(" ")[0]}
- 763:                       </span>
- 764:                       <span>
- 765:                         {validation.message.substring(
- 766:                           validation.message.indexOf(" ") + 1
- 767:                         )}
- 768:                       </span>
- 769:                     </p>
- 770:                   ))}
- 771: 
- 772:                 {"moistureBefore" in errors && errors.moistureBefore && (
- 773:                   <p className="mt-1 text-sm text-red-600">
- 774:                     {errors.moistureBefore.message}
- 775:                   </p>
- 776:                 )}
- 777:               </div>
- 778: 
- 779:               <div>
- 780:                 <label
- 781:                   htmlFor="moistureAfter"
- 782:                   className="block text-sm font-medium text-foreground mb-2"
- 783:                 >
- 784:                   Moisture After (1-10 scale)
- 785:                 </label>
- 786:                 <input
- 787:                   id="moistureAfter"
- 788:                   type="number"
- 789:                   min="1"
- 790:                   max="10"
- 791:                   step="0.5"
- 792:                   {...register("moistureAfter", { valueAsNumber: true })}
- 793:                   className="w-full p-3 border border-border rounded-md focus:ring-2 focus:ring-garden-500"
- 794:                   placeholder="e.g., 7"
- 795:                 />
- 796:                 <p className="mt-1 text-xs text-muted-foreground">
- 797:                   Target range varies by plant - see protocol above
- 798:                 </p>
- 799: 
- 800:                 {}
- 801:                 {moistureValidation?.validations
- 802:                   ?.filter((v) => v.field === "after")
- 803:                   .map((validation, idx) => (
- 804:                     <p
- 805:                       key={idx}
- 806:                       className={`mt-1 text-xs ${validation.color} flex items-start`}
- 807:                     >
- 808:                       <span className="flex-shrink-0 mr-1">
- 809:                         {validation.message.split(" ")[0]}
- 810:                       </span>
- 811:                       <span>
- 812:                         {validation.message.substring(
- 813:                           validation.message.indexOf(" ") + 1
- 814:                         )}
- 815:                       </span>
- 816:                     </p>
- 817:                   ))}
- 818: 
- 819:                 {"moistureAfter" in errors && errors.moistureAfter && (
- 820:                   <p className="mt-1 text-sm text-red-600">
- 821:                     {errors.moistureAfter.message}
- 822:                   </p>
- 823:                 )}
- 824:               </div>
- 825:             </div>
- 826: 
- 827:             <div className="flex items-start">
- 828:               <input
- 829:                 id="runoffObserved"
- 830:                 type="checkbox"
- 831:                 {...register("runoffObserved")}
- 832:                 className="mt-1 h-4 w-4 text-garden-600 border-border rounded focus:ring-garden-500"
- 833:               />
- 834:               <div className="ml-3">
- 835:                 <label
- 836:                   htmlFor="runoffObserved"
- 837:                   className="text-sm font-medium text-foreground"
- 838:                 >
- 839:                   Observed water runoff from drainage holes
- 840:                 </label>
- 841:                 <p className="text-xs text-muted-foreground mt-1">
- 842:                   Runoff indicates thorough watering and good drainage
- 843:                 </p>
- 844:               </div>
- 845:             </div>
- 846: 
- 847:             {}
- 848:             {moistureValidation?.validations
- 849:               ?.filter((v) => v.field === "source")
- 850:               .map((validation, idx) => (
- 851:                 <div
- 852:                   key={idx}
- 853:                   className="mt-3 p-2 bg-background border border-border rounded-md"
- 854:                 >
- 855:                   <p className={`text-xs ${validation.color}`}>
- 856:                     {validation.message}
- 857:                   </p>
- 858:                 </div>
- 859:               ))}
- 860:           </div>
- 861:         )}
- 862:       </>
- 863:     );
- 864:   }
- 865: 
- 866:   function renderFertilizingFields() {
- 867:     const selectedPlant = plants.find((p) => p.id === selectedPlantId);
- 868: 
- 869:     return (
- 870:       <>
- 871:         {}
- 872:         {smartDefaults?.fertilizer && (
- 873:           <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-4">
- 874:             <h4 className="text-sm font-medium text-green-900 mb-2">
- 875:               💡 Smart Suggestion
- 876:             </h4>
- 877:             <p className="text-sm text-green-700 mb-3">
- 878:               {smartDefaults.fertilizer.reasoning}
- 879:             </p>
- 880:             <div className="space-y-2">
- 881:               {smartDefaults.fertilizer.products.map((product, index) => (
- 882:                 <button
- 883:                   key={index}
- 884:                   type="button"
- 885:                   onClick={() =>
- 886:                     handleQuickComplete({
- 887:                       product: product.name,
- 888:                       dilution: product.dilution,
- 889:                       amount: product.amount,
- 890:                     })
- 891:                   }
- 892:                   className="block w-full text-left p-2 bg-card border border-green-200 rounded hover:bg-green-50 transition-colors"
- 893:                 >
- 894:                   <div className="font-medium text-green-900">
- 895:                     {product.name}
- 896:                   </div>
- 897:                   <div className="text-xs text-green-600">
- 898:                     {product.dilution} • {product.amount}
- 899:                   </div>
- 900:                 </button>
- 901:               ))}
- 902:             </div>
- 903:           </div>
- 904:         )}
- 905: 
- 906:         {}
- 907:         {selectedPlant && (
- 908:           <QuickCompletionButtons
- 909:             plant={selectedPlant}
- 910:             activityType="fertilize"
- 911:             onQuickComplete={handleQuickComplete}
- 912:             className="mb-4"
- 913:           />
- 914:         )}
- 915: 
- 916:         <div>
- 917:           <label
- 918:             htmlFor="product"
- 919:             className="block text-sm font-medium text-foreground mb-2"
- 920:           >
- 921:             Fertilizer Product *
- 922:           </label>
- 923:           <input
- 924:             id="product"
- 925:             type="text"
- 926:             {...register("product")}
- 927:             className="w-full p-3 bg-card text-card-foreground border border-border rounded-md focus:ring-2 focus:ring-ring focus:border-ring"
- 928:             placeholder="e.g., Neptune's Harvest Fish & Seaweed"
- 929:           />
- 930:           {"product" in errors && errors.product && (
- 931:             <p className="mt-1 text-sm text-red-600">
- 932:               {errors.product.message}
- 933:             </p>
- 934:           )}
- 935:         </div>
- 936: 
- 937:         <div className="grid grid-cols-2 gap-4">
- 938:           <div>
- 939:             <label
- 940:               htmlFor="dilution"
- 941:               className="block text-sm font-medium text-foreground mb-2"
- 942:             >
- 943:               Dilution Ratio *
- 944:             </label>
- 945:             <input
- 946:               id="dilution"
- 947:               type="text"
- 948:               {...register("dilution")}
- 949:               className="w-full p-3 bg-card text-card-foreground border border-border rounded-md focus:ring-2 focus:ring-ring focus:border-ring"
- 950:               placeholder="e.g., 1 tbsp/gal, half strength"
- 951:             />
- 952:             {"dilution" in errors && errors.dilution && (
- 953:               <p className="mt-1 text-sm text-red-600">
- 954:                 {errors.dilution.message}
- 955:               </p>
- 956:             )}
- 957:           </div>
- 958: 
- 959:           <div>
- 960:             <label
- 961:               htmlFor="amount"
- 962:               className="block text-sm font-medium text-foreground mb-2"
- 963:             >
- 964:               Application Amount *
- 965:             </label>
- 966:             <input
- 967:               id="amount"
- 968:               type="text"
- 969:               {...register("amount")}
- 970:               className="w-full p-3 bg-card text-card-foreground border border-border rounded-md focus:ring-2 focus:ring-ring focus:border-ring"
- 971:               placeholder="e.g., 16 oz, apply until runoff"
- 972:             />
- 973:             {"amount" in errors && errors.amount && (
- 974:               <p className="mt-1 text-sm text-red-600">
- 975:                 {errors.amount.message}
- 976:               </p>
- 977:             )}
- 978:           </div>
- 979:         </div>
- 980:       </>
- 981:     );
- 982:   }
- 983: 
- 984:   function renderObservationFields() {
- 985:     return (
- 986:       <>
- 987:         <div>
- 988:           <label
- 989:             htmlFor="healthAssessment"
- 990:             className="block text-sm font-medium text-foreground mb-2"
- 991:           >
- 992:             Health Assessment *
- 993:           </label>
- 994:           <select
- 995:             id="healthAssessment"
- 996:             {...register("healthAssessment")}
- 997:             className="w-full p-3 bg-card text-card-foreground border border-border rounded-md focus:ring-2 focus:ring-ring focus:border-ring"
- 998:           >
- 999:             <option value="">Select assessment...</option>
-1000:             <option value="excellent">🌟 Excellent</option>
-1001:             <option value="good">😊 Good</option>
-1002:             <option value="fair">😐 Fair</option>
-1003:             <option value="concerning">😟 Concerning</option>
-1004:             <option value="critical">🚨 Critical</option>
-1005:           </select>
-1006:           {"healthAssessment" in errors && errors.healthAssessment && (
-1007:             <p className="mt-1 text-sm text-red-600">
-1008:               {errors.healthAssessment.message}
-1009:             </p>
-1010:           )}
-1011:         </div>
-1012: 
-1013:         <div>
-1014:           <label
-1015:             htmlFor="observations"
-1016:             className="block text-sm font-medium text-foreground mb-2"
-1017:           >
-1018:             Observations *
-1019:           </label>
-1020:           <textarea
-1021:             id="observations"
-1022:             rows={4}
-1023:             {...register("observations")}
-1024:             className="w-full p-3 bg-card text-card-foreground border border-border rounded-md focus:ring-2 focus:ring-ring focus:border-ring"
-1025:             placeholder="Describe what you observed (growth, color, pests, diseases, etc.)"
-1026:           />
-1027:           {"observations" in errors && errors.observations && (
-1028:             <p className="mt-1 text-sm text-red-600">
-1029:               {errors.observations.message}
-1030:             </p>
-1031:           )}
-1032:         </div>
-1033: 
-1034:         <PhotoCapture
-1035:           photos={capturedPhotos}
-1036:           onPhotosChange={setCapturedPhotos}
-1037:           maxPhotos={5}
-1038:         />
-1039:       </>
-1040:     );
-1041:   }
-1042: 
-1043:   function renderActivitySpecificFields() {
-1044:     switch (activityType) {
-1045:       case "water":
-1046:         return renderWateringFields();
-1047:       case "fertilize":
-1048:         return renderFertilizingFields();
-1049:       case "observe":
-1050:         return renderObservationFields();
-1051:       default:
-1052:         return null;
-1053:     }
-1054:   }
-1055: 
-1056:   return (
-1057:     <div className="max-w-2xl mx-auto p-6 bg-card rounded-lg shadow-sm">
-1058:       <div className="mb-6">
-1059:         <h2 className="text-2xl font-bold text-foreground mb-2">
-1060:           Log Care Activity
-1061:         </h2>
-1062:         <p className="text-muted-foreground">
-1063:           Record care activities to track your plants' progress and optimize
-1064:           their health.
-1065:         </p>
-1066:       </div>
-1067: 
-1068:       <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-1069:         {submitError && (
-1070:           <div className="bg-red-50 border border-red-200 rounded-md p-4">
-1071:             <p className="text-sm text-red-600">{submitError}</p>
-1072:           </div>
-1073:         )}
-1074: 
-1075:         {}
-1076:         <div>
-1077:           <label
-1078:             htmlFor="plantId"
-1079:             className="block text-sm font-medium text-foreground mb-2"
-1080:           >
-1081:             Plant *
-1082:           </label>
-1083:           <select
-1084:             id="plantId"
-1085:             {...register("plantId")}
-1086:             className="w-full p-3 bg-card text-card-foreground border border-border rounded-md focus:ring-2 focus:ring-ring focus:border-ring"
-1087:           >
-1088:             <option value="">Select a plant...</option>
-1089:             {plants.map((plant) => (
-1090:               <option key={plant.id} value={plant.id}>
-1091:                 {plant.name || plant.varietyName} - {plant.location}
-1092:               </option>
-1093:             ))}
-1094:           </select>
-1095:           {errors.plantId && (
-1096:             <p className="mt-1 text-sm text-red-600">
-1097:               {errors.plantId.message}
-1098:             </p>
-1099:           )}
-1100:         </div>
-1101: 
-1102:         {}
-1103:         <div>
-1104:           <label
-1105:             htmlFor="type"
-1106:             className="block text-sm font-medium text-foreground mb-2"
-1107:           >
-1108:             Activity Type *
-1109:           </label>
-1110:           <select
-1111:             id="type"
-1112:             {...register("type")}
-1113:             className="w-full p-3 bg-card text-card-foreground border border-border rounded-md focus:ring-2 focus:ring-ring focus:border-ring"
-1114:           >
-1115:             <option value="water">💧 Watering</option>
-1116:             <option value="fertilize">🌱 Fertilizing</option>
-1117:             <option value="observe">👁️ Observation</option>
-1118:             <option value="harvest">🌾 Harvest</option>
-1119:             <option value="transplant">🪴 Transplant</option>
-1120:           </select>
-1121:         </div>
-1122: 
-1123:         {}
-1124:         <div>
-1125:           <label
-1126:             htmlFor="date"
-1127:             className="block text-sm font-medium text-foreground mb-2"
-1128:           >
-1129:             Date *
-1130:           </label>
-1131:           <input
-1132:             id="date"
-1133:             type="date"
-1134:             {...register("date")}
-1135:             className="w-full p-3 bg-card text-card-foreground border border-border rounded-md focus:ring-2 focus:ring-ring focus:border-ring"
-1136:           />
-1137:           {errors.date && (
-1138:             <p className="mt-1 text-sm text-red-600">{errors.date.message}</p>
-1139:           )}
-1140:         </div>
-1141: 
-1142:         {}
-1143:         {renderActivitySpecificFields()}
-1144: 
-1145:         {}
-1146:         <div>
-1147:           <label
-1148:             htmlFor="notes"
-1149:             className="block text-sm font-medium text-foreground mb-2"
-1150:           >
-1151:             Notes (optional)
-1152:           </label>
-1153:           <textarea
-1154:             id="notes"
-1155:             rows={3}
-1156:             {...register("notes")}
-1157:             className="w-full p-3 bg-card text-card-foreground border border-border rounded-md focus:ring-2 focus:ring-ring focus:border-ring"
-1158:             placeholder="Any additional observations or notes..."
-1159:           />
-1160:         </div>
-1161: 
-1162:         {}
-1163:         <div className="flex gap-4">
-1164:           <Button
-1165:             type="submit"
-1166:             variant="primary"
-1167:             disabled={isLoading || isLoadingDefaults}
-1168:             className="flex-1"
-1169:           >
-1170:             {isLoading ? "Logging..." : "Log Activity"}
-1171:           </Button>
-1172:           {onCancel && (
-1173:             <Button type="button" variant="outline" onClick={onCancel}>
-1174:               Cancel
-1175:             </Button>
-1176:           )}
-1177:         </div>
-1178:       </form>
-1179:     </div>
-1180:   );
-1181: }
+ 630:             </div>
+ 631:           </div>
+ 632:         )}
+ 633: 
+ 634:         {}
+ 635:         {selectedPlant && (
+ 636:           <QuickCompletionButtons
+ 637:             plant={selectedPlant}
+ 638:             activityType="water"
+ 639:             onQuickComplete={handleQuickComplete}
+ 640:             className="mb-4"
+ 641:           />
+ 642:         )}
+ 643: 
+ 644:         <div className="grid grid-cols-3 gap-4">
+ 645:           <div className="col-span-2">
+ 646:             <label
+ 647:               htmlFor="waterValue"
+ 648:               className="block text-sm font-medium text-foreground mb-2"
+ 649:             >
+ 650:               Water Amount *
+ 651:             </label>
+ 652:             <input
+ 653:               id="waterValue"
+ 654:               type="number"
+ 655:               step="0.1"
+ 656:               min="0.1"
+ 657:               {...register("waterValue", { valueAsNumber: true })}
+ 658:               className="w-full p-3 bg-card text-card-foreground border border-border rounded-md focus:ring-2 focus:ring-ring focus:border-ring"
+ 659:               placeholder="Amount"
+ 660:             />
+ 661:             {"waterValue" in errors && errors.waterValue && (
+ 662:               <p className="mt-1 text-sm text-red-600">
+ 663:                 {errors.waterValue.message}
+ 664:               </p>
+ 665:             )}
+ 666:           </div>
+ 667: 
+ 668:           <div>
+ 669:             <label
+ 670:               htmlFor="waterUnit"
+ 671:               className="block text-sm font-medium text-foreground mb-2"
+ 672:             >
+ 673:               Unit *
+ 674:             </label>
+ 675:             <select
+ 676:               id="waterUnit"
+ 677:               {...register("waterUnit")}
+ 678:               className="w-full p-3 bg-card text-card-foreground border border-border rounded-md focus:ring-2 focus:ring-ring focus:border-ring"
+ 679:             >
+ 680:               <option value="oz">oz</option>
+ 681:               <option value="ml">ml</option>
+ 682:               <option value="cups">cups</option>
+ 683:               <option value="liters">liters</option>
+ 684:               <option value="gallons">gallons</option>
+ 685:             </select>
+ 686:           </div>
+ 687:         </div>
+ 688: 
+ 689:         {}
+ 690:         <div className="flex items-center">
+ 691:           <input
+ 692:             id="showDetailedTracking"
+ 693:             type="checkbox"
+ 694:             checked={showDetailedTracking}
+ 695:             onChange={(e) => setShowDetailedTracking(e.target.checked)}
+ 696:             className="h-4 w-4 text-garden-600 border-border rounded focus:ring-garden-500"
+ 697:           />
+ 698:           <label
+ 699:             htmlFor="showDetailedTracking"
+ 700:             className="ml-2 text-sm text-foreground"
+ 701:           >
+ 702:             📊 Track moisture readings & method
+ 703:           </label>
+ 704:         </div>
+ 705: 
+ 706:         {}
+ 707:         {showDetailedTracking && (
+ 708:           <div className="space-y-4 p-4 bg-background rounded-lg border border-border">
+ 709:             <h4 className="text-sm font-medium text-foreground">
+ 710:               Detailed Tracking
+ 711:             </h4>
+ 712: 
+ 713:             <div className="grid grid-cols-2 gap-4">
+ 714:               <div>
+ 715:                 <label
+ 716:                   htmlFor="moistureBefore"
+ 717:                   className="block text-sm font-medium text-foreground mb-2"
+ 718:                 >
+ 719:                   Moisture Before (1-10 scale)
+ 720:                 </label>
+ 721:                 <input
+ 722:                   id="moistureBefore"
+ 723:                   type="number"
+ 724:                   min="1"
+ 725:                   max="10"
+ 726:                   step="0.5"
+ 727:                   {...register("moistureBefore", { valueAsNumber: true })}
+ 728:                   className="w-full p-3 border border-border rounded-md focus:ring-2 focus:ring-garden-500"
+ 729:                   placeholder="e.g., 3"
+ 730:                 />
+ 731:                 <p className="mt-1 text-xs text-muted-foreground">
+ 732:                   1 = bone dry, 10 = waterlogged
+ 733:                 </p>
+ 734: 
+ 735:                 {}
+ 736:                 {moistureValidation?.validations
+ 737:                   ?.filter((v) => v.field === "before")
+ 738:                   .map((validation, idx) => (
+ 739:                     <p
+ 740:                       key={idx}
+ 741:                       className={`mt-1 text-xs ${validation.color} flex items-start`}
+ 742:                     >
+ 743:                       <span className="flex-shrink-0 mr-1">
+ 744:                         {validation.message.split(" ")[0]}
+ 745:                       </span>
+ 746:                       <span>
+ 747:                         {validation.message.substring(
+ 748:                           validation.message.indexOf(" ") + 1
+ 749:                         )}
+ 750:                       </span>
+ 751:                     </p>
+ 752:                   ))}
+ 753: 
+ 754:                 {"moistureBefore" in errors && errors.moistureBefore && (
+ 755:                   <p className="mt-1 text-sm text-red-600">
+ 756:                     {errors.moistureBefore.message}
+ 757:                   </p>
+ 758:                 )}
+ 759:               </div>
+ 760: 
+ 761:               <div>
+ 762:                 <label
+ 763:                   htmlFor="moistureAfter"
+ 764:                   className="block text-sm font-medium text-foreground mb-2"
+ 765:                 >
+ 766:                   Moisture After (1-10 scale)
+ 767:                 </label>
+ 768:                 <input
+ 769:                   id="moistureAfter"
+ 770:                   type="number"
+ 771:                   min="1"
+ 772:                   max="10"
+ 773:                   step="0.5"
+ 774:                   {...register("moistureAfter", { valueAsNumber: true })}
+ 775:                   className="w-full p-3 border border-border rounded-md focus:ring-2 focus:ring-garden-500"
+ 776:                   placeholder="e.g., 7"
+ 777:                 />
+ 778:                 <p className="mt-1 text-xs text-muted-foreground">
+ 779:                   Target range varies by plant - see protocol above
+ 780:                 </p>
+ 781: 
+ 782:                 {}
+ 783:                 {moistureValidation?.validations
+ 784:                   ?.filter((v) => v.field === "after")
+ 785:                   .map((validation, idx) => (
+ 786:                     <p
+ 787:                       key={idx}
+ 788:                       className={`mt-1 text-xs ${validation.color} flex items-start`}
+ 789:                     >
+ 790:                       <span className="flex-shrink-0 mr-1">
+ 791:                         {validation.message.split(" ")[0]}
+ 792:                       </span>
+ 793:                       <span>
+ 794:                         {validation.message.substring(
+ 795:                           validation.message.indexOf(" ") + 1
+ 796:                         )}
+ 797:                       </span>
+ 798:                     </p>
+ 799:                   ))}
+ 800: 
+ 801:                 {"moistureAfter" in errors && errors.moistureAfter && (
+ 802:                   <p className="mt-1 text-sm text-red-600">
+ 803:                     {errors.moistureAfter.message}
+ 804:                   </p>
+ 805:                 )}
+ 806:               </div>
+ 807:             </div>
+ 808: 
+ 809:             <div className="flex items-start">
+ 810:               <input
+ 811:                 id="runoffObserved"
+ 812:                 type="checkbox"
+ 813:                 {...register("runoffObserved")}
+ 814:                 className="mt-1 h-4 w-4 text-garden-600 border-border rounded focus:ring-garden-500"
+ 815:               />
+ 816:               <div className="ml-3">
+ 817:                 <label
+ 818:                   htmlFor="runoffObserved"
+ 819:                   className="text-sm font-medium text-foreground"
+ 820:                 >
+ 821:                   Observed water runoff from drainage holes
+ 822:                 </label>
+ 823:                 <p className="text-xs text-muted-foreground mt-1">
+ 824:                   Runoff indicates thorough watering and good drainage
+ 825:                 </p>
+ 826:               </div>
+ 827:             </div>
+ 828: 
+ 829:             {}
+ 830:             {moistureValidation?.validations
+ 831:               ?.filter((v) => v.field === "source")
+ 832:               .map((validation, idx) => (
+ 833:                 <div
+ 834:                   key={idx}
+ 835:                   className="mt-3 p-2 bg-background border border-border rounded-md"
+ 836:                 >
+ 837:                   <p className={`text-xs ${validation.color}`}>
+ 838:                     {validation.message}
+ 839:                   </p>
+ 840:                 </div>
+ 841:               ))}
+ 842:           </div>
+ 843:         )}
+ 844:       </>
+ 845:     );
+ 846:   }
+ 847: 
+ 848:   function renderFertilizingFields() {
+ 849:     const selectedPlant = plants.find((p) => p.id === selectedPlantId);
+ 850: 
+ 851:     return (
+ 852:       <>
+ 853:         {}
+ 854:         {smartDefaults?.fertilizer && (
+ 855:           <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-4">
+ 856:             <h4 className="text-sm font-medium text-green-900 mb-2">
+ 857:               💡 Smart Suggestion
+ 858:             </h4>
+ 859:             <p className="text-sm text-green-700 mb-3">
+ 860:               {smartDefaults.fertilizer.reasoning}
+ 861:             </p>
+ 862:             <div className="space-y-2">
+ 863:               {smartDefaults.fertilizer.products.map((product, index) => (
+ 864:                 <button
+ 865:                   key={index}
+ 866:                   type="button"
+ 867:                   onClick={() =>
+ 868:                     handleQuickComplete({
+ 869:                       product: product.name,
+ 870:                       dilution: product.dilution,
+ 871:                       amount: product.amount,
+ 872:                     })
+ 873:                   }
+ 874:                   className="block w-full text-left p-2 bg-card border border-green-200 rounded hover:bg-green-50 transition-colors"
+ 875:                 >
+ 876:                   <div className="font-medium text-green-900">
+ 877:                     {product.name}
+ 878:                   </div>
+ 879:                   <div className="text-xs text-green-600">
+ 880:                     {product.dilution} • {product.amount}
+ 881:                   </div>
+ 882:                 </button>
+ 883:               ))}
+ 884:             </div>
+ 885:           </div>
+ 886:         )}
+ 887: 
+ 888:         {}
+ 889:         {selectedPlant && (
+ 890:           <QuickCompletionButtons
+ 891:             plant={selectedPlant}
+ 892:             activityType="fertilize"
+ 893:             onQuickComplete={handleQuickComplete}
+ 894:             className="mb-4"
+ 895:           />
+ 896:         )}
+ 897: 
+ 898:         <div>
+ 899:           <label
+ 900:             htmlFor="product"
+ 901:             className="block text-sm font-medium text-foreground mb-2"
+ 902:           >
+ 903:             Fertilizer Product *
+ 904:           </label>
+ 905:           <input
+ 906:             id="product"
+ 907:             type="text"
+ 908:             {...register("product")}
+ 909:             className="w-full p-3 bg-card text-card-foreground border border-border rounded-md focus:ring-2 focus:ring-ring focus:border-ring"
+ 910:             placeholder="e.g., Neptune's Harvest Fish & Seaweed"
+ 911:           />
+ 912:           {"product" in errors && errors.product && (
+ 913:             <p className="mt-1 text-sm text-red-600">
+ 914:               {errors.product.message}
+ 915:             </p>
+ 916:           )}
+ 917:         </div>
+ 918: 
+ 919:         <div className="grid grid-cols-2 gap-4">
+ 920:           <div>
+ 921:             <label
+ 922:               htmlFor="dilution"
+ 923:               className="block text-sm font-medium text-foreground mb-2"
+ 924:             >
+ 925:               Dilution Ratio *
+ 926:             </label>
+ 927:             <input
+ 928:               id="dilution"
+ 929:               type="text"
+ 930:               {...register("dilution")}
+ 931:               className="w-full p-3 bg-card text-card-foreground border border-border rounded-md focus:ring-2 focus:ring-ring focus:border-ring"
+ 932:               placeholder="e.g., 1 tbsp/gal, half strength"
+ 933:             />
+ 934:             {"dilution" in errors && errors.dilution && (
+ 935:               <p className="mt-1 text-sm text-red-600">
+ 936:                 {errors.dilution.message}
+ 937:               </p>
+ 938:             )}
+ 939:           </div>
+ 940: 
+ 941:           <div>
+ 942:             <label
+ 943:               htmlFor="amount"
+ 944:               className="block text-sm font-medium text-foreground mb-2"
+ 945:             >
+ 946:               Application Amount *
+ 947:             </label>
+ 948:             <input
+ 949:               id="amount"
+ 950:               type="text"
+ 951:               {...register("amount")}
+ 952:               className="w-full p-3 bg-card text-card-foreground border border-border rounded-md focus:ring-2 focus:ring-ring focus:border-ring"
+ 953:               placeholder="e.g., 16 oz, apply until runoff"
+ 954:             />
+ 955:             {"amount" in errors && errors.amount && (
+ 956:               <p className="mt-1 text-sm text-red-600">
+ 957:                 {errors.amount.message}
+ 958:               </p>
+ 959:             )}
+ 960:           </div>
+ 961:         </div>
+ 962:       </>
+ 963:     );
+ 964:   }
+ 965: 
+ 966:   function renderObservationFields() {
+ 967:     return (
+ 968:       <>
+ 969:         <div>
+ 970:           <label
+ 971:             htmlFor="healthAssessment"
+ 972:             className="block text-sm font-medium text-foreground mb-2"
+ 973:           >
+ 974:             Health Assessment *
+ 975:           </label>
+ 976:           <select
+ 977:             id="healthAssessment"
+ 978:             {...register("healthAssessment")}
+ 979:             className="w-full p-3 bg-card text-card-foreground border border-border rounded-md focus:ring-2 focus:ring-ring focus:border-ring"
+ 980:           >
+ 981:             <option value="">Select assessment...</option>
+ 982:             <option value="excellent">🌟 Excellent</option>
+ 983:             <option value="good">😊 Good</option>
+ 984:             <option value="fair">😐 Fair</option>
+ 985:             <option value="concerning">😟 Concerning</option>
+ 986:             <option value="critical">🚨 Critical</option>
+ 987:           </select>
+ 988:           {"healthAssessment" in errors && errors.healthAssessment && (
+ 989:             <p className="mt-1 text-sm text-red-600">
+ 990:               {errors.healthAssessment.message}
+ 991:             </p>
+ 992:           )}
+ 993:         </div>
+ 994: 
+ 995:         <div>
+ 996:           <label
+ 997:             htmlFor="observations"
+ 998:             className="block text-sm font-medium text-foreground mb-2"
+ 999:           >
+1000:             Observations *
+1001:           </label>
+1002:           <textarea
+1003:             id="observations"
+1004:             rows={4}
+1005:             {...register("observations")}
+1006:             className="w-full p-3 bg-card text-card-foreground border border-border rounded-md focus:ring-2 focus:ring-ring focus:border-ring"
+1007:             placeholder="Describe what you observed (growth, color, pests, diseases, etc.)"
+1008:           />
+1009:           {"observations" in errors && errors.observations && (
+1010:             <p className="mt-1 text-sm text-red-600">
+1011:               {errors.observations.message}
+1012:             </p>
+1013:           )}
+1014:         </div>
+1015: 
+1016:         <PhotoCapture
+1017:           photos={capturedPhotos}
+1018:           onPhotosChange={setCapturedPhotos}
+1019:           maxPhotos={5}
+1020:         />
+1021:       </>
+1022:     );
+1023:   }
+1024: 
+1025:   function renderActivitySpecificFields() {
+1026:     switch (activityType) {
+1027:       case "water":
+1028:         return renderWateringFields();
+1029:       case "fertilize":
+1030:         return renderFertilizingFields();
+1031:       case "observe":
+1032:         return renderObservationFields();
+1033:       default:
+1034:         return null;
+1035:     }
+1036:   }
+1037: 
+1038:   return (
+1039:     <div className="max-w-2xl mx-auto p-6 bg-card rounded-lg shadow-sm">
+1040:       <div className="mb-6">
+1041:         <h2 className="text-2xl font-bold text-foreground mb-2">
+1042:           Log Care Activity
+1043:         </h2>
+1044:         <p className="text-muted-foreground">
+1045:           Record care activities to track your plants' progress and optimize
+1046:           their health.
+1047:         </p>
+1048:       </div>
+1049: 
+1050:       <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+1051:         {submitError && (
+1052:           <div className="bg-red-50 border border-red-200 rounded-md p-4">
+1053:             <p className="text-sm text-red-600">{submitError}</p>
+1054:           </div>
+1055:         )}
+1056: 
+1057:         {}
+1058:         <div>
+1059:           <label
+1060:             htmlFor="plantId"
+1061:             className="block text-sm font-medium text-foreground mb-2"
+1062:           >
+1063:             Plant *
+1064:           </label>
+1065:           <select
+1066:             id="plantId"
+1067:             {...register("plantId")}
+1068:             className="w-full p-3 bg-card text-card-foreground border border-border rounded-md focus:ring-2 focus:ring-ring focus:border-ring"
+1069:           >
+1070:             <option value="">Select a plant...</option>
+1071:             {plants.map((plant) => (
+1072:               <option key={plant.id} value={plant.id}>
+1073:                 {plant.name || plant.varietyName} - {plant.location}
+1074:               </option>
+1075:             ))}
+1076:           </select>
+1077:           {errors.plantId && (
+1078:             <p className="mt-1 text-sm text-red-600">
+1079:               {errors.plantId.message}
+1080:             </p>
+1081:           )}
+1082:         </div>
+1083: 
+1084:         {}
+1085:         <div>
+1086:           <label
+1087:             htmlFor="type"
+1088:             className="block text-sm font-medium text-foreground mb-2"
+1089:           >
+1090:             Activity Type *
+1091:           </label>
+1092:           <select
+1093:             id="type"
+1094:             {...register("type")}
+1095:             className="w-full p-3 bg-card text-card-foreground border border-border rounded-md focus:ring-2 focus:ring-ring focus:border-ring"
+1096:           >
+1097:             <option value="water">💧 Watering</option>
+1098:             <option value="fertilize">🌱 Fertilizing</option>
+1099:             <option value="observe">👁️ Observation</option>
+1100:             {
+1101: }
+1102:           </select>
+1103:         </div>
+1104: 
+1105:         {}
+1106:         <div>
+1107:           <label
+1108:             htmlFor="date"
+1109:             className="block text-sm font-medium text-foreground mb-2"
+1110:           >
+1111:             Date *
+1112:           </label>
+1113:           <input
+1114:             id="date"
+1115:             type="date"
+1116:             {...register("date")}
+1117:             className="w-full p-3 bg-card text-card-foreground border border-border rounded-md focus:ring-2 focus:ring-ring focus:border-ring"
+1118:           />
+1119:           {errors.date && (
+1120:             <p className="mt-1 text-sm text-red-600">{errors.date.message}</p>
+1121:           )}
+1122:         </div>
+1123: 
+1124:         {}
+1125:         {renderActivitySpecificFields()}
+1126: 
+1127:         {}
+1128:         <div>
+1129:           <label
+1130:             htmlFor="notes"
+1131:             className="block text-sm font-medium text-foreground mb-2"
+1132:           >
+1133:             Notes (optional)
+1134:           </label>
+1135:           <textarea
+1136:             id="notes"
+1137:             rows={3}
+1138:             {...register("notes")}
+1139:             className="w-full p-3 bg-card text-card-foreground border border-border rounded-md focus:ring-2 focus:ring-ring focus:border-ring"
+1140:             placeholder="Any additional observations or notes..."
+1141:           />
+1142:         </div>
+1143: 
+1144:         {}
+1145:         <div className="flex gap-4">
+1146:           <Button
+1147:             type="submit"
+1148:             variant="primary"
+1149:             disabled={isLoading || isLoadingDefaults}
+1150:             className="flex-1"
+1151:           >
+1152:             {isLoading ? "Logging..." : "Log Activity"}
+1153:           </Button>
+1154:           {onCancel && (
+1155:             <Button type="button" variant="outline" onClick={onCancel}>
+1156:               Cancel
+1157:             </Button>
+1158:           )}
+1159:         </div>
+1160:       </form>
+1161:     </div>
+1162:   );
+1163: }
 
 ================
 File: src/pages/plants/PlantDetail.tsx
@@ -17184,269 +17466,384 @@ File: src/pages/plants/PlantDetail.tsx
 ================
 File: src/pages/dashboard/index.tsx
 ================
-  1: import { useState, useEffect } from "react";
+  1: import { useState, useEffect, useCallback } from "react";
   2: import { Link, useNavigate } from "react-router-dom";
   3: import { Button } from "@/components/ui/Button";
   4: import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
-  5: import { StatusBadge } from "@/components/ui/StatusBadge";
-  6: import { plantService, PlantRecord } from "@/types/database";
-  7: import { CareSchedulingService } from "@/services/careSchedulingService";
-  8: import { UpcomingTask } from "@/types/scheduling";
-  9: import PlantStageDisplay from "@/components/plant/PlantStageDisplay";
- 10: import { getPlantDisplayName } from "@/utils/plantDisplay";
- 11: 
- 12: const Dashboard = () => {
- 13:   const navigate = useNavigate();
- 14:   const [plants, setPlants] = useState<PlantRecord[]>([]);
- 15:   const [upcomingTasks, setUpcomingTasks] = useState<UpcomingTask[]>([]);
- 16:   const [isLoading, setIsLoading] = useState(true);
- 17:   const [error, setError] = useState<string | null>(null);
- 18: 
- 19:   const handlePlantClick = (plantId: string) => {
- 20:     navigate(`/plants/${plantId}`);
- 21:   };
- 22: 
- 23:   const handleTaskClick = (task: UpcomingTask) => {
- 24:     navigate(`/plants/${task.plantId}`);
- 25:   };
- 26: 
- 27:   useEffect(() => {
- 28:     loadDashboardData();
- 29:   }, []);
- 30: 
- 31:   async function loadDashboardData() {
- 32:     try {
- 33:       setIsLoading(true);
- 34:       setError(null);
- 35: 
- 36:       const [plantsData, tasksData] = await Promise.all([
- 37:         plantService.getActivePlants(),
- 38:         CareSchedulingService.getUpcomingTasks(),
- 39:       ]);
- 40: 
- 41:       setPlants(plantsData);
- 42:       console.log("Tasks Data:", tasksData);
- 43:       setUpcomingTasks(tasksData);
- 44:     } catch (error) {
- 45:       console.error("Failed to load dashboard data:", error);
- 46:       setError("Failed to load plants");
- 47:     } finally {
- 48:       setIsLoading(false);
- 49:     }
- 50:   }
- 51: 
- 52: 
- 53:   function getTaskStatus(
- 54:     priority: "low" | "medium" | "high"
- 55:   ): "healthy" | "attention" | "critical" | "new" {
- 56:     switch (priority) {
- 57:       case "high":
- 58:         return "critical";
- 59:       case "medium":
- 60:         return "attention";
- 61:       case "low":
- 62:       default:
- 63:         return "healthy";
- 64:     }
- 65:   }
- 66: 
- 67:   function getDaysSincePlanting(plantedDate: Date): number {
- 68:     const now = new Date();
- 69:     const diffTime = Math.abs(now.getTime() - plantedDate.getTime());
- 70:     return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
- 71:   }
- 72: 
- 73:   if (isLoading) {
- 74:     return (
- 75:       <div className="min-h-screen flex items-center justify-center">
- 76:         <div className="text-center">
- 77:           <div className="text-4xl mb-4">🌱</div>
- 78:           <div className="text-lg font-medium">Loading your garden...</div>
- 79:         </div>
- 80:       </div>
- 81:     );
- 82:   }
- 83: 
- 84:   if (error) {
- 85:     return (
- 86:       <div className="min-h-screen flex items-center justify-center">
- 87:         <div className="text-center">
- 88:           <div className="text-4xl mb-4">🚨</div>
- 89:           <div className="text-lg font-medium text-red-600 mb-4">{error}</div>
- 90:           <Button onClick={loadDashboardData}>Try Again</Button>
- 91:         </div>
- 92:       </div>
- 93:     );
- 94:   }
- 95: 
+  5: import { plantService, PlantRecord, careService } from "@/types/database";
+  6: import { CareSchedulingService } from "@/services/careSchedulingService";
+  7: import { TaskGroupingService } from "@/services/taskGroupingService";
+  8: import { SmartDefaultsService } from "@/services/smartDefaultsService";
+  9: import {
+ 10:   QuickCompleteOption,
+ 11:   QuickCompletionValues,
+ 12:   TaskGroup as TaskGroupType,
+ 13:   UpcomingTask,
+ 14: } from "@/types/scheduling";
+ 15: import { getPlantDisplayName } from "@/utils/plantDisplay";
+ 16: import TaskGroup from "@/pages/dashboard/TaskGroup";
+ 17: import { useFirstTimeUser } from "@/hooks/useFirstTimeUser";
+ 18: import Welcome from "@/components/layouts/Welcome";
+ 19: import { WateringDetails, FertilizingDetails } from "@/types/database";
+ 20: 
+ 21: interface QuickAction {
+ 22:   id: string;
+ 23:   label: string;
+ 24:   emoji: string;
+ 25:   action: () => void;
+ 26:   variant?: "primary" | "outline" | "destructive" | "secondary" | "ghost";
+ 27:   isContextual?: boolean;
+ 28: }
+ 29: 
+ 30: const Dashboard = () => {
+ 31:   const navigate = useNavigate();
+ 32:   const { isFirstTime, isLoading: isCheckingFirstTime } = useFirstTimeUser();
+ 33: 
+ 34:   const [plants, setPlants] = useState<PlantRecord[]>([]);
+ 35:   const [taskGroups, setTaskGroups] = useState<TaskGroupType[]>([]);
+ 36:   const [allTasks, setAllTasks] = useState<UpcomingTask[]>([]);
+ 37:   const [isLoading, setIsLoading] = useState(true);
+ 38:   const [error, setError] = useState<string | null>(null);
+ 39: 
+ 40:   const loadDashboardData = useCallback(async () => {
+ 41:     try {
+ 42:       setIsLoading(true);
+ 43:       setError(null);
+ 44: 
+ 45:       const [plantsData, rawTasks] = await Promise.all([
+ 46:         plantService.getActivePlants(),
+ 47:         CareSchedulingService.getUpcomingTasks(),
+ 48:       ]);
+ 49: 
+ 50:       const enhancedTasks = await Promise.all(
+ 51:         rawTasks.map(async (task) => {
+ 52:           const plant = plantsData.find((p) => p.id === task.plantId);
+ 53:           if (!plant) {
+ 54:             return { ...task, quickCompleteOptions: [], canBypass: true };
+ 55:           }
+ 56: 
+ 57:           const taskType = getTaskTypeFromName(task.task);
+ 58:           let quickOptions: QuickCompleteOption[] = [];
+ 59: 
+ 60:           try {
+ 61:             const options =
+ 62:               await SmartDefaultsService.getQuickCompletionOptions(
+ 63:                 plant,
+ 64:                 taskType
+ 65:               );
+ 66:             quickOptions = options || [];
+ 67:           } catch (error) {
+ 68:             console.error("Failed to get quick completion options:", error);
+ 69:             quickOptions = [];
+ 70:           }
+ 71: 
+ 72:           return {
+ 73:             ...task,
+ 74:             quickCompleteOptions: quickOptions,
+ 75:             canBypass: true,
+ 76:           };
+ 77:         })
+ 78:       );
+ 79: 
+ 80:       const grouped = TaskGroupingService.groupTasksByActivity(enhancedTasks);
+ 81: 
+ 82:       setPlants(plantsData);
+ 83:       setTaskGroups(grouped);
+ 84:       setAllTasks(enhancedTasks);
+ 85:     } catch (error) {
+ 86:       console.error("Failed to load dashboard data:", error);
+ 87:       setError("Failed to load dashboard data");
+ 88:     } finally {
+ 89:       setIsLoading(false);
+ 90:     }
+ 91:   }, []);
+ 92: 
+ 93:   useEffect(() => {
+ 94:     loadDashboardData();
+ 95:   }, [loadDashboardData]);
  96: 
- 97:   if (plants.length === 0) {
- 98:     return (
- 99:       <div className="min-h-screen flex items-center justify-center p-4">
-100:         <div className="text-center max-w-md">
-101:           <div className="text-6xl mb-6">🌱</div>
-102:           <h1 className="text-2xl font-bold text-foreground mb-4">
-103:             Start Your Digital Garden
-104:           </h1>
-105:           <p className="text-muted-foreground mb-8">
-106:             Add your first plant to begin tracking its growth, scheduling care
-107:             tasks, and building healthy growing habits.
-108:           </p>
-109:           <Link to="/add-plant">
-110:             <Button className="w-full h-14 text-base">
-111:               <span className="mr-2 text-xl">🌿</span>
-112:               Add Your First Plant
-113:             </Button>
-114:           </Link>
-115:         </div>
-116:       </div>
-117:     );
-118:   }
-119: 
-120:   return (
-121:     <>
-122:       {}
-123:       <div className="bg-gradient-to-r from-primary to-accent text-primary-foreground p-6">
-124:         <h1 className="text-2xl font-bold mb-2">My Smart Garden</h1>
-125:         <div className="flex items-center space-x-6">
-126:           <div className="text-center">
-127:             <div
-128:               className="text-2xl font-bold"
-129:               data-testid="active-plants-count"
-130:             >
-131:               {plants.length}
-132:             </div>
-133:             <div className="text-sm opacity-90">Active Plants</div>
-134:           </div>
-135:           <div className="text-center">
-136:             <div className="text-2xl font-bold" data-testid="tasks-due-count">
-137:               {upcomingTasks.length}
-138:             </div>
-139:             <div className="text-sm opacity-90">Tasks Due</div>
-140:           </div>
-141:         </div>
-142:       </div>
-143: 
-144:       {}
-145:       <div className="p-4 space-y-6">
-146:         {}
-147:         <Card className="shadow-lg border-0 bg-card/80 backdrop-blur-sm rounded-2xl">
-148:           <CardHeader className="pb-3">
-149:             <CardTitle className="text-xl font-bold flex items-center">
-150:               <span className="mr-2 text-2xl">📋</span>
-151:               Today's Tasks
-152:             </CardTitle>
-153:           </CardHeader>
-154:           <CardContent className="space-y-3">
-155:             {upcomingTasks.length === 0 ? (
-156:               <div className="text-center py-6">
-157:                 <div className="text-4xl mb-2">✅</div>
-158:                 <div className="font-medium text-muted-foreground">
-159:                   All caught up!
-160:                 </div>
-161:                 <div className="text-sm text-muted-foreground">
-162:                   No tasks due today
-163:                 </div>
-164:               </div>
-165:             ) : (
-166:               <>
-167:                 {upcomingTasks.slice(0, 3).map((task) => (
-168:                   <div
-169:                     key={task.id}
-170:                     onClick={() => handleTaskClick(task)}
-171:                     className="flex items-center justify-between p-4 bg-gradient-to-r from-muted to-card rounded-xl border border-border cursor-pointer hover:bg-muted"
-172:                   >
-173:                     <div className="flex-1">
-174:                       <div className="font-bold text-foreground mb-1">
-175:                         {task.name}
-176:                       </div>
-177:                       <div className="text-sm text-muted-foreground mb-2">
-178:                         {task.task}
-179:                       </div>
-180:                       <StatusBadge
-181:                         status={getTaskStatus(task.priority)}
-182:                         size="sm"
-183:                       />
-184:                     </div>
-185:                   </div>
-186:                 ))}
-187:                 {upcomingTasks.length > 3 && (
-188:                   <Link to="/plants" className="block">
-189:                     <Button variant="outline" className="w-full">
-190:                       View All Tasks ({upcomingTasks.length})
-191:                     </Button>
-192:                   </Link>
-193:                 )}
-194:               </>
-195:             )}
-196:           </CardContent>
-197:         </Card>
-198: 
-199:         {}
-200:         <Card className="shadow-lg border-0 bg-card/80 backdrop-blur-sm rounded-2xl">
-201:           <CardHeader className="pb-3">
-202:             <CardTitle className="text-xl font-bold flex items-center">
-203:               <span className="mr-2 text-2xl">🌿</span>
-204:               Recent Plants
-205:             </CardTitle>
-206:           </CardHeader>
-207:           <CardContent
-208:             className="space-y-3"
-209:             data-testid="recent-plants-content"
-210:           >
-211:             {plants.slice(0, 3).map((plant) => (
-212:               <div
-213:                 key={plant.id}
-214:                 onClick={() => handlePlantClick(plant.id)}
-215:                 className="flex items-center justify-between p-4 bg-gradient-to-r from-muted to-card rounded-xl border border-border cursor-pointer hover:bg-muted"
-216:               >
-217:                 <div className="flex-1">
-218:                   <div className="font-bold text-foreground mb-1">
-219:                     {getPlantDisplayName(plant)}
-220:                   </div>
-221:                   <PlantStageDisplay plant={plant} />
-222: 
-223:                   <StatusBadge status="healthy" size="sm" />
-224:                 </div>
-225:                 <div className="text-right">
-226:                   <div className="text-4xl mb-2">🌿</div>
-227:                   <div className="text-xs font-semibold text-muted-foreground">
-228:                     {getDaysSincePlanting(plant.plantedDate)} days
-229:                   </div>
-230:                 </div>
-231:               </div>
-232:             ))}
-233:             {plants.length > 3 && (
-234:               <Link to="/plants" className="block">
-235:                 <Button variant="outline" className="w-full">
-236:                   View All Plants ({plants.length})
-237:                 </Button>
-238:               </Link>
-239:             )}
-240:           </CardContent>
-241:         </Card>
-242: 
-243:         {}
-244:         <div className="grid grid-cols-2 gap-4">
-245:           <Link to="/add-plant">
-246:             <Button className="w-full h-14 text-base" variant="primary">
-247:               <span className="mr-2 text-xl">➕</span>
-248:               Add Plant
-249:             </Button>
-250:           </Link>
-251:           <Link to="/log-care">
-252:             <Button variant="primary">
-253:               <span className="mr-2 text-xl">💧</span>
-254:               Log Care
-255:             </Button>
-256:           </Link>
-257:         </div>
-258:       </div>
-259:     </>
-260:   );
-261: };
-262: 
-263: export default Dashboard;
+ 97:   const getTaskTypeFromName = (taskName: string): "water" | "fertilize" => {
+ 98:     const name = taskName.toLowerCase();
+ 99:     if (name.includes("water") || name.includes("moisture")) return "water";
+100:     return "fertilize";
+101:   };
+102: 
+103: 
+104:   const getQuickActions = (): QuickAction[] => {
+105:     const actions: QuickAction[] = [];
+106: 
+107: 
+108:     const urgentTasks = allTasks.filter(
+109:       (task) => task.priority === "high" || task.dueIn.includes("overdue")
+110:     );
+111: 
+112: 
+113:     const wateringTasks = urgentTasks.filter((task) =>
+114:       task.task.toLowerCase().includes("water")
+115:     );
+116:     if (wateringTasks.length > 0) {
+117:       const firstWateringTask = wateringTasks[0];
+118:       const plant = plants.find((p) => p.id === firstWateringTask.plantId);
+119:       if (plant) {
+120:         actions.push({
+121:           id: "water-urgent",
+122:           label: `Water ${getPlantDisplayName(plant)}`,
+123:           emoji: "💧",
+124:           action: () => navigate(`/log-care?plantId=${plant.id}&type=water`),
+125:           variant: "primary",
+126:           isContextual: true,
+127:         });
+128:       }
+129:     }
+130: 
+131: 
+132:     const fertilizingTasks = urgentTasks.filter((task) =>
+133:       task.task.toLowerCase().includes("fertiliz")
+134:     );
+135:     if (fertilizingTasks.length > 0 && actions.length < 2) {
+136:       const firstFertilizingTask = fertilizingTasks[0];
+137:       const plant = plants.find((p) => p.id === firstFertilizingTask.plantId);
+138:       if (plant) {
+139:         actions.push({
+140:           id: "fertilize-urgent",
+141:           label: `Fertilize ${getPlantDisplayName(plant)}`,
+142:           emoji: "🌱",
+143:           action: () =>
+144:             navigate(`/log-care?plantId=${plant.id}&type=fertilize`),
+145:           variant: "primary",
+146:           isContextual: true,
+147:         });
+148:       }
+149:     }
+150: 
+151: 
+152:     const standardActions: QuickAction[] = [
+153:       {
+154:         id: "log-care",
+155:         label: "Log Care",
+156:         emoji: "💧",
+157:         action: () => navigate("/log-care"),
+158:         variant: "outline",
+159:       },
+160:       {
+161:         id: "take-photo",
+162:         label: "Take Photo",
+163:         emoji: "📸",
+164:         action: () => navigate("/log-care?type=observe"),
+165:         variant: "outline",
+166:       },
+167:       {
+168:         id: "analytics",
+169:         label: "Analytics",
+170:         emoji: "📊",
+171:         action: () => navigate("/analytics"),
+172:         variant: "outline",
+173:       },
+174:     ];
+175: 
+176: 
+177: 
+178:     return [...actions, ...standardActions];
+179:   };
+180: 
+181:   const handleQuickComplete = async (
+182:     taskId: string,
+183:     values: QuickCompletionValues
+184:   ) => {
+185:     try {
+186:       const task = taskGroups
+187:         .flatMap((group) => group.tasks)
+188:         .find((t) => t.id === taskId);
+189: 
+190:       if (!task) throw new Error("Task not found");
+191: 
+192:       const taskType = getTaskTypeFromName(task.task);
+193: 
+194:       let careDetails: WateringDetails | FertilizingDetails;
+195: 
+196:       if (taskType === "water") {
+197:         careDetails = {
+198:           type: "water" as const,
+199:           amount: {
+200:             value: values.waterValue || 0,
+201:             unit:
+202:               (values.waterUnit as
+203:                 | "oz"
+204:                 | "ml"
+205:                 | "cups"
+206:                 | "liters"
+207:                 | "gallons") || "oz",
+208:           },
+209:           notes: `Quick completion: ${values.waterValue}${values.waterUnit}`,
+210:         };
+211:       } else {
+212:         careDetails = {
+213:           type: "fertilize" as const,
+214:           product: values.product || "",
+215:           dilution: values.dilution || "",
+216:           amount: values.amount || "",
+217:           notes: `Quick completion: ${values.product}`,
+218:         };
+219:       }
+220: 
+221:       const careData = {
+222:         plantId: task.plantId,
+223:         type: taskType,
+224:         date: new Date(),
+225:         details: careDetails,
+226:       };
+227: 
+228:       await careService.addCareActivity(careData);
+229:       await loadDashboardData();
+230: 
+231:       console.log("Task completed successfully!");
+232:     } catch (error) {
+233:       console.error("Failed to complete task:", error);
+234:       throw error;
+235:     }
+236:   };
+237: 
+238:   const handleBypass = async (taskId: string, reason: string) => {
+239:     try {
+240:       console.log(`Task ${taskId} bypassed with reason: ${reason}`);
+241:       await loadDashboardData();
+242:     } catch (error) {
+243:       console.error("Failed to bypass task:", error);
+244:       throw error;
+245:     }
+246:   };
+247: 
+248:   if (isCheckingFirstTime) {
+249:     return <div>Loading...</div>;
+250:   }
+251: 
+252:   if (isFirstTime) {
+253:     return <Welcome />;
+254:   }
+255: 
+256:   if (isLoading) {
+257:     return (
+258:       <div className="flex items-center justify-center min-h-screen">
+259:         <div className="text-center">
+260:           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-600 mx-auto mb-4"></div>
+261:           <p>Loading your garden...</p>
+262:         </div>
+263:       </div>
+264:     );
+265:   }
+266: 
+267:   if (error) {
+268:     return (
+269:       <div className="p-4">
+270:         <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+271:           <p className="text-red-800">{error}</p>
+272:           <Button onClick={() => loadDashboardData()} className="mt-2">
+273:             Try Again
+274:           </Button>
+275:         </div>
+276:       </div>
+277:     );
+278:   }
+279: 
+280:   if (plants.length === 0) {
+281:     return (
+282:       <div className="p-4 text-center">
+283:         <h2 className="text-xl font-semibold mb-4">Welcome to SmartGarden!</h2>
+284:         <p className="text-muted-foreground mb-6">
+285:           You don't have any plants yet. Let's get started!
+286:         </p>
+287:         <Link to="/add-plant">
+288:           <Button>Add Your First Plant</Button>
+289:         </Link>
+290:       </div>
+291:     );
+292:   }
+293: 
+294:   const quickActions = getQuickActions();
+295: 
+296:   return (
+297:     <div className="p-4 space-y-6">
+298:       <div className="text-center">
+299:         <h1 className="text-2xl font-bold text-foreground mb-2">
+300:           Your Garden Dashboard
+301:         </h1>
+302:         <p className="text-muted-foreground" data-testid="active-plants-count">
+303:           {plants.length} active plant{plants.length !== 1 ? "s" : ""} growing
+304:           {taskGroups.reduce((total, group) => total + group.tasks.length, 0) >
+305:             0 && (
+306:             <span className="ml-2">
+307:               •{" "}
+308:               {taskGroups.reduce(
+309:                 (total, group) => total + group.tasks.length,
+310:                 0
+311:               )}{" "}
+312:               task
+313:               {taskGroups.reduce(
+314:                 (total, group) => total + group.tasks.length,
+315:                 0
+316:               ) !== 1
+317:                 ? "s"
+318:                 : ""}{" "}
+319:               pending
+320:             </span>
+321:           )}
+322:         </p>
+323:       </div>
+324: 
+325:       {/* Task Groups */}
+326:       <div className="space-y-4">
+327:         {taskGroups.map((group) => (
+328:           <TaskGroup
+329:             key={group.type}
+330:             group={group}
+331:             onQuickComplete={handleQuickComplete}
+332:             onBypass={handleBypass}
+333:           />
+334:         ))}
+335:       </div>
+336: 
+337:       {}
+338:       <Card>
+339:         <CardHeader>
+340:           <CardTitle className="flex items-center gap-2">
+341:             <span>⚡</span>
+342:             Quick Actions
+343:           </CardTitle>
+344:         </CardHeader>
+345:         <CardContent>
+346:           <div className="grid grid-cols-3 md:grid-cols-4 gap-3">
+347:             {quickActions.map((action) => (
+348:               <Button
+349:                 key={action.id}
+350:                 variant={action.variant || "outline"}
+351:                 onClick={action.action}
+352:                 className={`h-20 flex-col gap-1 ${
+353:                   action.isContextual
+354:                     ? "border-green-200 bg-green-50 hover:bg-green-100 text-green-800"
+355:                     : ""
+356:                 }`}
+357:               >
+358:                 <span className="text-2xl">{action.emoji}</span>
+359:                 <span className="text-sm text-center leading-tight">
+360:                   {action.label}
+361:                 </span>
+362:               </Button>
+363:             ))}
+364:           </div>
+365: 
+366:           {}
+367:           {quickActions.some((action) => action.isContextual) && (
+368:             <p className="text-xs text-muted-foreground mt-3 text-center">
+369:               Green actions are suggested based on your urgent tasks
+370:             </p>
+371:           )}
+372:         </CardContent>
+373:       </Card>
+374:     </div>
+375:   );
+376: };
+377: 
+378: export default Dashboard;
 
 
 

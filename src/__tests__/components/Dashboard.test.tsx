@@ -1,22 +1,37 @@
 // src/__tests__/components/Dashboard.test.tsx
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { BrowserRouter } from "react-router-dom";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import Dashboard from "../../pages/dashboard";
 import { plantService } from "../../types/database";
 import { CareSchedulingService } from "@/services/careSchedulingService";
+import { SmartDefaultsService } from "@/services/smartDefaultsService";
+import { TaskGroupingService } from "@/services/taskGroupingService";
+import {
+  renderWithProviders,
+  mockPlantData,
+  mockTaskData,
+} from "../utils/testUtils";
 
-// Mock the useFirstTimeUser hook
-jest.mock("../../hooks/useFirstTimeUser", () => ({
-  useFirstTimeUser: () => ({
-    isFirstTime: false,
-    isLoading: false,
-    markOnboardingComplete: jest.fn(),
-  }),
+// Mock react-router-dom at the top level
+const mockNavigate = jest.fn();
+jest.mock("react-router-dom", () => ({
+  ...jest.requireActual("react-router-dom"),
+  useNavigate: () => mockNavigate,
 }));
 
-// Mock the database service
+// Mock services
+jest.mock("@/services/smartDefaultsService", () => ({
+  SmartDefaultsService: {
+    getQuickCompletionOptions: jest.fn(),
+  },
+}));
+
+jest.mock("@/services/taskGroupingService", () => ({
+  TaskGroupingService: {
+    groupTasksByActivity: jest.fn(),
+  },
+}));
+
 jest.mock("../../types/database", () => ({
   plantService: {
     getActivePlants: jest.fn(),
@@ -27,221 +42,146 @@ jest.mock("../../types/database", () => ({
   },
 }));
 
-// Mock the care scheduling service
 jest.mock("@/services/careSchedulingService", () => ({
   CareSchedulingService: {
     getUpcomingTasks: jest.fn(),
   },
 }));
 
-const mockPlantService = plantService as jest.Mocked<typeof plantService>;
+// Mock useFirstTimeUser - we'll override this per test when needed
+const mockUseFirstTimeUser = jest.fn();
+jest.mock("../../hooks/useFirstTimeUser", () => ({
+  useFirstTimeUser: () => mockUseFirstTimeUser(),
+}));
 
-// Import the mocked scheduling service
+// Type the mocked services
+const mockSmartDefaultsService = SmartDefaultsService as jest.Mocked<
+  typeof SmartDefaultsService
+>;
+const mockTaskGroupingService = TaskGroupingService as jest.Mocked<
+  typeof TaskGroupingService
+>;
+const mockPlantService = plantService as jest.Mocked<typeof plantService>;
 const mockCareSchedulingService = CareSchedulingService as jest.Mocked<
   typeof CareSchedulingService
 >;
 
-function renderDashboard() {
-  const queryClient = new QueryClient({
-    defaultOptions: {
-      queries: {
-        retry: false,
-      },
-      mutations: { retry: false },
-    },
-  });
-
-  return render(
-    <QueryClientProvider client={queryClient}>
-      <BrowserRouter>
-        <Dashboard />
-      </BrowserRouter>
-    </QueryClientProvider>
-  );
-}
-
 describe("Dashboard", () => {
   beforeEach(() => {
     jest.clearAllMocks();
-  });
 
-  it("shows loading state initially", () => {
-    mockPlantService.getActivePlants.mockImplementation(
-      () => new Promise(() => {}) // Never resolves
-    );
-
-    renderDashboard();
-
-    expect(screen.getByText("Loading your garden...")).toBeInTheDocument();
-  });
-
-  it("displays empty state when no plants exist", async () => {
-    mockPlantService.getActivePlants.mockResolvedValue([]);
-    mockCareSchedulingService.getUpcomingTasks.mockResolvedValue([]);
-
-    renderDashboard();
-
-    await waitFor(() => {
-      // Should show the empty state with welcome message
-      expect(screen.getByText("Start Your Digital Garden")).toBeInTheDocument();
-      expect(
-        screen.getByText(
-          "Add your first plant to begin tracking its growth, scheduling care tasks, and building healthy growing habits."
-        )
-      ).toBeInTheDocument();
+    // Default mock implementations
+    mockUseFirstTimeUser.mockReturnValue({
+      isFirstTime: false,
+      isLoading: false,
+      markOnboardingComplete: jest.fn(),
     });
-  });
 
-  it("displays plants and tasks when data exists", async () => {
-    const mockPlants = [
+    mockSmartDefaultsService.getQuickCompletionOptions.mockResolvedValue([]);
+    mockTaskGroupingService.groupTasksByActivity.mockImplementation((tasks) => [
       {
-        id: "1",
-        varietyId: "astro-arugula",
-        varietyName: "Astro Arugula", // ADD THIS
-        name: "My Arugula",
-        plantedDate: new Date("2024-01-01"),
-        currentStage: "vegetative" as const,
-        location: "Kitchen Window",
-        container: "4 inch pot",
-        isActive: true,
-        notes: [],
-        createdAt: new Date(),
-        updatedAt: new Date(),
+        type: "watering",
+        title: "Watering",
+        emoji: "💧",
+        tasks: tasks.filter((task) =>
+          task.task.toLowerCase().includes("water")
+        ),
+        isExpanded: true,
       },
-    ];
+    ]);
+  });
 
-    const mockTasks = [
-      {
-        id: "water-1",
-        plantId: "1",
-        name: "My Arugula",
-        task: "Check water level",
-        dueIn: "2 days",
-        priority: "medium" as const,
-        plantStage: "vegetative",
-        dueDate: new Date(),
-      },
-    ];
+  describe("Loading States", () => {
+    it("shows loading state initially", () => {
+      mockPlantService.getActivePlants.mockImplementation(
+        () => new Promise(() => {}) // Never resolves
+      );
 
-    mockPlantService.getActivePlants.mockResolvedValue(mockPlants);
-    mockCareSchedulingService.getUpcomingTasks.mockResolvedValue(mockTasks);
+      renderWithProviders(<Dashboard />);
 
-    renderDashboard();
-
-    await waitFor(() => {
-      // Check basic counts
-      expect(screen.getByTestId("active-plants-count")).toHaveTextContent("1");
-      expect(screen.getByTestId("tasks-due-count")).toHaveTextContent("1");
-
-      // Check that Recent Plants section exists
-      expect(screen.getByText("Recent Plants")).toBeInTheDocument();
-      const recentPlantsContent = screen.getByTestId("recent-plants-content");
-      expect(recentPlantsContent).toBeInTheDocument();
-
-      // Check that the plant appears in the Recent Plants section specifically
-      expect(
-        within(recentPlantsContent).getByText("My Arugula")
-      ).toBeInTheDocument();
-      expect(
-        within(recentPlantsContent).getByText("Stage: vegetative")
-      ).toBeInTheDocument();
-
-      // Check that Today's Tasks section has content
-      expect(screen.getByText("Today's Tasks")).toBeInTheDocument();
-      expect(screen.getByText("Check water level")).toBeInTheDocument();
+      expect(screen.getByText("Loading your garden...")).toBeInTheDocument();
     });
   });
 
-  it("displays plants with no tasks", async () => {
-    const mockPlants = [
-      {
-        id: "1",
-        varietyId: "astro-arugula",
-        varietyName: "Astro Arugula", // ADD THIS
-        name: "My Arugula",
-        plantedDate: new Date("2024-01-01"),
-        currentStage: "vegetative" as const,
-        location: "Kitchen Window",
-        container: "4 inch pot",
-        isActive: true,
-        notes: [],
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      },
-    ];
+  describe("Empty States", () => {
+    it("displays empty state when no plants exist", async () => {
+      mockPlantService.getActivePlants.mockResolvedValue([]);
+      mockCareSchedulingService.getUpcomingTasks.mockResolvedValue([]);
 
-    mockPlantService.getActivePlants.mockResolvedValue(mockPlants);
-    mockCareSchedulingService.getUpcomingTasks.mockResolvedValue([]);
+      renderWithProviders(<Dashboard />);
 
-    renderDashboard();
+      await waitFor(() => {
+        expect(screen.getByText("Welcome to SmartGarden!")).toBeInTheDocument();
+        expect(
+          screen.getByText("You don't have any plants yet. Let's get started!")
+        ).toBeInTheDocument();
+        expect(screen.getByText("Add Your First Plant")).toBeInTheDocument();
+      });
+    });
 
-    await waitFor(() => {
-      // Check that we show plants
-      expect(screen.getByTestId("active-plants-count")).toHaveTextContent("1");
-      expect(screen.getByTestId("tasks-due-count")).toHaveTextContent("0");
+    it("shows welcome component for first-time users", async () => {
+      // Override the hook for this test
+      mockUseFirstTimeUser.mockReturnValue({
+        isFirstTime: true,
+        isLoading: false,
+        markOnboardingComplete: jest.fn(),
+      });
 
-      // Should show "All caught up!" when no tasks
-      expect(screen.getByText("All caught up!")).toBeInTheDocument();
-      expect(screen.getByText("No tasks due today")).toBeInTheDocument();
+      // Still need to mock services to prevent errors during useEffect
+      mockPlantService.getActivePlants.mockResolvedValue([]);
+      mockCareSchedulingService.getUpcomingTasks.mockResolvedValue([]);
+
+      renderWithProviders(<Dashboard />);
+
+      await waitFor(() => {
+        expect(screen.getByText(/Welcome to SmartGarden/)).toBeInTheDocument();
+      });
     });
   });
 
-  it("handles refresh functionality", async () => {
-    const mockPlants = [
-      {
-        id: "1",
-        varietyId: "astro-arugula",
-        varietyName: "Astro Arugula", // ADD THIS
-        name: "My Arugula",
-        plantedDate: new Date("2024-01-01"),
-        currentStage: "vegetative" as const,
-        location: "Kitchen Window",
-        container: "4 inch pot",
-        isActive: true,
-        notes: [],
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      },
-    ];
+  describe("Data Display", () => {
+    it("displays plants and tasks when data exists", async () => {
+      mockPlantService.getActivePlants.mockResolvedValue([mockPlantData[0]]);
+      mockCareSchedulingService.getUpcomingTasks.mockResolvedValue([
+        mockTaskData[0],
+      ]);
 
-    mockPlantService.getActivePlants.mockResolvedValue(mockPlants);
-    mockCareSchedulingService.getUpcomingTasks.mockResolvedValue([]);
+      renderWithProviders(<Dashboard />);
 
-    renderDashboard();
-
-    // Wait for initial load
-    await waitFor(() => {
-      expect(screen.getByText("All caught up!")).toBeInTheDocument();
+      await waitFor(() => {
+        expect(screen.getByText("Your Garden Dashboard")).toBeInTheDocument();
+        expect(screen.getByText("My Arugula")).toBeInTheDocument();
+        expect(screen.getByText(/Check water level/)).toBeInTheDocument();
+        expect(screen.getByText("Watering")).toBeInTheDocument();
+        expect(screen.getByText("1 task")).toBeInTheDocument();
+        expect(screen.getByText("Quick Actions")).toBeInTheDocument();
+        expect(screen.getByText("Bypass")).toBeInTheDocument();
+        expect(screen.getByText("Log Manually")).toBeInTheDocument();
+      });
     });
 
-    // Click refresh button - need to find a refresh button in the actual component
-    // Since I don't see a refresh button with aria-label="Refresh" in the Dashboard component,
-    // this test might need to be adjusted based on how refresh is actually implemented
-    // For now, let's test that the service was called initially
-    expect(mockPlantService.getActivePlants).toHaveBeenCalledTimes(1);
-  });
+    it("displays dashboard with no pending tasks", async () => {
+      mockPlantService.getActivePlants.mockResolvedValue([mockPlantData[0]]);
+      mockCareSchedulingService.getUpcomingTasks.mockResolvedValue([]);
 
-  it("displays error state when service fails", async () => {
-    mockPlantService.getActivePlants.mockRejectedValue(
-      new Error("Database error")
-    );
+      renderWithProviders(<Dashboard />);
 
-    renderDashboard();
-
-    await waitFor(() => {
-      expect(screen.getByText("Failed to load plants")).toBeInTheDocument();
-      expect(screen.getByText("Try Again")).toBeInTheDocument();
+      await waitFor(() => {
+        expect(screen.getByText("Your Garden Dashboard")).toBeInTheDocument();
+        expect(screen.getByText("1 active plant growing")).toBeInTheDocument();
+        expect(screen.queryByText(/tasks? pending/)).not.toBeInTheDocument();
+        expect(screen.getByText("Watering")).toBeInTheDocument();
+        expect(screen.getByText("0 tasks")).toBeInTheDocument();
+        expect(screen.getByText("Quick Actions")).toBeInTheDocument();
+      });
     });
-  });
 
-  it("retries when error state try again button is clicked", async () => {
-    mockPlantService.getActivePlants
-      .mockRejectedValueOnce(new Error("Database error"))
-      .mockResolvedValueOnce([
+    it("shows multiple plants", async () => {
+      const twoPlantsData = [
         {
           id: "1",
           varietyId: "astro-arugula",
-          varietyName: "Astro Arugula", // ADD THIS
+          varietyName: "Astro Arugula",
           name: "My Arugula",
           plantedDate: new Date("2024-01-01"),
           currentStage: "vegetative" as const,
@@ -252,99 +192,190 @@ describe("Dashboard", () => {
           createdAt: new Date(),
           updatedAt: new Date(),
         },
-      ]);
-    mockCareSchedulingService.getUpcomingTasks.mockResolvedValue([]);
+        {
+          id: "2",
+          varietyId: "baby-spinach",
+          varietyName: "Baby Spinach",
+          name: "Spinach Plant",
+          plantedDate: new Date("2024-01-05"),
+          currentStage: "seedling" as const,
+          location: "Main Bed",
+          container: "5 gallon bag",
+          isActive: true,
+          notes: [],
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        },
+      ];
 
-    renderDashboard();
+      const twoTasksData = [
+        {
+          id: "water-1",
+          plantId: "1",
+          name: "My Arugula",
+          task: "Check water level",
+          dueIn: "2 days",
+          priority: "medium" as const,
+          plantStage: "vegetative",
+          dueDate: new Date(),
+          canBypass: true,
+        },
+        {
+          id: "water-2",
+          plantId: "2",
+          name: "Spinach Plant",
+          task: "Check water level",
+          dueIn: "1 day",
+          priority: "medium" as const,
+          plantStage: "seedling",
+          dueDate: new Date(),
+          canBypass: true,
+        },
+      ];
 
-    // Wait for error state
-    await waitFor(() => {
-      expect(screen.getByText("Failed to load plants")).toBeInTheDocument();
+      // Keep the mockImplementation approach that worked
+      mockPlantService.getActivePlants.mockImplementation(() => {
+        return Promise.resolve(twoPlantsData);
+      });
+
+      mockCareSchedulingService.getUpcomingTasks.mockImplementation(() => {
+        return Promise.resolve(twoTasksData);
+      });
+
+      mockTaskGroupingService.groupTasksByActivity.mockImplementation(
+        (tasks) => {
+          const result = [
+            {
+              type: "watering" as const,
+              title: "Watering",
+              emoji: "💧",
+              tasks: tasks,
+              isExpanded: true,
+            },
+          ];
+          return result;
+        }
+      );
+
+      renderWithProviders(<Dashboard />);
+
+      // Wait for the dashboard to load first
+      await waitFor(() => {
+        expect(screen.getByText("Your Garden Dashboard")).toBeInTheDocument();
+      });
+
+      // Then check for the content
+      await waitFor(() => {
+        expect(screen.getByText("My Arugula")).toBeInTheDocument();
+        expect(screen.getByText("Spinach Plant")).toBeInTheDocument();
+      });
+
+      // Check the counts with a more robust approach
+      await waitFor(() => {
+        const description = screen.getByTestId("active-plants-count");
+        expect(description.textContent).toContain("2 active plants growing");
+        expect(description.textContent).toContain("2 tasks pending");
+      });
     });
-
-    // Click try again
-    const tryAgainButton = screen.getByText("Try Again");
-    await userEvent.click(tryAgainButton);
-
-    // Wait for successful retry - should show the dashboard with plants now
-    await waitFor(() => {
-      expect(screen.getByTestId("active-plants-count")).toHaveTextContent("1");
-    });
-
-    expect(mockPlantService.getActivePlants).toHaveBeenCalledTimes(2);
   });
 
-  it("shows multiple plants in recent plants section", async () => {
-    const mockPlants = [
-      {
-        id: "1",
-        varietyId: "astro-arugula",
-        varietyName: "Astro Arugula", // ADD THIS
-        name: "My Arugula",
-        plantedDate: new Date("2024-01-01"),
-        currentStage: "vegetative" as const,
-        location: "Kitchen Window",
-        container: "4 inch pot",
-        isActive: true,
-        notes: [],
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      },
-      {
-        id: "2",
-        varietyId: "baby-spinach",
-        varietyName: "Baby Spinach", // ADD THIS
-        name: "Spinach Plant",
-        plantedDate: new Date("2024-01-05"),
-        currentStage: "seedling" as const,
-        location: "Main Bed",
-        container: "5 gallon bag",
-        isActive: true,
-        notes: [],
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      },
-    ];
+  describe("User Interactions", () => {
+    it("navigates to log care when quick action is clicked", async () => {
+      mockPlantService.getActivePlants.mockResolvedValue([mockPlantData[0]]);
+      mockCareSchedulingService.getUpcomingTasks.mockResolvedValue([]);
 
-    const mockTasks = [
-      {
-        id: "water-1",
-        plantId: "1",
-        name: "My Arugula",
-        task: "Check water level",
-        dueIn: "2 days",
-        priority: "medium" as const,
-        plantStage: "vegetative",
-        dueDate: new Date(),
-      },
-      {
-        id: "water-2",
-        plantId: "2",
-        name: "Spinach Plant",
-        task: "Check water level",
-        dueIn: "1 day",
-        priority: "medium" as const,
-        plantStage: "seedling",
-        dueDate: new Date(),
-      },
-    ];
+      renderWithProviders(<Dashboard />);
 
-    mockPlantService.getActivePlants.mockResolvedValue(mockPlants);
-    mockCareSchedulingService.getUpcomingTasks.mockResolvedValue(mockTasks);
+      await waitFor(() => {
+        expect(screen.getByText("Log Care")).toBeInTheDocument();
+      });
 
-    renderDashboard();
+      const logCareButton = screen.getByText("Log Care");
+      await userEvent.click(logCareButton);
 
-    await waitFor(() => {
-      expect(screen.getByTestId("active-plants-count")).toHaveTextContent("2");
-      expect(screen.getByTestId("tasks-due-count")).toHaveTextContent("2");
+      expect(mockNavigate).toHaveBeenCalledWith("/log-care");
+    });
 
-      const recentPlantsContent = screen.getByTestId("recent-plants-content");
-      expect(
-        within(recentPlantsContent).getByText("My Arugula")
-      ).toBeInTheDocument();
-      expect(
-        within(recentPlantsContent).getByText("Spinach Plant")
-      ).toBeInTheDocument();
+    it("renders contextual quick actions for urgent tasks", async () => {
+      const urgentTask = {
+        ...mockTaskData[0],
+        dueIn: "overdue by 1 day",
+        priority: "high" as const,
+      };
+
+      mockPlantService.getActivePlants.mockResolvedValue([mockPlantData[0]]);
+      mockCareSchedulingService.getUpcomingTasks.mockResolvedValue([
+        urgentTask,
+      ]);
+
+      renderWithProviders(<Dashboard />);
+
+      await waitFor(() => {
+        expect(screen.getByText("Quick Actions")).toBeInTheDocument();
+        expect(screen.getByText("Water My Arugula")).toBeInTheDocument();
+        expect(
+          screen.getByText(/Green actions are suggested/)
+        ).toBeInTheDocument();
+      });
+    });
+  });
+
+  describe("Error Handling", () => {
+    it("displays error state when service fails", async () => {
+      mockPlantService.getActivePlants.mockRejectedValue(
+        new Error("Database error")
+      );
+
+      renderWithProviders(<Dashboard />);
+
+      await waitFor(() => {
+        expect(
+          screen.getByText("Failed to load dashboard data")
+        ).toBeInTheDocument();
+        expect(screen.getByText("Try Again")).toBeInTheDocument();
+      });
+    });
+
+    it("retries when error state try again button is clicked", async () => {
+      mockPlantService.getActivePlants
+        .mockRejectedValueOnce(new Error("Database error"))
+        .mockResolvedValueOnce([mockPlantData[0]]);
+      mockCareSchedulingService.getUpcomingTasks.mockResolvedValue([]);
+
+      renderWithProviders(<Dashboard />);
+
+      await waitFor(() => {
+        expect(
+          screen.getByText("Failed to load dashboard data")
+        ).toBeInTheDocument();
+      });
+
+      const tryAgainButton = screen.getByText("Try Again");
+      await userEvent.click(tryAgainButton);
+
+      await waitFor(() => {
+        expect(screen.getByText("Your Garden Dashboard")).toBeInTheDocument();
+        expect(screen.getByText("1 active plant growing")).toBeInTheDocument();
+      });
+
+      expect(mockPlantService.getActivePlants).toHaveBeenCalledTimes(2);
+    });
+
+    it("handles errors gracefully when task enhancement fails", async () => {
+      mockPlantService.getActivePlants.mockResolvedValue([mockPlantData[0]]);
+      mockCareSchedulingService.getUpcomingTasks.mockResolvedValue([
+        mockTaskData[0],
+      ]);
+      mockSmartDefaultsService.getQuickCompletionOptions.mockRejectedValue(
+        new Error("Service unavailable")
+      );
+
+      renderWithProviders(<Dashboard />);
+
+      await waitFor(() => {
+        expect(screen.getByText("Your Garden Dashboard")).toBeInTheDocument();
+        expect(screen.getByText("My Arugula")).toBeInTheDocument();
+      });
     });
   });
 });

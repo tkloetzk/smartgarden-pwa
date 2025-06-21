@@ -247,12 +247,7 @@ interface CareLogFormProps {
   onSuccess?: () => void;
   onCancel?: () => void;
   preselectedPlantId?: string;
-  preselectedActivityType?:
-    | "water"
-    | "fertilize"
-    | "observe"
-    | "harvest"
-    | "transplant";
+  preselectedActivityType?: "water" | "fertilize" | "observe"; // Limit to supported types
 }
 
 export function CareLogForm({
@@ -267,11 +262,6 @@ export function CareLogForm({
   const [capturedPhotos, setCapturedPhotos] = useState<string[]>([]);
   const [showDetailedTracking, setShowDetailedTracking] = useState(false);
   const [searchParams] = useSearchParams();
-
-  const initialPlantId =
-    preselectedPlantId || searchParams.get("plantId") || "";
-  const initialActivityType =
-    preselectedActivityType || searchParams.get("type") || "water";
 
   // State for moisture validation
   const [moistureValidation, setMoistureValidation] =
@@ -295,8 +285,9 @@ export function CareLogForm({
     defaultValues: {
       plantId: preselectedPlantId || searchParams.get("plantId") || "",
       type:
+        preselectedActivityType ||
         (searchParams.get("type") as "water" | "fertilize" | "observe") ||
-        "water",
+        "water", // Now using preselectedActivityType
       date: new Date().toISOString().split("T")[0],
       waterValue: undefined,
       waterUnit: "oz",
@@ -334,11 +325,15 @@ export function CareLogForm({
   }, [plants, preselectedPlantId, searchParams, setValue]);
 
   useEffect(() => {
-    const activityTypeToSet = searchParams.get("type");
-    if (activityTypeToSet) {
-      setValue("type", activityTypeToSet as any);
+    const activityTypeToSet =
+      preselectedActivityType || searchParams.get("type");
+    if (
+      activityTypeToSet &&
+      ["water", "fertilize", "observe"].includes(activityTypeToSet)
+    ) {
+      setValue("type", activityTypeToSet as "water" | "fertilize" | "observe");
     }
-  }, [searchParams, setValue]);
+  }, [searchParams, preselectedActivityType, setValue]);
 
   // Load smart defaults when plant is selected
   useEffect(() => {
@@ -505,20 +500,6 @@ export function CareLogForm({
     getMoistureValidationForPlant,
   ]);
 
-  useEffect(() => {
-    const loadPlants = async () => {
-      try {
-        const activePlants = await plantService.getActivePlants();
-        setPlants(activePlants);
-      } catch (error) {
-        console.error("Failed to load plants:", error);
-        toast.error("Failed to load plants");
-      }
-    };
-
-    loadPlants();
-  }, []);
-
   const onSubmit = async (data: CareFormData) => {
     try {
       setIsLoading(true);
@@ -575,8 +556,9 @@ export function CareLogForm({
           break;
         }
 
-        default:
-          throw new Error(`Unsupported activity type: ${data.type as string}`);
+        default: {
+          throw new Error(`Unsupported activity type`);
+        }
       }
 
       await careService.addCareActivity({
@@ -1116,8 +1098,8 @@ export function CareLogForm({
             <option value="water">💧 Watering</option>
             <option value="fertilize">🌱 Fertilizing</option>
             <option value="observe">👁️ Observation</option>
-            <option value="harvest">🌾 Harvest</option>
-            <option value="transplant">🪴 Transplant</option>
+            {/* <option value="harvest">🌾 Harvest</option>
+            <option value="transplant">🪴 Transplant</option> */}
           </select>
         </div>
 
