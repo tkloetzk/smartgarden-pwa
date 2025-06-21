@@ -240,13 +240,13 @@ const Dashboard = () => {
         {/* Quick Actions */}
         <div className="grid grid-cols-2 gap-4">
           <Link to="/add-plant">
-            <Button className="w-full h-14 text-base" variant="outline">
+            <Button className="w-full h-14 text-base" variant="primary">
               <span className="mr-2 text-xl">➕</span>
               Add Plant
             </Button>
           </Link>
           <Link to="/log-care">
-            <Button className="w-full h-14 text-base">
+            <Button variant="primary">
               <span className="mr-2 text-xl">💧</span>
               Log Care
             </Button>

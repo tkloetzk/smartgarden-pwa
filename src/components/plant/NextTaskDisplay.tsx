@@ -1,16 +1,17 @@
-// Create src/components/plant/NextTaskDisplay.tsx
-
+// src/components/plant/NextTaskDisplay.tsx
 import React from "react";
 import { useNextPlantTask } from "@/hooks/useNextPlantTask";
 
 interface NextTaskDisplayProps {
   plantId: string;
   className?: string;
+  onClick?: (taskType: string) => void;
 }
 
 const NextTaskDisplay: React.FC<NextTaskDisplayProps> = ({
   plantId,
   className = "",
+  onClick,
 }) => {
   const { nextTask, isLoading } = useNextPlantTask(plantId);
 
@@ -29,6 +30,18 @@ const NextTaskDisplay: React.FC<NextTaskDisplayProps> = ({
       </div>
     );
   }
+
+  // Map task descriptions to activity types for the form
+  const getActivityType = (taskDescription: string): string => {
+    const task = taskDescription.toLowerCase();
+    if (task.includes("water") || task.includes("watering")) return "water";
+    if (task.includes("fertiliz")) return "fertilize";
+    if (task.includes("health check") || task.includes("observe"))
+      return "observe";
+    if (task.includes("harvest")) return "harvest";
+    if (task.includes("transplant")) return "transplant";
+    return "water"; // Default fallback
+  };
 
   // Choose icon based on task type
   const getTaskIcon = (task: string): string => {
@@ -57,12 +70,25 @@ const NextTaskDisplay: React.FC<NextTaskDisplayProps> = ({
     }
   };
 
+  const handleClick = () => {
+    if (onClick) {
+      const activityType = getActivityType(nextTask.task);
+      onClick(activityType);
+    }
+  };
+
   return (
     <div
-      className={`text-xs ${getPriorityColor(nextTask.priority)} ${className}`}
+      className={`text-xs ${getPriorityColor(nextTask.priority)} ${className} ${
+        onClick ? "cursor-pointer hover:underline hover:text-blue-600" : ""
+      }`}
+      onClick={handleClick}
     >
       <span className="mr-1">{getTaskIcon(nextTask.task)}</span>
       {nextTask.task} - {nextTask.dueIn}
+      {onClick && (
+        <span className="text-xs text-gray-400 ml-2">→ Click to log</span>
+      )}
     </div>
   );
 };

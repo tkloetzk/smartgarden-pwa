@@ -147,15 +147,15 @@ const PlantReminderSettings = ({
           onClick={handleSave}
           disabled={isLoading || !hasChanges}
           variant={getButtonVariant()}
-          className={`min-w-32 transition-all duration-300 ${
-            saveStatus === "success"
-              ? "bg-green-100 text-green-800 border-green-300 hover:bg-green-200"
-              : saveStatus === "error"
-              ? "bg-red-500 hover:bg-red-600"
-              : hasChanges
-              ? "shadow-lg shadow-emerald-500/25 hover:shadow-xl hover:shadow-emerald-500/30"
-              : "opacity-60 cursor-not-allowed"
-          }`}
+          // className={`min-w-32 transition-all duration-300 ${
+          //   saveStatus === "success"
+          //     ? "bg-green-100 text-green-800 border-green-300 hover:bg-green-200"
+          //     : saveStatus === "error"
+          //     ? "bg-red-500 hover:bg-red-600"
+          //     : hasChanges
+          //     ? "shadow-lg shadow-emerald-500/25 hover:shadow-xl hover:shadow-emerald-500/30"
+          //     : "opacity-60 cursor-not-allowed"
+          // }`}
         >
           {getButtonContent()}
         </Button>

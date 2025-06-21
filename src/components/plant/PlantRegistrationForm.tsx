@@ -272,7 +272,7 @@ export function PlantRegistrationForm({
 
             <Button
               type="button"
-              variant="outline"
+              variant="primary"
               onClick={() => setShowCustomVarietyForm(true)}
               className="w-full"
             >

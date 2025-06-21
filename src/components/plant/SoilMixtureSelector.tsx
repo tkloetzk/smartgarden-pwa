@@ -258,7 +258,7 @@ export const SoilMixtureSelector = ({
           {/* Custom Option Button */}
           <Button
             type="button"
-            variant="outline"
+            variant="primary"
             onClick={() => setShowCustom(true)}
             className="w-full"
           >

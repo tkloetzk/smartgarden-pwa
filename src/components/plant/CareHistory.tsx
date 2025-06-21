@@ -54,7 +54,7 @@ const CareHistory: React.FC<CareHistoryProps> = ({ careHistory }) => {
             <p className="text-gray-600 mb-4">
               Start logging care activities to track your plant's progress
             </p>
-            <Button>Log First Activity</Button>
+            <Button variant="primary">Log First Activity</Button>
           </div>
         ) : (
           <div className="space-y-4">

@@ -1,6 +1,7 @@
 // src/pages/care/CareLogForm.tsx
 import { useState, useEffect, useCallback } from "react";
 import { useForm } from "react-hook-form";
+import { useSearchParams } from "react-router-dom";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import {
@@ -9,6 +10,10 @@ import {
   varietyService,
   PlantRecord,
   VarietyRecord,
+  CareActivityDetails,
+  WateringDetails,
+  FertilizingDetails,
+  ObservationDetails,
 } from "@/types/database";
 import { Button } from "@/components/ui/Button";
 import { PhotoCapture } from "./PhotoCapture";
@@ -242,18 +247,31 @@ interface CareLogFormProps {
   onSuccess?: () => void;
   onCancel?: () => void;
   preselectedPlantId?: string;
+  preselectedActivityType?:
+    | "water"
+    | "fertilize"
+    | "observe"
+    | "harvest"
+    | "transplant";
 }
 
 export function CareLogForm({
   onSuccess,
   onCancel,
   preselectedPlantId,
+  preselectedActivityType,
 }: CareLogFormProps) {
   const [plants, setPlants] = useState<PlantRecord[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [capturedPhotos, setCapturedPhotos] = useState<string[]>([]);
   const [showDetailedTracking, setShowDetailedTracking] = useState(false);
+  const [searchParams] = useSearchParams();
+
+  const initialPlantId =
+    preselectedPlantId || searchParams.get("plantId") || "";
+  const initialActivityType =
+    preselectedActivityType || searchParams.get("type") || "water";
 
   // State for moisture validation
   const [moistureValidation, setMoistureValidation] =
@@ -275,8 +293,10 @@ export function CareLogForm({
   } = useForm<CareFormData>({
     resolver: zodResolver(careFormSchema),
     defaultValues: {
-      plantId: preselectedPlantId || "",
-      type: "water",
+      plantId: preselectedPlantId || searchParams.get("plantId") || "",
+      type:
+        (searchParams.get("type") as "water" | "fertilize" | "observe") ||
+        "water",
       date: new Date().toISOString().split("T")[0],
       waterValue: undefined,
       waterUnit: "oz",
@@ -304,13 +324,21 @@ export function CareLogForm({
   }, []);
 
   useEffect(() => {
-    if (preselectedPlantId && plants.length > 0) {
-      const plant = plants.find((p) => p.id === preselectedPlantId);
+    const plantIdToSet = preselectedPlantId || searchParams.get("plantId");
+    if (plantIdToSet && plants.length > 0) {
+      const plant = plants.find((p) => p.id === plantIdToSet);
       if (plant) {
-        setValue("plantId", preselectedPlantId);
+        setValue("plantId", plantIdToSet);
       }
     }
-  }, [plants, preselectedPlantId, setValue]);
+  }, [plants, preselectedPlantId, searchParams, setValue]);
+
+  useEffect(() => {
+    const activityTypeToSet = searchParams.get("type");
+    if (activityTypeToSet) {
+      setValue("type", activityTypeToSet as any);
+    }
+  }, [searchParams, setValue]);
 
   // Load smart defaults when plant is selected
   useEffect(() => {
@@ -497,12 +525,12 @@ export function CareLogForm({
       setSubmitError(null);
 
       // Build the care record with proper structure
-      let careDetails;
+      let careDetails: CareActivityDetails;
 
       switch (data.type) {
-        case "water":
-          careDetails = {
-            type: "water",
+        case "water": {
+          const wateringDetails: WateringDetails = {
+            type: "water" as const,
             amount: {
               value: data.waterValue,
               unit: data.waterUnit,
@@ -519,30 +547,36 @@ export function CareLogForm({
             runoffObserved: data.runoffObserved,
             notes: data.notes,
           };
+          careDetails = wateringDetails;
           break;
+        }
 
-        case "fertilize":
-          careDetails = {
-            type: "fertilize",
+        case "fertilize": {
+          const fertilizingDetails: FertilizingDetails = {
+            type: "fertilize" as const,
             product: data.product,
             dilution: data.dilution,
             amount: data.amount,
             notes: data.notes,
           };
+          careDetails = fertilizingDetails;
           break;
+        }
 
-        case "observe":
-          careDetails = {
-            type: "observe",
+        case "observe": {
+          const observationDetails: ObservationDetails = {
+            type: "observe" as const,
             healthAssessment: data.healthAssessment,
             observations: data.observations,
             photos: capturedPhotos,
             notes: data.notes,
           };
+          careDetails = observationDetails;
           break;
+        }
 
         default:
-          throw new Error(`Unsupported activity type: ${data.type}`);
+          throw new Error(`Unsupported activity type: ${data.type as string}`);
       }
 
       await careService.addCareActivity({
@@ -1130,6 +1164,7 @@ export function CareLogForm({
         <div className="flex gap-4">
           <Button
             type="submit"
+            variant="primary"
             disabled={isLoading || isLoadingDefaults}
             className="flex-1"
           >

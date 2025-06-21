@@ -13,18 +13,11 @@ export function useDynamicStage(plant: PlantRecord): GrowthStage {
     const calculateStage = async () => {
       try {
         const variety = await varietyService.getVariety(plant.varietyId);
-        if (variety) {
-          const stage = calculateCurrentStageWithVariety(
-            plant.plantedDate,
-            variety
-          );
-
-          setCalculatedStage(stage);
-        } else {
-          console.error(
-            `useDynamicStage: No variety found for ID ${plant.varietyId}`
-          );
-        }
+        const stage = calculateCurrentStageWithVariety(
+          plant.plantedDate,
+          variety
+        );
+        setCalculatedStage(stage);
       } catch (error) {
         console.error("useDynamicStage: Error calculating stage:", error);
         setCalculatedStage(plant.currentStage);

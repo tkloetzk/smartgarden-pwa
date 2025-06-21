@@ -72,7 +72,6 @@ const QuickCompletionButtons = ({
           variant="outline"
           size="sm"
           onClick={() => onQuickComplete(option.values)}
-          className="text-xs px-3 py-1 bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100 hover:border-emerald-300 transition-colors"
         >
           {option.label}
         </Button>

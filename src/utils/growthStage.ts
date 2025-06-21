@@ -49,18 +49,20 @@ export function calculateCurrentStageWithVariety(
   }
 
   if (variety.isEverbearing) {
+    // For everbearing plants (like strawberries), check productive lifespan
     if (
       variety.productiveLifespan &&
-      daysSincePlanting < variety.productiveLifespan
+      daysSincePlanting >= variety.productiveLifespan
     ) {
-      return "ongoing-production";
-    } else {
-      return "harvest";
+      return "harvest"; // Past productive lifespan
     }
+    return "ongoing-production"; // Still productive
+  } else {
+    // Non-everbearing plants go to harvest after maturation
+    return "harvest";
   }
-
-  return "harvest";
 }
+
 // Keep the original function for backward compatibility
 export function calculateCurrentStage(
   plantedDate: Date,

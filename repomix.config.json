@@ -1,0 +1,45 @@
+{
+  "output": {
+    "style": "plain",
+    "filePath": "custom-output.txt",
+    "removeComments": true,
+    "showLineNumbers": true,
+    "topFilesLength": 10
+  },
+  "ignore": {
+    "customPatterns": [
+      "logs",
+      "*.log",
+      "npm-debug.log*",
+      "yarn-debug.log*",
+      "yarn-error.log*",
+      "pnpm-debug.log*",
+      "lerna-debug.log*",
+      ".cache/",
+      ".parcel-cache/",
+      "node_modules",
+      "dist",
+      "dist-ssr",
+      "*.local",
+      ".vscode/*",
+      "*.suo",
+      "*.ntvs*",
+      "*.njsproj",
+      "*.sln",
+      "*.sw?",
+      "._*",
+      ".Spotlight-V100",
+      ".Trashes",
+      "ehthumbs.db",
+      "Thumbs.db",
+      ".vscode/",
+      ".idea/",
+      ".env.local",
+      ".env.development.local",
+      ".env.test.local",
+      ".env.production.local",
+      "*.tmp",
+      "*.temp"
+    ]
+  }
+}

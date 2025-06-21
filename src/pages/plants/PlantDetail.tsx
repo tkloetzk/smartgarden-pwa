@@ -76,6 +76,14 @@ const PlantDetail: React.FC = () => {
     setPlant(updatedPlant);
   };
 
+  const handleLogCare = (activityType?: string) => {
+    const params = new URLSearchParams();
+    if (plantId) params.set("plantId", plantId);
+    if (activityType) params.set("type", activityType);
+
+    navigate(`/log-care?${params.toString()}`);
+  };
+
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -132,12 +140,15 @@ const PlantDetail: React.FC = () => {
           </h1>
 
           <div className="flex gap-3">
-            <Link to="/log-care">
-              <Button className="flex-1">
-                <span className="mr-2">💧</span>
-                Log Care
-              </Button>
-            </Link>
+            {/* Updated Log Care button to use the handler */}
+            <Button
+              onClick={() => handleLogCare()}
+              className="flex-1"
+              variant="primary"
+            >
+              <span className="mr-2">💧</span>
+              Log Care
+            </Button>
             <Button variant="outline" className="flex-1">
               <span className="mr-2">📷</span>
               Add Photo
@@ -174,6 +185,17 @@ const PlantDetail: React.FC = () => {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
+            {/* Next Task */}
+            <div>
+              <span className="font-medium text-gray-600">Next Task:</span>
+              <div className="mt-1">
+                <NextTaskDisplay
+                  plantId={plantId!}
+                  className="text-base"
+                  onClick={(taskType) => handleLogCare(taskType)}
+                />
+              </div>
+            </div>
             {/* Basic Info */}
             <div className="grid grid-cols-2 gap-4 text-sm">
               <div>
@@ -248,15 +270,6 @@ const PlantDetail: React.FC = () => {
               </div>
             )}
 
-            {/* Next Task */}
-            <div>
-              <span className="font-medium text-gray-600">Next Task:</span>
-              <div className="mt-1">
-                <NextTaskDisplay plantId={plantId!} className="text-base" />
-              </div>
-            </div>
-
-            {/* Reminder Preferences Summary */}
             {/* Reminder Preferences Summary */}
             {plant.reminderPreferences && (
               <div>

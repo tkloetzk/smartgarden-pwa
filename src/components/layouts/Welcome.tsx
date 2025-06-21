@@ -203,7 +203,7 @@ const Welcome: React.FC = () => {
                     <Link to="/add-plant" className="block">
                       <Button
                         variant="ghost"
-                        className="w-full text-emerald-700"
+                        className="w-full"
                         rightIcon={
                           <svg
                             className="w-4 h-4"
