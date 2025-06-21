@@ -14,7 +14,7 @@ const Navigation: React.FC = () => {
   ];
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-700 z-50">
+    <nav className="fixed bottom-0 left-0 right-0 bg-card dark:bg-background border-t border-border z-50">
       <div className="flex justify-around items-center h-16 px-4">
         {navItems.map((item) => (
           <Link
@@ -24,8 +24,8 @@ const Navigation: React.FC = () => {
               "flex flex-col items-center justify-center min-w-touch h-full px-2",
               "text-xs font-medium transition-colors",
               location.pathname === item.path
-                ? "text-garden-600 dark:text-emerald-400 bg-garden-50 dark:bg-gray-800"
-                : "text-gray-500 dark:text-gray-400 hover:text-garden-500 dark:hover:text-emerald-400"
+                ? "text-garden-600 dark:text-emerald-500 bg-garden-50 dark:bg-card" // was emerald-400
+                : "text-muted-foreground dark:text-muted-foreground hover:text-garden-500 dark:hover:text-emerald-500" // was emerald-400
             )}
           >
             <span className="text-xl mb-1">{item.icon}</span>
@@ -36,7 +36,7 @@ const Navigation: React.FC = () => {
         {/* Dark Mode Toggle */}
         <div className="flex flex-col items-center justify-center h-full px-2">
           <DarkModeToggle size="sm" />
-          <span className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+          <span className="text-xs text-muted-foreground dark:text-muted-foreground mt-1">
             Theme
           </span>
         </div>

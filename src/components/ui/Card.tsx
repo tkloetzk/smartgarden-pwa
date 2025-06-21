@@ -14,7 +14,7 @@ export function Card({ children, className }: CardProps) {
   return (
     <div
       className={cn(
-        "bg-white rounded-lg border border-gray-200 shadow-sm",
+        "rounded-lg border bg-card text-card-foreground shadow-sm",
         className
       )}
     >
@@ -25,7 +25,7 @@ export function Card({ children, className }: CardProps) {
 
 export function CardHeader({ children, className }: CardProps) {
   return (
-    <div className={cn("px-6 py-4 border-b border-gray-200", className)}>
+    <div className={cn("px-6 py-4 border-b border-border", className)}>
       {children}
     </div>
   );
@@ -37,7 +37,14 @@ export function CardContent({
   ...props
 }: CardContentProps) {
   return (
-    <div className={cn("px-6 py-4", className)} {...props}>
+    <div
+      className={cn(
+        "p-6 pt-0 text-card-foreground",
+
+        className
+      )}
+      {...props}
+    >
       {children}
     </div>
   );
@@ -45,7 +52,13 @@ export function CardContent({
 
 export function CardTitle({ children, className }: CardProps) {
   return (
-    <h3 className={cn("text-lg font-semibold text-gray-900", className)}>
+    <h3
+      className={cn(
+        "text-2xl font-semibold leading-none tracking-tight text-card-foreground",
+
+        className
+      )}
+    >
       {children}
     </h3>
   );

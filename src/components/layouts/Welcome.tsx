@@ -14,10 +14,10 @@ const Welcome: React.FC = () => {
         <div className="text-center space-y-6">
           <div className="text-7xl mb-6 animate-bounce">🌿</div>
           <div className="space-y-4">
-            <h2 className="text-3xl font-black text-gray-900 leading-tight">
+            <h2 className="text-3xl font-black text-foreground leading-tight">
               Your digital gardening companion
             </h2>
-            <p className="text-gray-600 leading-relaxed text-lg">
+            <p className="text-muted-foreground leading-relaxed text-lg">
               Track your plants, schedule care tasks, and grow healthier gardens
               with science-backed protocols.
             </p>
@@ -31,10 +31,10 @@ const Welcome: React.FC = () => {
         <div className="text-center space-y-6">
           <div className="text-7xl mb-6 animate-pulse">📅</div>
           <div className="space-y-4">
-            <h2 className="text-3xl font-black text-gray-900 leading-tight">
+            <h2 className="text-3xl font-black text-foreground leading-tight">
               Never miss a watering
             </h2>
-            <p className="text-gray-600 leading-relaxed text-lg">
+            <p className="text-muted-foreground leading-relaxed text-lg">
               Get personalized care reminders based on your plants' growth
               stages and your logging history.
             </p>
@@ -48,10 +48,10 @@ const Welcome: React.FC = () => {
         <div className="text-center space-y-6">
           <div className="text-7xl mb-6">📸</div>
           <div className="space-y-4">
-            <h2 className="text-3xl font-black text-gray-900 leading-tight">
+            <h2 className="text-3xl font-black text-foreground leading-tight">
               Document your garden's journey
             </h2>
-            <p className="text-gray-600 leading-relaxed text-lg">
+            <p className="text-muted-foreground leading-relaxed text-lg">
               Capture photos, log activities, and watch your plants thrive with
               detailed growth tracking.
             </p>
@@ -65,10 +65,10 @@ const Welcome: React.FC = () => {
         <div className="text-center space-y-6">
           <div className="text-7xl mb-6">🚀</div>
           <div className="space-y-4">
-            <h2 className="text-3xl font-black text-gray-900 leading-tight">
+            <h2 className="text-3xl font-black text-foreground leading-tight">
               Let's add your first plant
             </h2>
-            <p className="text-gray-600 leading-relaxed text-lg">
+            <p className="text-muted-foreground leading-relaxed text-lg">
               Start your digital garden by registering your first plant. We'll
               guide you through the process.
             </p>
@@ -97,9 +97,9 @@ const Welcome: React.FC = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-green-50 to-blue-50 flex items-center justify-center p-4">
       <div className="w-full max-w-sm">
-        <Card className="shadow-2xl border-0 bg-white/95 backdrop-blur-lg rounded-3xl overflow-hidden">
+        <Card className="shadow-2xl border-0 bg-card/95 backdrop-blur-lg rounded-3xl overflow-hidden">
           <CardHeader className="text-center pb-6 bg-gradient-to-r from-emerald-500/5 to-green-500/5">
-            <CardTitle className="text-xs font-bold text-gray-500 uppercase tracking-widest">
+            <CardTitle className="text-xs font-bold text-muted-foreground uppercase tracking-widest">
               {currentStepData.title}
             </CardTitle>
 

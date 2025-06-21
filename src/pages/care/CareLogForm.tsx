@@ -476,7 +476,7 @@ export function CareLogForm({
       validations.push({
         field: "source",
         message: sourceMessages[protocol.source],
-        color: protocol.isDefault ? "text-gray-500" : "text-gray-700",
+        color: protocol.isDefault ? "text-muted-foreground" : "text-foreground",
       });
 
       return {
@@ -664,7 +664,7 @@ export function CareLogForm({
           <div className="col-span-2">
             <label
               htmlFor="waterValue"
-              className="block text-sm font-medium text-gray-700 mb-2"
+              className="block text-sm font-medium text-foreground mb-2"
             >
               Water Amount *
             </label>
@@ -674,7 +674,7 @@ export function CareLogForm({
               step="0.1"
               min="0.1"
               {...register("waterValue", { valueAsNumber: true })}
-              className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-garden-500 focus:border-transparent"
+              className="w-full p-3 bg-card text-card-foreground border border-border rounded-md focus:ring-2 focus:ring-ring focus:border-ring"
               placeholder="Amount"
             />
             {"waterValue" in errors && errors.waterValue && (
@@ -687,14 +687,14 @@ export function CareLogForm({
           <div>
             <label
               htmlFor="waterUnit"
-              className="block text-sm font-medium text-gray-700 mb-2"
+              className="block text-sm font-medium text-foreground mb-2"
             >
               Unit *
             </label>
             <select
               id="waterUnit"
               {...register("waterUnit")}
-              className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-garden-500 focus:border-transparent"
+              className="w-full p-3 bg-card text-card-foreground border border-border rounded-md focus:ring-2 focus:ring-ring focus:border-ring"
             >
               <option value="oz">oz</option>
               <option value="ml">ml</option>
@@ -712,11 +712,11 @@ export function CareLogForm({
             type="checkbox"
             checked={showDetailedTracking}
             onChange={(e) => setShowDetailedTracking(e.target.checked)}
-            className="h-4 w-4 text-garden-600 border-gray-300 rounded focus:ring-garden-500"
+            className="h-4 w-4 text-garden-600 border-border rounded focus:ring-garden-500"
           />
           <label
             htmlFor="showDetailedTracking"
-            className="ml-2 text-sm text-gray-700"
+            className="ml-2 text-sm text-foreground"
           >
             📊 Track moisture readings & method
           </label>
@@ -724,8 +724,8 @@ export function CareLogForm({
 
         {/* Additional detailed tracking fields */}
         {showDetailedTracking && (
-          <div className="space-y-4 p-4 bg-gray-50 rounded-lg border border-gray-200">
-            <h4 className="text-sm font-medium text-gray-900">
+          <div className="space-y-4 p-4 bg-background rounded-lg border border-border">
+            <h4 className="text-sm font-medium text-foreground">
               Detailed Tracking
             </h4>
 
@@ -733,7 +733,7 @@ export function CareLogForm({
               <div>
                 <label
                   htmlFor="moistureBefore"
-                  className="block text-sm font-medium text-gray-700 mb-2"
+                  className="block text-sm font-medium text-foreground mb-2"
                 >
                   Moisture Before (1-10 scale)
                 </label>
@@ -744,10 +744,10 @@ export function CareLogForm({
                   max="10"
                   step="0.5"
                   {...register("moistureBefore", { valueAsNumber: true })}
-                  className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-garden-500"
+                  className="w-full p-3 border border-border rounded-md focus:ring-2 focus:ring-garden-500"
                   placeholder="e.g., 3"
                 />
-                <p className="mt-1 text-xs text-gray-500">
+                <p className="mt-1 text-xs text-muted-foreground">
                   1 = bone dry, 10 = waterlogged
                 </p>
 
@@ -780,7 +780,7 @@ export function CareLogForm({
               <div>
                 <label
                   htmlFor="moistureAfter"
-                  className="block text-sm font-medium text-gray-700 mb-2"
+                  className="block text-sm font-medium text-foreground mb-2"
                 >
                   Moisture After (1-10 scale)
                 </label>
@@ -791,10 +791,10 @@ export function CareLogForm({
                   max="10"
                   step="0.5"
                   {...register("moistureAfter", { valueAsNumber: true })}
-                  className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-garden-500"
+                  className="w-full p-3 border border-border rounded-md focus:ring-2 focus:ring-garden-500"
                   placeholder="e.g., 7"
                 />
-                <p className="mt-1 text-xs text-gray-500">
+                <p className="mt-1 text-xs text-muted-foreground">
                   Target range varies by plant - see protocol above
                 </p>
 
@@ -830,16 +830,16 @@ export function CareLogForm({
                 id="runoffObserved"
                 type="checkbox"
                 {...register("runoffObserved")}
-                className="mt-1 h-4 w-4 text-garden-600 border-gray-300 rounded focus:ring-garden-500"
+                className="mt-1 h-4 w-4 text-garden-600 border-border rounded focus:ring-garden-500"
               />
               <div className="ml-3">
                 <label
                   htmlFor="runoffObserved"
-                  className="text-sm font-medium text-gray-700"
+                  className="text-sm font-medium text-foreground"
                 >
                   Observed water runoff from drainage holes
                 </label>
-                <p className="text-xs text-gray-500 mt-1">
+                <p className="text-xs text-muted-foreground mt-1">
                   Runoff indicates thorough watering and good drainage
                 </p>
               </div>
@@ -851,7 +851,7 @@ export function CareLogForm({
               .map((validation, idx) => (
                 <div
                   key={idx}
-                  className="mt-3 p-2 bg-gray-50 border border-gray-200 rounded-md"
+                  className="mt-3 p-2 bg-background border border-border rounded-md"
                 >
                   <p className={`text-xs ${validation.color}`}>
                     {validation.message}
@@ -890,7 +890,7 @@ export function CareLogForm({
                       amount: product.amount,
                     })
                   }
-                  className="block w-full text-left p-2 bg-white border border-green-200 rounded hover:bg-green-50 transition-colors"
+                  className="block w-full text-left p-2 bg-card border border-green-200 rounded hover:bg-green-50 transition-colors"
                 >
                   <div className="font-medium text-green-900">
                     {product.name}
@@ -917,7 +917,7 @@ export function CareLogForm({
         <div>
           <label
             htmlFor="product"
-            className="block text-sm font-medium text-gray-700 mb-2"
+            className="block text-sm font-medium text-foreground mb-2"
           >
             Fertilizer Product *
           </label>
@@ -925,7 +925,7 @@ export function CareLogForm({
             id="product"
             type="text"
             {...register("product")}
-            className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-garden-500 focus:border-transparent"
+            className="w-full p-3 bg-card text-card-foreground border border-border rounded-md focus:ring-2 focus:ring-ring focus:border-ring"
             placeholder="e.g., Neptune's Harvest Fish & Seaweed"
           />
           {"product" in errors && errors.product && (
@@ -939,7 +939,7 @@ export function CareLogForm({
           <div>
             <label
               htmlFor="dilution"
-              className="block text-sm font-medium text-gray-700 mb-2"
+              className="block text-sm font-medium text-foreground mb-2"
             >
               Dilution Ratio *
             </label>
@@ -947,7 +947,7 @@ export function CareLogForm({
               id="dilution"
               type="text"
               {...register("dilution")}
-              className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-garden-500 focus:border-transparent"
+              className="w-full p-3 bg-card text-card-foreground border border-border rounded-md focus:ring-2 focus:ring-ring focus:border-ring"
               placeholder="e.g., 1 tbsp/gal, half strength"
             />
             {"dilution" in errors && errors.dilution && (
@@ -960,7 +960,7 @@ export function CareLogForm({
           <div>
             <label
               htmlFor="amount"
-              className="block text-sm font-medium text-gray-700 mb-2"
+              className="block text-sm font-medium text-foreground mb-2"
             >
               Application Amount *
             </label>
@@ -968,7 +968,7 @@ export function CareLogForm({
               id="amount"
               type="text"
               {...register("amount")}
-              className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-garden-500 focus:border-transparent"
+              className="w-full p-3 bg-card text-card-foreground border border-border rounded-md focus:ring-2 focus:ring-ring focus:border-ring"
               placeholder="e.g., 16 oz, apply until runoff"
             />
             {"amount" in errors && errors.amount && (
@@ -988,14 +988,14 @@ export function CareLogForm({
         <div>
           <label
             htmlFor="healthAssessment"
-            className="block text-sm font-medium text-gray-700 mb-2"
+            className="block text-sm font-medium text-foreground mb-2"
           >
             Health Assessment *
           </label>
           <select
             id="healthAssessment"
             {...register("healthAssessment")}
-            className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-garden-500 focus:border-transparent"
+            className="w-full p-3 bg-card text-card-foreground border border-border rounded-md focus:ring-2 focus:ring-ring focus:border-ring"
           >
             <option value="">Select assessment...</option>
             <option value="excellent">🌟 Excellent</option>
@@ -1014,7 +1014,7 @@ export function CareLogForm({
         <div>
           <label
             htmlFor="observations"
-            className="block text-sm font-medium text-gray-700 mb-2"
+            className="block text-sm font-medium text-foreground mb-2"
           >
             Observations *
           </label>
@@ -1022,7 +1022,7 @@ export function CareLogForm({
             id="observations"
             rows={4}
             {...register("observations")}
-            className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-garden-500 focus:border-transparent"
+            className="w-full p-3 bg-card text-card-foreground border border-border rounded-md focus:ring-2 focus:ring-ring focus:border-ring"
             placeholder="Describe what you observed (growth, color, pests, diseases, etc.)"
           />
           {"observations" in errors && errors.observations && (
@@ -1055,12 +1055,12 @@ export function CareLogForm({
   }
 
   return (
-    <div className="max-w-2xl mx-auto p-6 bg-white rounded-lg shadow-sm">
+    <div className="max-w-2xl mx-auto p-6 bg-card rounded-lg shadow-sm">
       <div className="mb-6">
-        <h2 className="text-2xl font-bold text-gray-900 mb-2">
+        <h2 className="text-2xl font-bold text-foreground mb-2">
           Log Care Activity
         </h2>
-        <p className="text-gray-600">
+        <p className="text-muted-foreground">
           Record care activities to track your plants' progress and optimize
           their health.
         </p>
@@ -1077,14 +1077,14 @@ export function CareLogForm({
         <div>
           <label
             htmlFor="plantId"
-            className="block text-sm font-medium text-gray-700 mb-2"
+            className="block text-sm font-medium text-foreground mb-2"
           >
             Plant *
           </label>
           <select
             id="plantId"
             {...register("plantId")}
-            className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-garden-500 focus:border-transparent"
+            className="w-full p-3 bg-card text-card-foreground border border-border rounded-md focus:ring-2 focus:ring-ring focus:border-ring"
           >
             <option value="">Select a plant...</option>
             {plants.map((plant) => (
@@ -1104,14 +1104,14 @@ export function CareLogForm({
         <div>
           <label
             htmlFor="type"
-            className="block text-sm font-medium text-gray-700 mb-2"
+            className="block text-sm font-medium text-foreground mb-2"
           >
             Activity Type *
           </label>
           <select
             id="type"
             {...register("type")}
-            className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-garden-500 focus:border-transparent"
+            className="w-full p-3 bg-card text-card-foreground border border-border rounded-md focus:ring-2 focus:ring-ring focus:border-ring"
           >
             <option value="water">💧 Watering</option>
             <option value="fertilize">🌱 Fertilizing</option>
@@ -1125,7 +1125,7 @@ export function CareLogForm({
         <div>
           <label
             htmlFor="date"
-            className="block text-sm font-medium text-gray-700 mb-2"
+            className="block text-sm font-medium text-foreground mb-2"
           >
             Date *
           </label>
@@ -1133,7 +1133,7 @@ export function CareLogForm({
             id="date"
             type="date"
             {...register("date")}
-            className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-garden-500 focus:border-transparent"
+            className="w-full p-3 bg-card text-card-foreground border border-border rounded-md focus:ring-2 focus:ring-ring focus:border-ring"
           />
           {errors.date && (
             <p className="mt-1 text-sm text-red-600">{errors.date.message}</p>
@@ -1147,7 +1147,7 @@ export function CareLogForm({
         <div>
           <label
             htmlFor="notes"
-            className="block text-sm font-medium text-gray-700 mb-2"
+            className="block text-sm font-medium text-foreground mb-2"
           >
             Notes (optional)
           </label>
@@ -1155,7 +1155,7 @@ export function CareLogForm({
             id="notes"
             rows={3}
             {...register("notes")}
-            className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-garden-500 focus:border-transparent"
+            className="w-full p-3 bg-card text-card-foreground border border-border rounded-md focus:ring-2 focus:ring-ring focus:border-ring"
             placeholder="Any additional observations or notes..."
           />
         </div>

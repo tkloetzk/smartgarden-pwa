@@ -67,7 +67,7 @@ const ReminderPreferencesSection = ({
           <span>🔔</span>
           Reminder Preferences
         </CardTitle>
-        <p className="text-sm text-gray-600">
+        <p className="text-sm text-muted-foreground">
           Choose which types of care reminders you'd like to receive for this
           plant
         </p>
@@ -76,14 +76,14 @@ const ReminderPreferencesSection = ({
         {reminderTypes.map(({ key, label, icon, description }) => (
           <div
             key={key}
-            className="flex items-center justify-between p-3 rounded-lg border border-emerald-100 bg-white/50 hover:bg-white/80 transition-colors"
+            className="flex items-center justify-between p-3 rounded-lg border border-emerald-100 bg-card/50 hover:bg-card/80 transition-colors"
           >
             <div className="flex-1">
               <div className="flex items-center gap-2 mb-1">
                 <span className="text-lg">{icon}</span>
-                <span className="font-medium text-gray-900">{label}</span>
+                <span className="font-medium text-foreground">{label}</span>
               </div>
-              <p className="text-sm text-gray-600">{description}</p>
+              <p className="text-sm text-muted-foreground">{description}</p>
             </div>
             <Switch
               checked={preferences[key]}

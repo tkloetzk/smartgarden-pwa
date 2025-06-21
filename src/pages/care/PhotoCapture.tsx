@@ -186,7 +186,7 @@ export function PhotoCapture({
 
           {/* Photo count indicator */}
           {photos.length > 0 && (
-            <p className="text-sm text-gray-600">
+            <p className="text-sm text-muted-foreground">
               {photos.length} of {maxPhotos} photos added
             </p>
           )}
@@ -201,7 +201,7 @@ export function PhotoCapture({
               <img
                 src={photo}
                 alt={`Captured photo ${index + 1}`}
-                className="w-full h-24 object-cover rounded-md border border-gray-200"
+                className="w-full h-24 object-cover rounded-md border border-border"
               />
               <button
                 type="button"

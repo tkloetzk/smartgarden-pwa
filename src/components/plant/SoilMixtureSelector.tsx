@@ -190,10 +190,10 @@ export const SoilMixtureSelector = ({
   return (
     <div className="space-y-4">
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">
+        <label className="block text-sm font-medium text-foreground mb-2">
           Soil Mixture
         </label>
-        <p className="text-xs text-gray-500 mb-3">
+        <p className="text-xs text-muted-foreground mb-3">
           Choose a preset mixture or create your own custom blend
         </p>
       </div>
@@ -209,14 +209,14 @@ export const SoilMixtureSelector = ({
                 className={`cursor-pointer transition-all border rounded-lg shadow-sm ${
                   selectedMixture?.includes(mixture.name)
                     ? "ring-4 ring-green-500 bg-green-100 border-green-300 shadow-lg"
-                    : "bg-white border-gray-200 hover:bg-gray-50 hover:shadow-md"
+                    : "bg-card border-border hover:bg-background hover:shadow-md"
                 }`}
                 onClick={() => handlePresetSelect(mixture.id)}
               >
                 <div className="p-4">
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
-                      <div className="font-medium text-gray-900 mb-1 flex items-center">
+                      <div className="font-medium text-foreground mb-1 flex items-center">
                         {selectedMixture?.includes(mixture.name) && (
                           <span className="mr-2 text-green-600 text-lg">✓</span>
                         )}
@@ -227,10 +227,10 @@ export const SoilMixtureSelector = ({
                           </span>
                         )}
                       </div>
-                      <p className="text-sm text-gray-600 mb-2">
+                      <p className="text-sm text-muted-foreground mb-2">
                         {mixture.description}
                       </p>
-                      <div className="text-xs text-gray-500 space-y-1">
+                      <div className="text-xs text-muted-foreground space-y-1">
                         <div>
                           <strong>Components:</strong>{" "}
                           {formatComponents(mixture.components)}
@@ -270,7 +270,7 @@ export const SoilMixtureSelector = ({
         <Card>
           <CardHeader>
             <CardTitle className="text-lg">Custom Soil Mixture</CardTitle>
-            <p className="text-sm text-gray-600">
+            <p className="text-sm text-muted-foreground">
               Describe your custom soil mixture with components and percentages
             </p>
           </CardHeader>
@@ -278,7 +278,7 @@ export const SoilMixtureSelector = ({
             <div>
               <label
                 htmlFor="mixtureDescription"
-                className="block text-sm font-medium text-gray-700 mb-2"
+                className="block text-sm font-medium text-foreground mb-2"
               >
                 Mixture Description
               </label>
@@ -287,7 +287,7 @@ export const SoilMixtureSelector = ({
                 value={customMixture}
                 onChange={(e) => setCustomMixture(e.target.value)}
                 placeholder="e.g., 40% coco coir, 30% perlite, 25% vermiculite, 5% compost"
-                className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                className="w-full p-3 border border-border rounded-md w-full p-3 bg-card text-card-foreground border border-border rounded-md focus:ring-2 focus:ring-ring focus:border-ring placeholder:text-muted-foreground"
                 rows={3}
               />
             </div>

@@ -39,7 +39,7 @@ const CareHistory: React.FC<CareHistoryProps> = ({ careHistory }) => {
         <CardTitle className="flex items-center gap-2">
           <span className="text-2xl">📊</span>
           Care History
-          <span className="text-sm font-normal text-gray-500">
+          <span className="text-sm font-normal text-muted-foreground">
             ({careHistory.length} activities)
           </span>
         </CardTitle>
@@ -48,10 +48,10 @@ const CareHistory: React.FC<CareHistoryProps> = ({ careHistory }) => {
         {careHistory.length === 0 ? (
           <div className="text-center py-8">
             <div className="text-4xl mb-2">📝</div>
-            <h3 className="text-lg font-medium text-gray-900 mb-2">
+            <h3 className="text-lg font-medium text-foreground mb-2">
               No care activities yet
             </h3>
-            <p className="text-gray-600 mb-4">
+            <p className="text-muted-foreground mb-4">
               Start logging care activities to track your plant's progress
             </p>
             <Button variant="primary">Log First Activity</Button>

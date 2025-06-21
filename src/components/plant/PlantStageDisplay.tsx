@@ -11,7 +11,7 @@ interface PlantStageDisplayProps {
 const PlantStageDisplay = ({
   plant,
   showEmoji = false,
-  className = "text-sm font-medium text-gray-600 capitalize",
+  className = "text-sm font-medium text-muted-foreground capitalize",
 }: PlantStageDisplayProps) => {
   const calculatedStage = useDynamicStage(plant);
 

@@ -30,7 +30,7 @@ const Plants: React.FC = () => {
   if (isLoading) {
     return (
       <div className="p-4 flex items-center justify-center min-h-screen">
-        <div className="text-gray-500">Loading plants...</div>
+        <div className="text-muted-foreground">Loading plants...</div>
       </div>
     );
   }
@@ -39,7 +39,7 @@ const Plants: React.FC = () => {
     <div className="p-4 space-y-4">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-gray-900">My Plants</h1>
+        <h1 className="text-2xl font-bold text-foreground">My Plants</h1>
         <Link to="/add-plant">
           <Button variant="primary" size="sm">
             Add Plant
@@ -50,18 +50,18 @@ const Plants: React.FC = () => {
       {/* Plants List */}
       {plants.length === 0 ? (
         <Card>
-          <CardContent className="p-8 text-center">
+          <div className="text-center py-12">
             <div className="text-6xl mb-4">🌱</div>
-            <h3 className="text-lg font-medium text-gray-900 mb-2">
+            <h2 className="text-xl font-semibold text-foreground mb-2">
               No plants yet
-            </h3>
-            <p className="text-gray-600 mb-4">
-              Start your garden by adding your first plant
+            </h2>
+            <p className="text-muted-foreground mb-6">
+              Start your digital garden by adding your first plant
             </p>
             <Link to="/add-plant">
               <Button variant="primary">Add Your First Plant</Button>
             </Link>
-          </CardContent>
+          </div>
         </Card>
       ) : (
         <div className="space-y-4">
@@ -75,16 +75,16 @@ const Plants: React.FC = () => {
                 <CardContent className="p-4">
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
-                      <h3 className="font-medium text-gray-900 mb-1">
+                      <h3 className="font-semibold text-card-foreground mb-1">
                         {plant.name || plant.varietyName}
                       </h3>
-                      <div className="space-y-1 text-sm text-gray-600">
+                      <div className="text-sm text-muted-foreground mb-2">
                         <div>📍 {plant.location}</div>
                         <div>📦 {plant.container}</div>
                         <PlantStageDisplay
                           plant={plant}
                           showEmoji={true}
-                          className="text-sm text-gray-600 mb-2"
+                          className="text-sm text-muted-foreground mb-2"
                         />
                         <div>
                           📅 Planted: {formatDate(plant.plantedDate)} (
@@ -96,7 +96,7 @@ const Plants: React.FC = () => {
                         />
                       </div>
                       {plant.notes && plant.notes.length > 0 && (
-                        <div className="mt-2 text-sm text-gray-500">
+                        <div className="mt-2 text-sm text-muted-foreground">
                           📝 {plant.notes[0]}
                         </div>
                       )}

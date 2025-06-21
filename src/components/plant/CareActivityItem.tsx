@@ -64,21 +64,25 @@ const CareActivityItem: React.FC<CareActivityItemProps> = ({ activity }) => {
           <div className="space-y-2">
             <div className="grid grid-cols-2 gap-4 text-sm">
               <div>
-                <span className="font-medium text-gray-600">Amount:</span>
+                <span className="font-medium text-muted-foreground">
+                  Amount:
+                </span>
                 <div>
                   {waterDetails.amount.value} {waterDetails.amount.unit}
                 </div>
               </div>
               {waterDetails.method && (
                 <div>
-                  <span className="font-medium text-gray-600">Method:</span>
+                  <span className="font-medium text-muted-foreground">
+                    Method:
+                  </span>
                   <div>{waterDetails.method.replace("-", " ")}</div>
                 </div>
               )}
             </div>
             {waterDetails.moistureReading && (
               <div>
-                <span className="font-medium text-gray-600">
+                <span className="font-medium text-muted-foreground">
                   Moisture Reading:
                 </span>
                 <div className="text-sm">
@@ -89,7 +93,9 @@ const CareActivityItem: React.FC<CareActivityItemProps> = ({ activity }) => {
             )}
             {waterDetails.runoffObserved !== undefined && (
               <div>
-                <span className="font-medium text-gray-600">Runoff:</span>
+                <span className="font-medium text-muted-foreground">
+                  Runoff:
+                </span>
                 <div className="text-sm">
                   {waterDetails.runoffObserved ? "Yes" : "No"}
                 </div>
@@ -104,15 +110,21 @@ const CareActivityItem: React.FC<CareActivityItemProps> = ({ activity }) => {
           <div className="space-y-2">
             <div className="grid grid-cols-2 gap-4 text-sm">
               <div>
-                <span className="font-medium text-gray-600">Product:</span>
+                <span className="font-medium text-muted-foreground">
+                  Product:
+                </span>
                 <div>{fertilizeDetails.product}</div>
               </div>
               <div>
-                <span className="font-medium text-gray-600">Dilution:</span>
+                <span className="font-medium text-muted-foreground">
+                  Dilution:
+                </span>
                 <div>{fertilizeDetails.dilution}</div>
               </div>
               <div>
-                <span className="font-medium text-gray-600">Amount:</span>
+                <span className="font-medium text-muted-foreground">
+                  Amount:
+                </span>
                 <div>{fertilizeDetails.amount}</div>
               </div>
             </div>
@@ -124,7 +136,7 @@ const CareActivityItem: React.FC<CareActivityItemProps> = ({ activity }) => {
         return (
           <div className="space-y-2">
             <div>
-              <span className="font-medium text-gray-600">
+              <span className="font-medium text-muted-foreground">
                 Health Assessment:
               </span>
               <div className="text-sm capitalize">
@@ -132,12 +144,16 @@ const CareActivityItem: React.FC<CareActivityItemProps> = ({ activity }) => {
               </div>
             </div>
             <div>
-              <span className="font-medium text-gray-600">Observations:</span>
+              <span className="font-medium text-muted-foreground">
+                Observations:
+              </span>
               <div className="text-sm">{observeDetails.observations}</div>
             </div>
             {observeDetails.photos && observeDetails.photos.length > 0 && (
               <div>
-                <span className="font-medium text-gray-600">Photos:</span>
+                <span className="font-medium text-muted-foreground">
+                  Photos:
+                </span>
                 <div className="text-sm">
                   {observeDetails.photos.length} photo(s) attached
                 </div>
@@ -152,17 +168,23 @@ const CareActivityItem: React.FC<CareActivityItemProps> = ({ activity }) => {
           <div className="space-y-2">
             <div className="grid grid-cols-2 gap-4 text-sm">
               <div>
-                <span className="font-medium text-gray-600">Amount:</span>
+                <span className="font-medium text-muted-foreground">
+                  Amount:
+                </span>
                 <div>{harvestDetails.amount}</div>
               </div>
               <div>
-                <span className="font-medium text-gray-600">Quality:</span>
+                <span className="font-medium text-muted-foreground">
+                  Quality:
+                </span>
                 <div className="capitalize">{harvestDetails.quality}</div>
               </div>
             </div>
             {harvestDetails.method && (
               <div>
-                <span className="font-medium text-gray-600">Method:</span>
+                <span className="font-medium text-muted-foreground">
+                  Method:
+                </span>
                 <div className="text-sm">{harvestDetails.method}</div>
               </div>
             )}
@@ -175,16 +197,16 @@ const CareActivityItem: React.FC<CareActivityItemProps> = ({ activity }) => {
           <div className="space-y-2">
             <div className="grid grid-cols-2 gap-4 text-sm">
               <div>
-                <span className="font-medium text-gray-600">From:</span>
+                <span className="font-medium text-muted-foreground">From:</span>
                 <div>{transplantDetails.fromContainer}</div>
               </div>
               <div>
-                <span className="font-medium text-gray-600">To:</span>
+                <span className="font-medium text-muted-foreground">To:</span>
                 <div>{transplantDetails.toContainer}</div>
               </div>
             </div>
             <div>
-              <span className="font-medium text-gray-600">Reason:</span>
+              <span className="font-medium text-muted-foreground">Reason:</span>
               <div className="text-sm">{transplantDetails.reason}</div>
             </div>
           </div>
@@ -196,9 +218,9 @@ const CareActivityItem: React.FC<CareActivityItemProps> = ({ activity }) => {
   };
 
   return (
-    <div className="border border-gray-200 rounded-lg">
+    <div className="border border-border rounded-lg">
       <div
-        className="p-4 cursor-pointer hover:bg-gray-50 transition-colors"
+        className="p-4 cursor-pointer hover:bg-background transition-colors"
         onClick={() => setIsExpanded(!isExpanded)}
       >
         <div className="flex items-start gap-3">
@@ -206,15 +228,15 @@ const CareActivityItem: React.FC<CareActivityItemProps> = ({ activity }) => {
           <div className="flex-1 min-w-0">
             <div className="flex items-start justify-between">
               <div>
-                <h4 className="font-medium text-gray-900 text-sm">
+                <h4 className="font-medium text-foreground text-sm">
                   {getActivityTitle(activity)}
                 </h4>
-                <p className="text-xs text-gray-500 mt-1">
+                <p className="text-xs text-muted-foreground mt-1">
                   {formatDateTime(activity.date)}
                 </p>
               </div>
               <svg
-                className={`w-4 h-4 text-gray-400 transition-transform ${
+                className={`w-4 h-4 text-muted-foreground transition-transform ${
                   isExpanded ? "rotate-180" : ""
                 }`}
                 fill="none"
@@ -234,14 +256,16 @@ const CareActivityItem: React.FC<CareActivityItemProps> = ({ activity }) => {
       </div>
 
       {isExpanded && (
-        <div className="px-4 pb-4 border-t border-gray-100 bg-gray-50">
+        <div className="px-4 pb-4 border-t border-gray-100 bg-background">
           <div className="pt-3">
             {renderActivityDetails(activity)}
 
             {activity.details.notes && (
-              <div className="mt-3 pt-3 border-t border-gray-200">
-                <span className="font-medium text-gray-600">Notes:</span>
-                <div className="text-sm text-gray-700 mt-1">
+              <div className="mt-3 pt-3 border-t border-border">
+                <span className="font-medium text-muted-foreground">
+                  Notes:
+                </span>
+                <div className="text-sm text-foreground mt-1">
                   {activity.details.notes}
                 </div>
               </div>

@@ -231,7 +231,7 @@ export function PlantRegistrationForm({
       <div>
         <label
           htmlFor={id}
-          className="block text-sm font-medium text-gray-700 mb-2"
+          className="block text-sm font-medium text-foreground mb-2"
         >
           {label} {required && "*"}
         </label>
@@ -241,7 +241,7 @@ export function PlantRegistrationForm({
             <select
               id={id}
               {...register(id)}
-              className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-garden-500 focus:border-transparent"
+              className="w-full p-3 bg-card text-card-foreground border border-border rounded-md focus:ring-2 focus:ring-ring focus:border-ring"
             >
               <option value="">Select a variety...</option>
 
@@ -285,7 +285,7 @@ export function PlantRegistrationForm({
             {...register(id)}
             placeholder={placeholder}
             rows={3}
-            className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-garden-500 focus:border-transparent"
+            className="w-full p-3 bg-card text-card-foreground border border-border rounded-md focus:ring-2 focus:ring-ring focus:border-ring"
           />
         ) : (
           <input
@@ -293,7 +293,7 @@ export function PlantRegistrationForm({
             type={type}
             {...register(id)}
             placeholder={placeholder}
-            className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-garden-500 focus:border-transparent"
+            className="w-full p-3 bg-card text-card-foreground border border-border rounded-md focus:ring-2 focus:ring-ring focus:border-ring"
           />
         )}
 
@@ -311,7 +311,7 @@ export function PlantRegistrationForm({
       <div className="space-y-4">
         {/* Container Type Selection */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-3">
+          <label className="block text-sm font-medium text-foreground mb-3">
             Container Type *
           </label>
           <div className="grid grid-cols-2 gap-3">
@@ -321,7 +321,7 @@ export function PlantRegistrationForm({
                 className={`relative flex items-center p-4 border-2 rounded-lg cursor-pointer transition-all active:scale-95 ${
                   selectedContainerType === key
                     ? "border-emerald-500 bg-emerald-50"
-                    : "border-gray-200 active:border-gray-400"
+                    : "border-border active:border-gray-400"
                 }`}
               >
                 <input
@@ -331,7 +331,7 @@ export function PlantRegistrationForm({
                   className="sr-only"
                 />
                 <span className="text-2xl mr-3">{option.icon}</span>
-                <span className="font-medium text-gray-900 text-sm">
+                <span className="font-medium text-card-foreground text-sm">
                   {option.label}
                 </span>
                 {selectedContainerType === key && (
@@ -352,7 +352,7 @@ export function PlantRegistrationForm({
         {/* Container Size Selection */}
         {selectedContainerType && (
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-3">
+            <label className="block text-sm font-medium text-foreground mb-3">
               {
                 containerOptions[
                   selectedContainerType as keyof typeof containerOptions
@@ -369,7 +369,7 @@ export function PlantRegistrationForm({
                   className={`relative flex items-center p-3 border-2 rounded-lg cursor-pointer transition-all active:scale-95 ${
                     selectedContainerSize === size.value
                       ? "border-emerald-500 bg-emerald-50"
-                      : "border-gray-200 active:border-gray-400"
+                      : "border-border active:border-gray-400"
                   }`}
                 >
                   <input
@@ -378,7 +378,7 @@ export function PlantRegistrationForm({
                     {...register("containerSize")}
                     className="sr-only"
                   />
-                  <span className="font-medium text-gray-900 text-sm">
+                  <span className="font-medium text-card-foreground text-sm">
                     {size.label}
                   </span>
                   {selectedContainerSize === size.value && (
@@ -402,7 +402,7 @@ export function PlantRegistrationForm({
           selectedContainerSize === "custom" && (
             <div className="p-4 bg-blue-50 border border-blue-200 rounded-md space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-3">
+                <label className="block text-sm font-medium text-foreground mb-3">
                   Grow Bag Shape *
                 </label>
                 <div className="grid grid-cols-2 gap-3">
@@ -410,7 +410,7 @@ export function PlantRegistrationForm({
                     className={`relative flex flex-col items-center p-3 border-2 rounded-lg cursor-pointer transition-all active:scale-95 ${
                       selectedBagShape === "circular"
                         ? "border-blue-500 bg-blue-100"
-                        : "border-gray-200 active:border-gray-400"
+                        : "border-border active:border-gray-400"
                     }`}
                   >
                     <input
@@ -420,7 +420,7 @@ export function PlantRegistrationForm({
                       className="sr-only"
                     />
                     <span className="text-3xl mb-1">⭕</span>
-                    <span className="font-medium text-gray-900 text-sm">
+                    <span className="font-medium text-card-foreground text-sm">
                       Circle
                     </span>
                     {selectedBagShape === "circular" && (
@@ -434,7 +434,7 @@ export function PlantRegistrationForm({
                     className={`relative flex flex-col items-center p-3 border-2 rounded-lg cursor-pointer transition-all active:scale-95 ${
                       selectedBagShape === "rectangular"
                         ? "border-blue-500 bg-blue-100"
-                        : "border-gray-200 active:border-gray-400"
+                        : "border-border active:border-gray-400"
                     }`}
                   >
                     <input
@@ -444,7 +444,7 @@ export function PlantRegistrationForm({
                       className="sr-only"
                     />
                     <span className="text-3xl mb-1">⬜</span>
-                    <span className="font-medium text-gray-900 text-sm">
+                    <span className="font-medium text-card-foreground text-sm">
                       Rectangle
                     </span>
                     {selectedBagShape === "rectangular" && (
@@ -464,14 +464,14 @@ export function PlantRegistrationForm({
               {/* Circular Bag Dimensions */}
               {selectedBagShape === "circular" && (
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-3">
+                  <label className="block text-sm font-medium text-foreground mb-3">
                     Circular Grow Bag Dimensions (inches) *
                   </label>
                   <div className="grid grid-cols-2 gap-3">
                     <div>
                       <label
                         htmlFor="customDiameter"
-                        className="block text-xs font-medium text-gray-600 mb-1"
+                        className="block text-xs font-medium text-muted-foreground mb-1"
                       >
                         Diameter
                       </label>
@@ -482,7 +482,7 @@ export function PlantRegistrationForm({
                         min="1"
                         {...register("customDiameter")}
                         placeholder="24"
-                        className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent text-center"
+                        className="w-full p-3 border border-border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent text-center"
                       />
                       {errors.customDiameter && (
                         <p className="mt-1 text-xs text-red-600">
@@ -494,7 +494,7 @@ export function PlantRegistrationForm({
                     <div>
                       <label
                         htmlFor="customBagHeight"
-                        className="block text-xs font-medium text-gray-600 mb-1"
+                        className="block text-xs font-medium text-muted-foreground mb-1"
                       >
                         Height
                       </label>
@@ -505,7 +505,7 @@ export function PlantRegistrationForm({
                         min="1"
                         {...register("customBagHeight")}
                         placeholder="18"
-                        className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent text-center"
+                        className="w-full p-3 border border-border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent text-center"
                       />
                       {errors.customBagHeight && (
                         <p className="mt-1 text-xs text-red-600">
@@ -514,7 +514,7 @@ export function PlantRegistrationForm({
                       )}
                     </div>
                   </div>
-                  <p className="mt-2 text-xs text-gray-500">
+                  <p className="mt-2 text-xs text-muted-foreground">
                     Example: 24" diameter × 18" height
                   </p>
                 </div>
@@ -523,14 +523,14 @@ export function PlantRegistrationForm({
               {/* Rectangular Bag Dimensions */}
               {selectedBagShape === "rectangular" && (
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-3">
+                  <label className="block text-sm font-medium text-foreground mb-3">
                     Rectangular Grow Bag Dimensions (inches) *
                   </label>
                   <div className="grid grid-cols-3 gap-3">
                     <div>
                       <label
                         htmlFor="customBagWidth"
-                        className="block text-xs font-medium text-gray-600 mb-1"
+                        className="block text-xs font-medium text-muted-foreground mb-1"
                       >
                         Width
                       </label>
@@ -541,7 +541,7 @@ export function PlantRegistrationForm({
                         min="1"
                         {...register("customBagWidth")}
                         placeholder="24"
-                        className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent text-center"
+                        className="w-full p-3 border border-border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent text-center"
                       />
                       {errors.customBagWidth && (
                         <p className="mt-1 text-xs text-red-600">
@@ -553,7 +553,7 @@ export function PlantRegistrationForm({
                     <div>
                       <label
                         htmlFor="customBagLength"
-                        className="block text-xs font-medium text-gray-600 mb-1"
+                        className="block text-xs font-medium text-muted-foreground mb-1"
                       >
                         Length
                       </label>
@@ -564,7 +564,7 @@ export function PlantRegistrationForm({
                         min="1"
                         {...register("customBagLength")}
                         placeholder="48"
-                        className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent text-center"
+                        className="w-full p-3 border border-border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent text-center"
                       />
                       {errors.customBagLength && (
                         <p className="mt-1 text-xs text-red-600">
@@ -576,7 +576,7 @@ export function PlantRegistrationForm({
                     <div>
                       <label
                         htmlFor="customBagHeight"
-                        className="block text-xs font-medium text-gray-600 mb-1"
+                        className="block text-xs font-medium text-muted-foreground mb-1"
                       >
                         Height
                       </label>
@@ -587,7 +587,7 @@ export function PlantRegistrationForm({
                         min="1"
                         {...register("customBagHeight")}
                         placeholder="18"
-                        className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent text-center"
+                        className="w-full p-3 border border-border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent text-center"
                       />
                       {errors.customBagHeight && (
                         <p className="mt-1 text-xs text-red-600">
@@ -596,7 +596,7 @@ export function PlantRegistrationForm({
                       )}
                     </div>
                   </div>
-                  <p className="mt-2 text-xs text-gray-500">
+                  <p className="mt-2 text-xs text-muted-foreground">
                     Example: 24" wide × 48" long × 18" height
                   </p>
                 </div>
@@ -608,14 +608,14 @@ export function PlantRegistrationForm({
         {selectedContainerType === "raised-bed" &&
           selectedContainerSize === "custom-dimensions" && (
             <div className="p-4 bg-green-50 border border-green-200 rounded-md">
-              <label className="block text-sm font-medium text-gray-700 mb-3">
+              <label className="block text-sm font-medium text-foreground mb-3">
                 Raised Bed Dimensions (inches) *
               </label>
               <div className="grid grid-cols-3 gap-3">
                 <div>
                   <label
                     htmlFor="customWidth"
-                    className="block text-xs font-medium text-gray-600 mb-1"
+                    className="block text-xs font-medium text-muted-foreground mb-1"
                   >
                     Width
                   </label>
@@ -626,7 +626,7 @@ export function PlantRegistrationForm({
                     min="1"
                     {...register("customWidth")}
                     placeholder="48"
-                    className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-green-500 focus:border-transparent text-center"
+                    className="w-full p-3 bg-card text-card-foreground border border-border rounded-md focus:ring-2 focus:ring-ring focus:border-ring placeholder:text-muted-foreground"
                   />
                   {errors.customWidth && (
                     <p className="mt-1 text-xs text-red-600">
@@ -638,7 +638,7 @@ export function PlantRegistrationForm({
                 <div>
                   <label
                     htmlFor="customLength"
-                    className="block text-xs font-medium text-gray-600 mb-1"
+                    className="block text-xs font-medium text-muted-foreground mb-1"
                   >
                     Length
                   </label>
@@ -649,7 +649,7 @@ export function PlantRegistrationForm({
                     min="1"
                     {...register("customLength")}
                     placeholder="96"
-                    className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-green-500 focus:border-transparent text-center"
+                    className="w-full p-3 bg-card text-card-foreground border border-border rounded-md focus:ring-2 focus:ring-ring focus:border-ring placeholder:text-muted-foreground"
                   />
                   {errors.customLength && (
                     <p className="mt-1 text-xs text-red-600">
@@ -661,7 +661,7 @@ export function PlantRegistrationForm({
                 <div>
                   <label
                     htmlFor="customDepth"
-                    className="block text-xs font-medium text-gray-600 mb-1"
+                    className="block text-xs font-medium text-muted-foreground mb-1"
                   >
                     Soil Depth
                   </label>
@@ -672,7 +672,7 @@ export function PlantRegistrationForm({
                     min="1"
                     {...register("customDepth")}
                     placeholder="12"
-                    className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-green-500 focus:border-transparent text-center"
+                    className="w-full p-3 bg-card text-card-foreground border border-border rounded-md focus:ring-2 focus:ring-ring focus:border-ring placeholder:text-muted-foreground"
                   />
                   {errors.customDepth && (
                     <p className="mt-1 text-xs text-red-600">
@@ -681,7 +681,7 @@ export function PlantRegistrationForm({
                   )}
                 </div>
               </div>
-              <p className="mt-2 text-xs text-gray-500">
+              <p className="mt-2 text-xs text-muted-foreground">
                 Example: 48" wide × 96" long × 12" deep
               </p>
             </div>
@@ -726,7 +726,7 @@ export function PlantRegistrationForm({
             <div>
               <label
                 id="location-label"
-                className="block text-sm font-medium text-gray-700 mb-3"
+                className="block text-sm font-medium text-foreground mb-3"
               >
                 Location *
               </label>
@@ -752,7 +752,7 @@ export function PlantRegistrationForm({
             {/* Updated Container Fields */}
             {renderContainerFields()}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-foreground mb-2">
                 Soil Mix *
               </label>
 
@@ -785,7 +785,7 @@ export function PlantRegistrationForm({
             <div>
               <label
                 htmlFor="notes"
-                className="block text-sm font-medium text-gray-700 mb-2"
+                className="block text-sm font-medium text-foreground mb-2"
               >
                 Notes (Optional)
               </label>
@@ -794,7 +794,7 @@ export function PlantRegistrationForm({
                 {...register("notes")}
                 placeholder="Any additional notes about this plant..."
                 rows={3}
-                className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-garden-500 focus:border-transparent"
+                className="w-full p-3 bg-card text-card-foreground border border-border rounded-md focus:ring-2 focus:ring-ring focus:border-ring"
               />
               {errors.notes?.message && (
                 <p className="mt-1 text-sm text-red-600">
@@ -828,7 +828,7 @@ export function PlantRegistrationForm({
                       </>
                     ) : (
                       <>
-                        <span className="text-gray-400">📝</span>
+                        <span className="text-muted-foreground">📝</span>
                         Complete Required Fields
                       </>
                     )}
@@ -855,7 +855,7 @@ export function PlantRegistrationForm({
       {/* Custom Variety Form Modal */}
       {showCustomVarietyForm && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-lg max-w-2xl w-full max-h-96 overflow-y-auto">
+          <div className="bg-card rounded-lg max-w-2xl w-full max-h-96 overflow-y-auto">
             <CustomVarietyForm
               onSuccess={async (varietyId) => {
                 setShowCustomVarietyForm(false);

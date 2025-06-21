@@ -97,10 +97,10 @@ const PlantDetail: React.FC = () => {
       <div className="min-h-screen flex flex-col items-center justify-center p-4">
         <div className="text-center max-w-md">
           <span className="text-6xl mb-4 block">🌱</span>
-          <h2 className="text-xl font-semibold text-gray-900 mb-2">
+          <h2 className="text-xl font-semibold text-foreground mb-2">
             {error || "Plant not found"}
           </h2>
-          <p className="text-gray-600 mb-4">
+          <p className="text-muted-foreground mb-4">
             We couldn't load the details for this plant.
           </p>
           <Button onClick={() => navigate(-1)} variant="outline">
@@ -112,9 +112,9 @@ const PlantDetail: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-background">
       {/* Header */}
-      <div className="bg-white border-b border-gray-200">
+      <div className="bg-card border-b border-border">
         <div className="p-4">
           <div className="flex items-center justify-between mb-4">
             <Button
@@ -135,7 +135,7 @@ const PlantDetail: React.FC = () => {
             </Button>
           </div>
 
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">
+          <h1 className="text-2xl font-bold text-foreground mb-2">
             {getPlantDisplayName(plant)}
           </h1>
 
@@ -157,7 +157,7 @@ const PlantDetail: React.FC = () => {
         </div>
       </div>
 
-      <div className="p-4 space-y-4">
+      <div className="p-4 space-y-4 bg-background">
         {/* Reminder Settings - Show when toggled */}
         {showReminderSettings && plant && (
           <Card className="border-blue-200 bg-blue-50/30">
@@ -187,7 +187,9 @@ const PlantDetail: React.FC = () => {
           <CardContent className="space-y-4">
             {/* Next Task */}
             <div>
-              <span className="font-medium text-gray-600">Next Task:</span>
+              <span className="font-medium text-muted-foreground">
+                Next Task:
+              </span>
               <div className="mt-1">
                 <NextTaskDisplay
                   plantId={plantId!}
@@ -199,20 +201,32 @@ const PlantDetail: React.FC = () => {
             {/* Basic Info */}
             <div className="grid grid-cols-2 gap-4 text-sm">
               <div>
-                <span className="font-medium text-gray-600">Variety:</span>
-                <div className="text-gray-900">{plant.varietyName}</div>
+                <span className="font-medium text-muted-foreground">
+                  Variety:
+                </span>
+                <div className="text-card-foreground">
+                  {variety?.name || "Unknown"}
+                </div>
               </div>
               <div>
-                <span className="font-medium text-gray-600">Location:</span>
-                <div className="text-gray-900">📍 {plant.location}</div>
+                <span className="font-medium text-muted-foreground">
+                  Location:
+                </span>
+                <div className="text-card-foreground">
+                  {plant.location ? "Outdoor" : "Indoor"}
+                </div>{" "}
               </div>
               <div>
-                <span className="font-medium text-gray-600">Container:</span>
-                <div className="text-gray-900">📦 {plant.container}</div>
+                <span className="font-medium text-muted-foreground">
+                  Container:
+                </span>
+                <div className="text-card-foreground">📦 {plant.container}</div>
               </div>
               <div>
-                <span className="font-medium text-gray-600">Planted:</span>
-                <div className="text-gray-900">
+                <span className="font-medium text-muted-foreground">
+                  Planted:
+                </span>
+                <div className="text-card-foreground">
                   📅 {formatDate(plant.plantedDate)} (
                   {getDaysSincePlanting(plant.plantedDate)} days ago)
                 </div>
@@ -222,16 +236,20 @@ const PlantDetail: React.FC = () => {
             {/* Soil Mix */}
             {plant.soilMix && (
               <div>
-                <span className="font-medium text-gray-600">Soil Mix:</span>
-                <div className="text-gray-900">🌱 {plant.soilMix}</div>
+                <span className="font-medium text-muted-foreground">
+                  Soil Mix:
+                </span>
+                <div className="text-card-foreground">🌱 {plant.soilMix}</div>
               </div>
             )}
 
             {/* Category */}
             {variety && variety.category && (
               <div>
-                <span className="font-medium text-gray-600">Category:</span>
-                <div className="text-gray-900 capitalize">
+                <span className="font-medium text-muted-foreground">
+                  Category:
+                </span>
+                <div className="text-card-foreground capitalize">
                   {variety.category.replace("-", " ")}
                 </div>
               </div>
@@ -239,7 +257,9 @@ const PlantDetail: React.FC = () => {
 
             {/* Growth Stage */}
             <div>
-              <span className="font-medium text-gray-600">Growth Stage:</span>
+              <span className="font-medium text-muted-foreground">
+                Growth Stage:
+              </span>
               <div className="mt-1">
                 <PlantStageDisplay
                   plant={plant}
@@ -252,10 +272,10 @@ const PlantDetail: React.FC = () => {
             {/* Expected Timeline */}
             {variety && variety.growthTimeline && (
               <div>
-                <span className="font-medium text-gray-600">
+                <span className="font-medium text-muted-foreground">
                   Expected Timeline:
                 </span>
-                <div className="text-gray-900 text-sm mt-1 grid grid-cols-2 gap-2">
+                <div className="text-foreground text-sm mt-1 grid grid-cols-2 gap-2">
                   <div>
                     Germination: {variety.growthTimeline.germination} days
                   </div>
@@ -273,10 +293,10 @@ const PlantDetail: React.FC = () => {
             {/* Reminder Preferences Summary */}
             {plant.reminderPreferences && (
               <div>
-                <span className="font-medium text-gray-600">
+                <span className="font-medium text-muted-foreground">
                   Active Reminders:
                 </span>
-                <div className="text-gray-900 text-sm mt-1 flex flex-wrap justify-center gap-2">
+                <div className="text-foreground text-sm mt-1 flex flex-wrap justify-center gap-2">
                   {Object.entries(plant.reminderPreferences)
                     .filter(([, enabled]) => enabled)
                     .map(([type]) => (
@@ -290,7 +310,7 @@ const PlantDetail: React.FC = () => {
                   {Object.values(plant.reminderPreferences).every(
                     (enabled) => !enabled
                   ) && (
-                    <span className="text-gray-500 text-xs">
+                    <span className="text-muted-foreground text-xs">
                       All reminders disabled
                     </span>
                   )}
@@ -301,10 +321,12 @@ const PlantDetail: React.FC = () => {
             {/* Notes */}
             {plant.notes && plant.notes.length > 0 && (
               <div>
-                <span className="font-medium text-gray-600">Notes:</span>
-                <div className="text-gray-900 text-sm mt-1 space-y-1">
+                <span className="font-medium text-muted-foreground">
+                  Notes:
+                </span>
+                <div className="text-foreground text-sm mt-1 space-y-1">
                   {plant.notes.map((note, index) => (
-                    <div key={index} className="bg-gray-50 p-2 rounded">
+                    <div key={index} className="bg-background p-2 rounded">
                       📝 {note}
                     </div>
                   ))}

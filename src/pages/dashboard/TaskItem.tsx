@@ -91,21 +91,23 @@ const TaskItem: React.FC<TaskItemProps> = ({ task, onQuickAction }) => {
   const taskInfo = getTaskInfo(task.task, task.dueIn);
 
   return (
-    <div className={`rounded-xl border-2 ${taskInfo.urgencyColor} bg-white`}>
+    <div className={`rounded-xl border-2 ${taskInfo.urgencyColor} bg-card`}>
       <div className="p-4">
         {/* Header with plant name and action */}
         <div className="flex items-start justify-between mb-3">
           <div className="flex-1">
             <div className="flex items-center gap-2 mb-1">
               <span className="text-xl">{taskInfo.icon}</span>
-              <h3 className="font-bold text-gray-900">{task.name}</h3>
+              <h3 className="font-bold text-foreground">{task.name}</h3>
             </div>
 
-            <div className="font-semibold text-gray-800 mb-1">
+            <div className="font-semibold text-foreground mb-1">
               {taskInfo.action}
             </div>
 
-            <div className="text-sm text-gray-600">{taskInfo.description}</div>
+            <div className="text-sm text-muted-foreground">
+              {taskInfo.description}
+            </div>
           </div>
 
           {/* Urgency indicator */}
@@ -163,7 +165,7 @@ const TaskItem: React.FC<TaskItemProps> = ({ task, onQuickAction }) => {
 
         {/* Expanded actions */}
         {isExpanded && (
-          <div className="flex flex-wrap gap-2 pt-2 border-t border-gray-200">
+          <div className="flex flex-wrap gap-2 pt-2 border-t border-border">
             {taskInfo.quickActions.slice(2).map((action) => (
               <Button
                 key={action}

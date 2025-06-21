@@ -16,7 +16,7 @@ const AddPlant: React.FC = () => {
 
   return (
     <div className="p-4">
-      <h1 className="text-2xl font-bold text-gray-900 mb-6 text-center">
+      <h1 className="text-2xl font-bold text-foreground mb-6 text-center">
         Add New Plant
       </h1>
       <PlantRegistrationForm

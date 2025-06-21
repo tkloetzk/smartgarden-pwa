@@ -64,7 +64,9 @@ const QuickCompletionButtons = ({
 
   return (
     <div className={`flex gap-2 flex-wrap ${className}`}>
-      <span className="text-xs text-gray-500 self-center">Quick actions:</span>
+      <span className="text-xs text-muted-foreground self-center">
+        Quick actions:
+      </span>
       {options.map((option, index) => (
         <Button
           key={index}

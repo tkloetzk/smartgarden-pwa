@@ -100,10 +100,10 @@ const Dashboard = () => {
       <div className="min-h-screen flex items-center justify-center p-4">
         <div className="text-center max-w-md">
           <div className="text-6xl mb-6">🌱</div>
-          <h1 className="text-2xl font-bold text-gray-900 mb-4">
+          <h1 className="text-2xl font-bold text-foreground mb-4">
             Start Your Digital Garden
           </h1>
-          <p className="text-gray-600 mb-8">
+          <p className="text-muted-foreground mb-8">
             Add your first plant to begin tracking its growth, scheduling care
             tasks, and building healthy growing habits.
           </p>
@@ -145,7 +145,7 @@ const Dashboard = () => {
       {/* Main Content */}
       <div className="p-4 space-y-6">
         {/* Today's Tasks */}
-        <Card className="shadow-lg border-0 bg-white/80 backdrop-blur-sm rounded-2xl">
+        <Card className="shadow-lg border-0 bg-card/80 backdrop-blur-sm rounded-2xl">
           <CardHeader className="pb-3">
             <CardTitle className="text-xl font-bold flex items-center">
               <span className="mr-2 text-2xl">📋</span>
@@ -156,8 +156,12 @@ const Dashboard = () => {
             {upcomingTasks.length === 0 ? (
               <div className="text-center py-6">
                 <div className="text-4xl mb-2">✅</div>
-                <div className="font-medium text-gray-600">All caught up!</div>
-                <div className="text-sm text-gray-500">No tasks due today</div>
+                <div className="font-medium text-muted-foreground">
+                  All caught up!
+                </div>
+                <div className="text-sm text-muted-foreground">
+                  No tasks due today
+                </div>
               </div>
             ) : (
               <>
@@ -165,13 +169,13 @@ const Dashboard = () => {
                   <div
                     key={task.id}
                     onClick={() => handleTaskClick(task)} // Add this
-                    className="flex items-center justify-between p-4 bg-gradient-to-r from-blue-50 to-white rounded-xl border border-blue-100 cursor-pointer hover:bg-blue-100" // Add cursor-pointer and hover
+                    className="flex items-center justify-between p-4 bg-gradient-to-r from-muted to-card rounded-xl border border-border cursor-pointer hover:bg-muted"
                   >
                     <div className="flex-1">
-                      <div className="font-bold text-gray-900 mb-1">
+                      <div className="font-bold text-foreground mb-1">
                         {task.name}
                       </div>
-                      <div className="text-sm text-gray-600 mb-2">
+                      <div className="text-sm text-muted-foreground mb-2">
                         {task.task}
                       </div>
                       <StatusBadge
@@ -194,7 +198,7 @@ const Dashboard = () => {
         </Card>
 
         {/* Recent Plants */}
-        <Card className="shadow-lg border-0 bg-white/80 backdrop-blur-sm rounded-2xl">
+        <Card className="shadow-lg border-0 bg-card/80 backdrop-blur-sm rounded-2xl">
           <CardHeader className="pb-3">
             <CardTitle className="text-xl font-bold flex items-center">
               <span className="mr-2 text-2xl">🌿</span>
@@ -209,10 +213,10 @@ const Dashboard = () => {
               <div
                 key={plant.id}
                 onClick={() => handlePlantClick(plant.id)} // Add this
-                className="flex items-center justify-between p-4 bg-gradient-to-r from-emerald-50 to-white rounded-xl border border-emerald-100 cursor-pointer hover:bg-emerald-100" // Add cursor-pointer and hover
+                className="flex items-center justify-between p-4 bg-gradient-to-r from-muted to-card rounded-xl border border-border cursor-pointer hover:bg-muted"
               >
                 <div className="flex-1">
-                  <div className="font-bold text-gray-900 mb-1">
+                  <div className="font-bold text-foreground mb-1">
                     {getPlantDisplayName(plant)}
                   </div>
                   <PlantStageDisplay plant={plant} />
@@ -221,7 +225,7 @@ const Dashboard = () => {
                 </div>
                 <div className="text-right">
                   <div className="text-4xl mb-2">🌿</div>
-                  <div className="text-xs font-semibold text-gray-500">
+                  <div className="text-xs font-semibold text-muted-foreground">
                     {getDaysSincePlanting(plant.plantedDate)} days
                   </div>
                 </div>

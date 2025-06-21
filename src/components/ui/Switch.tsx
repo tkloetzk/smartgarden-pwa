@@ -65,7 +65,9 @@ export const Switch: React.FC<SwitchProps> = ({
           className={cn(
             "flex items-center gap-2 transition-colors duration-200",
             sizes.text,
-            !checked ? "text-emerald-700 font-semibold" : "text-gray-500",
+            !checked
+              ? "text-emerald-700 font-semibold"
+              : "text-muted-foreground",
             disabled && "opacity-50"
           )}
         >
@@ -95,7 +97,7 @@ export const Switch: React.FC<SwitchProps> = ({
       >
         <span
           className={cn(
-            "pointer-events-none inline-block rounded-full bg-white shadow transform ring-0 transition duration-200 ease-in-out",
+            "pointer-events-none inline-block rounded-full bg-card shadow transform ring-0 transition duration-200 ease-in-out",
             sizes.thumb,
             checked ? sizes.translate : "translate-x-0"
           )}
@@ -108,7 +110,9 @@ export const Switch: React.FC<SwitchProps> = ({
           className={cn(
             "flex items-center gap-2 transition-colors duration-200",
             sizes.text,
-            checked ? "text-emerald-700 font-semibold" : "text-gray-500",
+            checked
+              ? "text-emerald-700 font-semibold"
+              : "text-muted-foreground",
             disabled && "opacity-50"
           )}
         >

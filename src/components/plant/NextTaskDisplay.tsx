@@ -17,7 +17,7 @@ const NextTaskDisplay: React.FC<NextTaskDisplayProps> = ({
 
   if (isLoading) {
     return (
-      <div className={`text-xs text-gray-400 ${className}`}>
+      <div className={`text-xs text-muted-foreground ${className}`}>
         Loading next task...
       </div>
     );
@@ -25,7 +25,7 @@ const NextTaskDisplay: React.FC<NextTaskDisplayProps> = ({
 
   if (!nextTask) {
     return (
-      <div className={`text-xs text-gray-500 ${className}`}>
+      <div className={`text-xs text-muted-foreground ${className}`}>
         📅 No tasks scheduled
       </div>
     );
@@ -66,7 +66,7 @@ const NextTaskDisplay: React.FC<NextTaskDisplayProps> = ({
       case "low":
         return "text-green-600";
       default:
-        return "text-gray-600";
+        return "text-muted-foreground";
     }
   };
 
@@ -87,7 +87,9 @@ const NextTaskDisplay: React.FC<NextTaskDisplayProps> = ({
       <span className="mr-1">{getTaskIcon(nextTask.task)}</span>
       {nextTask.task} - {nextTask.dueIn}
       {onClick && (
-        <span className="text-xs text-gray-400 ml-2">→ Click to log</span>
+        <span className="text-xs text-muted-foreground ml-2">
+          → Click to log
+        </span>
       )}
     </div>
   );

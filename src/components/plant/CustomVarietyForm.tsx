@@ -112,7 +112,7 @@ export function CustomVarietyForm({
     <Card className="max-w-2xl mx-auto">
       <CardHeader>
         <CardTitle>Create Custom Plant Variety</CardTitle>
-        <p className="text-sm text-gray-600 mt-1">
+        <p className="text-sm text-muted-foreground mt-1">
           Add your own plant varieties like pumpkins, exotic herbs, or local
           cultivars
         </p>
@@ -120,13 +120,13 @@ export function CustomVarietyForm({
       <CardContent>
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-medium text-foreground mb-2">
               Variety Name *
             </label>
             <input
               {...register("name")}
               placeholder="e.g., Jack-o'-lantern Pumpkins, Cherokee Purple Tomatoes"
-              className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-garden-500"
+              className="w-full p-3 border border-border rounded-md focus:ring-2 focus:ring-garden-500"
             />
             {errors.name && (
               <p className="mt-1 text-sm text-red-600">{errors.name.message}</p>
@@ -134,12 +134,12 @@ export function CustomVarietyForm({
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-medium text-foreground mb-2">
               Category *
             </label>
             <select
               {...register("category")}
-              className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-garden-500"
+              className="w-full p-3 border border-border rounded-md focus:ring-2 focus:ring-garden-500"
             >
               <option value="fruiting-plants">
                 🎃 Fruiting Plants (pumpkins, squash, melons, etc.)
@@ -157,23 +157,23 @@ export function CustomVarietyForm({
                 🫐 Berries (strawberries, raspberries, etc.)
               </option>
             </select>
-            <p className="mt-1 text-xs text-gray-500">
+            <p className="mt-1 text-xs text-muted-foreground">
               This determines default care guidelines and protocols
             </p>
           </div>
 
           {/* Growth Timeline */}
           <div>
-            <h3 className="text-lg font-medium text-gray-900 mb-4">
+            <h3 className="text-lg font-medium text-foreground mb-4">
               Growth Timeline (days)
             </h3>
-            <p className="text-sm text-gray-600 mb-4">
+            <p className="text-sm text-muted-foreground mb-4">
               How long does each growth stage typically last? These help predict
               care needs.
             </p>
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-foreground mb-2">
                   Germination Days
                 </label>
                 <input
@@ -182,12 +182,14 @@ export function CustomVarietyForm({
                     valueAsNumber: true,
                   })}
                   placeholder="7"
-                  className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-garden-500"
+                  className="w-full p-3 border border-border rounded-md focus:ring-2 focus:ring-garden-500"
                 />
-                <p className="text-xs text-gray-500 mt-1">Days to sprout</p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Days to sprout
+                </p>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-foreground mb-2">
                   Seedling Stage Days
                 </label>
                 <input
@@ -196,14 +198,14 @@ export function CustomVarietyForm({
                     valueAsNumber: true,
                   })}
                   placeholder="14"
-                  className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-garden-500"
+                  className="w-full p-3 border border-border rounded-md focus:ring-2 focus:ring-garden-500"
                 />
-                <p className="text-xs text-gray-500 mt-1">
+                <p className="text-xs text-muted-foreground mt-1">
                   Early growth period
                 </p>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-foreground mb-2">
                   Vegetative Growth Days
                 </label>
                 <input
@@ -212,14 +214,14 @@ export function CustomVarietyForm({
                     valueAsNumber: true,
                   })}
                   placeholder="30"
-                  className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-garden-500"
+                  className="w-full p-3 border border-border rounded-md focus:ring-2 focus:ring-garden-500"
                 />
-                <p className="text-xs text-gray-500 mt-1">
+                <p className="text-xs text-muted-foreground mt-1">
                   Leaf and stem development
                 </p>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-foreground mb-2">
                   Total Days to Maturity
                 </label>
                 <input
@@ -228,9 +230,9 @@ export function CustomVarietyForm({
                     valueAsNumber: true,
                   })}
                   placeholder="120"
-                  className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-garden-500"
+                  className="w-full p-3 border border-border rounded-md focus:ring-2 focus:ring-garden-500"
                 />
-                <p className="text-xs text-gray-500 mt-1">
+                <p className="text-xs text-muted-foreground mt-1">
                   From seed to harvest
                 </p>
               </div>
@@ -241,10 +243,10 @@ export function CustomVarietyForm({
           <div className="border-t pt-6">
             <div className="flex items-center justify-between mb-4">
               <div>
-                <h3 className="text-lg font-medium text-gray-900">
+                <h3 className="text-lg font-medium text-foreground">
                   Custom Moisture Protocol
                 </h3>
-                <p className="text-sm text-gray-600">
+                <p className="text-sm text-muted-foreground">
                   Set specific watering ranges, or use category defaults
                 </p>
               </div>
@@ -258,7 +260,7 @@ export function CustomVarietyForm({
                 }`}
               >
                 <span
-                  className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                  className={`inline-block h-4 w-4 transform rounded-full bg-card transition-transform ${
                     showMoistureCustomization
                       ? "translate-x-6"
                       : "translate-x-1"
@@ -283,7 +285,7 @@ export function CustomVarietyForm({
 
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label className="block text-sm font-medium text-foreground mb-2">
                       Water When (Min Level)
                     </label>
                     <input
@@ -292,14 +294,14 @@ export function CustomVarietyForm({
                       max="10"
                       step="0.5"
                       {...register("triggerMin", { valueAsNumber: true })}
-                      className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-garden-500"
+                      className="w-full p-3 border border-border rounded-md focus:ring-2 focus:ring-garden-500"
                     />
-                    <p className="text-xs text-gray-500 mt-1">
+                    <p className="text-xs text-muted-foreground mt-1">
                       Lowest moisture before watering
                     </p>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label className="block text-sm font-medium text-foreground mb-2">
                       Water When (Max Level)
                     </label>
                     <input
@@ -308,14 +310,14 @@ export function CustomVarietyForm({
                       max="10"
                       step="0.5"
                       {...register("triggerMax", { valueAsNumber: true })}
-                      className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-garden-500"
+                      className="w-full p-3 border border-border rounded-md focus:ring-2 focus:ring-garden-500"
                     />
-                    <p className="text-xs text-gray-500 mt-1">
+                    <p className="text-xs text-muted-foreground mt-1">
                       Highest moisture before watering
                     </p>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label className="block text-sm font-medium text-foreground mb-2">
                       Target After (Min Level)
                     </label>
                     <input
@@ -324,14 +326,14 @@ export function CustomVarietyForm({
                       max="10"
                       step="0.5"
                       {...register("targetMin", { valueAsNumber: true })}
-                      className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-garden-500"
+                      className="w-full p-3 border border-border rounded-md focus:ring-2 focus:ring-garden-500"
                     />
-                    <p className="text-xs text-gray-500 mt-1">
+                    <p className="text-xs text-muted-foreground mt-1">
                       Minimum moisture after watering
                     </p>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label className="block text-sm font-medium text-foreground mb-2">
                       Target After (Max Level)
                     </label>
                     <input
@@ -340,9 +342,9 @@ export function CustomVarietyForm({
                       max="10"
                       step="0.5"
                       {...register("targetMax", { valueAsNumber: true })}
-                      className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-garden-500"
+                      className="w-full p-3 border border-border rounded-md focus:ring-2 focus:ring-garden-500"
                     />
-                    <p className="text-xs text-gray-500 mt-1">
+                    <p className="text-xs text-muted-foreground mt-1">
                       Maximum moisture after watering
                     </p>
                   </div>

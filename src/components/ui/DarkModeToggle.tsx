@@ -44,10 +44,11 @@ export const DarkModeToggle: React.FC<DarkModeToggleProps> = ({
       {showLabels && (
         <span
           className={cn(
-            "text-sm font-medium transition-colors",
-            !isDarkMode
-              ? "text-emerald-700"
-              : "text-gray-500 dark:text-gray-400"
+            "relative inline-flex flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2",
+            sizes.button,
+            isDarkMode
+              ? "bg-emerald-600 hover:bg-emerald-700" // These are already good
+              : "bg-gray-300 hover:bg-gray-400 dark:bg-gray-600 dark:hover:bg-background0"
           )}
         >
           ☀️
@@ -62,13 +63,13 @@ export const DarkModeToggle: React.FC<DarkModeToggleProps> = ({
           sizes.button,
           isDarkMode
             ? "bg-emerald-600 hover:bg-emerald-700"
-            : "bg-gray-300 hover:bg-gray-400 dark:bg-gray-600 dark:hover:bg-gray-500"
+            : "bg-gray-300 hover:bg-gray-400 dark:bg-gray-600 dark:hover:bg-background0"
         )}
         aria-label={`Switch to ${isDarkMode ? "light" : "dark"} mode`}
       >
         <span
           className={cn(
-            "pointer-events-none inline-block rounded-full bg-white shadow transform ring-0 transition duration-200 ease-in-out flex items-center justify-center",
+            "pointer-events-none inline-block rounded-full bg-card shadow transform ring-0 transition duration-200 ease-in-out flex items-center justify-center",
             sizes.circle,
             isDarkMode ? sizes.translate : "translate-x-0"
           )}
@@ -82,8 +83,8 @@ export const DarkModeToggle: React.FC<DarkModeToggleProps> = ({
           className={cn(
             "text-sm font-medium transition-colors",
             isDarkMode
-              ? "text-emerald-700 dark:text-emerald-400"
-              : "text-gray-500 dark:text-gray-400"
+              ? "text-emerald-700 dark:text-emerald-500"
+              : "text-muted-foreground dark:text-muted-foreground"
           )}
         >
           🌙

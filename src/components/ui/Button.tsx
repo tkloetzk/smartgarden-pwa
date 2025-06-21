@@ -56,21 +56,22 @@ export const Button: React.FC<ButtonProps> = ({
     ].join(" "),
 
     outline: [
-      "bg-white/90 backdrop-blur-sm text-emerald-700",
-      "hover:bg-emerald-50 hover:text-emerald-800",
-      "active:bg-emerald-100",
-      "focus:ring-emerald-400/50",
-      "border-2 border-emerald-500",
-      "shadow-md hover:shadow-lg",
+      "bg-card text-primary",
+      "hover:bg-muted hover:text-primary",
+      "active:bg-muted",
+      "focus:ring-ring/50",
+      "border-2 border-border",
+      "hover:border-ring",
+      "shadow-sm hover:shadow-md",
     ].join(" "),
 
     ghost: [
-      "bg-white/20 backdrop-blur-sm text-gray-700",
-      "hover:bg-white/40 hover:text-gray-900",
-      "active:bg-white/60",
-      "focus:ring-gray-400/50",
-      "border border-white/30",
-      "shadow-sm",
+      "bg-transparent text-muted-foreground",
+      "hover:bg-muted hover:text-foreground",
+      "active:bg-muted",
+      "focus:ring-ring/50",
+      "border-0",
+      "shadow-none",
     ].join(" "),
 
     destructive: [
