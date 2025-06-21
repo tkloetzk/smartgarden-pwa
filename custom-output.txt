@@ -81,6 +81,8 @@ src/
     utils/
       growthStage.test.ts
       plantDisplay.test.ts
+      plantFactory.test.ts
+      plantFactory.ts
       testHelpers.tsx
       varietyGrowthStages.test.ts
   assets/
@@ -184,711 +186,6 @@ vite.config.ts
 ================================================================
 Files
 ================================================================
-
-================
-File: src/__tests__/integration/plantManagement.test.tsx
-================
-  1: import { render, screen, waitFor } from "@testing-library/react";
-  2: import { BrowserRouter } from "react-router-dom";
-  3: import Dashboard from "@/pages/dashboard";
-  4: import PlantDetail from "@/pages/plants/PlantDetail";
-  5: import {
-  6:   plantService,
-  7:   careService,
-  8:   varietyService,
-  9:   CareRecord,
- 10: } from "@/types/database";
- 11: import { initializeDatabase } from "@/db/seedData";
- 12: import { subDays } from "date-fns";
- 13: 
- 14: 
- 15: const mockNavigate = jest.fn();
- 16: const mockUseParams = jest.fn();
- 17: 
- 18: jest.mock("react-router-dom", () => ({
- 19:   ...jest.requireActual("react-router-dom"),
- 20:   useNavigate: () => mockNavigate,
- 21:   useParams: () => mockUseParams(),
- 22: }));
- 23: 
- 24: describe("Plant Management Integration", () => {
- 25:   beforeEach(async () => {
- 26:     jest.clearAllMocks();
- 27:     mockUseParams.mockReturnValue({ plantId: "test-plant-id" });
- 28: 
- 29: 
- 30:     const { db } = await import("@/types/database");
- 31:     await db.plants.clear();
- 32:     await db.varieties.clear();
- 33:     await db.careActivities.clear();
- 34:     await initializeDatabase();
- 35:   });
- 36: 
- 37:   describe("Complete Plant Lifecycle Workflow", () => {
- 38:     it("completes full plant lifecycle workflow", async () => {
- 39: 
- 40:       const varieties = await varietyService.getAllVarieties();
- 41:       const testVariety = varieties[0];
- 42: 
- 43:       const plantId = await plantService.addPlant({
- 44:         varietyId: testVariety.id,
- 45:         varietyName: testVariety.name,
- 46:         name: "Integration Test Plant",
- 47:         plantedDate: subDays(new Date(), 14),
- 48:         currentStage: "seedling",
- 49:         location: "Indoor",
- 50:         container: "5 gallon pot",
- 51:         isActive: true,
- 52:       });
- 53: 
- 54: 
- 55:       const { unmount } = render(
- 56:         <BrowserRouter>
- 57:           <Dashboard />
- 58:         </BrowserRouter>
- 59:       );
- 60: 
- 61:       await waitFor(() => {
- 62:         const plantElements = screen.getAllByText("Integration Test Plant");
- 63:         expect(plantElements.length).toBeGreaterThan(0);
- 64:       });
- 65: 
- 66: 
- 67:       unmount();
- 68: 
- 69: 
- 70:       await careService.addCareActivity({
- 71:         plantId,
- 72:         type: "water",
- 73:         date: new Date(),
- 74:         details: {
- 75:           type: "water",
- 76:           amount: { value: 16, unit: "oz" },
- 77:           moistureReading: {
- 78:             before: 3,
- 79:             after: 7,
- 80:             scale: "1-10",
- 81:           },
- 82:           notes: "Regular watering",
- 83:         },
- 84:       });
- 85: 
- 86: 
- 87:       const savedCareHistory = await careService.getPlantCareHistory(plantId);
- 88:       expect(savedCareHistory).toHaveLength(1);
- 89:       expect(savedCareHistory[0].details.notes).toBe("Regular watering");
- 90: 
- 91: 
- 92:       mockUseParams.mockReturnValue({ plantId });
- 93: 
- 94:       render(
- 95:         <BrowserRouter>
- 96:           <PlantDetail />
- 97:         </BrowserRouter>
- 98:       );
- 99: 
-100: 
-101:       await waitFor(() => {
-102:         expect(screen.getByText("Integration Test Plant")).toBeInTheDocument();
-103:       });
-104: 
-105: 
-106:       await waitFor(
-107:         () => {
-108: 
-109:           expect(screen.getByText("Care History")).toBeInTheDocument();
-110: 
-111:           expect(screen.getByText("Watering (16 oz)")).toBeInTheDocument();
-112:         },
-113:         { timeout: 5000 }
-114:       );
-115: 
-116: 
-117:       const savedPlant = await plantService.getPlant(plantId);
-118:       const careHistory = await careService.getPlantCareHistory(plantId);
-119: 
-120:       expect(savedPlant).toBeTruthy();
-121:       expect(savedPlant!.name).toBe("Integration Test Plant");
-122:       expect(careHistory).toHaveLength(1);
-123:       expect(careHistory[0].details.notes).toBe("Regular watering");
-124:     });
-125: 
-126:     it("handles plant status changes throughout lifecycle", async () => {
-127:       const varieties = await varietyService.getAllVarieties();
-128:       const testVariety = varieties[0];
-129: 
-130: 
-131:       const plantId = await plantService.addPlant({
-132:         varietyId: testVariety.id,
-133:         varietyName: testVariety.name,
-134:         plantedDate: subDays(new Date(), 5),
-135:         currentStage: "germination",
-136:         location: "Indoor",
-137:         container: "4 inch pot",
-138:         isActive: true,
-139:       });
-140: 
-141: 
-142:       await plantService.updatePlant(plantId, {
-143:         currentStage: "seedling",
-144:         updatedAt: new Date(),
-145:       });
-146: 
-147:       await plantService.updatePlant(plantId, {
-148:         currentStage: "vegetative",
-149:         updatedAt: new Date(),
-150:       });
-151: 
-152: 
-153:       const plant = await plantService.getPlant(plantId);
-154:       expect(plant!.currentStage).toBe("vegetative");
-155:     });
-156:   });
-157: 
-158:   describe("Plant Deletion and Cleanup", () => {
-159:     it("handles plant soft deletion correctly", async () => {
-160:       const varieties = await varietyService.getAllVarieties();
-161:       const testVariety = varieties[0];
-162: 
-163: 
-164:       const plantId = await plantService.addPlant({
-165:         varietyId: testVariety.id,
-166:         varietyName: testVariety.name,
-167:         plantedDate: subDays(new Date(), 30),
-168:         currentStage: "vegetative",
-169:         location: "Indoor",
-170:         container: "5 gallon pot",
-171:         isActive: true,
-172:       });
-173: 
-174: 
-175:       const careActivities = [
-176:         {
-177:           type: "water" as const,
-178:           date: subDays(new Date(), 5),
-179:           details: {
-180:             type: "water" as const,
-181:             amount: { value: 16, unit: "oz" as const },
-182:           },
-183:         },
-184:         {
-185:           type: "fertilize" as const,
-186:           date: subDays(new Date(), 10),
-187:           details: {
-188:             type: "fertilize" as const,
-189:             product: "General fertilizer",
-190:             dilution: "1:10",
-191:             amount: "1 tbsp",
-192:           },
-193:         },
-194:         {
-195:           type: "observe" as const,
-196:           date: subDays(new Date(), 3),
-197:           details: {
-198:             type: "observe" as const,
-199:             healthAssessment: "good" as const,
-200:             observations: "Looking healthy",
-201:             notes: "Plant appears healthy",
-202:           },
-203:         },
-204:       ];
-205: 
-206:       for (const activity of careActivities) {
-207:         await careService.addCareActivity({
-208:           plantId,
-209:           ...activity,
-210:         });
-211:       }
-212: 
-213: 
-214:       const initialCareHistory = await careService.getPlantCareHistory(plantId);
-215:       expect(initialCareHistory).toHaveLength(3);
-216: 
-217: 
-218:       await plantService.deletePlant(plantId);
-219: 
-220: 
-221:       const deletedPlant = await plantService.getPlant(plantId);
-222:       expect(deletedPlant).toBeTruthy();
-223:       expect(deletedPlant!.isActive).toBe(false);
-224: 
-225: 
-226:       const remainingCareHistory = await careService.getPlantCareHistory(
-227:         plantId
-228:       );
-229:       expect(remainingCareHistory).toHaveLength(3);
-230: 
-231: 
-232:       const activePlants = await plantService.getActivePlants();
-233:       expect(activePlants.find((p) => p.id === plantId)).toBeUndefined();
-234:     });
-235: 
-236:     it("handles multiple plant soft deletion independently", async () => {
-237:       const varieties = await varietyService.getAllVarieties();
-238:       const testVariety = varieties[0];
-239: 
-240: 
-241:       const plantIds: string[] = [];
-242:       for (let i = 0; i < 3; i++) {
-243:         const plantId = await plantService.addPlant({
-244:           varietyId: testVariety.id,
-245:           varietyName: testVariety.name,
-246:           plantedDate: subDays(new Date(), 30),
-247:           currentStage: "vegetative",
-248:           location: `Location ${i}`,
-249:           container: "5 gallon pot",
-250:           isActive: true,
-251:         });
-252:         plantIds.push(plantId);
-253: 
-254: 
-255:         await careService.addCareActivity({
-256:           plantId,
-257:           type: "water",
-258:           date: new Date(),
-259:           details: {
-260:             type: "water",
-261:             amount: { value: 16, unit: "oz" },
-262:           },
-263:         });
-264:       }
-265: 
-266: 
-267:       await plantService.deletePlant(plantIds[1]);
-268: 
-269: 
-270:       const remainingActivePlants = await plantService.getActivePlants();
-271:       expect(remainingActivePlants).toHaveLength(2);
-272:       expect(
-273:         remainingActivePlants.find((p) => p.id === plantIds[1])
-274:       ).toBeUndefined();
-275: 
-276: 
-277:       const deletedPlant = await plantService.getPlant(plantIds[1]);
-278:       expect(deletedPlant).toBeTruthy();
-279:       expect(deletedPlant!.isActive).toBe(false);
-280: 
-281: 
-282:       const plant0Care = await careService.getPlantCareHistory(plantIds[0]);
-283:       const plant2Care = await careService.getPlantCareHistory(plantIds[2]);
-284:       expect(plant0Care).toHaveLength(1);
-285:       expect(plant2Care).toHaveLength(1);
-286: 
-287: 
-288:       const deletedPlantCare = await careService.getPlantCareHistory(
-289:         plantIds[1]
-290:       );
-291:       expect(deletedPlantCare).toHaveLength(1);
-292:     });
-293: 
-294:     it("demonstrates hard delete with cascade cleanup", async () => {
-295:       const varieties = await varietyService.getAllVarieties();
-296:       const testVariety = varieties[0];
-297: 
-298:       const plantId = await plantService.addPlant({
-299:         varietyId: testVariety.id,
-300:         varietyName: testVariety.name,
-301:         plantedDate: subDays(new Date(), 30),
-302:         currentStage: "vegetative",
-303:         location: "Indoor",
-304:         container: "5 gallon pot",
-305:         isActive: true,
-306:       });
-307: 
-308: 
-309:       await careService.addCareActivity({
-310:         plantId,
-311:         type: "water",
-312:         date: new Date(),
-313:         details: {
-314:           type: "water",
-315:           amount: { value: 16, unit: "oz" },
-316:         },
-317:       });
-318: 
-319: 
-320:       const { db } = await import("@/types/database");
-321: 
-322: 
-323:       await db.careActivities.where("plantId").equals(plantId).delete();
-324: 
-325: 
-326:       await db.plants.delete(plantId);
-327: 
-328: 
-329:       const deletedPlant = await plantService.getPlant(plantId);
-330:       expect(deletedPlant).toBeUndefined();
-331: 
-332: 
-333:       const remainingCareHistory = await careService.getPlantCareHistory(
-334:         plantId
-335:       );
-336:       expect(remainingCareHistory).toHaveLength(0);
-337:     });
-338:   });
-339: 
-340:   describe("Cross-Service Integration", () => {
-341:     it("integrates care scheduling with plant management", async () => {
-342:       const varieties = await varietyService.getAllVarieties();
-343:       const testVariety = varieties[0];
-344: 
-345: 
-346:       const plantId = await plantService.addPlant({
-347:         varietyId: testVariety.id,
-348:         varietyName: testVariety.name,
-349:         plantedDate: subDays(new Date(), 14),
-350:         currentStage: "seedling",
-351:         location: "Indoor",
-352:         container: "4 inch pot",
-353:         isActive: true,
-354:         reminderPreferences: {
-355:           watering: true,
-356:           fertilizing: true,
-357:           observation: true,
-358:           lighting: true,
-359:           pruning: true,
-360:         },
-361:       });
-362: 
-363: 
-364:       const { CareSchedulingService } = await import(
-365:         "@/services/careSchedulingService"
-366:       );
-367: 
-368: 
-369:       const tasks = await CareSchedulingService.getUpcomingTasks();
-370:       const plantTasks = tasks.filter((task) => task.plantId === plantId);
-371: 
-372:       expect(plantTasks.length).toBeGreaterThan(0);
-373: 
-374: 
-375:       plantTasks.forEach((task) => {
-376:         expect(task.plantId).toBe(plantId);
-377:         expect(task.dueDate).toBeInstanceOf(Date);
-378:         expect(["low", "medium", "high"]).toContain(task.priority);
-379:       });
-380:     });
-381: 
-382:     it("integrates smart defaults with plant history", async () => {
-383:       const varieties = await varietyService.getAllVarieties();
-384:       const testVariety = varieties.find(
-385:         (v) =>
-386:           v.protocols?.watering && Object.keys(v.protocols.watering).length > 0
-387:       );
-388: 
-389:       if (!testVariety) return;
-390: 
-391:       const plantId = await plantService.addPlant({
-392:         varietyId: testVariety.id,
-393:         varietyName: testVariety.name,
-394:         plantedDate: subDays(new Date(), 30),
-395:         currentStage: "vegetative",
-396:         location: "Indoor",
-397:         container: "5 gallon pot",
-398:         isActive: true,
-399:       });
-400: 
-401: 
-402:       await careService.addCareActivity({
-403:         plantId,
-404:         type: "water",
-405:         date: subDays(new Date(), 2),
-406:         details: {
-407:           type: "water",
-408:           amount: { value: 20, unit: "oz" },
-409:           moistureReading: {
-410:             before: 4,
-411:             after: 8,
-412:             scale: "1-10",
-413:           },
-414:         },
-415:       });
-416: 
-417:       const plant = await plantService.getPlant(plantId);
-418:       const { SmartDefaultsService } = await import(
-419:         "@/services/smartDefaultsService"
-420:       );
-421: 
-422:       const defaults = await SmartDefaultsService.getDefaultsForPlant(plant!);
-423:       const quickOptions = await SmartDefaultsService.getQuickCompletionOptions(
-424:         plant!,
-425:         "water"
-426:       );
-427: 
-428:       expect(defaults).toBeTruthy();
-429:       expect(defaults!.watering).toBeTruthy();
-430:       expect(quickOptions).toBeTruthy();
-431: 
-432:       if (quickOptions && quickOptions.length > 0) {
-433:         expect(quickOptions[0].values.waterValue).toBeGreaterThan(0);
-434:       }
-435:     });
-436:   });
-437: 
-438:   describe("Error Handling and Edge Cases", () => {
-439:     it("handles invalid plant data gracefully", async () => {
-440: 
-441:       await expect(
-442:         plantService.addPlant({
-443:           varietyId: "non-existent-variety",
-444:           varietyName: "Invalid Variety",
-445:           plantedDate: new Date(),
-446:           currentStage: "seedling",
-447:           location: "Test",
-448:           container: "Test",
-449:           isActive: true,
-450:         })
-451:       ).resolves.toBeTruthy();
-452: 
-453:       const plants = await plantService.getActivePlants();
-454:       const orphanedPlant = plants.find(
-455:         (p) => p.varietyId === "non-existent-variety"
-456:       );
-457:       expect(orphanedPlant).toBeTruthy();
-458: 
-459: 
-460:       const { CareSchedulingService } = await import(
-461:         "@/services/careSchedulingService"
-462:       );
-463:       const tasks = await CareSchedulingService.getUpcomingTasks();
-464: 
-465: 
-466:       expect(Array.isArray(tasks)).toBe(true);
-467:       const orphanedTasks = tasks.filter(
-468:         (t) => t.plantId === orphanedPlant!.id
-469:       );
-470:       expect(orphanedTasks).toHaveLength(0);
-471:     });
-472: 
-473:     it("handles concurrent operations safely", async () => {
-474:       const varieties = await varietyService.getAllVarieties();
-475:       const testVariety = varieties[0];
-476: 
-477:       const plantId = await plantService.addPlant({
-478:         varietyId: testVariety.id,
-479:         varietyName: testVariety.name,
-480:         plantedDate: new Date(),
-481:         currentStage: "seedling",
-482:         location: "Test",
-483:         container: "Test",
-484:         isActive: true,
-485:       });
-486: 
-487: 
-488:       const concurrentOperations = Array(5)
-489:         .fill(null)
-490:         .map((_, index) =>
-491:           careService.addCareActivity({
-492:             plantId,
-493:             type: "water",
-494:             date: new Date(),
-495:             details: {
-496:               type: "water",
-497:               amount: { value: 10 + index, unit: "oz" },
-498:               notes: `Concurrent operation ${index}`,
-499:             },
-500:           })
-501:         );
-502: 
-503:       await Promise.all(concurrentOperations);
-504: 
-505: 
-506:       const careHistory = await careService.getPlantCareHistory(plantId);
-507:       expect(careHistory).toHaveLength(5);
-508: 
-509: 
-510:       const notes = careHistory.map(
-511:         (careRecord: CareRecord) => careRecord.details.notes
-512:       );
-513:       const uniqueNotes = new Set(notes);
-514:       expect(uniqueNotes.size).toBe(5);
-515:     });
-516:   });
-517: });
-
-================
-File: src/__tests__/integration/taskGroupingService.test.tsx
-================
-  1: import { TaskGroupingService } from "@/services/taskGroupingService";
-  2: import { UpcomingTask, TaskGroup } from "@/types/scheduling";
-  3: 
-  4: describe("TaskGroupingService", () => {
-  5:   const createMockTask = (
-  6:     task: string,
-  7:     priority: "low" | "medium" | "high" = "medium"
-  8:   ): UpcomingTask => ({
-  9:     id: `task-${Date.now()}-${Math.random()}`,
- 10:     plantId: "test-plant-1",
- 11:     name: "Test Plant",
- 12:     task,
- 13:     dueIn: "Due in 2 days",
- 14:     plantStage: "vegetative",
- 15:     dueDate: new Date(),
- 16:     priority,
- 17:     canBypass: true,
- 18:   });
- 19: 
- 20:   describe("groupTasksByActivity", () => {
- 21:     it("groups watering tasks correctly", () => {
- 22:       const tasks = [
- 23:         createMockTask("Check water level"),
- 24:         createMockTask("Water plant"),
- 25:         createMockTask("Check moisture"),
- 26:       ];
- 27: 
- 28:       const groups = TaskGroupingService.groupTasksByActivity(tasks);
- 29:       const wateringGroup = groups.find((g) => g.type === "watering");
- 30: 
- 31:       expect(wateringGroup).toBeDefined();
- 32:       expect(wateringGroup!.tasks).toHaveLength(3);
- 33:       expect(wateringGroup!.title).toBe("Watering");
- 34:       expect(wateringGroup!.emoji).toBe("💧");
- 35:     });
- 36: 
- 37:     it("groups fertilizing tasks correctly", () => {
- 38:       const tasks = [
- 39:         createMockTask("Fertilize plant"),
- 40:         createMockTask("Feed with nutrients"),
- 41:       ];
- 42: 
- 43:       const groups = TaskGroupingService.groupTasksByActivity(tasks);
- 44:       const fertilizingGroup = groups.find((g) => g.type === "fertilizing");
- 45: 
- 46:       expect(fertilizingGroup!.tasks).toHaveLength(2);
- 47:       expect(fertilizingGroup!.title).toBe("Fertilizing");
- 48:       expect(fertilizingGroup!.emoji).toBe("🌱");
- 49:     });
- 50: 
- 51:     it("groups observation tasks correctly", () => {
- 52:       const tasks = [
- 53:         createMockTask("Health check"),
- 54:         createMockTask("Observe growth"),
- 55:         createMockTask("Check for pests"),
- 56:       ];
- 57: 
- 58:       const groups = TaskGroupingService.groupTasksByActivity(tasks);
- 59:       const observationGroup = groups.find((g) => g.type === "observation");
- 60: 
- 61:       expect(observationGroup!.tasks).toHaveLength(3);
- 62:       expect(observationGroup!.title).toBe("Health Checks");
- 63:       expect(observationGroup!.emoji).toBe("👁");
- 64:     });
- 65: 
- 66:     it("groups maintenance tasks correctly", () => {
- 67:       const tasks = [
- 68:         createMockTask("Prune leaves"),
- 69:         createMockTask("Transplant"),
- 70:         createMockTask("Clean pot"),
- 71:       ];
- 72: 
- 73:       const groups = TaskGroupingService.groupTasksByActivity(tasks);
- 74:       const maintenanceGroup = groups.find((g) => g.type === "maintenance");
- 75: 
- 76:       expect(maintenanceGroup!.tasks).toHaveLength(3);
- 77:       expect(maintenanceGroup!.title).toBe("Maintenance");
- 78:       expect(maintenanceGroup!.emoji).toBe("✂️");
- 79:       expect(maintenanceGroup!.isExpanded).toBe(false);
- 80:     });
- 81: 
- 82:     it("expands groups with high priority tasks", () => {
- 83:       const tasks = [
- 84:         createMockTask("Prune leaves", "high"),
- 85:         createMockTask("Transplant", "low"),
- 86:       ];
- 87: 
- 88:       const groups = TaskGroupingService.groupTasksByActivity(tasks);
- 89:       const maintenanceGroup = groups.find((g) => g.type === "maintenance");
- 90: 
- 91:       expect(maintenanceGroup!.isExpanded).toBe(true);
- 92:     });
- 93: 
- 94:     it("filters out empty groups", () => {
- 95:       const tasks = [createMockTask("Check water level")];
- 96: 
- 97:       const groups = TaskGroupingService.groupTasksByActivity(tasks);
- 98: 
- 99:       expect(groups).toHaveLength(1);
-100:       expect(groups[0].type).toBe("watering");
-101:     });
-102: 
-103:     it("handles empty task list", () => {
-104:       const groups = TaskGroupingService.groupTasksByActivity([]);
-105:       expect(groups).toHaveLength(0);
-106:     });
-107: 
-108:     it("handles case insensitive task matching", () => {
-109:       const tasks = [
-110:         createMockTask("WATER plant"),
-111:         createMockTask("fertilize PLANT"),
-112:         createMockTask("HEALTH check"),
-113:       ];
-114: 
-115:       const groups = TaskGroupingService.groupTasksByActivity(tasks);
-116: 
-117:       expect(groups).toHaveLength(3);
-118:       expect(groups.find((g) => g.type === "watering")!.tasks).toHaveLength(1);
-119:       expect(groups.find((g) => g.type === "fertilizing")!.tasks).toHaveLength(
-120:         1
-121:       );
-122:       expect(groups.find((g) => g.type === "observation")!.tasks).toHaveLength(
-123:         1
-124:       );
-125:     });
-126:   });
-127: 
-128:   describe("shouldExpandGroup", () => {
-129:     it("expands group with high priority tasks", () => {
-130:       const group: TaskGroup = {
-131:         type: "watering",
-132:         title: "Watering",
-133:         emoji: "💧",
-134:         tasks: [createMockTask("Water", "high")],
-135:         isExpanded: false,
-136:       };
-137: 
-138:       expect(TaskGroupingService.shouldExpandGroup(group)).toBe(true);
-139:     });
-140: 
-141:     it("expands group with overdue tasks", () => {
-142:       const overdueTask = createMockTask("Water");
-143:       overdueTask.dueIn = "overdue by 2 days";
-144: 
-145:       const group: TaskGroup = {
-146:         type: "watering",
-147:         title: "Watering",
-148:         emoji: "💧",
-149:         tasks: [overdueTask],
-150:         isExpanded: false,
-151:       };
-152: 
-153:       expect(TaskGroupingService.shouldExpandGroup(group)).toBe(true);
-154:     });
-155: 
-156:     it("does not expand group with only low priority tasks", () => {
-157:       const group: TaskGroup = {
-158:         type: "watering",
-159:         title: "Watering",
-160:         emoji: "💧",
-161:         tasks: [createMockTask("Water", "low")],
-162:         isExpanded: false,
-163:       };
-164: 
-165:       expect(TaskGroupingService.shouldExpandGroup(group)).toBe(false);
-166:     });
-167: 
-168:     it("does not expand empty group", () => {
-169:       const group: TaskGroup = {
-170:         type: "watering",
-171:         title: "Watering",
-172:         emoji: "💧",
-173:         tasks: [],
-174:         isExpanded: false,
-175:       };
-176: 
-177:       expect(TaskGroupingService.shouldExpandGroup(group)).toBe(false);
-178:     });
-179:   });
-180: });
 
 ================
 File: public/vite.svg
@@ -1946,6 +1243,711 @@ File: src/__tests__/integration/plantDetailReminderSettings.test.tsx
 77: });
 
 ================
+File: src/__tests__/integration/plantManagement.test.tsx
+================
+  1: import { render, screen, waitFor } from "@testing-library/react";
+  2: import { BrowserRouter } from "react-router-dom";
+  3: import Dashboard from "@/pages/dashboard";
+  4: import PlantDetail from "@/pages/plants/PlantDetail";
+  5: import {
+  6:   plantService,
+  7:   careService,
+  8:   varietyService,
+  9:   CareRecord,
+ 10: } from "@/types/database";
+ 11: import { initializeDatabase } from "@/db/seedData";
+ 12: import { subDays } from "date-fns";
+ 13: 
+ 14: 
+ 15: const mockNavigate = jest.fn();
+ 16: const mockUseParams = jest.fn();
+ 17: 
+ 18: jest.mock("react-router-dom", () => ({
+ 19:   ...jest.requireActual("react-router-dom"),
+ 20:   useNavigate: () => mockNavigate,
+ 21:   useParams: () => mockUseParams(),
+ 22: }));
+ 23: 
+ 24: describe("Plant Management Integration", () => {
+ 25:   beforeEach(async () => {
+ 26:     jest.clearAllMocks();
+ 27:     mockUseParams.mockReturnValue({ plantId: "test-plant-id" });
+ 28: 
+ 29: 
+ 30:     const { db } = await import("@/types/database");
+ 31:     await db.plants.clear();
+ 32:     await db.varieties.clear();
+ 33:     await db.careActivities.clear();
+ 34:     await initializeDatabase();
+ 35:   });
+ 36: 
+ 37:   describe("Complete Plant Lifecycle Workflow", () => {
+ 38:     it("completes full plant lifecycle workflow", async () => {
+ 39: 
+ 40:       const varieties = await varietyService.getAllVarieties();
+ 41:       const testVariety = varieties[0];
+ 42: 
+ 43:       const plantId = await plantService.addPlant({
+ 44:         varietyId: testVariety.id,
+ 45:         varietyName: testVariety.name,
+ 46:         name: "Integration Test Plant",
+ 47:         plantedDate: subDays(new Date(), 14),
+ 48:         currentStage: "seedling",
+ 49:         location: "Indoor",
+ 50:         container: "5 gallon pot",
+ 51:         isActive: true,
+ 52:       });
+ 53: 
+ 54: 
+ 55:       const { unmount } = render(
+ 56:         <BrowserRouter>
+ 57:           <Dashboard />
+ 58:         </BrowserRouter>
+ 59:       );
+ 60: 
+ 61:       await waitFor(() => {
+ 62:         const plantElements = screen.getAllByText("Integration Test Plant");
+ 63:         expect(plantElements.length).toBeGreaterThan(0);
+ 64:       });
+ 65: 
+ 66: 
+ 67:       unmount();
+ 68: 
+ 69: 
+ 70:       await careService.addCareActivity({
+ 71:         plantId,
+ 72:         type: "water",
+ 73:         date: new Date(),
+ 74:         details: {
+ 75:           type: "water",
+ 76:           amount: { value: 16, unit: "oz" },
+ 77:           moistureReading: {
+ 78:             before: 3,
+ 79:             after: 7,
+ 80:             scale: "1-10",
+ 81:           },
+ 82:           notes: "Regular watering",
+ 83:         },
+ 84:       });
+ 85: 
+ 86: 
+ 87:       const savedCareHistory = await careService.getPlantCareHistory(plantId);
+ 88:       expect(savedCareHistory).toHaveLength(1);
+ 89:       expect(savedCareHistory[0].details.notes).toBe("Regular watering");
+ 90: 
+ 91: 
+ 92:       mockUseParams.mockReturnValue({ plantId });
+ 93: 
+ 94:       render(
+ 95:         <BrowserRouter>
+ 96:           <PlantDetail />
+ 97:         </BrowserRouter>
+ 98:       );
+ 99: 
+100: 
+101:       await waitFor(() => {
+102:         expect(screen.getByText("Integration Test Plant")).toBeInTheDocument();
+103:       });
+104: 
+105: 
+106:       await waitFor(
+107:         () => {
+108: 
+109:           expect(screen.getByText("Care History")).toBeInTheDocument();
+110: 
+111:           expect(screen.getByText("Watering (16 oz)")).toBeInTheDocument();
+112:         },
+113:         { timeout: 5000 }
+114:       );
+115: 
+116: 
+117:       const savedPlant = await plantService.getPlant(plantId);
+118:       const careHistory = await careService.getPlantCareHistory(plantId);
+119: 
+120:       expect(savedPlant).toBeTruthy();
+121:       expect(savedPlant!.name).toBe("Integration Test Plant");
+122:       expect(careHistory).toHaveLength(1);
+123:       expect(careHistory[0].details.notes).toBe("Regular watering");
+124:     });
+125: 
+126:     it("handles plant status changes throughout lifecycle", async () => {
+127:       const varieties = await varietyService.getAllVarieties();
+128:       const testVariety = varieties[0];
+129: 
+130: 
+131:       const plantId = await plantService.addPlant({
+132:         varietyId: testVariety.id,
+133:         varietyName: testVariety.name,
+134:         plantedDate: subDays(new Date(), 5),
+135:         currentStage: "germination",
+136:         location: "Indoor",
+137:         container: "4 inch pot",
+138:         isActive: true,
+139:       });
+140: 
+141: 
+142:       await plantService.updatePlant(plantId, {
+143:         currentStage: "seedling",
+144:         updatedAt: new Date(),
+145:       });
+146: 
+147:       await plantService.updatePlant(plantId, {
+148:         currentStage: "vegetative",
+149:         updatedAt: new Date(),
+150:       });
+151: 
+152: 
+153:       const plant = await plantService.getPlant(plantId);
+154:       expect(plant!.currentStage).toBe("vegetative");
+155:     });
+156:   });
+157: 
+158:   describe("Plant Deletion and Cleanup", () => {
+159:     it("handles plant soft deletion correctly", async () => {
+160:       const varieties = await varietyService.getAllVarieties();
+161:       const testVariety = varieties[0];
+162: 
+163: 
+164:       const plantId = await plantService.addPlant({
+165:         varietyId: testVariety.id,
+166:         varietyName: testVariety.name,
+167:         plantedDate: subDays(new Date(), 30),
+168:         currentStage: "vegetative",
+169:         location: "Indoor",
+170:         container: "5 gallon pot",
+171:         isActive: true,
+172:       });
+173: 
+174: 
+175:       const careActivities = [
+176:         {
+177:           type: "water" as const,
+178:           date: subDays(new Date(), 5),
+179:           details: {
+180:             type: "water" as const,
+181:             amount: { value: 16, unit: "oz" as const },
+182:           },
+183:         },
+184:         {
+185:           type: "fertilize" as const,
+186:           date: subDays(new Date(), 10),
+187:           details: {
+188:             type: "fertilize" as const,
+189:             product: "General fertilizer",
+190:             dilution: "1:10",
+191:             amount: "1 tbsp",
+192:           },
+193:         },
+194:         {
+195:           type: "observe" as const,
+196:           date: subDays(new Date(), 3),
+197:           details: {
+198:             type: "observe" as const,
+199:             healthAssessment: "good" as const,
+200:             observations: "Looking healthy",
+201:             notes: "Plant appears healthy",
+202:           },
+203:         },
+204:       ];
+205: 
+206:       for (const activity of careActivities) {
+207:         await careService.addCareActivity({
+208:           plantId,
+209:           ...activity,
+210:         });
+211:       }
+212: 
+213: 
+214:       const initialCareHistory = await careService.getPlantCareHistory(plantId);
+215:       expect(initialCareHistory).toHaveLength(3);
+216: 
+217: 
+218:       await plantService.deletePlant(plantId);
+219: 
+220: 
+221:       const deletedPlant = await plantService.getPlant(plantId);
+222:       expect(deletedPlant).toBeTruthy();
+223:       expect(deletedPlant!.isActive).toBe(false);
+224: 
+225: 
+226:       const remainingCareHistory = await careService.getPlantCareHistory(
+227:         plantId
+228:       );
+229:       expect(remainingCareHistory).toHaveLength(3);
+230: 
+231: 
+232:       const activePlants = await plantService.getActivePlants();
+233:       expect(activePlants.find((p) => p.id === plantId)).toBeUndefined();
+234:     });
+235: 
+236:     it("handles multiple plant soft deletion independently", async () => {
+237:       const varieties = await varietyService.getAllVarieties();
+238:       const testVariety = varieties[0];
+239: 
+240: 
+241:       const plantIds: string[] = [];
+242:       for (let i = 0; i < 3; i++) {
+243:         const plantId = await plantService.addPlant({
+244:           varietyId: testVariety.id,
+245:           varietyName: testVariety.name,
+246:           plantedDate: subDays(new Date(), 30),
+247:           currentStage: "vegetative",
+248:           location: `Location ${i}`,
+249:           container: "5 gallon pot",
+250:           isActive: true,
+251:         });
+252:         plantIds.push(plantId);
+253: 
+254: 
+255:         await careService.addCareActivity({
+256:           plantId,
+257:           type: "water",
+258:           date: new Date(),
+259:           details: {
+260:             type: "water",
+261:             amount: { value: 16, unit: "oz" },
+262:           },
+263:         });
+264:       }
+265: 
+266: 
+267:       await plantService.deletePlant(plantIds[1]);
+268: 
+269: 
+270:       const remainingActivePlants = await plantService.getActivePlants();
+271:       expect(remainingActivePlants).toHaveLength(2);
+272:       expect(
+273:         remainingActivePlants.find((p) => p.id === plantIds[1])
+274:       ).toBeUndefined();
+275: 
+276: 
+277:       const deletedPlant = await plantService.getPlant(plantIds[1]);
+278:       expect(deletedPlant).toBeTruthy();
+279:       expect(deletedPlant!.isActive).toBe(false);
+280: 
+281: 
+282:       const plant0Care = await careService.getPlantCareHistory(plantIds[0]);
+283:       const plant2Care = await careService.getPlantCareHistory(plantIds[2]);
+284:       expect(plant0Care).toHaveLength(1);
+285:       expect(plant2Care).toHaveLength(1);
+286: 
+287: 
+288:       const deletedPlantCare = await careService.getPlantCareHistory(
+289:         plantIds[1]
+290:       );
+291:       expect(deletedPlantCare).toHaveLength(1);
+292:     });
+293: 
+294:     it("demonstrates hard delete with cascade cleanup", async () => {
+295:       const varieties = await varietyService.getAllVarieties();
+296:       const testVariety = varieties[0];
+297: 
+298:       const plantId = await plantService.addPlant({
+299:         varietyId: testVariety.id,
+300:         varietyName: testVariety.name,
+301:         plantedDate: subDays(new Date(), 30),
+302:         currentStage: "vegetative",
+303:         location: "Indoor",
+304:         container: "5 gallon pot",
+305:         isActive: true,
+306:       });
+307: 
+308: 
+309:       await careService.addCareActivity({
+310:         plantId,
+311:         type: "water",
+312:         date: new Date(),
+313:         details: {
+314:           type: "water",
+315:           amount: { value: 16, unit: "oz" },
+316:         },
+317:       });
+318: 
+319: 
+320:       const { db } = await import("@/types/database");
+321: 
+322: 
+323:       await db.careActivities.where("plantId").equals(plantId).delete();
+324: 
+325: 
+326:       await db.plants.delete(plantId);
+327: 
+328: 
+329:       const deletedPlant = await plantService.getPlant(plantId);
+330:       expect(deletedPlant).toBeUndefined();
+331: 
+332: 
+333:       const remainingCareHistory = await careService.getPlantCareHistory(
+334:         plantId
+335:       );
+336:       expect(remainingCareHistory).toHaveLength(0);
+337:     });
+338:   });
+339: 
+340:   describe("Cross-Service Integration", () => {
+341:     it("integrates care scheduling with plant management", async () => {
+342:       const varieties = await varietyService.getAllVarieties();
+343:       const testVariety = varieties[0];
+344: 
+345: 
+346:       const plantId = await plantService.addPlant({
+347:         varietyId: testVariety.id,
+348:         varietyName: testVariety.name,
+349:         plantedDate: subDays(new Date(), 14),
+350:         currentStage: "seedling",
+351:         location: "Indoor",
+352:         container: "4 inch pot",
+353:         isActive: true,
+354:         reminderPreferences: {
+355:           watering: true,
+356:           fertilizing: true,
+357:           observation: true,
+358:           lighting: true,
+359:           pruning: true,
+360:         },
+361:       });
+362: 
+363: 
+364:       const { CareSchedulingService } = await import(
+365:         "@/services/careSchedulingService"
+366:       );
+367: 
+368: 
+369:       const tasks = await CareSchedulingService.getUpcomingTasks();
+370:       const plantTasks = tasks.filter((task) => task.plantId === plantId);
+371: 
+372:       expect(plantTasks.length).toBeGreaterThan(0);
+373: 
+374: 
+375:       plantTasks.forEach((task) => {
+376:         expect(task.plantId).toBe(plantId);
+377:         expect(task.dueDate).toBeInstanceOf(Date);
+378:         expect(["low", "medium", "high"]).toContain(task.priority);
+379:       });
+380:     });
+381: 
+382:     it("integrates smart defaults with plant history", async () => {
+383:       const varieties = await varietyService.getAllVarieties();
+384:       const testVariety = varieties.find(
+385:         (v) =>
+386:           v.protocols?.watering && Object.keys(v.protocols.watering).length > 0
+387:       );
+388: 
+389:       if (!testVariety) return;
+390: 
+391:       const plantId = await plantService.addPlant({
+392:         varietyId: testVariety.id,
+393:         varietyName: testVariety.name,
+394:         plantedDate: subDays(new Date(), 30),
+395:         currentStage: "vegetative",
+396:         location: "Indoor",
+397:         container: "5 gallon pot",
+398:         isActive: true,
+399:       });
+400: 
+401: 
+402:       await careService.addCareActivity({
+403:         plantId,
+404:         type: "water",
+405:         date: subDays(new Date(), 2),
+406:         details: {
+407:           type: "water",
+408:           amount: { value: 20, unit: "oz" },
+409:           moistureReading: {
+410:             before: 4,
+411:             after: 8,
+412:             scale: "1-10",
+413:           },
+414:         },
+415:       });
+416: 
+417:       const plant = await plantService.getPlant(plantId);
+418:       const { SmartDefaultsService } = await import(
+419:         "@/services/smartDefaultsService"
+420:       );
+421: 
+422:       const defaults = await SmartDefaultsService.getDefaultsForPlant(plant!);
+423:       const quickOptions = await SmartDefaultsService.getQuickCompletionOptions(
+424:         plant!,
+425:         "water"
+426:       );
+427: 
+428:       expect(defaults).toBeTruthy();
+429:       expect(defaults!.watering).toBeTruthy();
+430:       expect(quickOptions).toBeTruthy();
+431: 
+432:       if (quickOptions && quickOptions.length > 0) {
+433:         expect(quickOptions[0].values.waterValue).toBeGreaterThan(0);
+434:       }
+435:     });
+436:   });
+437: 
+438:   describe("Error Handling and Edge Cases", () => {
+439:     it("handles invalid plant data gracefully", async () => {
+440: 
+441:       await expect(
+442:         plantService.addPlant({
+443:           varietyId: "non-existent-variety",
+444:           varietyName: "Invalid Variety",
+445:           plantedDate: new Date(),
+446:           currentStage: "seedling",
+447:           location: "Test",
+448:           container: "Test",
+449:           isActive: true,
+450:         })
+451:       ).resolves.toBeTruthy();
+452: 
+453:       const plants = await plantService.getActivePlants();
+454:       const orphanedPlant = plants.find(
+455:         (p) => p.varietyId === "non-existent-variety"
+456:       );
+457:       expect(orphanedPlant).toBeTruthy();
+458: 
+459: 
+460:       const { CareSchedulingService } = await import(
+461:         "@/services/careSchedulingService"
+462:       );
+463:       const tasks = await CareSchedulingService.getUpcomingTasks();
+464: 
+465: 
+466:       expect(Array.isArray(tasks)).toBe(true);
+467:       const orphanedTasks = tasks.filter(
+468:         (t) => t.plantId === orphanedPlant!.id
+469:       );
+470:       expect(orphanedTasks).toHaveLength(0);
+471:     });
+472: 
+473:     it("handles concurrent operations safely", async () => {
+474:       const varieties = await varietyService.getAllVarieties();
+475:       const testVariety = varieties[0];
+476: 
+477:       const plantId = await plantService.addPlant({
+478:         varietyId: testVariety.id,
+479:         varietyName: testVariety.name,
+480:         plantedDate: new Date(),
+481:         currentStage: "seedling",
+482:         location: "Test",
+483:         container: "Test",
+484:         isActive: true,
+485:       });
+486: 
+487: 
+488:       const concurrentOperations = Array(5)
+489:         .fill(null)
+490:         .map((_, index) =>
+491:           careService.addCareActivity({
+492:             plantId,
+493:             type: "water",
+494:             date: new Date(),
+495:             details: {
+496:               type: "water",
+497:               amount: { value: 10 + index, unit: "oz" },
+498:               notes: `Concurrent operation ${index}`,
+499:             },
+500:           })
+501:         );
+502: 
+503:       await Promise.all(concurrentOperations);
+504: 
+505: 
+506:       const careHistory = await careService.getPlantCareHistory(plantId);
+507:       expect(careHistory).toHaveLength(5);
+508: 
+509: 
+510:       const notes = careHistory.map(
+511:         (careRecord: CareRecord) => careRecord.details.notes
+512:       );
+513:       const uniqueNotes = new Set(notes);
+514:       expect(uniqueNotes.size).toBe(5);
+515:     });
+516:   });
+517: });
+
+================
+File: src/__tests__/integration/taskGroupingService.test.tsx
+================
+  1: import { TaskGroupingService } from "@/services/taskGroupingService";
+  2: import { UpcomingTask, TaskGroup } from "@/types/scheduling";
+  3: 
+  4: describe("TaskGroupingService", () => {
+  5:   const createMockTask = (
+  6:     task: string,
+  7:     priority: "low" | "medium" | "high" = "medium"
+  8:   ): UpcomingTask => ({
+  9:     id: `task-${Date.now()}-${Math.random()}`,
+ 10:     plantId: "test-plant-1",
+ 11:     name: "Test Plant",
+ 12:     task,
+ 13:     dueIn: "Due in 2 days",
+ 14:     plantStage: "vegetative",
+ 15:     dueDate: new Date(),
+ 16:     priority,
+ 17:     canBypass: true,
+ 18:   });
+ 19: 
+ 20:   describe("groupTasksByActivity", () => {
+ 21:     it("groups watering tasks correctly", () => {
+ 22:       const tasks = [
+ 23:         createMockTask("Check water level"),
+ 24:         createMockTask("Water plant"),
+ 25:         createMockTask("Check moisture"),
+ 26:       ];
+ 27: 
+ 28:       const groups = TaskGroupingService.groupTasksByActivity(tasks);
+ 29:       const wateringGroup = groups.find((g) => g.type === "watering");
+ 30: 
+ 31:       expect(wateringGroup).toBeDefined();
+ 32:       expect(wateringGroup!.tasks).toHaveLength(3);
+ 33:       expect(wateringGroup!.title).toBe("Watering");
+ 34:       expect(wateringGroup!.emoji).toBe("💧");
+ 35:     });
+ 36: 
+ 37:     it("groups fertilizing tasks correctly", () => {
+ 38:       const tasks = [
+ 39:         createMockTask("Fertilize plant"),
+ 40:         createMockTask("Feed with nutrients"),
+ 41:       ];
+ 42: 
+ 43:       const groups = TaskGroupingService.groupTasksByActivity(tasks);
+ 44:       const fertilizingGroup = groups.find((g) => g.type === "fertilizing");
+ 45: 
+ 46:       expect(fertilizingGroup!.tasks).toHaveLength(2);
+ 47:       expect(fertilizingGroup!.title).toBe("Fertilizing");
+ 48:       expect(fertilizingGroup!.emoji).toBe("🌱");
+ 49:     });
+ 50: 
+ 51:     it("groups observation tasks correctly", () => {
+ 52:       const tasks = [
+ 53:         createMockTask("Health check"),
+ 54:         createMockTask("Observe growth"),
+ 55:         createMockTask("Check for pests"),
+ 56:       ];
+ 57: 
+ 58:       const groups = TaskGroupingService.groupTasksByActivity(tasks);
+ 59:       const observationGroup = groups.find((g) => g.type === "observation");
+ 60: 
+ 61:       expect(observationGroup!.tasks).toHaveLength(3);
+ 62:       expect(observationGroup!.title).toBe("Health Checks");
+ 63:       expect(observationGroup!.emoji).toBe("👁");
+ 64:     });
+ 65: 
+ 66:     it("groups maintenance tasks correctly", () => {
+ 67:       const tasks = [
+ 68:         createMockTask("Prune leaves"),
+ 69:         createMockTask("Transplant"),
+ 70:         createMockTask("Clean pot"),
+ 71:       ];
+ 72: 
+ 73:       const groups = TaskGroupingService.groupTasksByActivity(tasks);
+ 74:       const maintenanceGroup = groups.find((g) => g.type === "maintenance");
+ 75: 
+ 76:       expect(maintenanceGroup!.tasks).toHaveLength(3);
+ 77:       expect(maintenanceGroup!.title).toBe("Maintenance");
+ 78:       expect(maintenanceGroup!.emoji).toBe("✂️");
+ 79:       expect(maintenanceGroup!.isExpanded).toBe(false);
+ 80:     });
+ 81: 
+ 82:     it("expands groups with high priority tasks", () => {
+ 83:       const tasks = [
+ 84:         createMockTask("Prune leaves", "high"),
+ 85:         createMockTask("Transplant", "low"),
+ 86:       ];
+ 87: 
+ 88:       const groups = TaskGroupingService.groupTasksByActivity(tasks);
+ 89:       const maintenanceGroup = groups.find((g) => g.type === "maintenance");
+ 90: 
+ 91:       expect(maintenanceGroup!.isExpanded).toBe(true);
+ 92:     });
+ 93: 
+ 94:     it("filters out empty groups", () => {
+ 95:       const tasks = [createMockTask("Check water level")];
+ 96: 
+ 97:       const groups = TaskGroupingService.groupTasksByActivity(tasks);
+ 98: 
+ 99:       expect(groups).toHaveLength(1);
+100:       expect(groups[0].type).toBe("watering");
+101:     });
+102: 
+103:     it("handles empty task list", () => {
+104:       const groups = TaskGroupingService.groupTasksByActivity([]);
+105:       expect(groups).toHaveLength(0);
+106:     });
+107: 
+108:     it("handles case insensitive task matching", () => {
+109:       const tasks = [
+110:         createMockTask("WATER plant"),
+111:         createMockTask("fertilize PLANT"),
+112:         createMockTask("HEALTH check"),
+113:       ];
+114: 
+115:       const groups = TaskGroupingService.groupTasksByActivity(tasks);
+116: 
+117:       expect(groups).toHaveLength(3);
+118:       expect(groups.find((g) => g.type === "watering")!.tasks).toHaveLength(1);
+119:       expect(groups.find((g) => g.type === "fertilizing")!.tasks).toHaveLength(
+120:         1
+121:       );
+122:       expect(groups.find((g) => g.type === "observation")!.tasks).toHaveLength(
+123:         1
+124:       );
+125:     });
+126:   });
+127: 
+128:   describe("shouldExpandGroup", () => {
+129:     it("expands group with high priority tasks", () => {
+130:       const group: TaskGroup = {
+131:         type: "watering",
+132:         title: "Watering",
+133:         emoji: "💧",
+134:         tasks: [createMockTask("Water", "high")],
+135:         isExpanded: false,
+136:       };
+137: 
+138:       expect(TaskGroupingService.shouldExpandGroup(group)).toBe(true);
+139:     });
+140: 
+141:     it("expands group with overdue tasks", () => {
+142:       const overdueTask = createMockTask("Water");
+143:       overdueTask.dueIn = "overdue by 2 days";
+144: 
+145:       const group: TaskGroup = {
+146:         type: "watering",
+147:         title: "Watering",
+148:         emoji: "💧",
+149:         tasks: [overdueTask],
+150:         isExpanded: false,
+151:       };
+152: 
+153:       expect(TaskGroupingService.shouldExpandGroup(group)).toBe(true);
+154:     });
+155: 
+156:     it("does not expand group with only low priority tasks", () => {
+157:       const group: TaskGroup = {
+158:         type: "watering",
+159:         title: "Watering",
+160:         emoji: "💧",
+161:         tasks: [createMockTask("Water", "low")],
+162:         isExpanded: false,
+163:       };
+164: 
+165:       expect(TaskGroupingService.shouldExpandGroup(group)).toBe(false);
+166:     });
+167: 
+168:     it("does not expand empty group", () => {
+169:       const group: TaskGroup = {
+170:         type: "watering",
+171:         title: "Watering",
+172:         emoji: "💧",
+173:         tasks: [],
+174:         isExpanded: false,
+175:       };
+176: 
+177:       expect(TaskGroupingService.shouldExpandGroup(group)).toBe(false);
+178:     });
+179:   });
+180: });
+
+================
 File: src/__tests__/services/growthStageService.test.ts
 ================
   1: import { GrowthStageService } from "@/services/growthStageService";
@@ -2074,561 +2076,6 @@ File: src/__tests__/services/growthStageService.test.ts
 124: });
 
 ================
-File: src/__tests__/services/smartDefaultsService.test.ts
-================
-  1: import { SmartDefaultsService } from "@/services/smartDefaultsService";
-  2: import { varietyService, plantService, careService } from "@/types/database";
-  3: import { initializeDatabase } from "@/db/seedData";
-  4: import { subDays } from "date-fns";
-  5: 
-  6: describe("SmartDefaultsService", () => {
-  7:   beforeEach(async () => {
-  8:     await initializeDatabase();
-  9: 
- 10:     const { db } = await import("@/types/database");
- 11:     await db.plants.clear();
- 12:     await db.careActivities.clear();
- 13:   });
- 14: 
- 15:   describe("contextual defaults based on growth stage", () => {
- 16:     it("provides different watering amounts for different growth stages", async () => {
- 17:       const varieties = await varietyService.getAllVarieties();
- 18:       const strawberry = varieties.find(
- 19:         (v) =>
- 20:           v.name.toLowerCase().includes("strawberry") ||
- 21:           v.name.toLowerCase().includes("albion")
- 22:       );
- 23: 
- 24:       if (!strawberry) {
- 25: 
- 26:         return;
- 27:       }
- 28: 
- 29: 
- 30:       const stages = ["seedling", "vegetative", "maturation"] as const;
- 31:       const testResults: Array<{
- 32:         stage: string;
- 33:         amount: number;
- 34:         confidence: string;
- 35:       }> = [];
- 36: 
- 37:       for (const stage of stages) {
- 38:         const plantId = await plantService.addPlant({
- 39:           varietyId: strawberry.id,
- 40:           varietyName: strawberry.name,
- 41:           name: `Test Plant ${stage}`,
- 42:           plantedDate: subDays(new Date(), 30),
- 43:           currentStage: stage,
- 44:           location: "Indoor",
- 45:           container: "5 gallon pot",
- 46:           isActive: true,
- 47:         });
- 48: 
- 49:         const plant = await plantService.getPlant(plantId);
- 50:         if (!plant) continue;
- 51: 
- 52:         const defaults = await SmartDefaultsService.getDefaultsForPlant(plant);
- 53: 
- 54:         if (defaults?.watering) {
- 55:           testResults.push({
- 56:             stage,
- 57:             amount: defaults.watering.suggestedAmount,
- 58:             confidence: defaults.watering.confidence,
- 59:           });
- 60:         }
- 61:       }
- 62: 
- 63: 
- 64:       expect(testResults.length).toBeGreaterThan(1);
- 65: 
- 66: 
- 67:       for (const result of testResults) {
- 68:         expect(result.amount).toBeGreaterThan(0);
- 69:         expect(["high", "medium", "low"]).toContain(result.confidence);
- 70:       }
- 71:     });
- 72: 
- 73:     it("adjusts fertilizer recommendations based on plant maturity", async () => {
- 74:       const varieties = await varietyService.getAllVarieties();
- 75:       const varietyWithFertilizer = varieties.find(
- 76:         (v) =>
- 77:           v.protocols?.fertilization &&
- 78:           Object.keys(v.protocols.fertilization).length > 0
- 79:       );
- 80: 
- 81:       if (!varietyWithFertilizer) {
- 82:         return;
- 83:       }
- 84: 
- 85: 
- 86:       const youngPlantId = await plantService.addPlant({
- 87:         varietyId: varietyWithFertilizer.id,
- 88:         varietyName: varietyWithFertilizer.name,
- 89:         name: "Young Plant",
- 90:         plantedDate: subDays(new Date(), 14),
- 91:         currentStage: "seedling",
- 92:         location: "Indoor",
- 93:         container: "4 inch pot",
- 94:         isActive: true,
- 95:       });
- 96: 
- 97:       const maturePlantId = await plantService.addPlant({
- 98:         varietyId: varietyWithFertilizer.id,
- 99:         varietyName: varietyWithFertilizer.name,
-100:         name: "Mature Plant",
-101:         plantedDate: subDays(new Date(), 90),
-102:         currentStage: "maturation",
-103:         location: "Indoor",
-104:         container: "5 gallon pot",
-105:         isActive: true,
-106:       });
-107: 
-108:       const [youngPlant, maturePlant] = await Promise.all([
-109:         plantService.getPlant(youngPlantId),
-110:         plantService.getPlant(maturePlantId),
-111:       ]);
-112: 
-113:       if (!youngPlant || !maturePlant) {
-114:         throw new Error("Plants not found");
-115:       }
-116: 
-117:       const [youngDefaults, matureDefaults] = await Promise.all([
-118:         SmartDefaultsService.getDefaultsForPlant(youngPlant),
-119:         SmartDefaultsService.getDefaultsForPlant(maturePlant),
-120:       ]);
-121: 
-122: 
-123:       expect(youngDefaults).toBeTruthy();
-124:       expect(matureDefaults).toBeTruthy();
-125: 
-126:       if (youngDefaults?.fertilizer && matureDefaults?.fertilizer) {
-127:         expect(youngDefaults.fertilizer.products).toBeDefined();
-128:         expect(matureDefaults.fertilizer.products).toBeDefined();
-129: 
-130: 
-131:         expect(youngDefaults.fertilizer.reasoning).toMatch(
-132:           /category|protocol|fertilization/i
-133:         );
-134:         expect(matureDefaults.fertilizer.reasoning).toMatch(
-135:           /category|protocol|fertilization/i
-136:         );
-137: 
-138: 
-139:         expect(youngDefaults.fertilizer.products[0].name).toBeDefined();
-140:         expect(matureDefaults.fertilizer.products[0].name).toBeDefined();
-141:       }
-142:     });
-143: 
-144:     it("provides stage-appropriate quick completion options", async () => {
-145:       const varieties = await varietyService.getAllVarieties();
-146:       const testVariety = varieties.find(
-147:         (v) =>
-148:           v.protocols?.watering && Object.keys(v.protocols.watering).length > 0
-149:       );
-150: 
-151:       if (!testVariety) {
-152:         return;
-153:       }
-154: 
-155: 
-156:       const plantId = await plantService.addPlant({
-157:         varietyId: testVariety.id,
-158:         varietyName: testVariety.name,
-159:         name: "Vegetative Plant",
-160:         plantedDate: subDays(new Date(), 30),
-161:         currentStage: "vegetative",
-162:         location: "Indoor",
-163:         container: "5 gallon pot",
-164:         isActive: true,
-165:       });
-166: 
-167:       const plant = await plantService.getPlant(plantId);
-168:       if (!plant) throw new Error("Plant not found");
-169: 
-170:       const wateringOptions =
-171:         await SmartDefaultsService.getQuickCompletionOptions(plant, "water");
-172: 
-173:       expect(wateringOptions).toBeTruthy();
-174:       if (wateringOptions) {
-175:         expect(wateringOptions.length).toBeGreaterThan(0);
-176: 
-177: 
-178:         expect(
-179:           wateringOptions.some(
-180:             (opt) =>
-181:               opt.label.includes("Quick:") &&
-182:               opt.values.waterValue &&
-183:               opt.values.waterValue > 0
-184:           )
-185:         ).toBe(true);
-186: 
-187: 
-188:         wateringOptions.forEach((option) => {
-189:           expect(option.label).toBeDefined();
-190:           expect(option.values).toBeDefined();
-191:         });
-192:       }
-193:     });
-194:   });
-195: 
-196:   describe("learning from plant history", () => {
-197:     it("adjusts watering defaults based on previous care patterns", async () => {
-198:       const varieties = await varietyService.getAllVarieties();
-199:       const testVariety = varieties.find(
-200:         (v) =>
-201:           v.protocols?.watering && Object.keys(v.protocols.watering).length > 0
-202:       );
-203: 
-204:       if (!testVariety) {
-205:         return;
-206:       }
-207: 
-208: 
-209:       const plantId = await plantService.addPlant({
-210:         varietyId: testVariety.id,
-211:         varietyName: testVariety.name,
-212:         name: "Plant with History",
-213:         plantedDate: subDays(new Date(), 60),
-214:         currentStage: "vegetative",
-215:         location: "Indoor",
-216:         container: "5 gallon pot",
-217:         isActive: true,
-218:       });
-219: 
-220: 
-221:       const wateringDates = [
-222:         subDays(new Date(), 14),
-223:         subDays(new Date(), 11),
-224:         subDays(new Date(), 8),
-225:         subDays(new Date(), 5),
-226:         subDays(new Date(), 2),
-227:       ];
-228: 
-229:       for (const date of wateringDates) {
-230:         await careService.addCareActivity({
-231:           plantId,
-232:           type: "water",
-233:           date,
-234:           details: {
-235:             type: "water",
-236:             amount: {
-237:               value: 25,
-238:               unit: "oz",
-239:             },
-240:             moistureReading: {
-241:               before: 3,
-242:               after: 7,
-243:               scale: "1-10",
-244:             },
-245:             notes: "Regular watering",
-246:           },
-247:         });
-248:       }
-249: 
-250:       const plant = await plantService.getPlant(plantId);
-251:       if (!plant) throw new Error("Plant not found");
-252: 
-253:       const defaults = await SmartDefaultsService.getDefaultsForPlant(plant);
-254: 
-255:       expect(defaults).toBeTruthy();
-256:       expect(defaults?.watering).toBeTruthy();
-257: 
-258:       if (defaults?.watering) {
-259: 
-260: 
-261: 
-262:         expect(defaults.watering.suggestedAmount).toBeGreaterThan(0);
-263:         expect(defaults.watering.confidence).toBeDefined();
-264:         expect(defaults.watering.source).toBeDefined();
-265:       }
-266:     });
-267: 
-268:     it("considers recent care frequency when suggesting next actions", async () => {
-269:       const varieties = await varietyService.getAllVarieties();
-270:       const testVariety = varieties[0];
-271: 
-272:       const plantId = await plantService.addPlant({
-273:         varietyId: testVariety.id,
-274:         varietyName: testVariety.name,
-275:         name: "Recently Cared Plant",
-276:         plantedDate: subDays(new Date(), 30),
-277:         currentStage: "vegetative",
-278:         location: "Indoor",
-279:         container: "5 gallon pot",
-280:         isActive: true,
-281:       });
-282: 
-283: 
-284:       await careService.addCareActivity({
-285:         plantId,
-286:         type: "water",
-287:         date: subDays(new Date(), 1),
-288:         details: {
-289:           type: "water",
-290:           amount: {
-291:             value: 20,
-292:             unit: "oz",
-293:           },
-294:           moistureReading: {
-295:             before: 3,
-296:             after: 7,
-297:             scale: "1-10",
-298:           },
-299:           notes: "Recent watering",
-300:         },
-301:       });
-302: 
-303:       const plant = await plantService.getPlant(plantId);
-304:       if (!plant) throw new Error("Plant not found");
-305: 
-306:       const quickOptions = await SmartDefaultsService.getQuickCompletionOptions(
-307:         plant,
-308:         "water"
-309:       );
-310: 
-311: 
-312: 
-313:       expect(quickOptions).toBeTruthy();
-314:       if (quickOptions && quickOptions.length > 0) {
-315: 
-316: 
-317:         quickOptions.forEach((option) => {
-318:           expect(option.label).toBeDefined();
-319:           expect(option.values.waterValue).toBeGreaterThan(0);
-320:         });
-321:       }
-322:     });
-323: 
-324:     it("provides category-based defaults for different plant types", async () => {
-325:       const varieties = await varietyService.getAllVarieties();
-326: 
-327: 
-328:       const leafyGreen = varieties.find((v) => v.category === "leafy-greens");
-329:       const fruitingPlant = varieties.find(
-330:         (v) => v.category === "fruiting-plants"
-331:       );
-332: 
-333:       if (!leafyGreen || !fruitingPlant) {
-334:         return;
-335:       }
-336: 
-337: 
-338:       const leafyPlantId = await plantService.addPlant({
-339:         varietyId: leafyGreen.id,
-340:         varietyName: leafyGreen.name,
-341:         name: "Leafy Plant",
-342:         plantedDate: subDays(new Date(), 30),
-343:         currentStage: "vegetative",
-344:         location: "Indoor",
-345:         container: "4 inch pot",
-346:         isActive: true,
-347:       });
-348: 
-349:       const fruitingPlantId = await plantService.addPlant({
-350:         varietyId: fruitingPlant.id,
-351:         varietyName: fruitingPlant.name,
-352:         name: "Fruiting Plant",
-353:         plantedDate: subDays(new Date(), 30),
-354:         currentStage: "vegetative",
-355:         location: "Indoor",
-356:         container: "5 gallon pot",
-357:         isActive: true,
-358:       });
-359: 
-360:       const [leafyPlant, fruitPlant] = await Promise.all([
-361:         plantService.getPlant(leafyPlantId),
-362:         plantService.getPlant(fruitingPlantId),
-363:       ]);
-364: 
-365:       if (!leafyPlant || !fruitPlant) {
-366:         throw new Error("Plants not found");
-367:       }
-368: 
-369:       const [leafyDefaults, fruitDefaults] = await Promise.all([
-370:         SmartDefaultsService.getDefaultsForPlant(leafyPlant),
-371:         SmartDefaultsService.getDefaultsForPlant(fruitPlant),
-372:       ]);
-373: 
-374: 
-375:       expect(leafyDefaults).toBeTruthy();
-376:       expect(fruitDefaults).toBeTruthy();
-377: 
-378:       if (leafyDefaults?.watering && fruitDefaults?.watering) {
-379: 
-380:         expect(fruitDefaults.watering.suggestedAmount).toBeGreaterThanOrEqual(
-381:           leafyDefaults.watering.suggestedAmount
-382:         );
-383: 
-384: 
-385:         expect(leafyDefaults.watering.reasoning).toMatch(
-386:           /leafy-greens|category/i
-387:         );
-388:         expect(fruitDefaults.watering.reasoning).toMatch(
-389:           /fruiting-plants|category/i
-390:         );
-391:       }
-392:     });
-393: 
-394:     it("maintains confidence levels based on data quality", async () => {
-395:       const varieties = await varietyService.getAllVarieties();
-396:       const varietyWithProtocol = varieties.find(
-397:         (v) =>
-398:           v.protocols?.watering && Object.keys(v.protocols.watering).length > 0
-399:       );
-400: 
-401:       if (!varietyWithProtocol) {
-402:         return;
-403:       }
-404: 
-405: 
-406:       const protocolPlantId = await plantService.addPlant({
-407:         varietyId: varietyWithProtocol.id,
-408:         varietyName: varietyWithProtocol.name,
-409:         name: "Well-Documented Plant",
-410:         plantedDate: subDays(new Date(), 30),
-411:         currentStage: "vegetative",
-412:         location: "Indoor",
-413:         container: "5 gallon pot",
-414:         isActive: true,
-415:       });
-416: 
-417: 
-418:       const simpleVariety = varieties.find((v) => !v.protocols?.watering);
-419:       if (!simpleVariety) {
-420:         return;
-421:       }
-422: 
-423:       const simplePlantId = await plantService.addPlant({
-424:         varietyId: simpleVariety.id,
-425:         varietyName: simpleVariety.name,
-426:         name: "Simple Plant",
-427:         plantedDate: subDays(new Date(), 30),
-428:         currentStage: "vegetative",
-429:         location: "Indoor",
-430:         container: "5 gallon pot",
-431:         isActive: true,
-432:       });
-433: 
-434:       const [protocolPlant, simplePlant] = await Promise.all([
-435:         plantService.getPlant(protocolPlantId),
-436:         plantService.getPlant(simplePlantId),
-437:       ]);
-438: 
-439:       if (!protocolPlant || !simplePlant) {
-440:         throw new Error("Plants not found");
-441:       }
-442: 
-443:       const [protocolDefaults, simpleDefaults] = await Promise.all([
-444:         SmartDefaultsService.getDefaultsForPlant(protocolPlant),
-445:         SmartDefaultsService.getDefaultsForPlant(simplePlant),
-446:       ]);
-447: 
-448:       if (protocolDefaults?.watering && simpleDefaults?.watering) {
-449: 
-450:         const confidenceOrder = { high: 3, medium: 2, low: 1 };
-451: 
-452:         expect(
-453:           confidenceOrder[protocolDefaults.watering.confidence]
-454:         ).toBeGreaterThanOrEqual(
-455:           confidenceOrder[simpleDefaults.watering.confidence]
-456:         );
-457: 
-458: 
-459:         expect(protocolDefaults.watering.source).toBe("protocol");
-460:         expect(simpleDefaults.watering.source).toMatch(/category|universal/);
-461:       }
-462:     });
-463:   });
-464: 
-465:   describe("error handling and edge cases", () => {
-466:     it("handles plants with invalid variety data gracefully", async () => {
-467: 
-468:       const plantId = await plantService.addPlant({
-469:         varietyId: "non-existent-variety",
-470:         varietyName: "Invalid Variety",
-471:         name: "Test Plant",
-472:         plantedDate: new Date(),
-473:         currentStage: "vegetative",
-474:         location: "Indoor",
-475:         container: "5 gallon pot",
-476:         isActive: true,
-477:       });
-478: 
-479:       const plant = await plantService.getPlant(plantId);
-480:       if (!plant) throw new Error("Plant not found");
-481: 
-482:       const defaults = await SmartDefaultsService.getDefaultsForPlant(plant);
-483: 
-484: 
-485:       expect(defaults).toBeNull();
-486:     });
-487: 
-488:     it("provides universal defaults when no specific protocol exists", async () => {
-489:       const varieties = await varietyService.getAllVarieties();
-490:       const minimalVariety = varieties.find(
-491:         (v) => !v.protocols?.watering && !v.protocols?.fertilization
-492:       );
-493: 
-494:       if (!minimalVariety) {
-495:         return;
-496:       }
-497: 
-498:       const plantId = await plantService.addPlant({
-499:         varietyId: minimalVariety.id,
-500:         varietyName: minimalVariety.name,
-501:         name: "Minimal Protocol Plant",
-502:         plantedDate: new Date(),
-503:         currentStage: "vegetative",
-504:         location: "Indoor",
-505:         container: "5 gallon pot",
-506:         isActive: true,
-507:       });
-508: 
-509:       const plant = await plantService.getPlant(plantId);
-510:       if (!plant) throw new Error("Plant not found");
-511: 
-512:       const defaults = await SmartDefaultsService.getDefaultsForPlant(plant);
-513: 
-514:       expect(defaults).toBeTruthy();
-515:       if (defaults?.watering) {
-516:         expect(defaults.watering.source).toMatch(/category|universal/);
-517:         expect(defaults.watering.confidence).toBe("low");
-518:         expect(defaults.watering.reasoning).toMatch(
-519:           /category|general|default|universal/i
-520:         );
-521:       }
-522:     });
-523: 
-524:     it("handles corrupted care log data without crashing", async () => {
-525:       const varieties = await varietyService.getAllVarieties();
-526:       const testVariety = varieties[0];
-527: 
-528:       const plantId = await plantService.addPlant({
-529:         varietyId: testVariety.id,
-530:         varietyName: testVariety.name,
-531:         name: "Plant with Bad Data",
-532:         plantedDate: subDays(new Date(), 30),
-533:         currentStage: "vegetative",
-534:         location: "Indoor",
-535:         container: "5 gallon pot",
-536:         isActive: true,
-537:       });
-538: 
-539:       const plant = await plantService.getPlant(plantId);
-540:       if (!plant) throw new Error("Plant not found");
-541: 
-542: 
-543:       const defaults = await SmartDefaultsService.getDefaultsForPlant(plant);
-544: 
-545: 
-546:       expect(defaults).toBeTruthy();
-547:       expect(defaults?.currentStage).toBeDefined();
-548:       expect(defaults?.daysSincePlanting).toBeGreaterThanOrEqual(0);
-549:     });
-550:   });
-551: });
-
-================
 File: src/__tests__/utils/plantDisplay.test.ts
 ================
  1: import { getPlantDisplayName } from "@/utils/plantDisplay";
@@ -2674,6 +2121,597 @@ File: src/__tests__/utils/plantDisplay.test.ts
 41:     expect(getPlantDisplayName(plant)).toBe("Unknown Plant");
 42:   });
 43: });
+
+================
+File: src/__tests__/utils/plantFactory.test.ts
+================
+  1: import {
+  2:   createMockPlant,
+  3:   createMockCareRecord,
+  4:   createMockVariety,
+  5:   createWateringDetails,
+  6:   createFertilizingDetails,
+  7:   createPlantWithHistory,
+  8:   createMultiplePlantsWithTasks,
+  9:   createPlantAtStage,
+ 10:   createMockArugula,
+ 11: } from "./plantFactory";
+ 12: 
+ 13: describe("Plant Factory", () => {
+ 14:   describe("createMockPlant", () => {
+ 15:     it("creates a plant with default values", () => {
+ 16:       const plant = createMockPlant();
+ 17: 
+ 18:       expect(plant.id).toMatch(/^plant-/);
+ 19:       expect(plant.varietyName).toBe("Test Variety");
+ 20:       expect(plant.currentStage).toBe("vegetative");
+ 21:       expect(plant.isActive).toBe(true);
+ 22:       expect(plant.reminderPreferences).toBeDefined();
+ 23:       expect(plant.createdAt).toBeInstanceOf(Date);
+ 24:       expect(plant.updatedAt).toBeInstanceOf(Date);
+ 25:     });
+ 26: 
+ 27:     it("accepts overrides", () => {
+ 28:       const plant = createMockPlant({
+ 29:         name: "Custom Plant Name",
+ 30:         currentStage: "flowering",
+ 31:         isActive: false,
+ 32:       });
+ 33: 
+ 34:       expect(plant.name).toBe("Custom Plant Name");
+ 35:       expect(plant.currentStage).toBe("flowering");
+ 36:       expect(plant.isActive).toBe(false);
+ 37:     });
+ 38:   });
+ 39: 
+ 40:   describe("createMockCareRecord", () => {
+ 41:     it("creates a watering record by default", () => {
+ 42:       const plantId = "test-plant-123";
+ 43:       const careRecord = createMockCareRecord(plantId);
+ 44: 
+ 45:       expect(careRecord.plantId).toBe(plantId);
+ 46:       expect(careRecord.type).toBe("water");
+ 47:       expect(careRecord.details.type).toBe("water");
+ 48:       expect(careRecord.id).toMatch(/^care-/);
+ 49:     });
+ 50: 
+ 51:     it("creates different activity types", () => {
+ 52:       const plantId = "test-plant-123";
+ 53: 
+ 54:       const waterRecord = createMockCareRecord(plantId, "water");
+ 55:       const fertilizeRecord = createMockCareRecord(plantId, "fertilize");
+ 56:       const observeRecord = createMockCareRecord(plantId, "observe");
+ 57: 
+ 58:       expect(waterRecord.type).toBe("water");
+ 59:       expect(fertilizeRecord.type).toBe("fertilize");
+ 60:       expect(observeRecord.type).toBe("observe");
+ 61:     });
+ 62:   });
+ 63: 
+ 64:   describe("createMockVariety", () => {
+ 65:     it("creates a variety with growth timeline", () => {
+ 66:       const variety = createMockVariety();
+ 67: 
+ 68:       expect(variety.name).toBe("Test Variety");
+ 69:       expect(variety.category).toBe("leafy-greens");
+ 70:       expect(variety.growthTimeline.germination).toBe(7);
+ 71:       expect(variety.growthTimeline.maturation).toBe(45);
+ 72:       expect(variety.isCustom).toBe(false);
+ 73:     });
+ 74:   });
+ 75: 
+ 76:   describe("specialized plant factories", () => {
+ 77:     it("creates arugula with correct defaults", () => {
+ 78:       const arugula = createMockArugula();
+ 79: 
+ 80:       expect(arugula.varietyName).toBe("Arugula");
+ 81:       expect(arugula.name).toBe("My Arugula");
+ 82:       expect(arugula.container).toBe("4 inch pot");
+ 83:     });
+ 84:   });
+ 85: 
+ 86:   describe("utility factories", () => {
+ 87:     it("creates plant with care history", () => {
+ 88:       const { plant, careHistory } = createPlantWithHistory({}, 5);
+ 89: 
+ 90:       expect(plant).toBeDefined();
+ 91:       expect(careHistory).toHaveLength(5);
+ 92:       expect(careHistory.every((record) => record.plantId === plant.id)).toBe(
+ 93:         true
+ 94:       );
+ 95: 
+ 96: 
+ 97:       for (let i = 1; i < careHistory.length; i++) {
+ 98:         expect(careHistory[i - 1].date.getTime()).toBeGreaterThanOrEqual(
+ 99:           careHistory[i].date.getTime()
+100:         );
+101:       }
+102:     });
+103: 
+104:     it("creates multiple plants with tasks", () => {
+105:       const { plants, tasks } = createMultiplePlantsWithTasks(3);
+106: 
+107:       expect(plants).toHaveLength(3);
+108:       expect(tasks.length).toBeGreaterThanOrEqual(6);
+109: 
+110: 
+111:       const plantIds = plants.map((p) => p.id);
+112:       expect(tasks.every((task) => plantIds.includes(task.plantId))).toBe(true);
+113:     });
+114: 
+115:     it("creates plants at specific growth stages", () => {
+116:       const germinationPlant = createPlantAtStage("germination");
+117:       const vegetativePlant = createPlantAtStage("vegetative");
+118: 
+119:       expect(germinationPlant.currentStage).toBe("germination");
+120:       expect(vegetativePlant.currentStage).toBe("vegetative");
+121: 
+122: 
+123:       expect(vegetativePlant.plantedDate.getTime()).toBeLessThan(
+124:         germinationPlant.plantedDate.getTime()
+125:       );
+126:     });
+127:   });
+128: 
+129:   describe("care detail factories", () => {
+130:     it("creates watering details with moisture readings", () => {
+131:       const details = createWateringDetails();
+132: 
+133:       expect(details.type).toBe("water");
+134:       expect(details.amount.value).toBe(16);
+135:       expect(details.amount.unit).toBe("oz");
+136:       expect(details.moistureReading?.before).toBe(3);
+137:       expect(details.moistureReading?.after).toBe(7);
+138:     });
+139: 
+140:     it("creates fertilizing details with product info", () => {
+141:       const details = createFertilizingDetails();
+142: 
+143:       expect(details.type).toBe("fertilize");
+144:       expect(details.product).toBe("General Purpose 10-10-10");
+145:       expect(details.dilution).toBe("1:4");
+146:       expect(details.amount).toBe("2 tbsp");
+147:     });
+148:   });
+149: });
+
+================
+File: src/__tests__/utils/plantFactory.ts
+================
+  1: import {
+  2:   PlantRecord,
+  3:   CareRecord,
+  4:   VarietyRecord,
+  5:   WateringDetails,
+  6:   FertilizingDetails,
+  7:   ObservationDetails,
+  8:   HarvestDetails,
+  9:   TransplantDetails,
+ 10:   CareActivityDetails,
+ 11: } from "@/types/database";
+ 12: import { GrowthStage, CareActivityType } from "@/types/core";
+ 13: import { UpcomingTask, TaskGroup } from "@/types/scheduling";
+ 14: 
+ 15: 
+ 16: const generateId = (prefix: string = ""): string =>
+ 17:   `${prefix}${prefix ? "-" : ""}${Date.now()}-${Math.random()
+ 18:     .toString(36)
+ 19:     .substring(2, 9)}`;
+ 20: 
+ 21: // Core Plant Factory
+ 22: export const createMockPlant = (
+ 23:   overrides: Partial<PlantRecord> = {}
+ 24: ): PlantRecord => {
+ 25:   const now = new Date();
+ 26:   const defaultPlantedDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000); // 7 days ago
+ 27: 
+ 28:   return {
+ 29:     id: generateId("plant"),
+ 30:     varietyId: "default-variety-id",
+ 31:     varietyName: "Test Variety",
+ 32:     name: "Test Plant",
+ 33:     plantedDate: defaultPlantedDate,
+ 34:     currentStage: "vegetative",
+ 35:     location: "Indoor",
+ 36:     container: "5 gallon pot",
+ 37:     soilMix: "Standard potting mix",
+ 38:     isActive: true,
+ 39:     notes: ["Initial planting notes"],
+ 40:     reminderPreferences: {
+ 41:       watering: true,
+ 42:       fertilizing: true,
+ 43:       observation: true,
+ 44:       lighting: true,
+ 45:       pruning: true,
+ 46:     },
+ 47:     createdAt: now,
+ 48:     updatedAt: now,
+ 49:     ...overrides,
+ 50:   };
+ 51: };
+ 52: 
+ 53: 
+ 54: export const createMockVariety = (
+ 55:   overrides: Partial<VarietyRecord> = {}
+ 56: ): VarietyRecord => {
+ 57:   const now = new Date();
+ 58: 
+ 59:   return {
+ 60:     id: generateId("variety"),
+ 61:     name: "Test Variety",
+ 62:     category: "leafy-greens",
+ 63:     growthTimeline: {
+ 64:       germination: 7,
+ 65:       seedling: 14,
+ 66:       vegetative: 21,
+ 67:       maturation: 45,
+ 68:     },
+ 69:     protocols: {
+ 70:       watering: {
+ 71:         vegetative: {
+ 72:           trigger: { moistureLevel: 3 },
+ 73:           target: { moistureLevel: 7 },
+ 74:           volume: { amount: "16", frequency: "2-3 days" },
+ 75:         },
+ 76:       },
+ 77:       fertilization: {
+ 78:         vegetative: {
+ 79:           products: [
+ 80:             {
+ 81:               name: "General Purpose 10-10-10",
+ 82:               dilution: "1:4",
+ 83:               amount: "2 tbsp",
+ 84:               frequency: "bi-weekly",
+ 85:               method: "soil-drench",
+ 86:             },
+ 87:           ],
+ 88:           timing: "Apply every 2 weeks during vegetative growth",
+ 89:           notes: ["Apply after watering to prevent root burn"],
+ 90:         },
+ 91:       },
+ 92:     },
+ 93:     moistureProtocols: {
+ 94:       vegetative: {
+ 95:         trigger: { min: 2, max: 4 },
+ 96:         target: { min: 6, max: 8 },
+ 97:       },
+ 98:     },
+ 99:     isCustom: false,
+100:     isEverbearing: false,
+101:     createdAt: now,
+102:     ...overrides,
+103:   };
+104: };
+105: 
+106: 
+107: export const createWateringDetails = (
+108:   overrides: Partial<WateringDetails> = {}
+109: ): WateringDetails => ({
+110:   type: "water",
+111:   amount: { value: 16, unit: "oz" },
+112:   moistureReading: {
+113:     before: 3,
+114:     after: 7,
+115:     scale: "1-10",
+116:   },
+117:   method: "top-watering",
+118:   runoffObserved: false,
+119:   notes: "Regular watering",
+120:   ...overrides,
+121: });
+122: 
+123: export const createFertilizingDetails = (
+124:   overrides: Partial<FertilizingDetails> = {}
+125: ): FertilizingDetails => ({
+126:   type: "fertilize",
+127:   product: "General Purpose 10-10-10",
+128:   dilution: "1:4",
+129:   amount: "2 tbsp",
+130:   method: "soil-drench",
+131:   notes: "Bi-weekly fertilizing",
+132:   ...overrides,
+133: });
+134: 
+135: export const createObservationDetails = (
+136:   overrides: Partial<ObservationDetails> = {}
+137: ): ObservationDetails => ({
+138:   type: "observe",
+139:   healthAssessment: "good",
+140:   observations: "Plant looks healthy with good growth",
+141:   photos: [],
+142:   notes: "Weekly health check",
+143:   ...overrides,
+144: });
+145: 
+146: export const createHarvestDetails = (
+147:   overrides: Partial<HarvestDetails> = {}
+148: ): HarvestDetails => ({
+149:   type: "harvest",
+150:   amount: "2 cups",
+151:   quality: "excellent",
+152:   method: "cut and come again",
+153:   notes: "First harvest of the season",
+154:   ...overrides,
+155: });
+156: 
+157: export const createTransplantDetails = (
+158:   overrides: Partial<TransplantDetails> = {}
+159: ): TransplantDetails => ({
+160:   type: "transplant",
+161:   fromContainer: "4 inch pot",
+162:   toContainer: "gallon pot",
+163:   reason: "Plant outgrew container",
+164:   notes: "Transplanted to larger container for better root growth",
+165:   ...overrides,
+166: });
+167: 
+168: 
+169: export const createMockCareRecord = (
+170:   plantId: string,
+171:   activityType: CareActivityType = "water",
+172:   overrides: Partial<CareRecord> = {}
+173: ): CareRecord => {
+174:   const now = new Date();
+175: 
+176:   let details: CareActivityDetails;
+177: 
+178:   switch (activityType) {
+179:     case "water":
+180:       details = createWateringDetails();
+181:       break;
+182:     case "fertilize":
+183:       details = createFertilizingDetails();
+184:       break;
+185:     case "observe":
+186:       details = createObservationDetails();
+187:       break;
+188:     case "harvest":
+189:       details = createHarvestDetails();
+190:       break;
+191:     case "transplant":
+192:       details = createTransplantDetails();
+193:       break;
+194:     default:
+195:       details = createWateringDetails();
+196:   }
+197: 
+198:   return {
+199:     id: generateId("care"),
+200:     plantId,
+201:     type: activityType,
+202:     date: now,
+203:     details,
+204:     createdAt: now,
+205:     ...overrides,
+206:   };
+207: };
+208: 
+209: 
+210: export const createMockTask = (
+211:   overrides: Partial<UpcomingTask> = {}
+212: ): UpcomingTask => ({
+213:   id: generateId("task"),
+214:   plantId: generateId("plant"),
+215:   name: "Test Plant",
+216:   task: "Check water level",
+217:   dueIn: "Due in 2 days",
+218:   plantStage: "vegetative",
+219:   dueDate: new Date(),
+220:   priority: "medium",
+221:   canBypass: true,
+222:   ...overrides,
+223: });
+224: 
+225: 
+226: export const createMockTaskGroup = (
+227:   type: "watering" | "fertilizing" | "observation" | "maintenance" = "watering",
+228:   overrides: Partial<TaskGroup> = {}
+229: ): TaskGroup => {
+230:   const configs = {
+231:     watering: { title: "Watering", emoji: "💧" },
+232:     fertilizing: { title: "Fertilizing", emoji: "🌱" },
+233:     observation: { title: "Health Checks", emoji: "👁" },
+234:     maintenance: { title: "Maintenance", emoji: "✂️" },
+235:   };
+236: 
+237:   const config = configs[type];
+238: 
+239:   return {
+240:     type,
+241:     title: config.title,
+242:     emoji: config.emoji,
+243:     tasks: [createMockTask({ task: `${config.title} task` })],
+244:     isExpanded: true,
+245:     ...overrides,
+246:   };
+247: };
+248: 
+249: 
+250: export const createMockArugula = (
+251:   overrides: Partial<PlantRecord> = {}
+252: ): PlantRecord =>
+253:   createMockPlant({
+254:     varietyName: "Arugula",
+255:     name: "My Arugula",
+256:     currentStage: "vegetative",
+257:     container: "4 inch pot",
+258:     ...overrides,
+259:   });
+260: 
+261: export const createMockTomato = (
+262:   overrides: Partial<PlantRecord> = {}
+263: ): PlantRecord =>
+264:   createMockPlant({
+265:     varietyName: "Roma Tomato",
+266:     name: "Roma Tomato Plant",
+267:     currentStage: "flowering",
+268:     container: "5 gallon pot",
+269:     ...overrides,
+270:   });
+271: 
+272: export const createMockBasil = (
+273:   overrides: Partial<PlantRecord> = {}
+274: ): PlantRecord =>
+275:   createMockPlant({
+276:     varietyName: "Genovese Basil",
+277:     name: "Kitchen Basil",
+278:     currentStage: "vegetative",
+279:     container: "6 inch pot",
+280:     ...overrides,
+281:   });
+282: 
+283: 
+284: export const createFastGrowingVariety = (
+285:   overrides: Partial<VarietyRecord> = {}
+286: ): VarietyRecord =>
+287:   createMockVariety({
+288:     name: "Fast Growing Lettuce",
+289:     category: "leafy-greens",
+290:     growthTimeline: {
+291:       germination: 3,
+292:       seedling: 7,
+293:       vegetative: 14,
+294:       maturation: 30,
+295:     },
+296:     ...overrides,
+297:   });
+298: 
+299: export const createSlowGrowingVariety = (
+300:   overrides: Partial<VarietyRecord> = {}
+301: ): VarietyRecord =>
+302:   createMockVariety({
+303:     name: "Slow Growing Kale",
+304:     category: "leafy-greens",
+305:     growthTimeline: {
+306:       germination: 10,
+307:       seedling: 21,
+308:       vegetative: 45,
+309:       maturation: 90,
+310:     },
+311:     ...overrides,
+312:   });
+313: 
+314: export const createEverbearingVariety = (
+315:   overrides: Partial<VarietyRecord> = {}
+316: ): VarietyRecord =>
+317:   createMockVariety({
+318:     name: "Everbearing Strawberry",
+319:     category: "berries",
+320:     isEverbearing: true,
+321:     productiveLifespan: 365,
+322:     growthTimeline: {
+323:       germination: 14,
+324:       seedling: 28,
+325:       vegetative: 60,
+326:       maturation: 120,
+327:     },
+328:     ...overrides,
+329:   });
+330: 
+331: 
+332: export const createPlantWithHistory = (
+333:   plantOverrides: Partial<PlantRecord> = {},
+334:   careHistoryCount: number = 3
+335: ): { plant: PlantRecord; careHistory: CareRecord[] } => {
+336:   const plant = createMockPlant(plantOverrides);
+337:   const careHistory: CareRecord[] = [];
+338: 
+339:   const activities: CareActivityType[] = ["water", "fertilize", "observe"];
+340:   const now = new Date();
+341: 
+342: 
+343:   for (let i = 0; i < careHistoryCount; i++) {
+344:     const activityType = activities[i % activities.length];
+345:     const daysAgo = i;
+346:     const date = new Date(now.getTime() - daysAgo * 24 * 60 * 60 * 1000);
+347: 
+348:     careHistory.push(createMockCareRecord(plant.id, activityType, { date }));
+349:   }
+350: 
+351:   return { plant, careHistory };
+352: };
+353: 
+354: export const createMultiplePlantsWithTasks = (
+355:   count: number = 3
+356: ): {
+357:   plants: PlantRecord[];
+358:   tasks: UpcomingTask[];
+359: } => {
+360:   const plants: PlantRecord[] = [];
+361:   const tasks: UpcomingTask[] = [];
+362: 
+363:   for (let i = 0; i < count; i++) {
+364:     const plant = createMockPlant({
+365:       name: `Test Plant ${i + 1}`,
+366:       varietyName: `Variety ${i + 1}`,
+367:     });
+368:     plants.push(plant);
+369: 
+370: 
+371:     const taskCount = 2 + (i % 2);
+372:     for (let j = 0; j < taskCount; j++) {
+373:       tasks.push(
+374:         createMockTask({
+375:           plantId: plant.id,
+376:           name: plant.name || plant.varietyName,
+377:           task:
+378:             j === 0
+379:               ? "Check water level"
+380:               : j === 1
+381:               ? "Fertilize"
+382:               : "Health check",
+383:           priority: j === 0 ? "high" : "medium",
+384:         })
+385:       );
+386:     }
+387:   }
+388: 
+389:   return { plants, tasks };
+390: };
+391: 
+392: 
+393: export const createPlantAtStage = (
+394:   stage: GrowthStage,
+395:   varietyTimeline = {
+396:     germination: 7,
+397:     seedling: 14,
+398:     vegetative: 21,
+399:     maturation: 45,
+400:   },
+401:   overrides: Partial<PlantRecord> = {}
+402: ): PlantRecord => {
+403:   const now = new Date();
+404:   let daysAgo: number;
+405: 
+406:   switch (stage) {
+407:     case "germination":
+408:       daysAgo = 3;
+409:       break;
+410:     case "seedling":
+411:       daysAgo = varietyTimeline.germination + 3;
+412:       break;
+413:     case "vegetative":
+414:       daysAgo = varietyTimeline.germination + varietyTimeline.seedling + 5;
+415:       break;
+416:     case "maturation":
+417:       daysAgo =
+418:         varietyTimeline.germination +
+419:         varietyTimeline.seedling +
+420:         varietyTimeline.vegetative +
+421:         5;
+422:       break;
+423:     default:
+424:       daysAgo = 7;
+425:   }
+426: 
+427:   const plantedDate = new Date(now.getTime() - daysAgo * 24 * 60 * 60 * 1000);
+428: 
+429:   return createMockPlant({
+430:     plantedDate,
+431:     currentStage: stage,
+432:     ...overrides,
+433:   });
+434: };
 
 ================
 File: src/__tests__/utils/testHelpers.tsx
@@ -6570,6 +6608,561 @@ File: src/__tests__/integration/smartDefaultsIntegration.test.tsx
 296:     });
 297:   });
 298: });
+
+================
+File: src/__tests__/services/smartDefaultsService.test.ts
+================
+  1: import { SmartDefaultsService } from "@/services/smartDefaultsService";
+  2: import { varietyService, plantService, careService } from "@/types/database";
+  3: import { initializeDatabase } from "@/db/seedData";
+  4: import { subDays } from "date-fns";
+  5: 
+  6: describe("SmartDefaultsService", () => {
+  7:   beforeEach(async () => {
+  8:     await initializeDatabase();
+  9: 
+ 10:     const { db } = await import("@/types/database");
+ 11:     await db.plants.clear();
+ 12:     await db.careActivities.clear();
+ 13:   });
+ 14: 
+ 15:   describe("contextual defaults based on growth stage", () => {
+ 16:     it("provides different watering amounts for different growth stages", async () => {
+ 17:       const varieties = await varietyService.getAllVarieties();
+ 18:       const strawberry = varieties.find(
+ 19:         (v) =>
+ 20:           v.name.toLowerCase().includes("strawberry") ||
+ 21:           v.name.toLowerCase().includes("albion")
+ 22:       );
+ 23: 
+ 24:       if (!strawberry) {
+ 25: 
+ 26:         return;
+ 27:       }
+ 28: 
+ 29: 
+ 30:       const stages = ["seedling", "vegetative", "maturation"] as const;
+ 31:       const testResults: Array<{
+ 32:         stage: string;
+ 33:         amount: number;
+ 34:         confidence: string;
+ 35:       }> = [];
+ 36: 
+ 37:       for (const stage of stages) {
+ 38:         const plantId = await plantService.addPlant({
+ 39:           varietyId: strawberry.id,
+ 40:           varietyName: strawberry.name,
+ 41:           name: `Test Plant ${stage}`,
+ 42:           plantedDate: subDays(new Date(), 30),
+ 43:           currentStage: stage,
+ 44:           location: "Indoor",
+ 45:           container: "5 gallon pot",
+ 46:           isActive: true,
+ 47:         });
+ 48: 
+ 49:         const plant = await plantService.getPlant(plantId);
+ 50:         if (!plant) continue;
+ 51: 
+ 52:         const defaults = await SmartDefaultsService.getDefaultsForPlant(plant);
+ 53: 
+ 54:         if (defaults?.watering) {
+ 55:           testResults.push({
+ 56:             stage,
+ 57:             amount: defaults.watering.suggestedAmount,
+ 58:             confidence: defaults.watering.confidence,
+ 59:           });
+ 60:         }
+ 61:       }
+ 62: 
+ 63: 
+ 64:       expect(testResults.length).toBeGreaterThan(1);
+ 65: 
+ 66: 
+ 67:       for (const result of testResults) {
+ 68:         expect(result.amount).toBeGreaterThan(0);
+ 69:         expect(["high", "medium", "low"]).toContain(result.confidence);
+ 70:       }
+ 71:     });
+ 72: 
+ 73:     it("adjusts fertilizer recommendations based on plant maturity", async () => {
+ 74:       const varieties = await varietyService.getAllVarieties();
+ 75:       const varietyWithFertilizer = varieties.find(
+ 76:         (v) =>
+ 77:           v.protocols?.fertilization &&
+ 78:           Object.keys(v.protocols.fertilization).length > 0
+ 79:       );
+ 80: 
+ 81:       if (!varietyWithFertilizer) {
+ 82:         return;
+ 83:       }
+ 84: 
+ 85: 
+ 86:       const youngPlantId = await plantService.addPlant({
+ 87:         varietyId: varietyWithFertilizer.id,
+ 88:         varietyName: varietyWithFertilizer.name,
+ 89:         name: "Young Plant",
+ 90:         plantedDate: subDays(new Date(), 14),
+ 91:         currentStage: "seedling",
+ 92:         location: "Indoor",
+ 93:         container: "4 inch pot",
+ 94:         isActive: true,
+ 95:       });
+ 96: 
+ 97:       const maturePlantId = await plantService.addPlant({
+ 98:         varietyId: varietyWithFertilizer.id,
+ 99:         varietyName: varietyWithFertilizer.name,
+100:         name: "Mature Plant",
+101:         plantedDate: subDays(new Date(), 90),
+102:         currentStage: "maturation",
+103:         location: "Indoor",
+104:         container: "5 gallon pot",
+105:         isActive: true,
+106:       });
+107: 
+108:       const [youngPlant, maturePlant] = await Promise.all([
+109:         plantService.getPlant(youngPlantId),
+110:         plantService.getPlant(maturePlantId),
+111:       ]);
+112: 
+113:       if (!youngPlant || !maturePlant) {
+114:         throw new Error("Plants not found");
+115:       }
+116: 
+117:       const [youngDefaults, matureDefaults] = await Promise.all([
+118:         SmartDefaultsService.getDefaultsForPlant(youngPlant),
+119:         SmartDefaultsService.getDefaultsForPlant(maturePlant),
+120:       ]);
+121: 
+122: 
+123:       expect(youngDefaults).toBeTruthy();
+124:       expect(matureDefaults).toBeTruthy();
+125: 
+126:       if (youngDefaults?.fertilizer && matureDefaults?.fertilizer) {
+127:         expect(youngDefaults.fertilizer.products).toBeDefined();
+128:         expect(matureDefaults.fertilizer.products).toBeDefined();
+129: 
+130: 
+131:         expect(youngDefaults.fertilizer.reasoning).toMatch(
+132:           /category|protocol|fertilization/i
+133:         );
+134:         expect(matureDefaults.fertilizer.reasoning).toMatch(
+135:           /category|protocol|fertilization/i
+136:         );
+137: 
+138: 
+139:         expect(youngDefaults.fertilizer.products[0].name).toBeDefined();
+140:         expect(matureDefaults.fertilizer.products[0].name).toBeDefined();
+141:       }
+142:     });
+143: 
+144:     it("provides stage-appropriate quick completion options", async () => {
+145:       const varieties = await varietyService.getAllVarieties();
+146:       const testVariety = varieties.find(
+147:         (v) =>
+148:           v.protocols?.watering && Object.keys(v.protocols.watering).length > 0
+149:       );
+150: 
+151:       if (!testVariety) {
+152:         return;
+153:       }
+154: 
+155: 
+156:       const plantId = await plantService.addPlant({
+157:         varietyId: testVariety.id,
+158:         varietyName: testVariety.name,
+159:         name: "Vegetative Plant",
+160:         plantedDate: subDays(new Date(), 30),
+161:         currentStage: "vegetative",
+162:         location: "Indoor",
+163:         container: "5 gallon pot",
+164:         isActive: true,
+165:       });
+166: 
+167:       const plant = await plantService.getPlant(plantId);
+168:       if (!plant) throw new Error("Plant not found");
+169: 
+170:       const wateringOptions =
+171:         await SmartDefaultsService.getQuickCompletionOptions(plant, "water");
+172: 
+173:       expect(wateringOptions).toBeTruthy();
+174:       if (wateringOptions) {
+175:         expect(wateringOptions.length).toBeGreaterThan(0);
+176: 
+177: 
+178:         expect(
+179:           wateringOptions.some(
+180:             (opt) =>
+181:               opt.label.includes("Quick:") &&
+182:               opt.values.waterValue &&
+183:               opt.values.waterValue > 0
+184:           )
+185:         ).toBe(true);
+186: 
+187: 
+188:         wateringOptions.forEach((option) => {
+189:           expect(option.label).toBeDefined();
+190:           expect(option.values).toBeDefined();
+191:         });
+192:       }
+193:     });
+194:   });
+195: 
+196:   describe("learning from plant history", () => {
+197:     it("adjusts watering defaults based on previous care patterns", async () => {
+198:       const varieties = await varietyService.getAllVarieties();
+199:       const testVariety = varieties.find(
+200:         (v) =>
+201:           v.protocols?.watering && Object.keys(v.protocols.watering).length > 0
+202:       );
+203: 
+204:       if (!testVariety) {
+205:         return;
+206:       }
+207: 
+208: 
+209:       const plantId = await plantService.addPlant({
+210:         varietyId: testVariety.id,
+211:         varietyName: testVariety.name,
+212:         name: "Plant with History",
+213:         plantedDate: subDays(new Date(), 60),
+214:         currentStage: "vegetative",
+215:         location: "Indoor",
+216:         container: "5 gallon pot",
+217:         isActive: true,
+218:       });
+219: 
+220: 
+221:       const wateringDates = [
+222:         subDays(new Date(), 14),
+223:         subDays(new Date(), 11),
+224:         subDays(new Date(), 8),
+225:         subDays(new Date(), 5),
+226:         subDays(new Date(), 2),
+227:       ];
+228: 
+229:       for (const date of wateringDates) {
+230:         await careService.addCareActivity({
+231:           plantId,
+232:           type: "water",
+233:           date,
+234:           details: {
+235:             type: "water",
+236:             amount: {
+237:               value: 25,
+238:               unit: "oz",
+239:             },
+240:             moistureReading: {
+241:               before: 3,
+242:               after: 7,
+243:               scale: "1-10",
+244:             },
+245:             notes: "Regular watering",
+246:           },
+247:         });
+248:       }
+249: 
+250:       const plant = await plantService.getPlant(plantId);
+251:       if (!plant) throw new Error("Plant not found");
+252: 
+253:       const defaults = await SmartDefaultsService.getDefaultsForPlant(plant);
+254: 
+255:       expect(defaults).toBeTruthy();
+256:       expect(defaults?.watering).toBeTruthy();
+257: 
+258:       if (defaults?.watering) {
+259: 
+260: 
+261: 
+262:         expect(defaults.watering.suggestedAmount).toBeGreaterThan(0);
+263:         expect(defaults.watering.confidence).toBeDefined();
+264:         expect(defaults.watering.source).toBeDefined();
+265:       }
+266:     });
+267: 
+268:     it("considers recent care frequency when suggesting next actions", async () => {
+269:       const varieties = await varietyService.getAllVarieties();
+270:       const testVariety = varieties[0];
+271: 
+272:       const plantId = await plantService.addPlant({
+273:         varietyId: testVariety.id,
+274:         varietyName: testVariety.name,
+275:         name: "Recently Cared Plant",
+276:         plantedDate: subDays(new Date(), 30),
+277:         currentStage: "vegetative",
+278:         location: "Indoor",
+279:         container: "5 gallon pot",
+280:         isActive: true,
+281:       });
+282: 
+283: 
+284:       await careService.addCareActivity({
+285:         plantId,
+286:         type: "water",
+287:         date: subDays(new Date(), 1),
+288:         details: {
+289:           type: "water",
+290:           amount: {
+291:             value: 20,
+292:             unit: "oz",
+293:           },
+294:           moistureReading: {
+295:             before: 3,
+296:             after: 7,
+297:             scale: "1-10",
+298:           },
+299:           notes: "Recent watering",
+300:         },
+301:       });
+302: 
+303:       const plant = await plantService.getPlant(plantId);
+304:       if (!plant) throw new Error("Plant not found");
+305: 
+306:       const quickOptions = await SmartDefaultsService.getQuickCompletionOptions(
+307:         plant,
+308:         "water"
+309:       );
+310: 
+311: 
+312: 
+313:       expect(quickOptions).toBeTruthy();
+314:       if (quickOptions && quickOptions.length > 0) {
+315: 
+316: 
+317:         quickOptions.forEach((option) => {
+318:           expect(option.label).toBeDefined();
+319:           expect(option.values.waterValue).toBeGreaterThan(0);
+320:         });
+321:       }
+322:     });
+323: 
+324:     it("provides category-based defaults for different plant types", async () => {
+325:       const varieties = await varietyService.getAllVarieties();
+326: 
+327: 
+328:       const leafyGreen = varieties.find((v) => v.category === "leafy-greens");
+329:       const fruitingPlant = varieties.find(
+330:         (v) => v.category === "fruiting-plants"
+331:       );
+332: 
+333:       if (!leafyGreen || !fruitingPlant) {
+334:         return;
+335:       }
+336: 
+337: 
+338:       const leafyPlantId = await plantService.addPlant({
+339:         varietyId: leafyGreen.id,
+340:         varietyName: leafyGreen.name,
+341:         name: "Leafy Plant",
+342:         plantedDate: subDays(new Date(), 30),
+343:         currentStage: "vegetative",
+344:         location: "Indoor",
+345:         container: "4 inch pot",
+346:         isActive: true,
+347:       });
+348: 
+349:       const fruitingPlantId = await plantService.addPlant({
+350:         varietyId: fruitingPlant.id,
+351:         varietyName: fruitingPlant.name,
+352:         name: "Fruiting Plant",
+353:         plantedDate: subDays(new Date(), 30),
+354:         currentStage: "vegetative",
+355:         location: "Indoor",
+356:         container: "5 gallon pot",
+357:         isActive: true,
+358:       });
+359: 
+360:       const [leafyPlant, fruitPlant] = await Promise.all([
+361:         plantService.getPlant(leafyPlantId),
+362:         plantService.getPlant(fruitingPlantId),
+363:       ]);
+364: 
+365:       if (!leafyPlant || !fruitPlant) {
+366:         throw new Error("Plants not found");
+367:       }
+368: 
+369:       const [leafyDefaults, fruitDefaults] = await Promise.all([
+370:         SmartDefaultsService.getDefaultsForPlant(leafyPlant),
+371:         SmartDefaultsService.getDefaultsForPlant(fruitPlant),
+372:       ]);
+373: 
+374: 
+375:       expect(leafyDefaults).toBeTruthy();
+376:       expect(fruitDefaults).toBeTruthy();
+377: 
+378:       if (leafyDefaults?.watering && fruitDefaults?.watering) {
+379: 
+380:         expect(fruitDefaults.watering.suggestedAmount).toBeGreaterThanOrEqual(
+381:           leafyDefaults.watering.suggestedAmount
+382:         );
+383: 
+384: 
+385:         expect(leafyDefaults.watering.reasoning).toMatch(
+386:           /leafy-greens|category/i
+387:         );
+388:         expect(fruitDefaults.watering.reasoning).toMatch(
+389:           /fruiting-plants|category/i
+390:         );
+391:       }
+392:     });
+393: 
+394:     it("maintains confidence levels based on data quality", async () => {
+395:       const varieties = await varietyService.getAllVarieties();
+396:       const varietyWithProtocol = varieties.find(
+397:         (v) =>
+398:           v.protocols?.watering && Object.keys(v.protocols.watering).length > 0
+399:       );
+400: 
+401:       if (!varietyWithProtocol) {
+402:         return;
+403:       }
+404: 
+405: 
+406:       const protocolPlantId = await plantService.addPlant({
+407:         varietyId: varietyWithProtocol.id,
+408:         varietyName: varietyWithProtocol.name,
+409:         name: "Well-Documented Plant",
+410:         plantedDate: subDays(new Date(), 30),
+411:         currentStage: "vegetative",
+412:         location: "Indoor",
+413:         container: "5 gallon pot",
+414:         isActive: true,
+415:       });
+416: 
+417: 
+418:       const simpleVariety = varieties.find((v) => !v.protocols?.watering);
+419:       if (!simpleVariety) {
+420:         return;
+421:       }
+422: 
+423:       const simplePlantId = await plantService.addPlant({
+424:         varietyId: simpleVariety.id,
+425:         varietyName: simpleVariety.name,
+426:         name: "Simple Plant",
+427:         plantedDate: subDays(new Date(), 30),
+428:         currentStage: "vegetative",
+429:         location: "Indoor",
+430:         container: "5 gallon pot",
+431:         isActive: true,
+432:       });
+433: 
+434:       const [protocolPlant, simplePlant] = await Promise.all([
+435:         plantService.getPlant(protocolPlantId),
+436:         plantService.getPlant(simplePlantId),
+437:       ]);
+438: 
+439:       if (!protocolPlant || !simplePlant) {
+440:         throw new Error("Plants not found");
+441:       }
+442: 
+443:       const [protocolDefaults, simpleDefaults] = await Promise.all([
+444:         SmartDefaultsService.getDefaultsForPlant(protocolPlant),
+445:         SmartDefaultsService.getDefaultsForPlant(simplePlant),
+446:       ]);
+447: 
+448:       if (protocolDefaults?.watering && simpleDefaults?.watering) {
+449: 
+450:         const confidenceOrder = { high: 3, medium: 2, low: 1 };
+451: 
+452:         expect(
+453:           confidenceOrder[protocolDefaults.watering.confidence]
+454:         ).toBeGreaterThanOrEqual(
+455:           confidenceOrder[simpleDefaults.watering.confidence]
+456:         );
+457: 
+458: 
+459:         expect(protocolDefaults.watering.source).toBe("protocol");
+460:         expect(simpleDefaults.watering.source).toMatch(/category|universal/);
+461:       }
+462:     });
+463:   });
+464: 
+465:   describe("error handling and edge cases", () => {
+466:     it("handles plants with invalid variety data gracefully", async () => {
+467: 
+468:       const plantId = await plantService.addPlant({
+469:         varietyId: "non-existent-variety",
+470:         varietyName: "Invalid Variety",
+471:         name: "Test Plant",
+472:         plantedDate: new Date(),
+473:         currentStage: "vegetative",
+474:         location: "Indoor",
+475:         container: "5 gallon pot",
+476:         isActive: true,
+477:       });
+478: 
+479:       const plant = await plantService.getPlant(plantId);
+480:       if (!plant) throw new Error("Plant not found");
+481: 
+482:       const defaults = await SmartDefaultsService.getDefaultsForPlant(plant);
+483: 
+484: 
+485:       expect(defaults).toBeNull();
+486:     });
+487: 
+488:     it("provides universal defaults when no specific protocol exists", async () => {
+489:       const varieties = await varietyService.getAllVarieties();
+490:       const minimalVariety = varieties.find(
+491:         (v) => !v.protocols?.watering && !v.protocols?.fertilization
+492:       );
+493: 
+494:       if (!minimalVariety) {
+495:         return;
+496:       }
+497: 
+498:       const plantId = await plantService.addPlant({
+499:         varietyId: minimalVariety.id,
+500:         varietyName: minimalVariety.name,
+501:         name: "Minimal Protocol Plant",
+502:         plantedDate: new Date(),
+503:         currentStage: "vegetative",
+504:         location: "Indoor",
+505:         container: "5 gallon pot",
+506:         isActive: true,
+507:       });
+508: 
+509:       const plant = await plantService.getPlant(plantId);
+510:       if (!plant) throw new Error("Plant not found");
+511: 
+512:       const defaults = await SmartDefaultsService.getDefaultsForPlant(plant);
+513: 
+514:       expect(defaults).toBeTruthy();
+515:       if (defaults?.watering) {
+516:         expect(defaults.watering.source).toMatch(/category|universal/);
+517:         expect(defaults.watering.confidence).toBe("low");
+518:         expect(defaults.watering.reasoning).toMatch(
+519:           /category|general|default|universal/i
+520:         );
+521:       }
+522:     });
+523: 
+524:     it("handles corrupted care log data without crashing", async () => {
+525:       const varieties = await varietyService.getAllVarieties();
+526:       const testVariety = varieties[0];
+527: 
+528:       const plantId = await plantService.addPlant({
+529:         varietyId: testVariety.id,
+530:         varietyName: testVariety.name,
+531:         name: "Plant with Bad Data",
+532:         plantedDate: subDays(new Date(), 30),
+533:         currentStage: "vegetative",
+534:         location: "Indoor",
+535:         container: "5 gallon pot",
+536:         isActive: true,
+537:       });
+538: 
+539:       const plant = await plantService.getPlant(plantId);
+540:       if (!plant) throw new Error("Plant not found");
+541: 
+542: 
+543:       const defaults = await SmartDefaultsService.getDefaultsForPlant(plant);
+544: 
+545: 
+546:       expect(defaults).toBeTruthy();
+547:       expect(defaults?.currentStage).toBeDefined();
+548:       expect(defaults?.daysSincePlanting).toBeGreaterThanOrEqual(0);
+549:     });
+550:   });
+551: });
 
 ================
 File: src/components/layouts/EmptyState.tsx
@@ -17552,63 +18145,6 @@ File: src/App.tsx
 39: export default App;
 
 ================
-File: jest.config.ts
-================
- 1: import type { Config } from "jest";
- 2: 
- 3: const config: Config = {
- 4:   preset: "ts-jest",
- 5:   testEnvironment: "jsdom",
- 6:   setupFilesAfterEnv: ["<rootDir>/src/setupTests.ts"],
- 7:   moduleNameMapper: {
- 8:     "^@/(.*)$": "<rootDir>/src/$1",
- 9:     "^@/components/(.*)$": "<rootDir>/src/components/$1",
-10:     "^@/pages/(.*)$": "<rootDir>/src/pages/$1",
-11:     "^@/hooks/(.*)$": "<rootDir>/src/hooks/$1",
-12:     "^@/services/(.*)$": "<rootDir>/src/services/$1",
-13:     "^@/types/(.*)$": "<rootDir>/src/types/$1",
-14:     "^@/utils/(.*)$": "<rootDir>/src/utils/$1",
-15:     "^@/data/(.*)$": "<rootDir>/src/data/$1",
-16:     "^@/db/(.*)$": "<rootDir>/src/db/$1",
-17:   },
-18:   collectCoverageFrom: [
-19:     "src/**/*.{ts,tsx}",
-20:     "!src/**/*.d.ts",
-21:     "!src/main.tsx",
-22:     "!src/vite-env.d.ts",
-23:     "!src/setupTests.ts",
-24:   ],
-25: 
-26:   testMatch: [
-27:     "<rootDir>/src/**/__tests__/**/*.{js,jsx,ts,tsx}",
-28:     "<rootDir>/src/**/*.(test|spec).{js,jsx,ts,tsx}",
-29:   ],
-30:   transform: {
-31:     "^.+\\.(ts|tsx)$": "ts-jest",
-32:   },
-33:   moduleFileExtensions: ["ts", "tsx", "js", "jsx", "json"],
-34:   testPathIgnorePatterns: ["/__tests__/utils/testHelpers.tsx"],
-35: 
-36:   coverageThreshold: {
-37:     global: {
-38:       branches: 85,
-39:       functions: 85,
-40:       lines: 85,
-41:       statements: 85,
-42:     },
-43: 
-44:     "./src/services/": {
-45:       branches: 90,
-46:       functions: 90,
-47:       lines: 90,
-48:       statements: 90,
-49:     },
-50:   },
-51: };
-52: 
-53: export default config;
-
-================
 File: src/pages/plants/PlantDetail.tsx
 ================
   1: import React, { useState, useEffect } from "react";
@@ -17956,6 +18492,66 @@ File: src/pages/plants/PlantDetail.tsx
 343: };
 344: 
 345: export default PlantDetail;
+
+================
+File: jest.config.ts
+================
+ 1: import type { Config } from "jest";
+ 2: 
+ 3: const config: Config = {
+ 4:   preset: "ts-jest",
+ 5:   testEnvironment: "jsdom",
+ 6:   setupFilesAfterEnv: ["<rootDir>/src/setupTests.ts"],
+ 7:   moduleNameMapper: {
+ 8:     "^@/(.*)$": "<rootDir>/src/$1",
+ 9:     "^@/components/(.*)$": "<rootDir>/src/components/$1",
+10:     "^@/pages/(.*)$": "<rootDir>/src/pages/$1",
+11:     "^@/hooks/(.*)$": "<rootDir>/src/hooks/$1",
+12:     "^@/services/(.*)$": "<rootDir>/src/services/$1",
+13:     "^@/types/(.*)$": "<rootDir>/src/types/$1",
+14:     "^@/utils/(.*)$": "<rootDir>/src/utils/$1",
+15:     "^@/data/(.*)$": "<rootDir>/src/data/$1",
+16:     "^@/db/(.*)$": "<rootDir>/src/db/$1",
+17:   },
+18:   collectCoverageFrom: [
+19:     "src/**/*.{ts,tsx}",
+20:     "!src/**/*.d.ts",
+21:     "!src/main.tsx",
+22:     "!src/vite-env.d.ts",
+23:     "!src/setupTests.ts",
+24:   ],
+25: 
+26:   testMatch: [
+27:     "<rootDir>/src/**/__tests__/**/*.{js,jsx,ts,tsx}",
+28:     "<rootDir>/src/**/*.(test|spec).{js,jsx,ts,tsx}",
+29:   ],
+30:   transform: {
+31:     "^.+\\.(ts|tsx)$": "ts-jest",
+32:   },
+33:   moduleFileExtensions: ["ts", "tsx", "js", "jsx", "json"],
+34:   testPathIgnorePatterns: [
+35:     "/__tests__/utils/testHelpers.tsx",
+36:     "/__tests__/utils/plantFactory.ts",
+37:   ],
+38: 
+39:   coverageThreshold: {
+40:     global: {
+41:       branches: 85,
+42:       functions: 85,
+43:       lines: 85,
+44:       statements: 85,
+45:     },
+46: 
+47:     "./src/services/": {
+48:       branches: 90,
+49:       functions: 90,
+50:       lines: 90,
+51:       statements: 90,
+52:     },
+53:   },
+54: };
+55: 
+56: export default config;
 
 ================
 File: src/pages/care/CareLogForm.tsx
