@@ -32,7 +32,10 @@ const config: Config = {
     "^.+\\.(ts|tsx)$": "ts-jest",
   },
   moduleFileExtensions: ["ts", "tsx", "js", "jsx", "json"],
-  testPathIgnorePatterns: ["/__tests__/utils/testHelpers.tsx"],
+  testPathIgnorePatterns: [
+    "/__tests__/utils/testHelpers.tsx",
+    "/__tests__/utils/plantFactory.ts",
+  ],
   // jest.config.ts
   coverageThreshold: {
     global: {
