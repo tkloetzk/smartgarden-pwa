@@ -23,14 +23,7 @@ const config: Config = {
     "!src/vite-env.d.ts",
     "!src/setupTests.ts",
   ],
-  coverageThreshold: {
-    global: {
-      branches: 70,
-      functions: 70,
-      lines: 70,
-      statements: 70,
-    },
-  },
+
   testMatch: [
     "<rootDir>/src/**/__tests__/**/*.{js,jsx,ts,tsx}",
     "<rootDir>/src/**/*.(test|spec).{js,jsx,ts,tsx}",
@@ -40,6 +33,22 @@ const config: Config = {
   },
   moduleFileExtensions: ["ts", "tsx", "js", "jsx", "json"],
   testPathIgnorePatterns: ["/__tests__/utils/testHelpers.tsx"],
+  // jest.config.ts
+  coverageThreshold: {
+    global: {
+      branches: 85,
+      functions: 85,
+      lines: 85,
+      statements: 85,
+    },
+    // Per-directory thresholds
+    "./src/services/": {
+      branches: 90,
+      functions: 90,
+      lines: 90,
+      statements: 90,
+    },
+  },
 };
 
 export default config;

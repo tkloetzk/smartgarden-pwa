@@ -1,7 +1,7 @@
 // src/services/smartDefaultsService.ts
 import { varietyService, PlantRecord, VarietyRecord } from "@/types/database";
 import { calculateCurrentStage } from "@/utils/growthStage";
-import { GrowthStage, PlantCategory } from "@/types/core";
+import { GrowthStage, PlantCategory, ApplicationMethod } from "@/types/core";
 
 export interface WateringDefaults {
   suggestedAmount: number;
@@ -156,7 +156,9 @@ export class SmartDefaultsService {
             name: stageProtocol.fertilizer.product,
             dilution: stageProtocol.application.dilution || "As directed",
             amount: stageProtocol.application.amount || "Apply to runoff",
-            method: (stageProtocol.application.method as any) || "soil-drench",
+            method:
+              (stageProtocol.application.method as ApplicationMethod) ||
+              "soil-drench",
             confidence: "high",
           },
         ],

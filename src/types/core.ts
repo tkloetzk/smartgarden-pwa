@@ -42,6 +42,45 @@ export type WeightUnit = "oz" | "lbs" | "g" | "kg";
 export type LengthUnit = "inches" | "cm" | "ft" | "m";
 export type TemperatureUnit = "F" | "C";
 
+export interface FertilizerProtocol {
+  product?: string;
+  dilution?: string;
+  amount?: string;
+  method?: ApplicationMethod;
+}
+
+export interface ApplicationDetails {
+  dilution?: string;
+  amount?: string;
+  method?: ApplicationMethod;
+}
+
+export interface VarietyProtocols {
+  watering?: Record<
+    GrowthStage,
+    {
+      trigger?: { moistureLevel?: string | number };
+      target?: { moistureLevel?: string | number };
+      volume?: { amount?: string | number; frequency?: string };
+    }
+  >;
+  fertilizing?: Record<
+    GrowthStage,
+    {
+      fertilizer?: FertilizerProtocol;
+      application?: ApplicationDetails;
+    }
+  >;
+  lighting?: Record<
+    GrowthStage,
+    {
+      ppfd?: { min: number; max: number; unit: string };
+      photoperiod?: { hours: number };
+      dli?: { min: number; max: number; unit: string };
+    }
+  >;
+}
+
 export type ApplicationMethod =
   | "soil-drench"
   | "foliar-spray"
