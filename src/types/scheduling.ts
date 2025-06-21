@@ -4,6 +4,8 @@ export interface UpcomingTask {
   name: string;
   task: string;
   dueIn: string;
+  plantStage: string;
+  dueDate: Date;
   priority: "low" | "medium" | "high";
   quickCompleteOptions?: QuickCompleteOption[];
   canBypass: boolean;

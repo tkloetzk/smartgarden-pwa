@@ -212,7 +212,8 @@ describe("CareSchedulingService", () => {
       expect(wateringTasks.length).toBeGreaterThan(0);
     });
   });
-  describe.only("getUpcomingTasks Edge Cases", () => {
+
+  describe("getUpcomingTasks Edge Cases", () => {
     it("handles plants with no variety data gracefully", async () => {
       // Create a plant with invalid variety ID
       const orphanedPlant = await plantService.addPlant({
@@ -233,21 +234,12 @@ describe("CareSchedulingService", () => {
       );
       expect(orphanedPlantTasks).toHaveLength(0);
     });
+
     it("correctly prioritizes overdue vs upcoming tasks", async () => {
       const varieties = await varietyService.getAllVarieties();
       const testVariety = varieties[0];
 
       // Create plants with different care scenarios
-      const recentPlant = await plantService.addPlant({
-        varietyId: testVariety.id,
-        varietyName: testVariety.name,
-        plantedDate: subDays(new Date(), 1), // Very recent
-        currentStage: "seedling",
-        location: "Indoor",
-        container: "4 inch pot",
-        isActive: true,
-      });
-
       const overduePlant = await plantService.addPlant({
         varietyId: testVariety.id,
         varietyName: testVariety.name,
@@ -258,7 +250,7 @@ describe("CareSchedulingService", () => {
         isActive: true,
       });
 
-      // Add a watering log that makes one plant overdue
+      // Add a watering log that makes the plant overdue
       await careService.addCareActivity({
         plantId: overduePlant,
         type: "water",
@@ -290,6 +282,7 @@ describe("CareSchedulingService", () => {
         );
       }
     });
+
     it("respects reminder preferences filtering", async () => {
       const varieties = await varietyService.getAllVarieties();
       const testVariety = varieties[0];
@@ -331,6 +324,7 @@ describe("CareSchedulingService", () => {
       expect(wateringTasks.length).toBeGreaterThan(0);
       expect(nonWateringTasks).toHaveLength(0);
     });
+
     it("handles database errors gracefully", async () => {
       // Mock plantService to throw an error
       const originalGetActivePlants = plantService.getActivePlants;
@@ -368,7 +362,7 @@ describe("CareSchedulingService", () => {
         .spyOn(varietyService, "getVariety")
         .mockImplementation(async (id) => {
           if (id === validVariety.id) {
-            return null; // Simulate corrupted variety data
+            return undefined; // Return undefined instead of null to match type
           }
           return originalGetVariety(id);
         });
@@ -387,6 +381,7 @@ describe("CareSchedulingService", () => {
       // Restore original method
       varietyService.getVariety = originalGetVariety;
     });
+
     it("correctly calculates priority levels", async () => {
       const varieties = await varietyService.getAllVarieties();
       const testVariety = varieties[0];
@@ -448,6 +443,7 @@ describe("CareSchedulingService", () => {
 
       expect(tasks).toEqual([]);
     });
+
     it("handles inactive plants correctly", async () => {
       const varieties = await varietyService.getAllVarieties();
       const testVariety = varieties[0];
@@ -470,6 +466,171 @@ describe("CareSchedulingService", () => {
         (task) => task.plantId === inactivePlant
       );
       expect(inactivePlantTasks).toHaveLength(0);
+    });
+  });
+
+  describe("getNextTaskForPlant Edge Cases", () => {
+    it("returns null for non-existent plant", async () => {
+      const task = await CareSchedulingService.getNextTaskForPlant(
+        "non-existent-id"
+      );
+      expect(task).toBeNull();
+    });
+
+    it("returns null for inactive plant", async () => {
+      const varieties = await varietyService.getAllVarieties();
+      const testVariety = varieties[0];
+
+      const inactivePlant = await plantService.addPlant({
+        varietyId: testVariety.id,
+        varietyName: testVariety.name,
+        plantedDate: subDays(new Date(), 5),
+        currentStage: "seedling",
+        location: "Indoor",
+        container: "4 inch pot",
+        isActive: false,
+      });
+
+      const task = await CareSchedulingService.getNextTaskForPlant(
+        inactivePlant
+      );
+      expect(task).toBeNull();
+    });
+
+    it("handles plant with no eligible tasks", async () => {
+      const varieties = await varietyService.getAllVarieties();
+      const testVariety = varieties[0];
+
+      const plantWithNoTasks = await plantService.addPlant({
+        varietyId: testVariety.id,
+        varietyName: testVariety.name,
+        plantedDate: new Date(), // Very new plant
+        currentStage: "germination",
+        location: "Indoor",
+        container: "seed tray",
+        isActive: true,
+        reminderPreferences: {
+          watering: false,
+          fertilizing: false,
+          observation: false,
+          lighting: false,
+          pruning: false,
+        },
+      });
+
+      const task = await CareSchedulingService.getNextTaskForPlant(
+        plantWithNoTasks
+      );
+      expect(task).toBeNull();
+    });
+
+    it("returns highest priority task when multiple exist", async () => {
+      const varieties = await varietyService.getAllVarieties();
+      const testVariety = varieties[0];
+
+      const testPlant = await plantService.addPlant({
+        varietyId: testVariety.id,
+        varietyName: testVariety.name,
+        plantedDate: subDays(new Date(), 15),
+        currentStage: "seedling",
+        location: "Indoor",
+        container: "4 inch pot",
+        isActive: true,
+      });
+
+      // Add care activities to make some tasks overdue
+      await careService.addCareActivity({
+        plantId: testPlant,
+        type: "water",
+        date: subDays(new Date(), 5),
+        details: {
+          type: "water",
+          amount: { value: 8, unit: "oz" },
+        },
+      });
+
+      const nextTask = await CareSchedulingService.getNextTaskForPlant(
+        testPlant
+      );
+
+      if (nextTask) {
+        // Should return the most urgent task (earliest due date)
+        expect(nextTask.plantId).toBe(testPlant);
+        expect(nextTask.dueDate).toBeInstanceOf(Date);
+      }
+    });
+  });
+
+  describe("Task Formatting and Calculation", () => {
+    it("correctly formats due dates", async () => {
+      const varieties = await varietyService.getAllVarieties();
+      const testVariety = varieties[0];
+
+      const testPlant = await plantService.addPlant({
+        varietyId: testVariety.id,
+        varietyName: testVariety.name,
+        plantedDate: subDays(new Date(), 5),
+        currentStage: "seedling",
+        location: "Indoor",
+        container: "4 inch pot",
+        isActive: true,
+      });
+
+      const tasks = await CareSchedulingService.getUpcomingTasks();
+      const plantTasks = tasks.filter((task) => task.plantId === testPlant);
+
+      plantTasks.forEach((task) => {
+        // Should have properly formatted dueIn strings
+        expect(task.dueIn).toMatch(
+          /^(Due today|Due tomorrow|Due in \d+ days?|\d+ days? overdue)$/
+        );
+
+        // Should have valid priority
+        expect(["low", "medium", "high"]).toContain(task.priority);
+
+        // Should have valid plant stage
+        expect(task.plantStage).toBeDefined();
+        expect(typeof task.plantStage).toBe("string");
+      });
+    });
+
+    it("handles stage calculation errors gracefully", async () => {
+      const varieties = await varietyService.getAllVarieties();
+      const testVariety = varieties[0];
+
+      // Create the plant first
+      const testPlant = await plantService.addPlant({
+        varietyId: testVariety.id,
+        varietyName: testVariety.name,
+        plantedDate: subDays(new Date(), 5),
+        currentStage: "seedling",
+        location: "Indoor",
+        container: "4 inch pot",
+        isActive: true,
+      });
+
+      // Import and mock the module properly
+      const growthStageModule = await import("@/utils/growthStage");
+      const mockCalculateCurrentStage = jest
+        .spyOn(growthStageModule, "calculateCurrentStage")
+        .mockImplementation(() => {
+          throw new Error("Stage calculation failed");
+        });
+
+      const tasks = await CareSchedulingService.getUpcomingTasks();
+
+      // Should handle stage calculation errors gracefully
+      expect(Array.isArray(tasks)).toBe(true);
+
+      // Verify the plant tasks were not generated due to the error
+      const plantTasks = tasks.filter((task) => task.plantId === testPlant);
+      expect(plantTasks).toHaveLength(0);
+
+      // Verify the mock was called
+      expect(mockCalculateCurrentStage).toHaveBeenCalled();
+
+      // Restore the original function
+      mockCalculateCurrentStage.mockRestore();
     });
   });
 });

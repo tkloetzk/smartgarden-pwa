@@ -103,7 +103,7 @@ export class CareSchedulingService {
       "water"
     );
 
-    // Simple watering intervals based on stage
+    // Define watering intervals by growth stage (in days)
     const wateringIntervals: Record<GrowthStage, number> = {
       germination: 1,
       seedling: 2,
@@ -112,7 +112,7 @@ export class CareSchedulingService {
       fruiting: 2,
       maturation: 3,
       harvest: 4,
-      "ongoing-production": 2, // More frequent for active production
+      "ongoing-production": 2,
     };
 
     const intervalDays = wateringIntervals[currentStage] || 3;
@@ -122,26 +122,27 @@ export class CareSchedulingService {
     if (lastWatering) {
       nextDueDate = addDays(lastWatering.date, intervalDays);
     } else {
-      // No previous watering, should water soon if never watered
+      // For new plants, base on planting date if more than 1 day old
       const daysSincePlanting = differenceInDays(new Date(), plant.plantedDate);
       nextDueDate =
         daysSincePlanting > 1 ? new Date() : addDays(plant.plantedDate, 1);
     }
 
-    // Only create task if due or overdue
+    // Only create task if it's due within the next 2 days
     if (nextDueDate <= addDays(new Date(), 2)) {
-      // Show tasks due within 2 days
+      // Calculate how overdue this task is
       const daysOverdue = differenceInDays(new Date(), nextDueDate);
 
       return {
         id: `water-${plant.id}`,
         plantId: plant.id,
-        name: getPlantDisplayName(plant), // Use the utility function here
+        name: getPlantDisplayName(plant),
         task: "Check water level",
         dueIn: this.formatDueIn(nextDueDate),
         priority: this.calculatePriority(daysOverdue),
         plantStage: currentStage,
         dueDate: nextDueDate,
+        canBypass: true, // Add this property
       };
     }
 
@@ -157,7 +158,7 @@ export class CareSchedulingService {
       "observe"
     );
 
-    // Weekly observations
+    // Observation every 7 days
     const observationInterval = 7;
 
     let nextDueDate: Date;
@@ -165,13 +166,13 @@ export class CareSchedulingService {
     if (lastObservation) {
       nextDueDate = addDays(lastObservation.date, observationInterval);
     } else {
-      // First observation after a few days
+      // First observation should be 3 days after planting
       nextDueDate = addDays(plant.plantedDate, 3);
     }
 
-    // Only create task if due or overdue
+    // Only create task if it's due within the next day
     if (nextDueDate <= addDays(new Date(), 1)) {
-      // Show tasks due within 1 day
+      // Calculate how overdue this task is
       const daysOverdue = differenceInDays(new Date(), nextDueDate);
 
       return {
@@ -183,6 +184,7 @@ export class CareSchedulingService {
         priority: this.calculatePriority(daysOverdue),
         plantStage: currentStage,
         dueDate: nextDueDate,
+        canBypass: true, // Add this property
       };
     }
 
