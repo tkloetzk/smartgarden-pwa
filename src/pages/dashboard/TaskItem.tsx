@@ -1,5 +1,4 @@
-// src/pages/dashboard/TaskItem.tsx - Enhanced version
-
+// src/pages/dashboard/TaskItem.tsx
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/Button";
@@ -9,6 +8,7 @@ import {
   QuickCompleteOption,
   QuickCompletionValues,
 } from "@/types/scheduling";
+import { CheckCircle2, Clock } from "lucide-react";
 
 interface TaskItemProps {
   task: UpcomingTask;
@@ -30,6 +30,7 @@ const TaskItem: React.FC<TaskItemProps> = ({
   const [isLoading, setIsLoading] = useState(false);
   const [showBypassDialog, setShowBypassDialog] = useState(false);
   const [bypassReason, setBypassReason] = useState("");
+  const [bypassSubmitted, setBypassSubmitted] = useState(false);
 
   const handleTaskClick = () => {
     navigate(`/plants/${task.plantId}`);
@@ -54,8 +55,13 @@ const TaskItem: React.FC<TaskItemProps> = ({
     setIsLoading(true);
     try {
       await onBypass(task.id, bypassReason);
-      setShowBypassDialog(false);
-      setBypassReason("");
+      setBypassSubmitted(true);
+
+      setTimeout(() => {
+        setShowBypassDialog(false);
+        setBypassReason("");
+        setBypassSubmitted(false);
+      }, 1500);
     } catch (error) {
       console.error("Failed to bypass task:", error);
     } finally {
@@ -68,168 +74,169 @@ const TaskItem: React.FC<TaskItemProps> = ({
     if (name.includes("water")) return "💧";
     if (name.includes("fertiliz")) return "🌱";
     if (name.includes("observe") || name.includes("health")) return "👁";
-    if (name.includes("prune") || name.includes("trim")) return "✂️";
-    return "📋";
+    return "🌿";
   };
 
-  const getStatusFromPriority = (priority: "low" | "medium" | "high") => {
+  const getPriorityColor = (priority: string) => {
     switch (priority) {
       case "high":
-        return "critical";
+        return "text-red-600";
       case "medium":
-        return "attention";
+        return "text-yellow-600";
       case "low":
-        return "healthy";
+        return "text-green-600";
       default:
-        return "healthy";
+        return "text-muted-foreground";
+    }
+  };
+
+  const getStatusFromPriority = (priority: string) => {
+    switch (priority) {
+      case "high":
+        return "critical" as const;
+      case "medium":
+        return "attention" as const;
+      case "low":
+        return "healthy" as const;
+      default:
+        return "new" as const;
     }
   };
 
   return (
-    <>
-      <div
-        className={`bg-card border border-border rounded-lg p-4 ${className}`}
-      >
-        {/* Task Header */}
-        <div className="cursor-pointer" onClick={handleTaskClick}>
-          <div className="flex items-start justify-between mb-3">
-            <div className="flex-1">
-              <div className="flex items-center gap-2 mb-1">
-                <span className="text-lg">{getTaskIcon(task.task)}</span>
-                <span className="font-semibold text-foreground">
-                  {task.name}
-                </span>
-              </div>
-              <div className="text-sm text-muted-foreground mb-2">
-                {task.task} • {task.dueIn}
-              </div>
+    <div className={`bg-card rounded-lg border p-4 ${className}`}>
+      <div className="flex items-start justify-between">
+        <div className="flex items-start space-x-3 flex-1">
+          <div className="text-2xl">{getTaskIcon(task.task)}</div>
+          <div className="flex-1 min-w-0" onClick={handleTaskClick}>
+            <div className="flex items-center gap-2 mb-1">
+              <h4 className="font-medium text-foreground">{task.name}</h4>
               <StatusBadge
                 status={getStatusFromPriority(task.priority)}
                 size="sm"
               />
             </div>
-          </div>
-        </div>
-
-        {/* Action Buttons */}
-        <div className="flex gap-2 flex-wrap">
-          {/* Quick Complete Options */}
-          {task.quickCompleteOptions?.map((option, ind) => (
-            <Button
-              key={ind}
-              variant="outline"
-              size="sm"
-              onClick={() => handleQuickComplete(option)}
-              disabled={isLoading}
-              className="bg-green-50 border-green-200 text-green-700 hover:bg-green-100"
-            >
-              {option.label}
-            </Button>
-          ))}
-
-          {/* Bypass Button */}
-          {task.canBypass && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setShowBypassDialog(true)}
-              disabled={isLoading}
-              className="bg-yellow-50 border-yellow-200 text-yellow-700 hover:bg-yellow-100"
-            >
-              Bypass
-            </Button>
-          )}
-
-          {/* Log Manually Button */}
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() =>
-              navigate(
-                `/care/log?plantId=${task.plantId}&activityType=${
-                  task.task.toLowerCase().includes("water")
-                    ? "water"
-                    : "fertilize"
-                }`
-              )
-            }
-            disabled={isLoading}
-          >
-            Log Manually
-          </Button>
-        </div>
-      </div>
-
-      {/* Bypass Dialog */}
-      {showBypassDialog && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-background rounded-lg p-6 w-full max-w-md">
-            <h3 className="text-lg font-semibold mb-4">
-              Bypass Task: {task.task}
-            </h3>
-            <p className="text-sm text-muted-foreground mb-4">
-              Why are you skipping this task? This helps improve future
-              recommendations.
+            <p className="text-sm text-muted-foreground mb-1">{task.task}</p>
+            <p className="text-xs text-muted-foreground mb-1">
+              Stage: {task.plantStage}
             </p>
+            <p className={`text-xs ${getPriorityColor(task.priority)}`}>
+              {task.dueIn}
+            </p>
+          </div>
 
-            <div className="space-y-3 mb-4">
-              {[
-                "Plant looks healthy, doesn't need it yet",
-                "Soil still moist from recent rain/watering",
-                "Weather conditions not suitable",
-                "Plant dormant/not growing actively",
-                "Other reason",
-              ].map((reason) => (
-                <label
-                  key={reason}
-                  className="flex items-center space-x-2 cursor-pointer"
-                >
-                  <input
-                    type="radio"
-                    name="bypassReason"
-                    value={reason}
-                    checked={bypassReason === reason}
-                    onChange={(e) => setBypassReason(e.target.value)}
-                    className="text-primary"
-                  />
-                  <span className="text-sm">{reason}</span>
-                </label>
-              ))}
-            </div>
-
-            {bypassReason === "Other reason" && (
-              <textarea
-                placeholder="Please specify..."
-                value={bypassReason === "Other reason" ? "" : bypassReason}
-                onChange={(e) => setBypassReason(e.target.value)}
-                className="w-full p-3 border border-border rounded-md text-sm mb-4"
-                rows={3}
-              />
-            )}
+          <div className="flex flex-col gap-2 ml-4">
+            {task.quickCompleteOptions &&
+              task.quickCompleteOptions.length > 0 && (
+                <div className="flex flex-wrap gap-1">
+                  {task.quickCompleteOptions.map((option, index) => (
+                    <Button
+                      key={index}
+                      size="sm"
+                      variant="outline"
+                      onClick={() => handleQuickComplete(option)}
+                      disabled={isLoading}
+                      className="text-xs"
+                    >
+                      {option.label}
+                    </Button>
+                  ))}
+                </div>
+              )}
 
             <div className="flex gap-2">
               <Button
-                variant="outline"
-                onClick={() => {
-                  setShowBypassDialog(false);
-                  setBypassReason("");
-                }}
-                className="flex-1"
+                size="sm"
+                variant="ghost"
+                onClick={() => setShowBypassDialog(true)}
+                disabled={isLoading}
+                className="text-xs"
               >
-                Cancel
+                Bypass
               </Button>
               <Button
-                onClick={handleBypass}
-                disabled={!bypassReason.trim() || isLoading}
-                className="flex-1"
+                size="sm"
+                variant="outline"
+                onClick={() =>
+                  navigate(
+                    `/log-care?plant=${task.plantId}&type=${
+                      task.task.toLowerCase().includes("water")
+                        ? "water"
+                        : "fertilize"
+                    }`
+                  )
+                }
+                disabled={isLoading}
               >
-                {isLoading ? "Bypassing..." : "Bypass Task"}
+                Log Manually
               </Button>
             </div>
           </div>
         </div>
+      </div>
+
+      {showBypassDialog && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-background rounded-lg p-6 w-full max-w-md">
+            {bypassSubmitted ? (
+              <div className="text-center">
+                <CheckCircle2 className="w-16 h-16 text-green-500 mx-auto mb-4" />
+                <h3 className="text-lg font-semibold mb-2 text-green-700">
+                  Task Bypassed
+                </h3>
+                <p className="text-sm text-muted-foreground">
+                  Your preferences are being learned for better recommendations.
+                </p>
+              </div>
+            ) : (
+              <>
+                <h3 className="text-lg font-semibold mb-4">
+                  Bypass "{task.task}" for {task.name}
+                </h3>
+                <p className="text-sm text-muted-foreground mb-4">
+                  Why are you skipping this task? This helps us improve future
+                  recommendations.
+                </p>
+                <textarea
+                  value={bypassReason}
+                  onChange={(e) => setBypassReason(e.target.value)}
+                  placeholder="e.g., plant looks healthy, watered recently, weather too cold..."
+                  className="w-full h-24 p-3 border rounded-md resize-none text-sm"
+                  disabled={isLoading}
+                />
+                <div className="flex gap-2 mt-4">
+                  <Button
+                    onClick={() => {
+                      setShowBypassDialog(false);
+                      setBypassReason("");
+                    }}
+                    variant="outline"
+                    disabled={isLoading}
+                    className="flex-1"
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    onClick={handleBypass}
+                    disabled={!bypassReason.trim() || isLoading}
+                    className="flex-1"
+                  >
+                    {isLoading ? (
+                      <div className="flex items-center gap-2">
+                        <Clock className="w-4 h-4 animate-spin" />
+                        <span>Submitting...</span>
+                      </div>
+                    ) : (
+                      "Submit Bypass"
+                    )}
+                  </Button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
       )}
-    </>
+    </div>
   );
 };
 

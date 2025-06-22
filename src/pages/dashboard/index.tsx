@@ -17,6 +17,9 @@ import TaskGroup from "@/pages/dashboard/TaskGroup";
 import { useFirstTimeUser } from "@/hooks/useFirstTimeUser";
 import Welcome from "@/components/layouts/Welcome";
 import { WateringDetails, FertilizingDetails } from "@/types/database";
+import { BypassAnalysisService } from "@/services/bypassAnalysisService"; // Changed from BypassAnalysisService
+import { CareActivityType, GrowthStage } from "@/types";
+import toast from "react-hot-toast";
 
 interface QuickAction {
   id: string;
@@ -58,10 +61,12 @@ const Dashboard = () => {
           let quickOptions: QuickCompleteOption[] = [];
 
           try {
+            // Pass isForDashboard = true to only get the main quick option
             const options =
               await SmartDefaultsService.getQuickCompletionOptions(
                 plant,
-                taskType
+                taskType,
+                true // This is for dashboard
               );
             quickOptions = options || [];
           } catch (error) {
@@ -84,7 +89,9 @@ const Dashboard = () => {
       setAllTasks(enhancedTasks);
     } catch (error) {
       console.error("Failed to load dashboard data:", error);
-      setError("Failed to load dashboard data");
+      setError(
+        error instanceof Error ? error.message : "Failed to load dashboard data"
+      );
     } finally {
       setIsLoading(false);
     }
@@ -94,10 +101,14 @@ const Dashboard = () => {
     loadDashboardData();
   }, [loadDashboardData]);
 
-  const getTaskTypeFromName = (taskName: string): "water" | "fertilize" => {
+  const getTaskTypeFromName = (taskName: string): CareActivityType => {
     const name = taskName.toLowerCase();
     if (name.includes("water") || name.includes("moisture")) return "water";
-    return "fertilize";
+    if (name.includes("fertiliz") || name.includes("feed")) return "fertilize";
+    if (name.includes("observe") || name.includes("health")) return "observe";
+    if (name.includes("harvest")) return "harvest";
+    if (name.includes("transplant")) return "transplant";
+    return "water"; // Default fallback
   };
 
   // Generate contextual quick actions based on current state
@@ -221,6 +232,7 @@ const Dashboard = () => {
         type: taskType,
         date: new Date(),
         details: careDetails,
+        updatedAt: new Date(),
       };
 
       await careService.addCareActivity(careData);
@@ -235,11 +247,34 @@ const Dashboard = () => {
 
   const handleBypass = async (taskId: string, reason: string) => {
     try {
-      console.log(`Task ${taskId} bypassed with reason: ${reason}`);
+      setIsLoading(true);
+
+      // Find the task being bypassed
+      const task = allTasks.find((t) => t.id === taskId);
+      if (!task) {
+        throw new Error("Task not found");
+      }
+
+      // Log the bypass with pattern analysis
+      await BypassAnalysisService.logBypass(
+        taskId,
+        task.plantId,
+        getTaskTypeFromName(task.task),
+        reason,
+        task.dueDate,
+        task.plantStage as GrowthStage
+      );
+
+      // Reload dashboard data
       await loadDashboardData();
+
+      toast.success("Task bypassed. Your preferences are being learned.");
     } catch (error) {
       console.error("Failed to bypass task:", error);
+      toast.error("Failed to bypass task");
       throw error;
+    } finally {
+      setIsLoading(false);
     }
   };
 

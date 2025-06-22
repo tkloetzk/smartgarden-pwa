@@ -1,9 +1,34 @@
 // src/services/smartDefaultsService.ts
-import { varietyService, PlantRecord, VarietyRecord } from "@/types/database";
-import { calculateCurrentStage } from "@/utils/growthStage";
-import { GrowthStage, PlantCategory, ApplicationMethod } from "@/types/core";
 
-export interface WateringDefaults {
+import {
+  varietyService,
+  careService,
+  PlantRecord,
+  VarietyRecord,
+} from "@/types/database";
+import { GrowthStage, PlantCategory, CareActivityType } from "@/types/core";
+import { calculateCurrentStage } from "@/utils/growthStage";
+
+export interface QuickCompleteOption {
+  label: string;
+  values: QuickCompletionValues;
+}
+
+export interface QuickCompletionValues {
+  waterValue?: number;
+  waterUnit?: "oz" | "ml" | "cups" | "liters" | "gallons";
+  product?: string;
+  dilution?: string;
+  amount?: string;
+  notes?: string;
+}
+
+export interface SmartDefaults {
+  watering?: WateringDefaults;
+  fertilizer?: FertilizerDefaults;
+}
+
+interface WateringDefaults {
   suggestedAmount: number;
   unit: "oz" | "ml" | "cups" | "liters" | "gallons";
   confidence: "high" | "medium" | "low";
@@ -11,33 +36,19 @@ export interface WateringDefaults {
   reasoning: string;
 }
 
-export interface FertilizerDefaults {
-  products: {
+interface FertilizerDefaults {
+  products: Array<{
     name: string;
     dilution: string;
     amount: string;
-    method?: "soil-drench" | "foliar-spray" | "top-dress" | "mix-in-soil";
+    method?: ApplicationMethod;
     confidence: "high" | "medium" | "low";
-  }[];
+  }>;
   source: "protocol" | "category" | "universal";
   reasoning: string;
 }
 
-export interface SmartDefaults {
-  watering?: WateringDefaults;
-  fertilizer?: FertilizerDefaults;
-  plantName: string;
-  currentStage: GrowthStage;
-  daysSincePlanting: number;
-}
-
-export interface QuickCompletionValues {
-  waterValue?: number;
-  waterUnit?: string;
-  product?: string;
-  dilution?: string;
-  amount?: string;
-}
+type ApplicationMethod = "soil-drench" | "foliar-spray" | "side-dress";
 
 interface VolumeAmount {
   amount: number;
@@ -45,9 +56,6 @@ interface VolumeAmount {
 }
 
 export class SmartDefaultsService {
-  /**
-   * Get intelligent defaults for a specific plant
-   */
   static async getDefaultsForPlant(
     plant: PlantRecord
   ): Promise<SmartDefaults | null> {
@@ -59,37 +67,24 @@ export class SmartDefaultsService {
         plant.plantedDate,
         variety.growthTimeline
       );
-      const daysSincePlanting = Math.floor(
-        (Date.now() - plant.plantedDate.getTime()) / (1000 * 60 * 60 * 24)
-      );
 
-      const wateringDefaults = this.getWateringDefaults(variety, currentStage);
-      const fertilizerDefaults = this.getFertilizerDefaults(
-        variety,
-        currentStage
-      );
+      const watering = this.getWateringDefaults(variety, currentStage);
+      const fertilizer = this.getFertilizerDefaults(variety, currentStage);
 
       return {
-        watering: wateringDefaults,
-        fertilizer: fertilizerDefaults,
-        plantName: plant.name || plant.varietyName,
-        currentStage,
-        daysSincePlanting,
+        watering,
+        fertilizer,
       };
     } catch (error) {
-      console.error("Error getting smart defaults:", error);
+      console.error("Failed to get defaults for plant:", error);
       return null;
     }
   }
 
-  /**
-   * Extract watering defaults from variety protocol
-   */
   private static getWateringDefaults(
     variety: VarietyRecord,
     currentStage: GrowthStage
-  ): WateringDefaults | undefined {
-    // 1. Try to get stage-specific protocol
+  ): WateringDefaults {
     const stageProtocol = variety.protocols?.watering?.[currentStage] as {
       volume?: { amount?: number | string; unit?: string };
     };
@@ -112,7 +107,6 @@ export class SmartDefaultsService {
       }
     }
 
-    // 2. Try category-based defaults
     const categoryDefaults = this.getCategoryWateringDefaults(
       variety.category,
       currentStage
@@ -127,7 +121,6 @@ export class SmartDefaultsService {
       };
     }
 
-    // 3. Universal fallback
     return {
       suggestedAmount: 16,
       unit: "oz",
@@ -137,9 +130,6 @@ export class SmartDefaultsService {
     };
   }
 
-  /**
-   * Extract fertilizer defaults from variety protocol
-   */
   private static getFertilizerDefaults(
     variety: VarietyRecord,
     currentStage: GrowthStage
@@ -167,7 +157,6 @@ export class SmartDefaultsService {
       };
     }
 
-    // Category-based fertilizer defaults
     const categoryDefaults = this.getCategoryFertilizerDefaults(
       variety.category,
       currentStage
@@ -179,9 +168,6 @@ export class SmartDefaultsService {
     return undefined;
   }
 
-  /**
-   * Get category-based watering defaults
-   */
   private static getCategoryWateringDefaults(
     category: PlantCategory,
     stage: GrowthStage
@@ -215,20 +201,20 @@ export class SmartDefaultsService {
         seedling: { amount: 12, unit: "oz" },
         vegetative: { amount: 20, unit: "oz" },
         flowering: { amount: 20, unit: "oz" },
-        fruiting: { amount: 24, unit: "oz" },
-        maturation: { amount: 24, unit: "oz" },
-        harvest: { amount: 24, unit: "oz" },
-        "ongoing-production": { amount: 24, unit: "oz" },
+        fruiting: { amount: 20, unit: "oz" },
+        maturation: { amount: 20, unit: "oz" },
+        harvest: { amount: 20, unit: "oz" },
+        "ongoing-production": { amount: 20, unit: "oz" },
       },
       herbs: {
         germination: { amount: 6, unit: "oz" },
-        seedling: { amount: 10, unit: "oz" },
-        vegetative: { amount: 14, unit: "oz" },
-        flowering: { amount: 14, unit: "oz" },
-        fruiting: { amount: 14, unit: "oz" },
-        maturation: { amount: 14, unit: "oz" },
-        harvest: { amount: 14, unit: "oz" },
-        "ongoing-production": { amount: 14, unit: "oz" },
+        seedling: { amount: 8, unit: "oz" },
+        vegetative: { amount: 12, unit: "oz" },
+        flowering: { amount: 12, unit: "oz" },
+        fruiting: { amount: 12, unit: "oz" },
+        maturation: { amount: 12, unit: "oz" },
+        harvest: { amount: 12, unit: "oz" },
+        "ongoing-production": { amount: 12, unit: "oz" },
       },
       berries: {
         germination: { amount: 10, unit: "oz" },
@@ -245,9 +231,6 @@ export class SmartDefaultsService {
     return categoryWateringGuides[category]?.[stage];
   }
 
-  /**
-   * Get category-based fertilizer defaults
-   */
   private static getCategoryFertilizerDefaults(
     category: PlantCategory,
     stage: GrowthStage
@@ -326,9 +309,6 @@ export class SmartDefaultsService {
     return undefined;
   }
 
-  /**
-   * Parse water amount from various formats
-   */
   private static parseWaterAmount(
     amount: string | number
   ): { amount: number } | null {
@@ -337,7 +317,6 @@ export class SmartDefaultsService {
     }
 
     if (typeof amount === "string") {
-      // Handle ranges like "20-24" or "30-35"
       const rangeMatch = amount.match(/(\d+(?:\.\d+)?)-(\d+(?:\.\d+)?)/);
       if (rangeMatch) {
         const min = parseFloat(rangeMatch[1]);
@@ -345,7 +324,6 @@ export class SmartDefaultsService {
         return { amount: Math.round((min + max) / 2) };
       }
 
-      // Handle single values like "20" or "30.5"
       const singleMatch = amount.match(/(\d+(?:\.\d+)?)/);
       if (singleMatch) {
         return { amount: parseFloat(singleMatch[1]) };
@@ -355,71 +333,165 @@ export class SmartDefaultsService {
     return null;
   }
 
-  /**
-   * Get quick completion suggestions for a specific plant and activity type
-   */
   static async getQuickCompletionOptions(
     plant: PlantRecord,
-    activityType: "water" | "fertilize"
-  ): Promise<Array<{ label: string; values: QuickCompletionValues }> | null> {
-    const defaults = await this.getDefaultsForPlant(plant);
-    if (!defaults) return null;
+    taskType: CareActivityType,
+    isForDashboard = false // Add parameter to distinguish dashboard vs full form
+  ): Promise<QuickCompleteOption[] | null> {
+    try {
+      const variety = await varietyService.getVariety(plant.varietyId);
+      if (!variety) return null;
 
-    if (activityType === "water" && defaults.watering) {
-      const { suggestedAmount, unit } = defaults.watering;
+      const currentStage = calculateCurrentStage(
+        plant.plantedDate,
+        variety.growthTimeline
+      );
 
-      // Provide a few quick options around the suggested amount
-      const baseAmount = suggestedAmount;
-      const options = [
-        {
-          label: `Quick: ${baseAmount}${unit}`,
-          values: {
-            waterValue: baseAmount,
-            waterUnit: unit,
-          },
-        },
-      ];
-
-      // Add lighter/heavier options if confidence is high
-      if (defaults.watering.confidence === "high") {
-        const lightAmount = Math.round(baseAmount * 0.75);
-        const heavyAmount = Math.round(baseAmount * 1.25);
-
-        options.unshift({
-          label: `Light: ${lightAmount}${unit}`,
-          values: {
-            waterValue: lightAmount,
-            waterUnit: unit,
-          },
-        });
-
-        options.push({
-          label: `Heavy: ${heavyAmount}${unit}`,
-          values: {
-            waterValue: heavyAmount,
-            waterUnit: unit,
-          },
-        });
+      switch (taskType) {
+        case "water":
+          return this.getWateringQuickOptions(
+            plant,
+            variety,
+            currentStage,
+            isForDashboard
+          );
+        case "fertilize":
+          return this.getFertilizingQuickOptions(variety, currentStage);
+        case "observe":
+          return [
+            {
+              label: "Quick: Health Check",
+              values: { notes: "Quick health observation" },
+            },
+          ];
+        default:
+          return null;
       }
-
-      return options;
+    } catch (error) {
+      console.error("Failed to get quick completion options:", error);
+      return null;
     }
+  }
 
-    if (
-      activityType === "fertilize" &&
-      defaults.fertilizer?.products &&
-      defaults.fertilizer.products.length > 0
-    ) {
-      return defaults.fertilizer.products.slice(0, 3).map((product) => ({
-        label: `Quick: ${product.name}`,
+  private static async getWateringQuickOptions(
+    plant: PlantRecord,
+    variety: VarietyRecord,
+    currentStage: GrowthStage,
+    isForDashboard = false // New parameter
+  ): Promise<QuickCompleteOption[]> {
+    const options: QuickCompleteOption[] = [];
+
+    const wateringDefaults = this.getWateringDefaults(variety, currentStage);
+
+    if (wateringDefaults) {
+      // Always include the main quick option
+      options.push({
+        label: `Quick: ${wateringDefaults.suggestedAmount}${wateringDefaults.unit}`,
         values: {
-          product: product.name,
-          dilution: product.dilution,
-          amount: product.amount,
+          waterValue: wateringDefaults.suggestedAmount,
+          waterUnit: wateringDefaults.unit,
+          notes: `${
+            wateringDefaults.source === "protocol" ? "Protocol" : "Category"
+          } suggestion for ${currentStage} stage`,
         },
-      }));
+      });
+
+      // Only add light/heavy options if NOT for dashboard
+      if (!isForDashboard) {
+        const lightAmount = Math.round(wateringDefaults.suggestedAmount * 0.75);
+        const heavyAmount = Math.round(wateringDefaults.suggestedAmount * 1.25);
+
+        if (
+          lightAmount !== wateringDefaults.suggestedAmount &&
+          lightAmount > 0
+        ) {
+          options.push({
+            label: `Light: ${lightAmount}${wateringDefaults.unit}`,
+            values: {
+              waterValue: lightAmount,
+              waterUnit: wateringDefaults.unit,
+              notes: `Light watering for ${currentStage} stage`,
+            },
+          });
+        }
+
+        if (heavyAmount !== wateringDefaults.suggestedAmount) {
+          options.push({
+            label: `Heavy: ${heavyAmount}${wateringDefaults.unit}`,
+            values: {
+              waterValue: heavyAmount,
+              waterUnit: wateringDefaults.unit,
+              notes: `Deep watering for ${currentStage} stage`,
+            },
+          });
+        }
+      }
     }
 
-    return null;
+    // Add repeat option from recent watering (only for full form, not dashboard)
+    if (!isForDashboard) {
+      try {
+        const recentWatering = await careService.getLastCareActivityByType(
+          plant.id,
+          "water"
+        );
+        if (recentWatering && recentWatering.details.type === "water") {
+          const lastAmount = recentWatering.details.amount;
+          if (lastAmount && lastAmount.value > 0) {
+            const isDifferent = !options.some(
+              (opt) =>
+                opt.values.waterValue === lastAmount.value &&
+                opt.values.waterUnit === lastAmount.unit
+            );
+
+            if (isDifferent) {
+              options.push({
+                label: `Repeat: ${lastAmount.value}${lastAmount.unit}`,
+                values: {
+                  waterValue: lastAmount.value,
+                  waterUnit: lastAmount.unit,
+                  notes: `Based on your last watering`,
+                },
+              });
+            }
+          }
+        }
+      } catch (error) {
+        console.error("Error getting watering history:", error);
+      }
+    }
+
+    return options.slice(0, isForDashboard ? 1 : 3); // Only 1 option for dashboard, up to 3 for forms
+  }
+
+  private static async getFertilizingQuickOptions(
+    variety: VarietyRecord,
+    currentStage: GrowthStage
+  ): Promise<QuickCompleteOption[]> {
+    const options: QuickCompleteOption[] = [];
+
+    const fertilizerDefaults = this.getFertilizerDefaults(
+      variety,
+      currentStage
+    );
+
+    if (fertilizerDefaults && fertilizerDefaults.products.length > 0) {
+      fertilizerDefaults.products.slice(0, 2).forEach((product, index) => {
+        const label = index === 0 ? `Quick: ${product.name}` : product.name;
+        options.push({
+          label,
+          values: {
+            product: product.name,
+            dilution: product.dilution,
+            amount: product.amount,
+            notes: `${
+              fertilizerDefaults.source === "protocol" ? "Protocol" : "Category"
+            } suggestion for ${currentStage} stage`,
+          },
+        });
+      });
+    }
+
+    return options;
   }
 }

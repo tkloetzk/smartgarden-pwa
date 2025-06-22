@@ -1,3 +1,5 @@
+import { CareActivityType } from "./core";
+
 export interface UpcomingTask {
   id: string;
   plantId: string;
@@ -11,21 +13,40 @@ export interface UpcomingTask {
   canBypass: boolean;
 }
 
-export interface TaskBypassReason {
-  id: string;
-  taskId: string;
-  plantId: string;
-  reason: string;
-  timestamp: Date;
-  userId?: string;
-}
-
 export interface TaskGroup {
   type: "watering" | "fertilizing" | "observation" | "maintenance";
   title: string;
   emoji: string;
   tasks: UpcomingTask[];
   isExpanded: boolean;
+}
+
+export interface BypassPattern {
+  plantId: string;
+  taskType: CareActivityType;
+  commonReasons: string[];
+  frequency: number;
+  seasonalPattern?: {
+    season: string;
+    frequency: number;
+  }[];
+  confidenceScore: number;
+}
+
+export interface BypassInsight {
+  pattern: BypassPattern;
+  recommendation: string;
+  shouldAdjustSchedule: boolean;
+  adjustmentDays?: number;
+}
+
+export interface SchedulingAdjustment {
+  plantId: string;
+  taskType: CareActivityType;
+  originalInterval: number;
+  adjustedInterval: number;
+  reason: string;
+  confidence: number;
 }
 
 export interface QuickCompleteOption {
@@ -39,6 +60,7 @@ export interface QuickCompletionValues {
   product?: string;
   dilution?: string;
   amount?: string;
+  notes?: string;
 }
 
 export interface TaskRecommendation {

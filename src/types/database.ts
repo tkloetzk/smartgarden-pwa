@@ -290,11 +290,24 @@ export interface VarietyRecord extends TimestampedRecord {
   productiveLifespan?: number; // ← ADD THIS
 }
 
-export interface CareRecord extends TimestampedRecord {
+export interface CareRecord extends BaseRecord {
   plantId: string;
   type: CareActivityType;
   date: Date;
   details: CareActivityDetails;
+  updatedAt: Date;
+}
+export interface BypassLogRecord {
+  id?: string;
+  taskId: string;
+  plantId: string;
+  taskType: CareActivityType;
+  reason: string;
+  bypassedAt: Date;
+  plantStage: GrowthStage;
+  dueDate: Date;
+  moistureLevel?: number;
+  weatherConditions?: string;
 }
 
 export interface SyncQueueRecord {
@@ -308,20 +321,66 @@ export interface SyncQueueRecord {
   retryCount?: number;
 }
 
+export interface TaskBypassRecord extends BaseRecord {
+  taskId: string;
+  plantId: string;
+  taskType: CareActivityType;
+  reason: string;
+  scheduledDate: Date;
+  bypassDate: Date;
+  plantStage: GrowthStage;
+  userId?: string;
+}
+
+export interface TaskCompletionRecord extends BaseRecord {
+  plantId: string;
+  taskType: CareActivityType;
+  scheduledDate: Date;
+  actualCompletionDate: Date;
+  varianceDays: number;
+  careActivityId: string;
+  plantStage: GrowthStage;
+}
+
+export interface BypassEntry {
+  id: string;
+  taskId: string;
+  plantId: string;
+  taskType: CareActivityType;
+  reason: string;
+  bypassedAt: Date;
+  plantStage: GrowthStage;
+  dueDate: Date;
+  moistureLevel?: number;
+  weatherConditions?: string;
+}
+
+export interface CareActivityRecord extends BaseRecord {
+  plantId: string;
+  type: CareActivityType;
+  date: Date;
+  details: CareActivityDetails;
+}
 class SmartGardenDatabase extends Dexie {
   plants!: Table<PlantRecord>;
   varieties!: Table<VarietyRecord>;
-  careActivities!: Table<CareRecord>;
+  careActivities!: Table<CareActivityRecord>;
+  bypassLog!: Table<BypassLogRecord>;
+  taskBypasses!: Table<TaskBypassRecord>;
+  taskCompletions!: Table<TaskCompletionRecord>;
   syncQueue!: Table<SyncQueueRecord>;
 
   constructor() {
-    super("SmartGardenDB");
-
-    this.version(1).stores({
-      plants: "id, varietyId, plantedDate, currentStage, isActive, location",
-      varieties: "id, name, category",
-      careActivities: "id, plantId, type, date",
-      syncQueue: "id, table, timestamp, synced",
+    super("SmartGardenDatabase");
+    this.version(3).stores({
+      plants: "++id, varietyId, isActive, plantedDate",
+      varieties: "++id, name, category",
+      careActivities: "++id, plantId, type, date",
+      bypassLog: "++id, plantId, taskType, bypassedAt",
+      taskBypasses: "++id, taskId, plantId, taskType, bypassDate",
+      taskCompletions:
+        "++id, plantId, taskType, scheduledDate, actualCompletionDate",
+      syncQueue: "++id, table, operation, recordId, timestamp",
     });
   }
 
@@ -342,7 +401,7 @@ class SmartGardenDatabase extends Dexie {
         synced: false,
       });
     } catch (error) {
-      console.warn("Failed to add to sync queue:", error);
+      console.error("Failed to add to sync queue:", error);
     }
   }
 }
@@ -448,6 +507,7 @@ export const careService = {
       ...activity,
       id,
       createdAt: new Date(),
+      updatedAt: new Date(),
     };
 
     await db.careActivities.add(fullActivity);

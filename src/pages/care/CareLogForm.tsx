@@ -565,7 +565,8 @@ export function CareLogForm({
         plantId: data.plantId,
         type: data.type,
         date: new Date(data.date),
-        details: careDetails,
+        details: careDetails as WateringDetails | FertilizingDetails,
+        updatedAt: new Date(),
       });
 
       toast.success("Care activity logged successfully!");

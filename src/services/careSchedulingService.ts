@@ -5,11 +5,12 @@ import {
   varietyService,
   PlantRecord,
 } from "@/types/database";
-import { GrowthStage } from "@/types/core";
+import { CareActivityType, GrowthStage } from "@/types/core";
 import { calculateCurrentStage } from "@/utils/growthStage";
 import { getPlantDisplayName } from "@/utils/plantDisplay"; // Add this import
 import { UpcomingTask } from "@/types/scheduling";
 import { addDays, differenceInDays } from "date-fns";
+import { DynamicSchedulingService } from "./dynamicSchedulingService";
 
 export class CareSchedulingService {
   static async getUpcomingTasks(): Promise<UpcomingTask[]> {
@@ -189,6 +190,72 @@ export class CareSchedulingService {
     }
 
     return null;
+  }
+
+  static async getTasksForPlantWithDynamicScheduling(
+    plant: PlantRecord
+  ): Promise<UpcomingTask[]> {
+    try {
+      const variety = await varietyService.getVariety(plant.varietyId);
+      if (!variety) return [];
+
+      const tasks: UpcomingTask[] = [];
+      const currentStage = calculateCurrentStage(
+        plant.plantedDate,
+        variety.growthTimeline
+      ); // Fix: use growthTimeline
+
+      const protocolIntervals = {
+        water: 3,
+        fertilize: 14,
+        observe: 7,
+      };
+
+      for (const [taskType, protocolInterval] of Object.entries(
+        protocolIntervals
+      )) {
+        const nextDueDate =
+          await DynamicSchedulingService.getNextDueDateForTask(
+            plant.id,
+            taskType as CareActivityType,
+            new Date(protocolInterval)
+          );
+
+        const daysUntilDue = differenceInDays(nextDueDate, new Date());
+        const priority =
+          daysUntilDue < 0 ? "high" : daysUntilDue === 0 ? "medium" : "low";
+
+        tasks.push({
+          id: `${plant.id}-${taskType}`,
+          plantId: plant.id,
+          name: getPlantDisplayName(plant),
+          task: this.getTaskName(taskType as CareActivityType),
+          dueIn: this.formatDueIn(nextDueDate), // Use existing method
+          plantStage: currentStage,
+          dueDate: nextDueDate,
+          priority,
+          canBypass: true,
+        });
+      }
+
+      return tasks;
+    } catch (error) {
+      console.error("Failed to get tasks for plant:", error);
+      return [];
+    }
+  }
+
+  private static getTaskName(taskType: CareActivityType): string {
+    switch (taskType) {
+      case "water":
+        return "Check water level";
+      case "fertilize":
+        return "Fertilize";
+      case "observe":
+        return "Health check";
+      default:
+        return "Care task";
+    }
   }
 
   static async getNextTaskForPlant(
