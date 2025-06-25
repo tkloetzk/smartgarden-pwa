@@ -583,7 +583,6 @@ describe("CareSchedulingService", () => {
       const varieties = await varietyService.getAllVarieties();
       const testVariety = varieties[0];
 
-      // Create the plant first
       const testPlant = await plantService.addPlant({
         varietyId: testVariety.id,
         varietyName: testVariety.name,
@@ -593,27 +592,24 @@ describe("CareSchedulingService", () => {
         isActive: true,
       });
 
-      // Import and mock the module properly
       const growthStageModule = await import("@/utils/growthStage");
+      // FIX: Change the mocked function to 'calculateCurrentStageWithVariety'
       const mockCalculateCurrentStage = jest
-        .spyOn(growthStageModule, "calculateCurrentStage")
+        .spyOn(growthStageModule, "calculateCurrentStageWithVariety")
         .mockImplementation(() => {
           throw new Error("Stage calculation failed");
         });
 
       const tasks = await CareSchedulingService.getUpcomingTasks();
 
-      // Should handle stage calculation errors gracefully
       expect(Array.isArray(tasks)).toBe(true);
 
-      // Verify the plant tasks were not generated due to the error
       const plantTasks = tasks.filter((task) => task.plantId === testPlant);
+      // This expectation should now pass as the catch block will return []
       expect(plantTasks).toHaveLength(0);
 
-      // Verify the mock was called
       expect(mockCalculateCurrentStage).toHaveBeenCalled();
 
-      // Restore the original function
       mockCalculateCurrentStage.mockRestore();
     });
   });

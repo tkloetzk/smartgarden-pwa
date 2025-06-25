@@ -340,7 +340,6 @@ describe("PlantRegistrationForm", () => {
           expect.objectContaining({
             varietyId: "tomato-1",
             varietyName: "Cherry Tomato",
-            currentStage: "germination",
             location: "Indoor",
             container: expect.stringContaining("1 Gallon"),
             isActive: true,

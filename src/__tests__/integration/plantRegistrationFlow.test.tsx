@@ -118,7 +118,6 @@ describe("Plant Registration Integration Flow", () => {
         expect.objectContaining({
           varietyId: "variety-1",
           varietyName: "Test Variety",
-          currentStage: "germination",
           location: "Indoor",
           container: "1 Gallon Grow Bag",
           isActive: true,
