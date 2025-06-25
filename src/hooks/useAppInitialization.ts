@@ -1,15 +1,16 @@
 // src/hooks/useAppInitialization.ts
 import { useEffect } from "react";
-import { GrowthStageService } from "@/services/growthStageService";
+import { initializeDatabase } from "@/db/seedData";
 
 export function useAppInitialization() {
   useEffect(() => {
     const initializeApp = async () => {
       try {
-        // Update all plant stages on app load
-        await GrowthStageService.updatePlantStages();
+        console.log("🌱 Initializing database...");
+        await initializeDatabase();
+        console.log("✅ Database initialization complete");
       } catch (error) {
-        console.error("Error during app initialization:", error);
+        console.error("❌ Error during app initialization:", error);
       }
     };
 

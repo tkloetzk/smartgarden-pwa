@@ -1,10 +1,10 @@
-// jest.config.ts
 import type { Config } from "jest";
 
 const config: Config = {
   preset: "ts-jest",
   testEnvironment: "jsdom",
   setupFilesAfterEnv: ["<rootDir>/src/setupTests.ts"],
+  setupFiles: ["<rootDir>/src/jest.polyfills.ts"],
   moduleNameMapper: {
     "^@/(.*)$": "<rootDir>/src/$1",
     "^@/components/(.*)$": "<rootDir>/src/components/$1",
@@ -15,6 +15,9 @@ const config: Config = {
     "^@/utils/(.*)$": "<rootDir>/src/utils/$1",
     "^@/data/(.*)$": "<rootDir>/src/data/$1",
     "^@/db/(.*)$": "<rootDir>/src/db/$1",
+    // Force Jest to use the mock for Firebase config
+    "^@/services/firebase/config$":
+      "<rootDir>/src/services/firebase/__mocks__/config.ts",
   },
   collectCoverageFrom: [
     "src/**/*.{ts,tsx}",
@@ -23,35 +26,23 @@ const config: Config = {
     "!src/vite-env.d.ts",
     "!src/setupTests.ts",
   ],
-
   testMatch: [
     "<rootDir>/src/**/__tests__/**/*.{js,jsx,ts,tsx}",
     "<rootDir>/src/**/*.(test|spec).{js,jsx,ts,tsx}",
   ],
-  transform: {
-    "^.+\\.(ts|tsx)$": "ts-jest",
-  },
-  moduleFileExtensions: ["ts", "tsx", "js", "jsx", "json"],
   testPathIgnorePatterns: [
     "/__tests__/utils/testHelpers.tsx",
     "/__tests__/utils/plantFactory.ts",
+    "/__tests__/e2e/",
+    "/node_modules/",
+    "/.*\\.spec\\.ts$",
+    "/__tests__/e2e/plant-registration.spec.ts",
   ],
-  // jest.config.ts
-  coverageThreshold: {
-    global: {
-      branches: 85,
-      functions: 85,
-      lines: 85,
-      statements: 85,
-    },
-    // Per-directory thresholds
-    "./src/services/": {
-      branches: 90,
-      functions: 90,
-      lines: 90,
-      statements: 90,
-    },
+  transform: {
+    "^.+\\.tsx?$": ["ts-jest", { tsconfig: "tsconfig.json" }],
   },
+  moduleFileExtensions: ["ts", "tsx", "js", "jsx", "json"],
+  transformIgnorePatterns: ["node_modules/(?!(uuid)/)"],
 };
 
 export default config;

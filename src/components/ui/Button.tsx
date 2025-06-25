@@ -75,25 +75,25 @@ export const Button: React.FC<ButtonProps> = ({
     ].join(" "),
 
     destructive: [
-      "bg-gradient-to-r from-red-500 to-pink-600",
+      "bg-gradient-to-r from-red-500 to-red-600",
       "text-white",
-      "hover:from-red-600 hover:to-pink-700",
+      "hover:from-red-600 hover:to-red-700",
+      "active:from-red-700 active:to-red-800",
       "focus:ring-red-400/50",
       "shadow-lg shadow-red-500/25",
+      "hover:shadow-xl hover:shadow-red-500/30",
       "border-0",
     ].join(" "),
   };
 
   const sizeClasses = {
-    sm: "px-5 py-2.5 text-sm min-h-10 gap-2",
-    md: "px-7 py-3.5 text-base min-h-12 gap-2.5",
-    lg: "px-9 py-4.5 text-lg min-h-14 gap-3",
-    xl: "px-11 py-6 text-xl min-h-16 gap-3",
+    sm: "px-3 py-1.5 text-sm gap-1.5",
+    md: "px-4 py-2 text-base gap-2",
+    lg: "px-6 py-3 text-lg gap-2.5",
+    xl: "px-8 py-4 text-xl gap-3",
   };
 
-  const LoadingSpinner = () => (
-    <div className="w-5 h-5 border-3 border-white/30 border-t-white rounded-full animate-spin" />
-  );
+  const isDisabled = disabled || loading;
 
   return (
     <button
@@ -103,21 +103,20 @@ export const Button: React.FC<ButtonProps> = ({
         sizeClasses[size],
         className
       )}
-      disabled={disabled || loading}
+      disabled={isDisabled}
       {...props}
     >
-      {loading ? (
-        <>
-          <LoadingSpinner />
-          <span className="ml-2">Loading...</span>
-        </>
-      ) : (
-        <>
-          {leftIcon && <span className="flex-shrink-0">{leftIcon}</span>}
-          <span>{children}</span>
-          {rightIcon && <span className="flex-shrink-0">{rightIcon}</span>}
-        </>
+      {loading && (
+        <div className="absolute inset-0 flex items-center justify-center">
+          <div className="w-5 h-5 border-2 border-current border-t-transparent rounded-full animate-spin" />
+        </div>
       )}
+
+      <div className={cn("flex items-center gap-2", loading && "opacity-0")}>
+        {leftIcon && <span className="flex-shrink-0">{leftIcon}</span>}
+        <span>{children}</span>
+        {rightIcon && <span className="flex-shrink-0">{rightIcon}</span>}
+      </div>
     </button>
   );
 };

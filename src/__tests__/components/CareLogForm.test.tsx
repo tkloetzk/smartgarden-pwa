@@ -31,7 +31,6 @@ describe("CareLogForm Pre-Selection", () => {
       plantedDate: new Date(),
       location: "Location 1",
       container: "Container 1",
-      currentStage: "vegetative",
       isActive: true,
     });
 
@@ -55,7 +54,6 @@ describe("CareLogForm Pre-Selection", () => {
       plantedDate: new Date(),
       location: "Location 1",
       container: "Container 1",
-      currentStage: "vegetative",
       isActive: true,
     });
 
@@ -83,7 +81,6 @@ describe("CareLogForm Pre-Selection", () => {
       plantedDate: new Date(),
       location: "Location 1",
       container: "Container 1",
-      currentStage: "vegetative",
       isActive: true,
     });
 
@@ -94,7 +91,6 @@ describe("CareLogForm Pre-Selection", () => {
       plantedDate: new Date(),
       location: "Location 2",
       container: "Container 2",
-      currentStage: "vegetative",
       isActive: true,
     });
 
@@ -163,7 +159,6 @@ describe("CareLogForm Pre-Selection", () => {
       plantedDate: new Date(),
       location: "Window Sill",
       container: "5 gallon pot",
-      currentStage: "flowering",
       isActive: true,
     });
 
@@ -184,7 +179,6 @@ describe("CareLogForm Pre-Selection", () => {
       plantedDate: new Date(),
       location: "Greenhouse",
       container: "3 gallon pot",
-      currentStage: "fruiting",
       isActive: true,
     });
 

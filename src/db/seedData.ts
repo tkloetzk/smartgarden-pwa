@@ -1,5 +1,5 @@
 // src/db/seedData.ts
-import { varietyService } from "@/types/database";
+import { PlantProtocols, varietyService } from "@/types/database";
 import { seedVarieties } from "../data/seedVarieties";
 
 // Add a flag to prevent concurrent initialization
@@ -14,41 +14,31 @@ export async function initializeDatabase() {
 
   try {
     isInitializing = true;
-    //console.log("Starting database initialization...");
 
     const existingVarieties = await varietyService.getAllVarieties();
 
     // Create a more robust duplicate check using names
     const existingNames = new Set(existingVarieties.map((v) => v.name.trim()));
 
-    // console.log(`Found ${existingVarieties.length} existing varieties`);
-    // console.log("Existing variety names:", [...existingNames]);
-
     const varietiesToAdd = seedVarieties.filter(
       (variety) => !existingNames.has(variety.name.trim())
     );
 
     if (varietiesToAdd.length > 0) {
-      console.log(
-        `Adding ${varietiesToAdd.length} new varieties:`,
-        varietiesToAdd.map((v) => v.name)
-      );
-
       for (const variety of varietiesToAdd) {
         // Double-check before adding to prevent race conditions
         const existing = await varietyService.getVarietyByName(
           variety.name.trim()
         );
         if (existing) {
-          console.log(`Variety "${variety.name}" already exists, skipping...`);
           continue;
         }
 
         await varietyService.addVariety({
-          name: variety.name.trim(), // Ensure no extra whitespace
+          name: variety.name.trim(),
           category: variety.category,
           growthTimeline: variety.growthTimeline,
-          protocols: variety.protocols || {},
+          protocols: (variety.protocols as PlantProtocols) || {},
           isEverbearing: variety.isEverbearing,
           productiveLifespan: variety.productiveLifespan,
         });
@@ -63,7 +53,6 @@ export async function initializeDatabase() {
     const uniqueFinalNames = new Set(finalNames);
 
     if (finalNames.length !== uniqueFinalNames.size) {
-      console.error("🚨 Duplicates detected after initialization!");
       const duplicates = finalNames.filter(
         (name, index) => finalNames.indexOf(name) !== index
       );

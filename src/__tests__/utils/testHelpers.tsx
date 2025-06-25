@@ -2,33 +2,52 @@ import { render } from "@testing-library/react";
 import { BrowserRouter } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
+interface RenderOptions {
+  initialEntries?: string[];
+  withRouter?: boolean;
+  queryClient?: QueryClient;
+}
+
 export const renderWithProviders = (
   ui: React.ReactElement,
-  options?: { initialEntries?: string[] }
+  options: RenderOptions = {}
 ) => {
-  const queryClient = new QueryClient({
-    defaultOptions: {
-      queries: { retry: false },
-      mutations: { retry: false },
-    },
-  });
+  const {
+    withRouter = true,
+    queryClient = new QueryClient({
+      defaultOptions: {
+        queries: {
+          retry: false,
+        },
+        mutations: {
+          retry: false,
+        },
+      },
+    }),
+  } = options;
 
-  const Wrapper = ({ children }: { children: React.ReactNode }) => (
-    <QueryClientProvider client={queryClient}>
-      <BrowserRouter>{children}</BrowserRouter>
-    </QueryClientProvider>
-  );
+  const Wrapper: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+    const content = (
+      <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+    );
 
-  return render(ui, { wrapper: Wrapper, ...options });
+    if (withRouter) {
+      return <BrowserRouter>{content}</BrowserRouter>;
+    }
+
+    return content;
+  };
+
+  return render(ui, { wrapper: Wrapper });
 };
 
-// Fixed: Made this an array instead of a single object
+// Export mock data for reuse in tests
 export const mockPlantData = [
   {
-    id: "test-plant-1",
-    varietyId: "test-variety-1",
-    varietyName: "Test Variety",
-    name: "Test Plant",
+    id: "plant-1",
+    varietyId: "tomato-1",
+    varietyName: "Cherry Tomato",
+    name: "My Cherry Tomato",
     plantedDate: new Date("2024-01-01"),
     currentStage: "vegetative" as const,
     location: "Indoor",
@@ -38,29 +57,24 @@ export const mockPlantData = [
     createdAt: new Date(),
     updatedAt: new Date(),
   },
-];
-
-// Fixed: Added all required properties for UpcomingTask
-export const mockTaskData = [
   {
-    id: "task-1",
-    plantId: "test-plant-1",
-    name: "Test Plant",
-    task: "Check water level",
-    dueIn: "overdue by 1 day",
-    activityType: "water" as const,
-    dueDate: new Date(),
-    priority: "high" as const,
-    description: "Water the plant",
-    canBypass: true,
+    id: "plant-2",
+    varietyId: "basil-1",
+    varietyName: "Sweet Basil",
+    name: "My Basil",
+    plantedDate: new Date("2024-01-15"),
+    currentStage: "seedling" as const,
+    location: "Indoor",
+    container: "3 gallon pot",
+    isActive: true,
+    notes: [],
+    createdAt: new Date(),
+    updatedAt: new Date(),
   },
 ];
 
-// This test ensures testHelpers exports work correctly
-describe("Test Helpers", () => {
-  it("should export helper functions", () => {
-    expect(renderWithProviders).toBeDefined();
-    expect(mockPlantData).toBeDefined();
-    expect(mockTaskData).toBeDefined();
-  });
-});
+export const mockUser = {
+  uid: "test-user-id",
+  email: "test@example.com",
+  displayName: "Test User",
+};

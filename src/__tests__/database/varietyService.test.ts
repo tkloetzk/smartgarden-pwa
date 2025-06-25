@@ -226,10 +226,13 @@ describe("varietyService", () => {
 
       varieties.forEach((variety) => {
         if (variety.protocols?.soilMixture?.components) {
-          const percentages = Object.values(
-            variety.protocols.soilMixture.components
+          const percentages = variety.protocols.soilMixture.components
+            ? Object.values(variety.protocols.soilMixture.components)
+            : [];
+          const total = percentages.reduce(
+            (sum: number, pct: number) => sum + pct,
+            0
           );
-          const total = percentages.reduce((sum, pct) => sum + pct, 0);
 
           // Allow for minor rounding differences
           expect(total).toBeCloseTo(100, 1);
@@ -427,7 +430,7 @@ describe("varietyService", () => {
       const carrots = varieties.find((v) => v.name === "Little Finger Carrots");
 
       if (carrots?.protocols?.environment?.constraints) {
-        carrots.protocols.environment.constraints.forEach((constraint) => {
+        carrots.protocols.environment.constraints.forEach((constraint: any) => {
           expect(constraint.description).toBeDefined();
           expect(constraint.parameter).toBeDefined();
           expect(constraint.consequence).toBeDefined();

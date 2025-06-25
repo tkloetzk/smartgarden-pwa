@@ -1,5 +1,3 @@
-// src/services/taskGroupingService.ts
-
 import { UpcomingTask, TaskGroup } from "@/types/scheduling";
 
 export class TaskGroupingService {
@@ -10,68 +8,98 @@ export class TaskGroupingService {
         title: "Watering",
         emoji: "💧",
         tasks: [],
-        isExpanded: true, // Always expand critical tasks
+        isExpanded: false,
       },
       {
         type: "fertilizing",
         title: "Fertilizing",
         emoji: "🌱",
         tasks: [],
-        isExpanded: true,
+        isExpanded: false,
       },
       {
         type: "observation",
         title: "Health Checks",
         emoji: "👁",
         tasks: [],
-        isExpanded: true,
+        isExpanded: false,
       },
       {
         type: "maintenance",
         title: "Maintenance",
         emoji: "✂️",
         tasks: [],
-        isExpanded: false, // Start collapsed for non-critical
+        isExpanded: false,
       },
     ];
 
-    // Categorize tasks
     tasks.forEach((task) => {
-      const taskName = task.task.toLowerCase();
+      const taskLower = task.task.toLowerCase();
 
-      if (taskName.includes("water") || taskName.includes("moisture")) {
-        groups[0].tasks.push(task);
-      } else if (taskName.includes("fertiliz") || taskName.includes("feed")) {
-        groups[1].tasks.push(task);
-      } else if (
-        taskName.includes("observe") ||
-        taskName.includes("health") ||
-        taskName.includes("check")
-      ) {
-        groups[2].tasks.push(task);
-      } else {
-        groups[3].tasks.push(task);
+      if (this.isWateringTask(taskLower)) {
+        groups.find((g) => g.type === "watering")?.tasks.push(task);
+      } else if (this.isFertilizingTask(taskLower)) {
+        groups.find((g) => g.type === "fertilizing")?.tasks.push(task);
+      } else if (this.isObservationTask(taskLower)) {
+        groups.find((g) => g.type === "observation")?.tasks.push(task);
+      } else if (this.isMaintenanceTask(taskLower)) {
+        groups.find((g) => g.type === "maintenance")?.tasks.push(task);
       }
     });
 
-    // Auto-expand groups with high priority tasks
-    groups.forEach((group) => {
-      const hasHighPriority = group.tasks.some(
-        (task) => task.priority === "high"
-      );
-      if (hasHighPriority) {
-        group.isExpanded = true;
-      }
+    // Filter out empty groups and set expanded state for important groups
+    const nonEmptyGroups = groups.filter((group) => group.tasks.length > 0);
+
+    nonEmptyGroups.forEach((group) => {
+      group.isExpanded = this.shouldExpandGroup(group);
     });
 
-    // Filter out empty groups
-    return groups.filter((group) => group.tasks.length > 0);
+    return nonEmptyGroups;
   }
 
   static shouldExpandGroup(group: TaskGroup): boolean {
-    // Expand if has overdue or high priority tasks
-    return group.tasks.some(
-      (task) => task.priority === "high" || task.dueIn.includes("overdue")
+    if (group.tasks.length === 0) return false;
+
+    // Expand if any task is high priority
+    if (group.tasks.some((task) => task.priority === "high")) {
+      return true;
+    }
+
+    // Expand if any task is overdue
+    if (group.tasks.some((task) => task.dueIn.includes("overdue"))) {
+      return true;
+    }
+
+    return false;
+  }
+
+  private static isWateringTask(taskLower: string): boolean {
+    return taskLower.includes("water") || taskLower.includes("moisture");
+  }
+
+  private static isFertilizingTask(taskLower: string): boolean {
+    return (
+      taskLower.includes("fertilize") ||
+      taskLower.includes("feed") ||
+      taskLower.includes("nutrient")
+    );
+  }
+
+  private static isObservationTask(taskLower: string): boolean {
+    return (
+      taskLower.includes("health") ||
+      taskLower.includes("check") ||
+      taskLower.includes("observe") ||
+      taskLower.includes("pest")
+    );
+  }
+
+  private static isMaintenanceTask(taskLower: string): boolean {
+    return (
+      taskLower.includes("prune") ||
+      taskLower.includes("transplant") ||
+      taskLower.includes("clean") ||
+      taskLower.includes("trim")
     );
   }
 }

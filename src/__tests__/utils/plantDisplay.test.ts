@@ -8,7 +8,6 @@ describe("getPlantDisplayName", () => {
     varietyId: "some-uuid-123",
     varietyName: "Roma Tomato",
     plantedDate: new Date(),
-    currentStage: "vegetative",
     location: "Indoor",
     container: "5 gallon",
     isActive: true,

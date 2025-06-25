@@ -1,4 +1,3 @@
-// src/types/database.ts
 import Dexie, { Table } from "dexie";
 import { v4 as uuidv4 } from "uuid";
 import {
@@ -12,11 +11,9 @@ import {
   BaseRecord,
   TimestampedRecord,
   MoistureReading,
-  Volume,
   GrowthTimeline,
 } from "./core";
 
-// Comprehensive protocol interfaces to match seedVarieties.ts
 export interface StageSpecificWateringProtocol {
   [stageName: string]: {
     trigger: {
@@ -76,8 +73,8 @@ export interface StageSpecificFertilizationProtocol {
 
 export interface EnvironmentalProtocol {
   temperature?: {
-    min?: number;
-    max?: number;
+    min: number;
+    max: number;
     optimal?: number;
     unit: "F" | "C";
     criticalMax?: number;
@@ -85,12 +82,13 @@ export interface EnvironmentalProtocol {
     stage?: string;
   };
   humidity?: {
-    min?: number;
-    max?: number;
+    min: number;
+    max: number;
     optimal?: number;
+    unit: "%";
     criticalForStage?: string;
   };
-  pH: {
+  pH?: {
     min: number;
     max: number;
     optimal: number;
@@ -124,79 +122,20 @@ export interface ContainerRequirements {
   };
 }
 
-export interface SuccessionProtocol {
-  interval: number;
-  method: "continuous" | "zoned" | "single";
-  harvestMethod: "cut-and-come-again" | "single-harvest" | "selective";
-  productiveWeeks?: number;
-  notes?: string[];
-}
-
-// Comprehensive plant protocols interface
 export interface PlantProtocols {
-  lighting?: StageSpecificLightingProtocol;
   watering?: StageSpecificWateringProtocol;
+  lighting?: StageSpecificLightingProtocol;
   fertilization?: StageSpecificFertilizationProtocol;
   environment?: EnvironmentalProtocol;
   soilMixture?: SoilMixture;
   container?: ContainerRequirements;
-  succession?: SuccessionProtocol;
   specialRequirements?: string[];
-}
-
-// Legacy protocol interfaces for backward compatibility
-export interface WateringProtocol {
-  frequency: string;
-  moistureTrigger: {
-    triggerLevel: number;
-    targetLevel: number;
-    scale: "1-10" | "visual";
-  };
-  amount: Volume;
-  method?: WateringMethod;
-  notes: string[];
-}
-
-export interface LightingProtocol {
-  ppfd: {
-    min: number;
-    max: number;
-    optimal?: number;
-  };
-  photoperiod: {
-    hours: number;
-    maxHours?: number;
-    minHours?: number;
-  };
-  dli: {
-    min: number;
-    max: number;
-  };
-}
-
-export interface FertilizationProtocol {
-  timing: {
-    description: string;
-    daysFromStart?: number;
-    frequency?: string;
-  };
-  fertilizer: {
-    product: string;
-    type?: string;
-    npkRatio?: string;
-  };
-  application: {
-    dilution: string;
-    amount: string;
-    method: ApplicationMethod;
-  };
 }
 export interface WaterAmount {
   value: number;
   unit: "oz" | "ml" | "cups" | "gallons" | "liters";
 }
 
-// Care activity detail types - using discriminated unions
 export interface WateringDetails {
   type: "water";
   amount: WaterAmount;
@@ -246,18 +185,18 @@ export type CareActivityDetails =
   | HarvestDetails
   | TransplantDetails;
 
-// Main database record interfaces
 export interface PlantRecord extends BaseRecord {
   varietyId: string;
   varietyName: string;
   name?: string;
   plantedDate: Date;
-  currentStage: GrowthStage;
   location: string;
   container: string;
   soilMix?: string;
   isActive: boolean;
   notes?: string[];
+  quantity?: number;
+  setupType?: "multiple-containers" | "same-container";
   reminderPreferences?: {
     watering: boolean;
     fertilizing: boolean;
@@ -267,7 +206,6 @@ export interface PlantRecord extends BaseRecord {
   };
 }
 
-// src/types/database.ts - Add the missing fields
 export interface VarietyRecord extends TimestampedRecord {
   name: string;
   category: PlantCategory;
@@ -286,8 +224,8 @@ export interface VarietyRecord extends TimestampedRecord {
     };
   };
   isCustom?: boolean;
-  isEverbearing?: boolean; // ← ADD THIS
-  productiveLifespan?: number; // ← ADD THIS
+  isEverbearing?: boolean;
+  productiveLifespan?: number;
 }
 
 export interface CareRecord extends BaseRecord {
@@ -297,6 +235,7 @@ export interface CareRecord extends BaseRecord {
   details: CareActivityDetails;
   updatedAt: Date;
 }
+
 export interface BypassLogRecord {
   id?: string;
   taskId: string;
@@ -308,17 +247,6 @@ export interface BypassLogRecord {
   dueDate: Date;
   moistureLevel?: number;
   weatherConditions?: string;
-}
-
-export interface SyncQueueRecord {
-  id: string;
-  table: "plants" | "varieties" | "careActivities";
-  operation: "create" | "update" | "delete";
-  recordId: string;
-  data?: string;
-  timestamp: Date;
-  synced: boolean;
-  retryCount?: number;
 }
 
 export interface TaskBypassRecord extends BaseRecord {
@@ -361,6 +289,8 @@ export interface CareActivityRecord extends BaseRecord {
   date: Date;
   details: CareActivityDetails;
 }
+
+// Dexie Database class
 class SmartGardenDatabase extends Dexie {
   plants!: Table<PlantRecord>;
   varieties!: Table<VarietyRecord>;
@@ -368,10 +298,10 @@ class SmartGardenDatabase extends Dexie {
   bypassLog!: Table<BypassLogRecord>;
   taskBypasses!: Table<TaskBypassRecord>;
   taskCompletions!: Table<TaskCompletionRecord>;
-  syncQueue!: Table<SyncQueueRecord>;
 
   constructor() {
     super("SmartGardenDatabase");
+
     this.version(3).stores({
       plants: "++id, varietyId, isActive, plantedDate",
       varieties: "++id, name, category",
@@ -380,35 +310,24 @@ class SmartGardenDatabase extends Dexie {
       taskBypasses: "++id, taskId, plantId, taskType, bypassDate",
       taskCompletions:
         "++id, plantId, taskType, scheduledDate, actualCompletionDate",
-      syncQueue: "++id, table, operation, recordId, timestamp",
     });
-  }
 
-  async addToSyncQueue(
-    table: SyncQueueRecord["table"],
-    operation: SyncQueueRecord["operation"],
-    recordId: string,
-    data?: unknown
-  ): Promise<void> {
-    try {
-      await this.syncQueue.add({
-        id: uuidv4(),
-        table,
-        operation,
-        recordId,
-        data: data ? JSON.stringify(data) : undefined,
-        timestamp: new Date(),
-        synced: false,
-      });
-    } catch (error) {
-      console.error("Failed to add to sync queue:", error);
-    }
+    // Version 4: Remove sync queue
+    this.version(4).stores({
+      plants: "++id, varietyId, isActive, plantedDate",
+      varieties: "++id, name, category",
+      careActivities: "++id, plantId, type, date",
+      bypassLog: "++id, plantId, taskType, bypassedAt",
+      taskBypasses: "++id, taskId, plantId, taskType, bypassDate",
+      taskCompletions:
+        "++id, plantId, taskType, scheduledDate, actualCompletionDate",
+    });
   }
 }
 
 export const db = new SmartGardenDatabase();
 
-// Services remain largely the same but with updated types
+// Plant service
 export const plantService = {
   async addPlant(
     plant: Omit<PlantRecord, "id" | "createdAt" | "updatedAt">
@@ -422,13 +341,16 @@ export const plantService = {
       updatedAt: now,
     };
 
-    await db.plants.add(fullPlant);
-    await db.addToSyncQueue("plants", "create", id, fullPlant);
-    return id;
+    try {
+      await db.plants.add(fullPlant);
+      return id;
+    } catch (error) {
+      console.error("Failed to add plant:", error);
+      throw error;
+    }
   },
 
   async getActivePlants(): Promise<PlantRecord[]> {
-    // Use memory filtering to avoid Dexie boolean indexing issues
     const allPlants = await db.plants.toArray();
     return allPlants.filter((plant) => plant.isActive === true);
   },
@@ -447,19 +369,18 @@ export const plantService = {
     };
 
     await db.plants.update(id, updateData);
-    await db.addToSyncQueue("plants", "update", id, updateData);
   },
 
   async deletePlant(id: string): Promise<void> {
     const updateData = { isActive: false, updatedAt: new Date() };
     await db.plants.update(id, updateData);
-    await db.addToSyncQueue("plants", "delete", id, updateData);
   },
 };
 
+// Variety service
 export const varietyService = {
   async addVariety(
-    variety: Omit<VarietyRecord, "id" | "createdAt"> // Remove createdAt from required input
+    variety: Omit<VarietyRecord, "id" | "createdAt">
   ): Promise<string> {
     const existingVariety = await db.varieties
       .where("name")
@@ -474,48 +395,75 @@ export const varietyService = {
     }
 
     const id = uuidv4();
+    const now = new Date();
     const fullVariety: VarietyRecord = {
       ...variety,
       id,
-      createdAt: new Date(), // Add createdAt here automatically
+      createdAt: now,
     };
 
-    await db.varieties.add(fullVariety);
-    await db.addToSyncQueue("varieties", "create", id, fullVariety);
-    return id;
+    try {
+      await db.varieties.add(fullVariety);
+      return id;
+    } catch (error) {
+      console.error("Failed to add variety:", error);
+      throw error;
+    }
   },
+  async getVarietyByName(name: string): Promise<VarietyRecord | undefined> {
+    return db.varieties.where("name").equals(name).first();
+  },
+  async getUniqueVarieties(): Promise<VarietyRecord[]> {
+    const allVarieties = await db.varieties.toArray();
 
-  async getAllVarieties(): Promise<VarietyRecord[]> {
-    return db.varieties.toArray();
+    // Remove duplicates by name, keeping the first occurrence
+    const uniqueVarieties = allVarieties.filter(
+      (variety, index, self) =>
+        index === self.findIndex((v) => v.name === variety.name)
+    );
+
+    return uniqueVarieties;
   },
 
   async getVariety(id: string): Promise<VarietyRecord | undefined> {
     return db.varieties.get(id);
   },
 
-  async getVarietyByName(name: string): Promise<VarietyRecord | undefined> {
-    return db.varieties.where("name").equals(name).first();
+  async getAllVarieties(): Promise<VarietyRecord[]> {
+    return db.varieties.toArray();
+  },
+
+  async getVarietiesByCategory(
+    category: PlantCategory
+  ): Promise<VarietyRecord[]> {
+    return db.varieties.where("category").equals(category).toArray();
   },
 };
 
+// Care service
 export const careService = {
   async addCareActivity(
-    activity: Omit<CareRecord, "id" | "createdAt">
+    activity: Omit<CareRecord, "id" | "createdAt" | "updatedAt">
   ): Promise<string> {
     const id = uuidv4();
+    const now = new Date();
     const fullActivity: CareRecord = {
       ...activity,
       id,
-      createdAt: new Date(),
-      updatedAt: new Date(),
+      createdAt: now,
+      updatedAt: now,
     };
 
-    await db.careActivities.add(fullActivity);
-    await db.addToSyncQueue("careActivities", "create", id, fullActivity);
-    return id;
+    try {
+      await db.careActivities.add(fullActivity);
+      return id;
+    } catch (error) {
+      console.error("Failed to add care activity:", error);
+      throw error;
+    }
   },
 
-  async getLastCareActivityByType(
+  async getLastActivityByType(
     plantId: string,
     type: CareActivityType
   ): Promise<CareRecord | null> {

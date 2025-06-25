@@ -1,303 +1,295 @@
-// src/__tests__/components/Dashboard.test.tsx
-import { screen, waitFor } from "@testing-library/react";
+import { screen, waitFor, render } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import Dashboard from "../../pages/dashboard";
-import { CareSchedulingService } from "@/services/careSchedulingService";
-import { SmartDefaultsService } from "@/services/smartDefaultsService";
-import { TaskGroupingService } from "@/services/taskGroupingService";
-import { renderWithProviders, mockPlantData } from "../utils/testHelpers";
-import { plantService } from "@/types";
+import { MemoryRouter } from "react-router-dom";
+import { User } from "firebase/auth";
+import { Dashboard } from "@/pages/dashboard";
+import { PlantRecord } from "@/types/database";
+
+// --- MOCKS ---
+jest.mock("@/hooks/useFirebaseAuth", () => ({
+  useFirebaseAuth: jest.fn(),
+}));
+
+jest.mock("@/hooks/useFirebasePlants", () => ({
+  useFirebasePlants: jest.fn(),
+}));
+
+const mockLogActivity = jest.fn();
+jest.mock("@/hooks/useFirebaseCareActivities", () => ({
+  useFirebaseCareActivities: () => ({
+    logActivity: mockLogActivity,
+  }),
+}));
+
+jest.mock("@/components/Navigation", () => ({
+  __esModule: true,
+  default: () => <div data-testid="navigation">Navigation</div>,
+}));
+
+jest.mock("@/components/ui/OfflineIndicator", () => ({
+  OfflineIndicator: () => (
+    <div data-testid="offline-indicator">Offline Indicator</div>
+  ),
+}));
+
+jest.mock("react-hot-toast", () => ({
+  __esModule: true,
+  default: {
+    success: jest.fn(),
+    error: jest.fn(),
+  },
+  // Also provide the named export if it's used directly
+  toast: {
+    success: jest.fn(),
+    error: jest.fn(),
+  },
+}));
+
+import { useFirebaseAuth } from "@/hooks/useFirebaseAuth";
+import { useFirebasePlants } from "@/hooks/useFirebasePlants";
+
+const mockUseFirebaseAuth = useFirebaseAuth as jest.Mock;
+const mockUseFirebasePlants = useFirebasePlants as jest.Mock;
 
 const mockNavigate = jest.fn();
 jest.mock("react-router-dom", () => ({
   ...jest.requireActual("react-router-dom"),
   useNavigate: () => mockNavigate,
 }));
+// --- END MOCKS ---
 
-jest.mock("@/hooks/useFirstTimeUser", () => ({
-  useFirstTimeUser: jest.fn(),
-}));
-import { useFirstTimeUser } from "@/hooks/useFirstTimeUser";
-const mockUseFirstTimeUser = useFirstTimeUser as jest.MockedFunction<
-  typeof useFirstTimeUser
->;
+const renderWithRouter = (
+  ui: React.ReactElement,
+  { initialEntries = ["/"] } = {}
+) => {
+  return render(
+    <MemoryRouter initialEntries={initialEntries}>{ui}</MemoryRouter>
+  );
+};
 
-// Mock the services directly instead of importing them
-jest.mock("@/types/database", () => ({
-  plantService: {
-    getActivePlants: jest.fn(),
-    addPlant: jest.fn(),
-    getPlant: jest.fn(),
-    updatePlant: jest.fn(),
-    deletePlant: jest.fn(),
-  },
-  varietyService: {
-    getAllVarieties: jest.fn(),
-    getVariety: jest.fn(),
-    getVarietyByName: jest.fn(),
-    addVariety: jest.fn(),
-  },
-  careService: {
-    addCareActivity: jest.fn(),
-    getLastCareActivityByType: jest.fn(),
-    getPlantCareHistory: jest.fn(),
-    getRecentActivities: jest.fn(),
-  },
-  db: {},
-}));
+const createMockFirebaseUser = (overrides?: Partial<User>): User =>
+  ({
+    uid: "test-user-id",
+    email: "test@example.com",
+    emailVerified: true,
+    displayName: "Test User",
+    isAnonymous: false,
+    metadata: {
+      creationTime: "2024-01-01T00:00:00.000Z",
+      lastSignInTime: "2024-01-01T00:00:00.000Z",
+    },
+    providerData: [],
+    refreshToken: "mock-refresh-token",
+    tenantId: null,
+    delete: jest.fn(),
+    getIdToken: jest.fn(),
+    getIdTokenResult: jest.fn(),
+    reload: jest.fn(),
+    toJSON: jest.fn(),
+    phoneNumber: null,
+    photoURL: null,
+    providerId: "firebase",
+    ...overrides,
+  } as User);
 
-jest.mock("@/services/smartDefaultsService", () => ({
-  SmartDefaultsService: {
-    getQuickCompletionOptions: jest.fn(),
-    getDefaultsForPlant: jest.fn(),
-  },
-}));
-
-jest.mock("@/services/careSchedulingService", () => ({
-  CareSchedulingService: {
-    getUpcomingTasks: jest.fn(),
-    getNextTaskForPlant: jest.fn(),
-    getTasksForPlant: jest.fn(),
-  },
-}));
-
-jest.mock("@/services/taskGroupingService", () => ({
-  TaskGroupingService: {
-    groupTasksByActivity: jest.fn(),
-    shouldExpandGroup: jest.fn(),
-  },
-}));
-
-jest.mock("@/services/bypassAnalyticsService", () => ({
-  BypassAnalyticsService: {
-    recordBypass: jest.fn(),
-    getBypassAnalytics: jest.fn(),
-  },
-}));
-
-// Import the mocked services
-const mockCareSchedulingService = CareSchedulingService as jest.Mocked<
-  typeof CareSchedulingService
->;
-const mockSmartDefaultsService = SmartDefaultsService as jest.Mocked<
-  typeof SmartDefaultsService
->;
-const mockTaskGroupingService = TaskGroupingService as jest.Mocked<
-  typeof TaskGroupingService
->;
-
-// Import the mocked plantService after mocking
-const mockPlantService = plantService as jest.Mocked<typeof plantService>;
+const createMockPlant = (overrides: Partial<PlantRecord>): PlantRecord => ({
+  id: `plant-${Math.random()}`,
+  varietyId: "tomato-1",
+  varietyName: "Cherry Tomato",
+  name: "My Tomato",
+  plantedDate: new Date("2024-05-10T00:00:00.000Z"),
+  location: "Indoor",
+  container: "5 Gallon Grow Bag",
+  soilMix: "standard-mix",
+  isActive: true,
+  createdAt: new Date(),
+  updatedAt: new Date(),
+  ...overrides,
+});
 
 describe("Dashboard", () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    mockSmartDefaultsService.getQuickCompletionOptions.mockResolvedValue([]);
-    mockTaskGroupingService.groupTasksByActivity.mockReturnValue([]);
-    mockUseFirstTimeUser.mockReturnValue({
-      isFirstTime: false,
-      isLoading: false,
-      markOnboardingComplete: jest.fn(),
+    mockUseFirebaseAuth.mockReturnValue({
+      user: createMockFirebaseUser(),
+      loading: false,
+      error: null,
+      signIn: jest.fn(),
+      signUp: jest.fn(),
+      signOut: jest.fn(),
+      resetPassword: jest.fn(),
+    });
+    mockUseFirebasePlants.mockReturnValue({
+      plants: [],
+      loading: false,
+      error: null,
+      createPlant: jest.fn(),
+      updatePlant: jest.fn(),
+      deletePlant: jest.fn(),
+    });
+    mockLogActivity.mockResolvedValue(undefined);
+  });
+
+  describe("Loading State", () => {
+    it("displays loading state when Firebase plants hook is loading", () => {
+      mockUseFirebasePlants.mockReturnValue({
+        plants: [],
+        loading: true,
+        error: null,
+        createPlant: jest.fn(),
+        updatePlant: jest.fn(),
+        deletePlant: jest.fn(),
+      });
+
+      renderWithRouter(<Dashboard />);
+
+      expect(screen.getByText("Loading...")).toBeInTheDocument();
     });
   });
 
-  describe("Data Display", () => {
-    it("displays multiple plants and tasks correctly", async () => {
-      const mockTasks = [
-        {
-          id: "task-1",
-          plantId: "plant-1",
-          name: "My Arugula",
-          task: "Check water level",
-          dueIn: "Due in 1 day",
-          plantStage: "vegetative" as const,
-          dueDate: new Date(),
-          priority: "high" as const,
-          canBypass: true,
-        },
-        {
-          id: "task-2",
-          plantId: "plant-2",
-          name: "Spinach Plant",
-          task: "Fertilize",
-          dueIn: "Due today",
-          plantStage: "mature" as const,
-          dueDate: new Date(),
-          priority: "medium" as const,
-          canBypass: true,
-        },
-      ];
-
-      const mockTaskGroups = [
-        {
-          type: "watering" as const,
-          title: "Watering",
-          emoji: "💧",
-          tasks: [mockTasks[0]],
-          isExpanded: true,
-        },
-        {
-          type: "fertilizing" as const,
-          title: "Fertilizing",
-          emoji: "🌱",
-          tasks: [mockTasks[1]],
-          isExpanded: true,
-        },
-      ];
-
-      const testPlants = [
-        {
-          ...mockPlantData[0],
-          id: "plant-1",
-          name: "My Arugula",
-        },
-        {
-          ...(mockPlantData[1] || mockPlantData[0]),
-          id: "plant-2",
-          name: "Spinach Plant",
-        },
-      ];
-
-      mockPlantService.getActivePlants.mockResolvedValue(testPlants);
-      mockCareSchedulingService.getUpcomingTasks.mockResolvedValue(mockTasks);
-      mockTaskGroupingService.groupTasksByActivity.mockReturnValue(
-        mockTaskGroups
-      );
-
-      renderWithProviders(<Dashboard />);
-
-      await waitFor(() => {
-        expect(screen.getByText("Your Garden Dashboard")).toBeInTheDocument();
+  describe("Authentication", () => {
+    it("displays user information when authenticated", () => {
+      mockUseFirebasePlants.mockReturnValue({
+        plants: [createMockPlant({ id: "p1" })],
+        loading: false,
+        error: null,
+        createPlant: jest.fn(),
+        updatePlant: jest.fn(),
+        deletePlant: jest.fn(),
       });
 
-      await waitFor(() => {
-        expect(screen.getByText("My Arugula")).toBeInTheDocument();
-        expect(screen.getByText("Spinach Plant")).toBeInTheDocument();
-      });
+      renderWithRouter(<Dashboard />);
 
-      expect(screen.getByText("2 active plants growing")).toBeInTheDocument();
-      expect(screen.getByText("Watering")).toBeInTheDocument();
-      expect(screen.getByText("Fertilizing")).toBeInTheDocument();
+      expect(screen.getByText("SmartGarden")).toBeInTheDocument();
+      expect(screen.getByText("Welcome, Test User")).toBeInTheDocument();
+      expect(
+        screen.getByRole("button", { name: "Sign Out" })
+      ).toBeInTheDocument();
     });
 
-    it("handles empty state correctly", async () => {
-      mockPlantService.getActivePlants.mockResolvedValue([]);
-      mockCareSchedulingService.getUpcomingTasks.mockResolvedValue([]);
-
-      renderWithProviders(<Dashboard />);
-
-      await waitFor(() => {
-        expect(screen.getByText("Welcome to SmartGarden!")).toBeInTheDocument();
-        expect(
-          screen.getByText("You don't have any plants yet. Let's get started!")
-        ).toBeInTheDocument();
-        expect(screen.getByText("Add Your First Plant")).toBeInTheDocument();
-      });
-    });
-
-    it("displays urgent tasks with proper styling", async () => {
-      const urgentTask = {
-        id: "urgent-task",
-        plantId: "test-plant-1",
-        name: "My Arugula",
-        task: "Check water level",
-        dueIn: "overdue by 1 day",
-        plantStage: "vegetative" as const,
-        dueDate: new Date(),
-        priority: "high" as const,
-        canBypass: true,
-      };
-
-      const testPlant = {
-        ...mockPlantData[0],
-        id: "test-plant-1",
-        name: "My Arugula",
-      };
-
-      mockPlantService.getActivePlants.mockResolvedValue([testPlant]);
-      mockCareSchedulingService.getUpcomingTasks.mockResolvedValue([
-        urgentTask,
-      ]);
-
-      renderWithProviders(<Dashboard />);
-
-      await waitFor(() => {
-        expect(screen.getByText("Your Garden Dashboard")).toBeInTheDocument();
+    it("calls signOut when sign out button is clicked", async () => {
+      const mockSignOut = jest.fn();
+      mockUseFirebaseAuth.mockReturnValue({
+        user: createMockFirebaseUser(),
+        loading: false,
+        error: null,
+        signIn: jest.fn(),
+        signUp: jest.fn(),
+        signOut: mockSignOut,
+        resetPassword: jest.fn(),
       });
 
-      await waitFor(() => {
-        expect(screen.getByText("Quick Actions")).toBeInTheDocument();
-      });
+      renderWithRouter(<Dashboard />);
+
+      const signOutButton = screen.getByRole("button", { name: "Sign Out" });
+      await userEvent.click(signOutButton);
+
+      expect(mockSignOut).toHaveBeenCalledTimes(1);
     });
   });
 
-  describe("Error Handling", () => {
-    // In Dashboard.test.tsx, update the "displays error state when service fails" test:
-    it("displays error state when service fails", async () => {
-      mockPlantService.getActivePlants.mockRejectedValue(
-        new Error("Database error")
-      );
+  describe("Empty State / Welcome", () => {
+    it("displays welcome message when no plants exist", () => {
+      renderWithRouter(<Dashboard />);
 
-      renderWithProviders(<Dashboard />);
-
-      await waitFor(() => {
-        expect(screen.getByText("Database error")).toBeInTheDocument(); // Changed this line
-        expect(screen.getByText("Try Again")).toBeInTheDocument();
-      });
+      expect(screen.getByText("Welcome to SmartGarden!")).toBeInTheDocument();
+      expect(
+        screen.getByText(
+          "Start your gardening journey by adding your first plant. Track growth, log care activities, and get personalized recommendations."
+        )
+      ).toBeInTheDocument();
+      expect(
+        screen.getByRole("button", { name: "🌿 Add Your First Plant" })
+      ).toBeInTheDocument();
     });
 
-    it("retries when error state try again button is clicked", async () => {
-      const errorMessage = "Database error";
-      mockPlantService.getActivePlants
-        .mockRejectedValueOnce(new Error(errorMessage))
-        .mockResolvedValueOnce([mockPlantData[0]]);
-      mockCareSchedulingService.getUpcomingTasks.mockResolvedValue([]);
-
-      renderWithProviders(<Dashboard />);
-
-      await waitFor(() => {
-        expect(screen.getByText(errorMessage)).toBeInTheDocument();
+    it("navigates to add plant page when 'Add Your First Plant' is clicked", async () => {
+      renderWithRouter(<Dashboard />);
+      const addPlantButton = screen.getByRole("button", {
+        name: "🌿 Add Your First Plant",
       });
+      await userEvent.click(addPlantButton);
 
-      const tryAgainButton = screen.getByText("Try Again");
-      await userEvent.click(tryAgainButton);
-
-      await waitFor(() => {
-        expect(screen.getByText("Your Garden Dashboard")).toBeInTheDocument();
-      });
+      expect(mockNavigate).toHaveBeenCalledWith("/add-plant");
     });
+  });
 
-    it("handles errors gracefully when task enhancement fails", async () => {
-      const testPlant = {
-        ...mockPlantData[0],
-        id: "test-plant-1",
-        name: "My Arugula",
-      };
+  describe("Plant Grouping and Bulk Actions", () => {
+    const groupedPlants = [
+      createMockPlant({ id: "p1", name: "Tomato 1" }),
+      createMockPlant({ id: "p2", name: "Tomato 2" }),
+    ];
 
-      const testTask = {
-        id: "task-1",
-        plantId: "test-plant-1",
-        name: "My Arugula",
-        task: "Check water level",
-        dueIn: "overdue by 1 day",
-        plantStage: "vegetative" as const,
-        dueDate: new Date(),
-        priority: "high" as const,
-        canBypass: true,
-      };
-
-      mockPlantService.getActivePlants.mockResolvedValue([testPlant]);
-      mockCareSchedulingService.getUpcomingTasks.mockResolvedValue([testTask]);
-
-      mockSmartDefaultsService.getQuickCompletionOptions.mockRejectedValue(
-        new Error("Smart defaults error")
-      );
-
-      renderWithProviders(<Dashboard />);
-
-      await waitFor(() => {
-        expect(screen.getByText("Your Garden Dashboard")).toBeInTheDocument();
+    it("should render a plant group card and allow bulk logging", async () => {
+      mockUseFirebasePlants.mockReturnValue({
+        plants: groupedPlants,
+        loading: false,
+        error: null,
       });
+
+      const user = userEvent.setup();
+      renderWithRouter(<Dashboard />);
+
+      // Wait for the group card to appear
+      await waitFor(() => {
+        expect(screen.getByText("Cherry Tomato")).toBeInTheDocument();
+      });
+
+      const groupCardText = await screen.findByText("2 plants");
+      expect(groupCardText).toBeInTheDocument();
+
+      // Expand the bulk actions menu
+      const logAllButton = await screen.findByRole("button", {
+        name: /Log All/i,
+      });
+      await user.click(logAllButton);
+
+      // Click the "Water All" button from the expanded menu
+      const waterAllButton = await screen.findByRole("button", {
+        name: /Water All/i,
+      });
+      await user.click(waterAllButton);
+
+      // Assert that the modal opens
+      await waitFor(() => {
+        expect(screen.getByText("💧 Water All Plants")).toBeInTheDocument();
+      });
+
+      // Fill and submit the modal - now using the corrected label
+      const amountInput = screen.getByLabelText(/Amount \(oz\)/i);
+      await user.clear(amountInput);
+      await user.type(amountInput, "100");
+
+      const submitButton = screen.getByRole("button", {
+        name: /Log Activity for All 2 Plants/i,
+      });
+      await user.click(submitButton);
+
+      // Verify the activity was logged for both plants
+      await waitFor(() => {
+        expect(mockLogActivity).toHaveBeenCalledTimes(2);
+        expect(mockLogActivity).toHaveBeenCalledWith(
+          expect.objectContaining({
+            plantId: "p1",
+            type: "water",
+            details: expect.objectContaining({
+              amount: { value: 100, unit: "oz" },
+            }),
+          })
+        );
+        expect(mockLogActivity).toHaveBeenCalledWith(
+          expect.objectContaining({
+            plantId: "p2",
+            type: "water",
+            details: expect.objectContaining({
+              amount: { value: 100, unit: "oz" },
+            }),
+          })
+        );
+      });
+
+      // Check that the modal closed after submission
+      expect(screen.queryByText("💧 Water All Plants")).not.toBeInTheDocument();
     });
   });
 });

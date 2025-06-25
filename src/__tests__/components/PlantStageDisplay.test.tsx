@@ -20,7 +20,6 @@ describe("PlantStageDisplay", () => {
     varietyName: "Test Variety",
     name: "Test Plant",
     plantedDate: new Date(),
-    currentStage: "vegetative",
     location: "Indoor",
     container: "5 gallon",
     isActive: true,

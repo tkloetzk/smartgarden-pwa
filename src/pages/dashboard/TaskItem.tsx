@@ -55,6 +55,7 @@ const TaskItem: React.FC<TaskItemProps> = ({
     setIsLoading(true);
     try {
       await onBypass(task.id, bypassReason);
+
       setBypassSubmitted(true);
 
       setTimeout(() => {

@@ -36,21 +36,26 @@ const CareActivityItem: React.FC<CareActivityItemProps> = ({ activity }) => {
 
   const getActivityTitle = (activity: CareRecord): string => {
     switch (activity.type) {
-      case "water":
+      case "water": {
         const waterDetails = activity.details as WateringDetails;
         return `Watering (${waterDetails.amount.value} ${waterDetails.amount.unit})`;
-      case "fertilize":
+      }
+      case "fertilize": {
         const fertilizeDetails = activity.details as FertilizingDetails;
         return `Fertilized with ${fertilizeDetails.product}`;
-      case "observe":
+      }
+      case "observe": {
         const observeDetails = activity.details as ObservationDetails;
         return `Health Check (${observeDetails.healthAssessment})`;
-      case "harvest":
+      }
+      case "harvest": {
         const harvestDetails = activity.details as HarvestDetails;
         return `Harvested ${harvestDetails.amount}`;
-      case "transplant":
+      }
+      case "transplant": {
         const transplantDetails = activity.details as TransplantDetails;
         return `Transplanted to ${transplantDetails.toContainer}`;
+      }
       default:
         return "Care Activity";
     }
@@ -58,7 +63,7 @@ const CareActivityItem: React.FC<CareActivityItemProps> = ({ activity }) => {
 
   const renderActivityDetails = (activity: CareRecord) => {
     switch (activity.type) {
-      case "water":
+      case "water": {
         const waterDetails = activity.details as WateringDetails;
         return (
           <div className="space-y-2">
@@ -103,8 +108,9 @@ const CareActivityItem: React.FC<CareActivityItemProps> = ({ activity }) => {
             )}
           </div>
         );
+      }
 
-      case "fertilize":
+      case "fertilize": {
         const fertilizeDetails = activity.details as FertilizingDetails;
         return (
           <div className="space-y-2">
@@ -130,8 +136,8 @@ const CareActivityItem: React.FC<CareActivityItemProps> = ({ activity }) => {
             </div>
           </div>
         );
-
-      case "observe":
+      }
+      case "observe": {
         const observeDetails = activity.details as ObservationDetails;
         return (
           <div className="space-y-2">
@@ -161,8 +167,9 @@ const CareActivityItem: React.FC<CareActivityItemProps> = ({ activity }) => {
             )}
           </div>
         );
+      }
 
-      case "harvest":
+      case "harvest": {
         const harvestDetails = activity.details as HarvestDetails;
         return (
           <div className="space-y-2">
@@ -190,8 +197,9 @@ const CareActivityItem: React.FC<CareActivityItemProps> = ({ activity }) => {
             )}
           </div>
         );
+      }
 
-      case "transplant":
+      case "transplant": {
         const transplantDetails = activity.details as TransplantDetails;
         return (
           <div className="space-y-2">
@@ -211,6 +219,7 @@ const CareActivityItem: React.FC<CareActivityItemProps> = ({ activity }) => {
             </div>
           </div>
         );
+      }
 
       default:
         return null;

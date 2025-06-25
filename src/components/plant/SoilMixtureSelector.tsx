@@ -1,13 +1,12 @@
 // src/components/plant/SoilMixtureSelector.tsx
 import { useState } from "react";
+import { PlantCategory } from "@/types";
 import { Button } from "@/components/ui/Button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
-import { PlantCategory } from "@/types";
 
 interface SoilComponent {
   name: string;
   percentage: number;
-  description?: string;
 }
 
 interface SoilMixture {
@@ -68,42 +67,37 @@ const PRESET_MIXTURES: SoilMixture[] = [
     description: "Well-draining, lean mix for oregano, thyme, and rosemary",
     category: "herbs",
     components: [
-      { name: "Coco Coir", percentage: 40 },
-      { name: "Perlite", percentage: 30 },
-      { name: "Coarse Sand", percentage: 20 },
-      { name: "Vermiculite", percentage: 10 },
+      { name: "Coco Coir", percentage: 30 },
+      { name: "Perlite", percentage: 35 },
+      { name: "Sand", percentage: 20 },
+      { name: "Vermiculite", percentage: 15 },
     ],
-    amendments: [
-      { name: "Compost", amount: "0.5 tbsp per container" },
-      { name: "Crushed Oyster Shell", amount: "0.5 tsp per container" },
-    ],
-    suitable: ["Oregano", "Thyme", "Rosemary", "Basil"],
-    notes: ["Lean conditions concentrate flavors", "Excellent drainage"],
+    amendments: [{ name: "Lime", amount: "1 tsp per gallon" }],
+    suitable: ["Oregano", "Thyme", "Rosemary", "Sage"],
+    notes: ["Slightly alkaline", "Fast draining"],
   },
   {
     id: "berries-standard",
     name: "Berry & Fruit Mix",
-    description: "Acid-loving plants blend with excellent drainage",
+    description: "Acidic mix designed for strawberries and berry plants",
     category: "berries",
     components: [
-      { name: "Coco Coir", percentage: 35 },
-      { name: "Perlite", percentage: 25 },
-      { name: "Compost", percentage: 20 },
+      { name: "Peat Moss", percentage: 35 },
+      { name: "Coco Coir", percentage: 30 },
+      { name: "Perlite", percentage: 20 },
       { name: "Worm Castings", percentage: 15 },
-      { name: "Vermiculite", percentage: 5 },
     ],
     amendments: [
-      { name: "Bone Meal", amount: "1 tbsp per gallon" },
-      { name: "Rock Dust", amount: "¼ cup per 5-gal bag" },
+      { name: "Sulfur", amount: "½ tsp per gallon (for acidity)" },
+      { name: "Fish Emulsion", amount: "1 tbsp per gallon monthly" },
     ],
     suitable: ["Strawberries", "Blueberries", "Raspberries"],
-    notes: ["Slightly acidic pH", "Rich in organic matter"],
+    notes: ["pH 5.5-6.5", "High organic matter"],
   },
   {
     id: "fruiting-plants-standard",
     name: "Fruiting Plants Mix",
-    description:
-      "Nutrient-dense mix for tomatoes, peppers, and climbing plants",
+    description: "Heavy-feeder mix for tomatoes, peppers, and eggplants",
     category: "fruiting-plants",
     components: [
       { name: "Coco Coir", percentage: 35 },
@@ -146,10 +140,8 @@ export const SoilMixtureSelector = ({
   const [showCustom, setShowCustom] = useState(false);
   const [customMixture, setCustomMixture] = useState("");
 
-  // In SoilMixtureSelector.tsx - fix the getRelevantMixtures function
   const getRelevantMixtures = () => {
     if (!plantCategory) {
-      // When no category is provided, return all mixtures without duplicates
       return PRESET_MIXTURES;
     }
 
@@ -191,7 +183,7 @@ export const SoilMixtureSelector = ({
     <div className="space-y-4">
       <div>
         <label className="block text-sm font-medium text-foreground mb-2">
-          Soil Mixture
+          Soil Mixture *
         </label>
         <p className="text-xs text-muted-foreground mb-3">
           Choose a preset mixture or create your own custom blend
@@ -208,8 +200,8 @@ export const SoilMixtureSelector = ({
                 data-testid={`mixture-card-${mixture.id}`}
                 className={`cursor-pointer transition-all border rounded-lg shadow-sm ${
                   selectedMixture?.includes(mixture.name)
-                    ? "ring-4 ring-green-500 bg-green-100 border-green-300 shadow-lg"
-                    : "bg-card border-border hover:bg-background hover:shadow-md"
+                    ? "ring-4 ring-ring bg-muted border-ring shadow-lg" // ✅ FIXED: Using semantic colors
+                    : "bg-card border-border hover:bg-muted/50 hover:shadow-md"
                 }`}
                 onClick={() => handlePresetSelect(mixture.id)}
               >
@@ -218,11 +210,11 @@ export const SoilMixtureSelector = ({
                     <div className="flex-1">
                       <div className="font-medium text-foreground mb-1 flex items-center">
                         {selectedMixture?.includes(mixture.name) && (
-                          <span className="mr-2 text-green-600 text-lg">✓</span>
+                          <span className="mr-2 text-primary text-lg">✓</span>
                         )}
                         {mixture.name}
                         {mixture.category === plantCategory && (
-                          <span className="ml-2 text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full">
+                          <span className="ml-2 text-xs bg-primary/10 text-primary px-2 py-1 rounded-full">
                             Recommended
                           </span>
                         )}
@@ -255,7 +247,7 @@ export const SoilMixtureSelector = ({
             ))}
           </div>
 
-          {/* Custom Option Button */}
+          {/* Custom Mixture Button */}
           <Button
             type="button"
             variant="primary"
@@ -266,7 +258,7 @@ export const SoilMixtureSelector = ({
           </Button>
         </>
       ) : (
-        /* Custom Mixture Input */
+        /* Custom Mixture Form */
         <Card>
           <CardHeader>
             <CardTitle className="text-lg">Custom Soil Mixture</CardTitle>
@@ -277,48 +269,61 @@ export const SoilMixtureSelector = ({
           <CardContent className="space-y-4">
             <div>
               <label
-                htmlFor="mixtureDescription"
+                htmlFor="custom-mixture"
                 className="block text-sm font-medium text-foreground mb-2"
               >
                 Mixture Description
               </label>
               <textarea
-                id="mixtureDescription"
+                id="custom-mixture"
                 value={customMixture}
                 onChange={(e) => setCustomMixture(e.target.value)}
                 placeholder="e.g., 40% coco coir, 30% perlite, 25% vermiculite, 5% compost"
-                className="w-full p-3 border border-border rounded-md w-full p-3 bg-card text-card-foreground border border-border rounded-md focus:ring-2 focus:ring-ring focus:border-ring placeholder:text-muted-foreground"
-                rows={3}
+                rows={4}
+                className="w-full p-3 bg-input text-input-foreground border border-border rounded-md focus:ring-2 focus:ring-ring focus:border-ring placeholder:text-muted-foreground"
               />
             </div>
-            <div className="flex gap-2">
+
+            <div className="flex gap-3">
               <Button
                 type="button"
+                variant="primary"
                 onClick={handleCustomSubmit}
                 disabled={!customMixture.trim()}
                 className="flex-1"
               >
-                Use This Mixture
+                Save Custom Mixture
               </Button>
               <Button
                 type="button"
                 variant="outline"
-                onClick={() => setShowCustom(false)}
+                onClick={() => {
+                  setShowCustom(false);
+                  setCustomMixture("");
+                }}
+                className="flex-1"
               >
-                Back to Presets
+                Cancel
               </Button>
             </div>
           </CardContent>
         </Card>
       )}
 
-      {/* Currently Selected Display */}
-      {selectedMixture && (
-        <div className="p-3 bg-green-50 border border-green-200 rounded-md">
-          <div className="text-sm font-medium text-green-800 mb-1">
+      {/* Selected Mixture Display */}
+      {selectedMixture && !showCustom && (
+        <div className="p-3 bg-muted border border-border rounded-md">
+          {" "}
+          {/* ✅ FIXED: Using semantic colors */}
+          <div className="text-sm font-medium text-foreground mb-1">
+            {" "}
+            {/* ✅ FIXED: Using semantic colors */}
             Selected Mixture:
           </div>
-          <div className="text-sm text-green-700">{selectedMixture}</div>
+          <div className="text-sm text-muted-foreground">
+            {selectedMixture}
+          </div>{" "}
+          {/* ✅ FIXED: Using semantic colors */}
         </div>
       )}
     </div>

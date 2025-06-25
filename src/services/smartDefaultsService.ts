@@ -431,7 +431,7 @@ export class SmartDefaultsService {
     // Add repeat option from recent watering (only for full form, not dashboard)
     if (!isForDashboard) {
       try {
-        const recentWatering = await careService.getLastCareActivityByType(
+        const recentWatering = await careService.getLastActivityByType(
           plant.id,
           "water"
         );

@@ -17,18 +17,36 @@ export interface VarietyTimeline {
   maturation: number;
 }
 
+/**
+ * Calculates the current growth stage of a plant based on its variety's timeline.
+ * This is the primary function to use for stage calculation as it handles everbearing logic.
+ * @param plantedDate - The date the plant was planted.
+ * @param variety - The VarietyRecord for the plant, containing growth timeline and everbearing info.
+ * @param currentDate - The current date to calculate from (defaults to now).
+ * @returns The calculated GrowthStage.
+ */
 export function calculateCurrentStageWithVariety(
   plantedDate: Date,
-  variety: VarietyRecord,
+  variety: VarietyRecord | undefined | null,
   currentDate: Date = new Date()
 ): GrowthStage {
+  if (!variety || !variety.growthTimeline) {
+    console.warn(
+      "❌ calculateCurrentStageWithVariety: Invalid variety data, defaulting to vegetative."
+    );
+    // Default to a safe, neutral stage if variety data is missing.
+    return "vegetative";
+  }
+
   const daysSincePlanting = differenceInDays(currentDate, plantedDate);
   const timeline = variety.growthTimeline;
 
-  if (daysSincePlanting < 0) return "germination";
-  if (daysSincePlanting < timeline.germination) return "germination";
-  if (daysSincePlanting < timeline.germination + timeline.seedling)
+  if (daysSincePlanting < 0 || daysSincePlanting < timeline.germination) {
+    return "germination";
+  }
+  if (daysSincePlanting < timeline.germination + timeline.seedling) {
     return "seedling";
+  }
   if (
     daysSincePlanting <
     timeline.germination + timeline.seedling + timeline.vegetative
@@ -40,9 +58,7 @@ export function calculateCurrentStageWithVariety(
   }
 
   if (variety.isEverbearing) {
-    // If no productive lifespan is defined, use 2 years (730 days) as default
-    // This way plants older than 2 years will transition to harvest
-    const effectiveLifespan = variety.productiveLifespan ?? 730; // 2 years default
+    const effectiveLifespan = variety.productiveLifespan ?? 730;
 
     if (daysSincePlanting >= effectiveLifespan) {
       return "harvest";
@@ -53,7 +69,14 @@ export function calculateCurrentStageWithVariety(
   }
 }
 
-// Keep the original function for backward compatibility
+/**
+ * Calculates the current growth stage based on a generic timeline.
+ * @deprecated Use calculateCurrentStageWithVariety for more accurate, variety-specific calculations.
+ * @param plantedDate The date the plant was planted.
+ * @param timeline An object defining the duration of each growth stage.
+ * @param currentDate The current date to calculate from (defaults to now).
+ * @returns The calculated GrowthStage.
+ */
 export function calculateCurrentStage(
   plantedDate: Date,
   timeline: VarietyTimeline,
@@ -72,7 +95,7 @@ export function calculateCurrentStage(
     return "vegetative";
   if (daysSincePlanting < timeline.maturation) return "flowering";
 
-  return "harvest"; // ← FIXED: was "maturation"
+  return "harvest";
 }
 
 export function getStageProgress(
@@ -106,7 +129,7 @@ export function getStageProgress(
       break;
     case "maturation":
     case "ongoing-production":
-    case "harvest": // ← Add this case
+    case "harvest":
       return 100;
   }
 

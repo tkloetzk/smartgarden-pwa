@@ -1,0 +1,282 @@
+import { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { PlantGroup } from "@/utils/plantGrouping";
+import { Button } from "@/components/ui/Button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
+import { StatusBadge } from "@/components/ui/StatusBadge";
+import { useDynamicStage } from "@/hooks/useDynamicStage"; // Add this import
+
+interface PlantGroupCardProps {
+  group: PlantGroup;
+  onBulkLogActivity: (plantIds: string[], activityType: string) => void;
+}
+
+const PlantGroupCard = ({ group, onBulkLogActivity }: PlantGroupCardProps) => {
+  const navigate = useNavigate();
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [showBulkActions, setShowBulkActions] = useState(false);
+  const [showIndividualActions, setShowIndividualActions] = useState(false);
+
+  const currentPlant = group.plants[currentIndex];
+  const hasMultiplePlants = group.plants.length > 1;
+  const calculatedStage = useDynamicStage(currentPlant);
+
+  const goToPrevious = () => {
+    setCurrentIndex((prev) =>
+      prev === 0 ? group.plants.length - 1 : prev - 1
+    );
+  };
+
+  const goToNext = () => {
+    setCurrentIndex((prev) =>
+      prev === group.plants.length - 1 ? 0 : prev + 1
+    );
+  };
+
+  const handlePlantClick = () => {
+    navigate(`/plants/${currentPlant.id}`);
+  };
+
+  const handleBulkAction = (activityType: string) => {
+    const plantIds = group.plants.map((p) => p.id);
+    onBulkLogActivity(plantIds, activityType);
+    setShowBulkActions(false);
+  };
+
+  const handleIndividualAction = (activityType: string) => {
+    onBulkLogActivity([currentPlant.id], activityType);
+    setShowIndividualActions(false);
+  };
+
+  return (
+    <Card className="hover:shadow-lg transition-shadow">
+      <CardHeader>
+        <div className="flex justify-between items-start">
+          <div className="flex-1">
+            <CardTitle className="text-lg flex items-center justify-between">
+              <span className="truncate">{currentPlant.name}</span>
+              <StatusBadge status="healthy" size="sm" />
+            </CardTitle>
+
+            {hasMultiplePlants && (
+              <div className="flex items-center gap-2 mt-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    goToPrevious();
+                  }}
+                  className="h-8 w-8 p-0"
+                >
+                  ←
+                </Button>
+                <span className="text-sm text-muted-foreground min-w-fit">
+                  {currentIndex + 1} of {group.plants.length}
+                </span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    goToNext();
+                  }}
+                  className="h-8 w-8 p-0"
+                >
+                  →
+                </Button>
+              </div>
+            )}
+          </div>
+        </div>
+      </CardHeader>
+
+      <CardContent className="space-y-4">
+        <div className="cursor-pointer space-y-2" onClick={handlePlantClick}>
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-medium bg-primary/10 text-primary px-2 py-1 rounded-full">
+              {currentPlant.varietyName}
+            </span>
+            {hasMultiplePlants && (
+              <span className="text-xs font-medium bg-secondary/50 text-secondary-foreground px-2 py-1 rounded-full">
+                {group.plants.length} plants
+              </span>
+            )}
+          </div>
+
+          <div className="grid grid-cols-2 gap-2 text-sm">
+            <div>
+              <span className="text-muted-foreground">Stage:</span>
+              <div className="font-medium text-foreground capitalize">
+                {calculatedStage.replace("-", " ")}
+              </div>
+            </div>
+            <div>
+              <span className="text-muted-foreground">Planted:</span>
+              <div className="font-medium text-foreground">
+                {currentPlant.plantedDate.toLocaleDateString()}
+              </div>
+            </div>
+          </div>
+
+          <div className="text-sm">
+            <span className="text-muted-foreground">Location:</span>
+            <span className="font-medium text-foreground ml-1">
+              {currentPlant.location || "Not specified"}
+            </span>
+          </div>
+        </div>
+
+        <div className="border-t pt-3 space-y-3">
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="text-sm font-medium text-primary">
+                  {hasMultiplePlants
+                    ? "Current Plant Actions"
+                    : "Quick Actions"}
+                </div>
+                <div className="text-xs text-muted-foreground">
+                  Log activity for {currentPlant.name}
+                </div>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setShowIndividualActions(!showIndividualActions);
+                }}
+                className="text-primary border-primary/50 hover:bg-primary/10"
+              >
+                {showIndividualActions
+                  ? "Cancel"
+                  : hasMultiplePlants
+                  ? "Log One"
+                  : "Log Care"}
+              </Button>
+            </div>
+
+            {showIndividualActions && (
+              <div className="grid grid-cols-2 gap-2">
+                <Button
+                  size="sm"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleIndividualAction("water");
+                  }}
+                  className="bg-blue-500 hover:bg-blue-600 text-white"
+                >
+                  💧 Water
+                </Button>
+                <Button
+                  size="sm"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleIndividualAction("fertilize");
+                  }}
+                  className="bg-green-500 hover:bg-green-600 text-white"
+                >
+                  🌱 Fertilize
+                </Button>
+                <Button
+                  size="sm"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleIndividualAction("observe");
+                  }}
+                  className="bg-orange-500 hover:bg-orange-600 text-white"
+                >
+                  👁️ Inspect
+                </Button>
+                <Button
+                  size="sm"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    navigate(`/log-care/${currentPlant.id}`);
+                  }}
+                  variant="outline"
+                >
+                  📝 More
+                </Button>
+              </div>
+            )}
+          </div>
+
+          {hasMultiplePlants && (
+            <div className="border-t pt-3 space-y-3">
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="text-sm font-medium text-primary">
+                    Group Actions
+                  </div>
+                  <div className="text-xs text-muted-foreground">
+                    Log activity for all {group.plants.length} plants
+                  </div>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setShowBulkActions(!showBulkActions);
+                  }}
+                  className="text-primary border-primary/50 hover:bg-primary/10"
+                >
+                  {showBulkActions ? "Cancel" : "Log All"}
+                </Button>
+              </div>
+
+              {showBulkActions && (
+                <div className="grid grid-cols-2 gap-2">
+                  <Button
+                    size="sm"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleBulkAction("water");
+                    }}
+                    className="bg-blue-500 hover:bg-blue-600 text-white"
+                  >
+                    💧 Water All
+                  </Button>
+                  <Button
+                    size="sm"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleBulkAction("fertilize");
+                    }}
+                    className="bg-green-500 hover:bg-green-600 text-white"
+                  >
+                    🌱 Fertilize All
+                  </Button>
+                  <Button
+                    size="sm"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleBulkAction("observe");
+                    }}
+                    className="bg-orange-500 hover:bg-orange-600 text-white"
+                  >
+                    👁️ Inspect All
+                  </Button>
+                  <Button
+                    size="sm"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleBulkAction("note");
+                    }}
+                    className="bg-purple-500 hover:bg-purple-600 text-white"
+                  >
+                    📝 Note All
+                  </Button>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      </CardContent>
+    </Card>
+  );
+};
+
+export default PlantGroupCard;

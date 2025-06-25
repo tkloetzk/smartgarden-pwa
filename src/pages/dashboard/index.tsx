@@ -1,411 +1,228 @@
-import { useState, useEffect, useCallback } from "react";
-import { Link, useNavigate } from "react-router-dom";
+// src/pages/dashboard/index.tsx (UPDATED)
+import { useState, useEffect } from "react";
+import Navigation from "@/components/Navigation";
 import { Button } from "@/components/ui/Button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
-import { plantService, PlantRecord, careService } from "@/types/database";
-import { CareSchedulingService } from "@/services/careSchedulingService";
-import { TaskGroupingService } from "@/services/taskGroupingService";
-import { SmartDefaultsService } from "@/services/smartDefaultsService";
-import {
-  QuickCompleteOption,
-  QuickCompletionValues,
-  TaskGroup as TaskGroupType,
-  UpcomingTask,
-} from "@/types/scheduling";
-import { getPlantDisplayName } from "@/utils/plantDisplay";
-import TaskGroup from "@/pages/dashboard/TaskGroup";
-import { useFirstTimeUser } from "@/hooks/useFirstTimeUser";
-import Welcome from "@/components/layouts/Welcome";
-import { WateringDetails, FertilizingDetails } from "@/types/database";
-import { BypassAnalysisService } from "@/services/bypassAnalysisService"; // Changed from BypassAnalysisService
-import { CareActivityType, GrowthStage } from "@/types";
-import toast from "react-hot-toast";
+import { OfflineIndicator } from "@/components/ui/OfflineIndicator";
+import { useFirebaseAuth } from "@/hooks/useFirebaseAuth";
+import { useFirebasePlants } from "@/hooks/useFirebasePlants";
+import { useNavigate } from "react-router-dom";
+import { groupPlantsByConditions, PlantGroup } from "@/utils/plantGrouping";
+import PlantGroupCard from "@/components/plant/PlantGroupCard";
+import BulkActivityModal from "@/components/plant/BulkActivityModal";
 
-interface QuickAction {
-  id: string;
-  label: string;
-  emoji: string;
-  action: () => void;
-  variant?: "primary" | "outline" | "destructive" | "secondary" | "ghost";
-  isContextual?: boolean;
-}
-
-const Dashboard = () => {
+export const Dashboard = () => {
+  const { plants, loading } = useFirebasePlants();
+  const { user, signOut } = useFirebaseAuth();
   const navigate = useNavigate();
-  const { isFirstTime, isLoading: isCheckingFirstTime } = useFirstTimeUser();
+  const [plantGroups, setPlantGroups] = useState<PlantGroup[]>([]);
 
-  const [plants, setPlants] = useState<PlantRecord[]>([]);
-  const [taskGroups, setTaskGroups] = useState<TaskGroupType[]>([]);
-  const [allTasks, setAllTasks] = useState<UpcomingTask[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  const loadDashboardData = useCallback(async () => {
-    try {
-      setIsLoading(true);
-      setError(null);
-
-      const [plantsData, rawTasks] = await Promise.all([
-        plantService.getActivePlants(),
-        CareSchedulingService.getUpcomingTasks(),
-      ]);
-
-      const enhancedTasks = await Promise.all(
-        rawTasks.map(async (task) => {
-          const plant = plantsData.find((p) => p.id === task.plantId);
-          if (!plant) {
-            return { ...task, quickCompleteOptions: [], canBypass: true };
-          }
-
-          const taskType = getTaskTypeFromName(task.task);
-          let quickOptions: QuickCompleteOption[] = [];
-
-          try {
-            // Pass isForDashboard = true to only get the main quick option
-            const options =
-              await SmartDefaultsService.getQuickCompletionOptions(
-                plant,
-                taskType,
-                true // This is for dashboard
-              );
-            quickOptions = options || [];
-          } catch (error) {
-            console.error("Failed to get quick completion options:", error);
-            quickOptions = [];
-          }
-
-          return {
-            ...task,
-            quickCompleteOptions: quickOptions,
-            canBypass: true,
-          };
-        })
-      );
-
-      const grouped = TaskGroupingService.groupTasksByActivity(enhancedTasks);
-
-      setPlants(plantsData);
-      setTaskGroups(grouped);
-      setAllTasks(enhancedTasks);
-    } catch (error) {
-      console.error("Failed to load dashboard data:", error);
-      setError(
-        error instanceof Error ? error.message : "Failed to load dashboard data"
-      );
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
+  // Bulk activity modal state
+  const [bulkModalOpen, setBulkModalOpen] = useState(false);
+  const [selectedPlantIds, setSelectedPlantIds] = useState<string[]>([]);
+  const [selectedActivityType, setSelectedActivityType] = useState("");
+  const [selectedGroup, setSelectedGroup] = useState<PlantGroup | null>(null);
 
   useEffect(() => {
-    loadDashboardData();
-  }, [loadDashboardData]);
+    if (plants && plants.length > 0) {
+      const groups = groupPlantsByConditions(plants);
+      setPlantGroups(groups);
+    } else {
+      setPlantGroups([]);
+    }
+  }, [plants]);
 
-  const getTaskTypeFromName = (taskName: string): CareActivityType => {
-    const name = taskName.toLowerCase();
-    if (name.includes("water") || name.includes("moisture")) return "water";
-    if (name.includes("fertiliz") || name.includes("feed")) return "fertilize";
-    if (name.includes("observe") || name.includes("health")) return "observe";
-    if (name.includes("harvest")) return "harvest";
-    if (name.includes("transplant")) return "transplant";
-    return "water"; // Default fallback
-  };
-
-  // Generate contextual quick actions based on current state
-  const getQuickActions = (): QuickAction[] => {
-    const actions: QuickAction[] = [];
-
-    // Contextual actions based on urgent tasks
-    const urgentTasks = allTasks.filter(
-      (task) => task.priority === "high" || task.dueIn.includes("overdue")
+  const handleBulkLogActivity = (plantIds: string[], activityType: string) => {
+    const group = plantGroups.find((g) =>
+      g.plants.some((p) => plantIds.includes(p.id))
     );
 
-    // Add contextual watering action for most urgent plant
-    const wateringTasks = urgentTasks.filter((task) =>
-      task.task.toLowerCase().includes("water")
-    );
-    if (wateringTasks.length > 0) {
-      const firstWateringTask = wateringTasks[0];
-      const plant = plants.find((p) => p.id === firstWateringTask.plantId);
-      if (plant) {
-        actions.push({
-          id: "water-urgent",
-          label: `Water ${getPlantDisplayName(plant)}`,
-          emoji: "💧",
-          action: () => navigate(`/log-care?plantId=${plant.id}&type=water`),
-          variant: "primary",
-          isContextual: true,
-        });
-      }
-    }
-
-    // Add contextual fertilizing action
-    const fertilizingTasks = urgentTasks.filter((task) =>
-      task.task.toLowerCase().includes("fertiliz")
-    );
-    if (fertilizingTasks.length > 0 && actions.length < 2) {
-      const firstFertilizingTask = fertilizingTasks[0];
-      const plant = plants.find((p) => p.id === firstFertilizingTask.plantId);
-      if (plant) {
-        actions.push({
-          id: "fertilize-urgent",
-          label: `Fertilize ${getPlantDisplayName(plant)}`,
-          emoji: "🌱",
-          action: () =>
-            navigate(`/log-care?plantId=${plant.id}&type=fertilize`),
-          variant: "primary",
-          isContextual: true,
-        });
-      }
-    }
-
-    // Standard actions (always available)
-    const standardActions: QuickAction[] = [
-      {
-        id: "log-care",
-        label: "Log Care",
-        emoji: "💧",
-        action: () => navigate("/log-care"),
-        variant: "outline",
-      },
-      {
-        id: "take-photo",
-        label: "Take Photo",
-        emoji: "📸",
-        action: () => navigate("/log-care?type=observe"),
-        variant: "outline",
-      },
-      {
-        id: "analytics",
-        label: "Analytics",
-        emoji: "📊",
-        action: () => navigate("/analytics"),
-        variant: "outline",
-      },
-    ];
-
-    return [...actions, ...standardActions];
+    setSelectedPlantIds(plantIds);
+    setSelectedActivityType(activityType);
+    setSelectedGroup(group || null);
+    setBulkModalOpen(true);
   };
 
-  const handleQuickComplete = async (
-    taskId: string,
-    values: QuickCompletionValues
-  ) => {
-    try {
-      const task = taskGroups
-        .flatMap((group) => group.tasks)
-        .find((t) => t.id === taskId);
-
-      if (!task) throw new Error("Task not found");
-
-      const taskType = getTaskTypeFromName(task.task);
-
-      let careDetails: WateringDetails | FertilizingDetails;
-
-      if (taskType === "water") {
-        careDetails = {
-          type: "water" as const,
-          amount: {
-            value: values.waterValue || 0,
-            unit:
-              (values.waterUnit as
-                | "oz"
-                | "ml"
-                | "cups"
-                | "liters"
-                | "gallons") || "oz",
-          },
-          notes: `Quick completion: ${values.waterValue}${values.waterUnit}`,
-        };
-      } else {
-        careDetails = {
-          type: "fertilize" as const,
-          product: values.product || "",
-          dilution: values.dilution || "",
-          amount: values.amount || "",
-          notes: `Quick completion: ${values.product}`,
-        };
-      }
-
-      const careData = {
-        plantId: task.plantId,
-        type: taskType,
-        date: new Date(),
-        details: careDetails,
-        updatedAt: new Date(),
-      };
-
-      await careService.addCareActivity(careData);
-      await loadDashboardData();
-
-      console.log("Task completed successfully!");
-    } catch (error) {
-      console.error("Failed to complete task:", error);
-      throw error;
-    }
+  const closeBulkModal = () => {
+    setBulkModalOpen(false);
+    setSelectedPlantIds([]);
+    setSelectedActivityType("");
+    setSelectedGroup(null);
   };
 
-  const handleBypass = async (taskId: string, reason: string) => {
-    try {
-      setIsLoading(true);
-
-      // Find the task being bypassed
-      const task = allTasks.find((t) => t.id === taskId);
-      if (!task) {
-        throw new Error("Task not found");
-      }
-
-      // Log the bypass with pattern analysis
-      await BypassAnalysisService.logBypass(
-        taskId,
-        task.plantId,
-        getTaskTypeFromName(task.task),
-        reason,
-        task.dueDate,
-        task.plantStage as GrowthStage
-      );
-
-      // Reload dashboard data
-      await loadDashboardData();
-
-      toast.success("Task bypassed. Your preferences are being learned.");
-    } catch (error) {
-      console.error("Failed to bypass task:", error);
-      toast.error("Failed to bypass task");
-      throw error;
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  if (isCheckingFirstTime) {
-    return <div>Loading...</div>;
-  }
-
-  if (isFirstTime) {
-    return <Welcome />;
-  }
-
-  if (isLoading) {
+  if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-600 mx-auto mb-4"></div>
-          <p>Loading your garden...</p>
-        </div>
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-foreground">Loading...</div>
       </div>
     );
   }
-
-  if (error) {
-    return (
-      <div className="p-4">
-        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-          <p className="text-red-800">{error}</p>
-          <Button onClick={() => loadDashboardData()} className="mt-2">
-            Try Again
-          </Button>
-        </div>
-      </div>
-    );
-  }
-
-  if (plants.length === 0) {
-    return (
-      <div className="p-4 text-center">
-        <h2 className="text-xl font-semibold mb-4">Welcome to SmartGarden!</h2>
-        <p className="text-muted-foreground mb-6">
-          You don't have any plants yet. Let's get started!
-        </p>
-        <Link to="/add-plant">
-          <Button>Add Your First Plant</Button>
-        </Link>
-      </div>
-    );
-  }
-
-  const quickActions = getQuickActions();
 
   return (
-    <div className="p-4 space-y-6">
-      <div className="text-center">
-        <h1 className="text-2xl font-bold text-foreground mb-2">
-          Your Garden Dashboard
-        </h1>
-        <p className="text-muted-foreground" data-testid="active-plants-count">
-          {plants.length} active plant{plants.length !== 1 ? "s" : ""} growing
-          {taskGroups.reduce((total, group) => total + group.tasks.length, 0) >
-            0 && (
-            <span className="ml-2">
-              •{" "}
-              {taskGroups.reduce(
-                (total, group) => total + group.tasks.length,
-                0
-              )}{" "}
-              task
-              {taskGroups.reduce(
-                (total, group) => total + group.tasks.length,
-                0
-              ) !== 1
-                ? "s"
-                : ""}{" "}
-              pending
-            </span>
-          )}
-        </p>
-      </div>
+    <>
+      <OfflineIndicator />
+      <div className="min-h-screen bg-background pb-20">
+        {/* Header */}
+        <div className="bg-card border-b border-border sticky top-0 z-40">
+          <div className="max-w-6xl mx-auto px-4 py-4">
+            <div className="flex justify-between items-center">
+              <div className="flex items-center gap-3">
+                <div className="text-2xl">🌱</div>
+                <div>
+                  <h1 className="text-xl font-semibold text-foreground">
+                    SmartGarden
+                  </h1>
+                  <p className="text-sm text-muted-foreground">
+                    Welcome, {user?.displayName || user?.email}
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <Button variant="outline" onClick={signOut}>
+                  Sign Out
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
 
-      {/* Task Groups */}
-      <div className="space-y-4">
-        {taskGroups.map((group) => (
-          <TaskGroup
-            key={group.type}
-            group={group}
-            onQuickComplete={handleQuickComplete}
-            onBypass={handleBypass}
-          />
-        ))}
-      </div>
+        {/* Main Content */}
+        <div className="max-w-6xl mx-auto px-4 py-6 space-y-8">
+          {/* Summary Cards */}
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <Card className="bg-gradient-to-br from-primary/10 to-primary/5 border-primary/20">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <span className="text-xl">🌿</span>
+                  Total Plants
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-3xl font-bold text-primary">
+                  {plants?.length || 0}
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  Plants registered
+                </p>
+              </CardContent>
+            </Card>
 
-      {/* Quick Actions */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <span>⚡</span>
-            Quick Actions
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-3 md:grid-cols-4 gap-3">
-            {quickActions.map((action) => (
-              <Button
-                key={action.id}
-                variant={action.variant || "outline"}
-                onClick={action.action}
-                className={`h-20 flex-col gap-1 ${
-                  action.isContextual
-                    ? "border-green-200 bg-green-50 hover:bg-green-100 text-green-800"
-                    : ""
-                }`}
-              >
-                <span className="text-2xl">{action.emoji}</span>
-                <span className="text-sm text-center leading-tight">
-                  {action.label}
-                </span>
-              </Button>
-            ))}
+            <Card className="bg-gradient-to-br from-accent/10 to-accent/5 border-accent/20">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <span className="text-xl">📅</span>
+                  Today's Tasks
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-3xl font-bold text-accent">0</p>
+                <p className="text-sm text-muted-foreground">Tasks due</p>
+              </CardContent>
+            </Card>
+
+            <Card className="bg-gradient-to-br from-emerald-500/10 to-emerald-500/5 border-emerald-500/20 sm:col-span-2 lg:col-span-1">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <span className="text-xl">📊</span>
+                  Garden Health
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-3xl font-bold text-emerald-600">Great</p>
+                <p className="text-sm text-muted-foreground">
+                  All systems green
+                </p>
+              </CardContent>
+            </Card>
           </div>
 
-          {/* Show contextual help text */}
-          {quickActions.some((action) => action.isContextual) && (
-            <p className="text-xs text-muted-foreground mt-3 text-center">
-              Green actions are suggested based on your urgent tasks
-            </p>
+          {/* Welcome / Empty State */}
+          {plantGroups.length === 0 && (
+            <Card className="bg-gradient-to-br from-card to-muted/30">
+              <CardContent className="text-center py-12">
+                <div className="text-6xl mb-4">🌱</div>
+                <h3 className="text-xl font-semibold mb-2 text-foreground">
+                  Welcome to SmartGarden!
+                </h3>
+                <p className="text-muted-foreground mb-6 max-w-md mx-auto">
+                  Start your gardening journey by adding your first plant. Track
+                  growth, log care activities, and get personalized
+                  recommendations.
+                </p>
+                <Button
+                  onClick={() => navigate("/add-plant")}
+                  size="lg"
+                  className="bg-primary hover:bg-primary/90"
+                >
+                  <span className="mr-2">🌿</span>
+                  Add Your First Plant
+                </Button>
+              </CardContent>
+            </Card>
           )}
-        </CardContent>
-      </Card>
-    </div>
+
+          {/* Your Plants Section */}
+          {plantGroups.length > 0 && (
+            <div className="space-y-4">
+              <div className="flex justify-between items-center">
+                <h2 className="text-xl font-semibold text-foreground flex items-center gap-2">
+                  <span className="text-2xl">🌿</span>
+                  Your Plants
+                </h2>
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    onClick={() => navigate("/plants")}
+                    size="sm"
+                  >
+                    View All
+                  </Button>
+                  <Button
+                    onClick={() => navigate("/add-plant")}
+                    className="bg-primary hover:bg-primary/90"
+                  >
+                    <span className="mr-2">➕</span>
+                    Add Plant
+                  </Button>
+                </div>
+              </div>
+
+              {/* Plant Groups Grid */}
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                {plantGroups.slice(0, 6).map((group) => (
+                  <PlantGroupCard
+                    key={group.id}
+                    group={group}
+                    onBulkLogActivity={handleBulkLogActivity}
+                  />
+                ))}
+              </div>
+
+              {/* Show more link if there are more than 6 groups */}
+              {plantGroups.length > 6 && (
+                <div className="text-center pt-4">
+                  <Button variant="outline" onClick={() => navigate("/plants")}>
+                    View All {plantGroups.length} Plant Groups
+                  </Button>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Navigation */}
+        <Navigation />
+      </div>
+
+      {/* Bulk Activity Modal */}
+      <BulkActivityModal
+        isOpen={bulkModalOpen}
+        onClose={closeBulkModal}
+        plantIds={selectedPlantIds}
+        activityType={selectedActivityType}
+        plantCount={selectedPlantIds.length}
+        varietyName={selectedGroup?.varietyName || ""}
+      />
+    </>
   );
 };
-
-export default Dashboard;

@@ -6,7 +6,10 @@ import {
   PlantRecord,
 } from "@/types/database";
 import { CareActivityType, GrowthStage } from "@/types/core";
-import { calculateCurrentStage } from "@/utils/growthStage";
+import {
+  calculateCurrentStage,
+  calculateCurrentStageWithVariety,
+} from "@/utils/growthStage";
 import { getPlantDisplayName } from "@/utils/plantDisplay"; // Add this import
 import { UpcomingTask } from "@/types/scheduling";
 import { addDays, differenceInDays } from "date-fns";
@@ -63,17 +66,10 @@ export class CareSchedulingService {
       if (!variety) return [];
 
       // Update plant stage if needed
-      const currentStage = calculateCurrentStage(
+      const currentStage = calculateCurrentStageWithVariety(
         plant.plantedDate,
-        variety.growthTimeline
+        variety
       );
-
-      if (currentStage !== plant.currentStage) {
-        await plantService.updatePlant(plant.id, {
-          currentStage,
-          updatedAt: new Date(),
-        });
-      }
 
       const tasks: UpcomingTask[] = [];
 
@@ -99,7 +95,7 @@ export class CareSchedulingService {
     plant: PlantRecord,
     currentStage: GrowthStage
   ): Promise<UpcomingTask | null> {
-    const lastWatering = await careService.getLastCareActivityByType(
+    const lastWatering = await careService.getLastActivityByType(
       plant.id,
       "water"
     );
@@ -154,7 +150,7 @@ export class CareSchedulingService {
     plant: PlantRecord,
     currentStage: GrowthStage
   ): Promise<UpcomingTask | null> {
-    const lastObservation = await careService.getLastCareActivityByType(
+    const lastObservation = await careService.getLastActivityByType(
       plant.id,
       "observe"
     );

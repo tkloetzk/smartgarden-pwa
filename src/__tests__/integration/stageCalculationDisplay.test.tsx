@@ -1,12 +1,23 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import { BrowserRouter } from "react-router-dom";
 import Plants from "../../pages/plants/Plants";
-import { plantService, varietyService } from "@/types/database";
+import { varietyService, PlantRecord } from "@/types/database";
 import { initializeDatabase } from "@/db/seedData";
 import { subDays } from "date-fns";
 
-describe("Stage Calculation Integration", () => {
+// Mock the hooks used by the Plants component
+jest.mock("@/hooks/useFirebasePlants", () => ({
+  useFirebasePlants: jest.fn(),
+}));
+import { useFirebasePlants } from "@/hooks/useFirebasePlants";
+
+describe("Stage Calculation and Display Integration", () => {
+  // Setup mock implementation before each test
   beforeEach(async () => {
+    // Clear the mock before each run
+    (useFirebasePlants as jest.Mock).mockClear();
+
+    // Clear and re-initialize the mock database
     const { db } = await import("@/types/database");
     await db.plants.clear();
     await db.varieties.clear();
@@ -17,176 +28,170 @@ describe("Stage Calculation Integration", () => {
     return render(<BrowserRouter>{component}</BrowserRouter>);
   };
 
-  describe("Stage calculation for mature plants", () => {
-    it("displays correct stage for 103-day-old Albion strawberry in Plants page", async () => {
-      const varieties = await varietyService.getAllVarieties();
-      const albion = varieties.find((v) => v.name === "Albion Strawberries");
-      expect(albion).toBeDefined();
-
-      const plantedDate = subDays(new Date(), 103);
-      await plantService.addPlant({
-        varietyId: albion!.id,
-        varietyName: albion!.name,
-        name: "Test Strawberry",
-        plantedDate,
-        currentStage: "germination", // This should be updated by the system
-        location: "Indoor",
-        container: "5 gallon",
-        isActive: true,
-      });
-
-      renderWithRouter(<Plants />);
-
-      // Wait for the plant to be displayed
-      await waitFor(() => {
-        const matches = screen.getAllByText("Test Strawberry");
-        expect(matches.length).toBeGreaterThan(0);
-      });
-
-      // Check that the stage is calculated and displayed correctly for everbearing strawberry
-      await waitFor(() => {
-        const stageText =
-          screen.queryByText(/ongoing.?production/i) ||
-          screen.queryByText(/ongoing\s+production/i) ||
-          screen.queryByText(/Stage.*ongoing.?production/i);
-        expect(stageText).toBeInTheDocument();
-      });
+  // Helper function to set up the mock implementation for the useFirebasePlants hook
+  const setupMockPlants = (plants: PlantRecord[]) => {
+    (useFirebasePlants as jest.Mock).mockReturnValue({
+      plants: plants,
+      loading: false,
+      error: null,
     });
+  };
 
-    it("displays correct stage for 50-day-old Astro Arugula (everbearing)", async () => {
-      const varieties = await varietyService.getAllVarieties();
-      const arugula = varieties.find((v) => v.name === "Astro Arugula");
-      expect(arugula).toBeDefined();
+  test("correctly displays 'Ongoing Production' for everbearing strawberries after maturation", async () => {
+    const varieties = await varietyService.getAllVarieties();
+    const albion = varieties.find((v) => v.name === "Albion Strawberries");
+    expect(albion).toBeDefined();
 
-      const plantedDate = subDays(new Date(), 50);
-      await plantService.addPlant({
-        varietyId: arugula!.id,
-        varietyName: arugula!.name,
-        name: "Test Arugula",
-        plantedDate,
-        currentStage: "germination",
-        location: "Indoor",
-        container: "4 inch pot",
-        isActive: true,
-      });
+    const plantedDate = subDays(new Date(), 103);
+    const strawberryPlant = {
+      id: "strawberry-1",
+      varietyId: albion!.id,
+      varietyName: albion!.name,
+      name: "Test Strawberry",
+      plantedDate,
+      currentStage: "flowering", // Initial stage before calculation
+      location: "Indoor",
+      container: "5 gallon",
+      isActive: true,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
 
-      renderWithRouter(<Plants />);
+    setupMockPlants([strawberryPlant]);
+    renderWithRouter(<Plants />);
 
-      await waitFor(() => {
-        const matches = screen.getAllByText("Test Arugula");
-        expect(matches.length).toBeGreaterThan(0);
-      });
-
-      // Arugula is everbearing - should show ongoing-production after 37 days maturation
-      await waitFor(() => {
-        const stageText =
-          screen.queryByText(/ongoing.?production/i) ||
-          screen.queryByText(/ongoing\s+production/i) ||
-          screen.queryByText(/Stage.*ongoing.?production/i);
-        expect(stageText).toBeInTheDocument();
-      });
+    await waitFor(() => {
+      // Check for both parts of the stage name to be more specific
+      const stageElement = screen.getByText(/ongoing/i);
+      const productionElement = screen.getByText(/production/i);
+      expect(stageElement).toBeInTheDocument();
+      expect(productionElement).toBeInTheDocument();
     });
+  });
 
-    it("displays correct stage for 80-day-old non-everbearing plant", async () => {
-      const varieties = await varietyService.getAllVarieties();
-      // Find a non-everbearing variety with shorter maturation time
-      const carrots = varieties.find((v) => v.name === "Little Finger Carrots");
-      expect(carrots).toBeDefined();
+  test("correctly displays 'Harvest' for non-everbearing carrots after maturation", async () => {
+    const varieties = await varietyService.getAllVarieties();
+    const carrots = varieties.find((v) => v.name === "Little Finger Carrots");
+    expect(carrots).toBeDefined();
 
-      const plantedDate = subDays(new Date(), 80);
-      await plantService.addPlant({
-        varietyId: carrots!.id,
-        varietyName: carrots!.name,
-        name: "Test Carrots",
-        plantedDate,
-        currentStage: "germination",
-        location: "Indoor",
-        container: "Deep container",
-        isActive: true,
-      });
+    const plantedDate = subDays(new Date(), 80);
+    const carrotPlant = {
+      id: "carrot-1",
+      varietyId: carrots!.id,
+      varietyName: carrots!.name,
+      name: "Test Carrots",
+      plantedDate,
+      currentStage: "vegetative",
+      location: "Indoor",
+      container: "Deep container",
+      isActive: true,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
 
-      renderWithRouter(<Plants />);
+    setupMockPlants([carrotPlant]);
+    renderWithRouter(<Plants />);
 
-      await waitFor(() => {
-        const matches = screen.getAllByText("Test Carrots");
-        expect(matches.length).toBeGreaterThan(0);
-      });
-
-      // Non-everbearing plants should show "harvest" after maturation
-      await waitFor(() => {
-        const stageText =
-          screen.queryByText(/harvest/i) ||
-          screen.queryByText(/Stage.*harvest/i);
-        expect(stageText).toBeInTheDocument();
-      });
+    await waitFor(() => {
+      expect(screen.getByText(/harvest/i)).toBeInTheDocument();
     });
+  });
 
-    it("displays correct stage for plant in vegetative stage", async () => {
-      const varieties = await varietyService.getAllVarieties();
-      const spinach = varieties.find((v) => v.name === "Baby's Leaf Spinach");
-      expect(spinach).toBeDefined();
+  test("correctly displays 'Vegetative' stage for spinach", async () => {
+    const varieties = await varietyService.getAllVarieties();
+    const spinach = varieties.find((v) => v.name === "Baby's Leaf Spinach");
+    expect(spinach).toBeDefined();
 
-      // For Baby's Leaf Spinach: germination(7) + seedling(14) = 21, so day 25 should be vegetative
-      const plantedDate = subDays(new Date(), 25);
-      await plantService.addPlant({
-        varietyId: spinach!.id,
-        varietyName: spinach!.name,
-        name: "Test Spinach",
-        plantedDate,
-        currentStage: "germination",
-        location: "Indoor",
-        container: "Medium container",
-        isActive: true,
-      });
+    // Planted 25 days ago. Germination (7) + Seedling (14) = 21 days. 25 days is in vegetative stage.
+    const plantedDate = subDays(new Date(), 25);
+    const spinachPlant = {
+      id: "spinach-1",
+      varietyId: spinach!.id,
+      varietyName: spinach!.name,
+      name: "Test Spinach",
+      plantedDate,
+      currentStage: "seedling",
+      location: "Indoor",
+      container: "Medium container",
+      isActive: true,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
 
-      renderWithRouter(<Plants />);
+    setupMockPlants([spinachPlant]);
+    renderWithRouter(<Plants />);
 
-      await waitFor(() => {
-        const matches = screen.getAllByText("Test Spinach");
-        expect(matches.length).toBeGreaterThan(0);
-      });
-
-      // Plant should be in vegetative stage at 25 days
-      await waitFor(() => {
-        const stageText =
-          screen.queryByText(/vegetative/i) ||
-          screen.queryByText(/Stage.*vegetative/i);
-        expect(stageText).toBeInTheDocument();
-      });
+    await waitFor(() => {
+      expect(screen.getByText(/vegetative/i)).toBeInTheDocument();
     });
+  });
 
-    it("displays correct stage for plant in seedling stage", async () => {
-      const varieties = await varietyService.getAllVarieties();
-      const spinach = varieties.find((v) => v.name === "Baby's Leaf Spinach");
-      expect(spinach).toBeDefined();
+  test("correctly displays 'Seedling' stage for beets", async () => {
+    const varieties = await varietyService.getAllVarieties();
+    const beets = varieties.find((v) => v.name === "Detroit Dark Red Beets");
+    expect(beets).toBeDefined();
 
-      // At 15 days, should still be in seedling stage (day 7-21)
-      const plantedDate = subDays(new Date(), 15);
-      await plantService.addPlant({
-        varietyId: spinach!.id,
-        varietyName: spinach!.name,
-        name: "Test Spinach Seedling",
-        plantedDate,
-        currentStage: "germination",
-        location: "Indoor",
-        container: "Small container",
-        isActive: true,
+    // Planted 15 days ago. Germination is 5-10 days, seedling stage lasts 2-4 weeks.
+    // 15 days is within the seedling stage.
+    const plantedDate = subDays(new Date(), 15);
+    const beetPlant = {
+      id: "beet-1",
+      varietyId: beets!.id,
+      varietyName: beets!.name,
+      name: "Test Beets Seedling",
+      plantedDate,
+      currentStage: "germination",
+      location: "Indoor",
+      container: "Small container",
+      isActive: true,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+
+    setupMockPlants([beetPlant]);
+    renderWithRouter(<Plants />);
+
+    // Wait for the specific card to appear to avoid ambiguity
+    await waitFor(() => {
+      const card = screen
+        .getByText("Test Beets Seedling")
+        .closest(".hover\\:shadow-lg");
+      expect(card).toBeInTheDocument();
+      // Query within the specific card to ensure we're checking the right plant's stage
+      const stageElement = within(card as HTMLElement).getByText(/seedling/i, {
+        selector: "div.font-medium",
       });
+      expect(stageElement).toBeInTheDocument();
+    });
+  });
 
-      renderWithRouter(<Plants />);
+  test("correctly displays 'Flowering' stage for sugar snap peas", async () => {
+    const varieties = await varietyService.getAllVarieties();
+    const peas = varieties.find((v) => v.name === "Sugar Snap Peas");
+    expect(peas).toBeDefined();
 
-      await waitFor(() => {
-        const matches = screen.getAllByText("Test Spinach Seedling");
-        expect(matches.length).toBeGreaterThan(0);
-      });
+    // Planted 55 days ago. Pods are ready 50-60 days after sowing.
+    // Flowering precedes the final pod maturation.
+    const plantedDate = subDays(new Date(), 55);
+    const peaPlant = {
+      id: "pea-1",
+      varietyId: peas!.id,
+      varietyName: peas!.name,
+      name: "Test Peas",
+      plantedDate,
+      currentStage: "vegetative",
+      location: "Indoor",
+      container: "15 gallon",
+      isActive: true,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
 
-      // Plant should be in seedling stage at 15 days
-      await waitFor(() => {
-        const stageText =
-          screen.queryByText(/seedling/i) ||
-          screen.queryByText(/Stage.*seedling/i);
-        expect(stageText).toBeInTheDocument();
-      });
+    setupMockPlants([peaPlant]);
+    renderWithRouter(<Plants />);
+
+    await waitFor(() => {
+      expect(screen.getByText(/flowering/i)).toBeInTheDocument();
     });
   });
 });
