@@ -377,14 +377,13 @@ export class SmartDefaultsService {
     plant: PlantRecord,
     variety: VarietyRecord,
     currentStage: GrowthStage,
-    isForDashboard = false // New parameter
+    isForDashboard = false
   ): Promise<QuickCompleteOption[]> {
     const options: QuickCompleteOption[] = [];
 
     const wateringDefaults = this.getWateringDefaults(variety, currentStage);
 
     if (wateringDefaults) {
-      // Always include the main quick option
       options.push({
         label: `Quick: ${wateringDefaults.suggestedAmount}${wateringDefaults.unit}`,
         values: {
@@ -396,7 +395,6 @@ export class SmartDefaultsService {
         },
       });
 
-      // Only add light/heavy options if NOT for dashboard
       if (!isForDashboard) {
         const lightAmount = Math.round(wateringDefaults.suggestedAmount * 0.75);
         const heavyAmount = Math.round(wateringDefaults.suggestedAmount * 1.25);
@@ -428,7 +426,6 @@ export class SmartDefaultsService {
       }
     }
 
-    // Add repeat option from recent watering (only for full form, not dashboard)
     if (!isForDashboard) {
       try {
         const recentWatering = await careService.getLastActivityByType(
@@ -436,7 +433,10 @@ export class SmartDefaultsService {
           "water"
         );
         if (recentWatering && recentWatering.details.type === "water") {
-          const lastAmount = recentWatering.details.amount;
+          const lastAmount = recentWatering.details.amount as unknown as {
+            value: number;
+            unit: "oz" | "ml" | "cups" | "liters" | "gallons";
+          };
           if (lastAmount && lastAmount.value > 0) {
             const isDifferent = !options.some(
               (opt) =>

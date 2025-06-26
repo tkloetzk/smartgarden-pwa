@@ -21,6 +21,7 @@ const customVarietySchema = z.object({
     germination: z.number().min(1).max(90),
     seedling: z.number().min(1).max(90),
     vegetative: z.number().min(1).max(180),
+    rootDevelopment: z.number().min(1).max(180),
     maturation: z.number().min(1).max(365),
   }),
   customMoistureRanges: z.boolean().optional(),
@@ -63,8 +64,8 @@ export function CustomVarietyForm({
   async function onSubmit(data: CustomVarietyData) {
     setIsLoading(true);
     try {
-      // Build moisture protocols if custom ranges specified
-      let moistureProtocols = undefined;
+      // Build watering protocols if custom moisture ranges are specified
+      let protocols = undefined;
       if (
         data.customMoistureRanges &&
         data.triggerMin &&
@@ -72,28 +73,34 @@ export function CustomVarietyForm({
         data.targetMin &&
         data.targetMax
       ) {
-        const ranges = {
-          trigger: { min: data.triggerMin, max: data.triggerMax },
-          target: { min: data.targetMin, max: data.targetMax },
+        const wateringRanges = {
+          trigger: { moistureLevel: `${data.triggerMin}-${data.triggerMax}` },
+          target: { moistureLevel: `${data.targetMin}-${data.targetMax}` },
         };
 
-        // Apply to all growth stages (user can refine later if needed)
-        moistureProtocols = {
-          germination: ranges,
-          seedling: ranges,
-          vegetative: ranges,
-          flowering: ranges,
-          fruiting: ranges,
-          maturation: ranges,
-          harvest: ranges,
+        // Apply the same watering ranges to all growth stages
+        protocols = {
+          watering: {
+            germination: wateringRanges,
+            seedling: wateringRanges,
+            vegetative: wateringRanges,
+            flowering: wateringRanges,
+            fruiting: wateringRanges,
+            maturation: wateringRanges,
+            harvest: wateringRanges,
+            "ongoing-production": wateringRanges,
+          },
         };
       }
 
       const varietyId = await varietyService.addVariety({
         name: data.name,
         category: data.category,
-        growthTimeline: data.growthTimeline,
-        moistureProtocols,
+        growthTimeline: {
+          ...data.growthTimeline,
+          rootDevelopment: data.growthTimeline.rootDevelopment,
+        },
+        protocols,
         isCustom: true,
       });
 
@@ -222,6 +229,22 @@ export function CustomVarietyForm({
               </div>
               <div>
                 <label className="block text-sm font-medium text-foreground mb-2">
+                  Root Development Days
+                </label>
+                <input
+                  type="number"
+                  {...register("growthTimeline.rootDevelopment", {
+                    valueAsNumber: true,
+                  })}
+                  placeholder="42"
+                  className="w-full p-3 border border-border rounded-md focus:ring-2 focus:ring-garden-500"
+                />
+                <p className="text-xs text-muted-foreground mt-1">
+                  Root system establishment
+                </p>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-foreground mb-2">
                   Total Days to Maturity
                 </label>
                 <input
@@ -229,11 +252,11 @@ export function CustomVarietyForm({
                   {...register("growthTimeline.maturation", {
                     valueAsNumber: true,
                   })}
-                  placeholder="120"
+                  placeholder="60"
                   className="w-full p-3 border border-border rounded-md focus:ring-2 focus:ring-garden-500"
                 />
                 <p className="text-xs text-muted-foreground mt-1">
-                  From seed to harvest
+                  Ready for harvest
                 </p>
               </div>
             </div>

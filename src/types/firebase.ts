@@ -1,15 +1,17 @@
-// src/types/firebase.ts
 import { Timestamp } from "firebase/firestore";
-import { PlantRecord, CareRecord, CareActivityDetails } from "./database";
 import { CareActivityType, PlantCategory } from "./core";
+import {
+  PlantRecord,
+  CareActivityRecord,
+  CareActivityDetails,
+} from "./database";
 
-// Firebase versions of your existing types with Firestore timestamps
 export interface FirebasePlantRecord {
   id?: string;
   userId: string;
   varietyId: string;
   varietyName: string;
-  name: string;
+  name?: string;
   plantedDate: Timestamp;
   location: string;
   container: string;
@@ -19,11 +21,11 @@ export interface FirebasePlantRecord {
   quantity?: number;
   setupType?: "multiple-containers" | "same-container";
   reminderPreferences?: {
-    watering: boolean;
-    fertilizing: boolean;
-    observation: boolean;
-    lighting: boolean;
-    pruning: boolean;
+    watering?: boolean;
+    fertilizing?: boolean;
+    observation?: boolean;
+    lighting?: boolean;
+    pruning?: boolean;
   };
   createdAt: Timestamp;
   updatedAt: Timestamp;
@@ -59,7 +61,30 @@ export interface FirebaseVarietyRecord {
   createdAt: Timestamp;
 }
 
-// Utility functions to convert between local and Firebase types
+export interface FirebaseScheduledTask {
+  id?: string;
+  userId: string;
+  plantId: string;
+  taskName: string;
+  taskType: string;
+  details: {
+    type: string;
+    product: string;
+    dilution: string;
+    amount: string;
+    method: string;
+  };
+  dueDate: Timestamp;
+  status: string;
+  sourceProtocol: {
+    stage: string;
+    originalStartDays: number;
+    isDynamic: boolean;
+  };
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
+}
+
 export const toFirebaseTimestamp = (date: Date): Timestamp => {
   return Timestamp.fromDate(date);
 };
@@ -75,7 +100,7 @@ export const convertPlantToFirebase = (
   userId,
   varietyId: plant.varietyId,
   varietyName: plant.varietyName,
-  name: plant.name || plant.varietyName, // Fallback to varietyName if name is missing
+  name: plant.name || plant.varietyName,
   plantedDate: toFirebaseTimestamp(plant.plantedDate),
   location: plant.location,
   container: plant.container,
@@ -110,7 +135,7 @@ export const convertPlantFromFirebase = (
 });
 
 export const convertCareActivityToFirebase = (
-  activity: CareRecord,
+  activity: CareActivityRecord,
   userId: string
 ): Omit<FirebaseCareRecord, "id"> => ({
   userId,
@@ -124,12 +149,12 @@ export const convertCareActivityToFirebase = (
 
 export const convertCareActivityFromFirebase = (
   firebaseActivity: FirebaseCareRecord
-): CareRecord => ({
+): CareActivityRecord => ({
   id: firebaseActivity.id!,
   plantId: firebaseActivity.plantId,
   type: firebaseActivity.type,
   date: fromFirebaseTimestamp(firebaseActivity.date),
-  details: firebaseActivity.details,
+  details: firebaseActivity.details as CareActivityDetails,
   createdAt: fromFirebaseTimestamp(firebaseActivity.createdAt),
   updatedAt: fromFirebaseTimestamp(firebaseActivity.updatedAt),
 });

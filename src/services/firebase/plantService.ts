@@ -10,6 +10,7 @@ import {
   orderBy,
   Timestamp,
   writeBatch,
+  serverTimestamp,
 } from "firebase/firestore";
 import { db } from "./config";
 import {
@@ -17,26 +18,12 @@ import {
   convertPlantToFirebase,
   convertPlantFromFirebase,
 } from "../../types/firebase";
-import { PlantRecord } from "../../types/database";
+import { PlantRecord, varietyService } from "../../types/database";
+import { ProtocolTranspilerService } from "../ProtocolTranspilerService";
+import { FirebaseScheduledTaskService } from "./scheduledTaskService";
 
 export class FirebasePlantService {
   private static plantsCollection = collection(db, "plants");
-
-  static async createPlant(
-    plant: Omit<PlantRecord, "id" | "createdAt" | "updatedAt">,
-    userId: string
-  ): Promise<string> {
-    const plantWithDates: PlantRecord = {
-      ...plant,
-      id: "", // Will be set by Firebase
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    };
-
-    const firebasePlant = convertPlantToFirebase(plantWithDates, userId);
-    const docRef = await addDoc(this.plantsCollection, firebasePlant);
-    return docRef.id;
-  }
 
   static async updatePlant(
     plantId: string,
@@ -45,7 +32,7 @@ export class FirebasePlantService {
     const plantRef = doc(this.plantsCollection, plantId);
     const firebaseUpdates = {
       ...updates,
-      updatedAt: Timestamp.now(),
+      updatedAt: serverTimestamp(),
       ...(updates.plantedDate && {
         plantedDate: Timestamp.fromDate(updates.plantedDate),
       }),
@@ -108,5 +95,60 @@ export class FirebasePlantService {
         unsubscribe();
       });
     });
+  }
+  // In src/services/firebase/plantService.ts, add extensive logging to the createPlant method:
+  static async createPlant(
+    plant: Omit<PlantRecord, "id" | "createdAt" | "updatedAt">,
+    userId: string
+  ): Promise<string> {
+    try {
+      // Create the plant with dates
+      const plantWithDates: PlantRecord = {
+        ...plant,
+        id: "",
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+      const firebasePlantData = convertPlantToFirebase(plantWithDates, userId);
+      const docRef = await addDoc(collection(db, "plants"), firebasePlantData);
+
+      const variety = await varietyService.getVariety(plant.varietyId);
+
+      if (!variety) {
+        console.error("❌ Variety not found:", plant.varietyId);
+        return docRef.id;
+      }
+
+      if (variety.protocols?.fertilization) {
+        const fullPlant: PlantRecord = {
+          ...plantWithDates,
+          id: docRef.id,
+        };
+
+        const scheduledTasks =
+          await ProtocolTranspilerService.transpilePlantProtocol(
+            fullPlant,
+            variety
+          );
+
+        // Save tasks to Firestore
+        if (scheduledTasks.length > 0) {
+          // TODO: We need to implement this!
+          await FirebaseScheduledTaskService.createMultipleTasks(
+            scheduledTasks,
+            userId
+          );
+        } else {
+          console.log("⚠️ No tasks generated");
+        }
+      } else {
+        console.log("⚠️ No fertilization protocols found for variety");
+      }
+
+      return docRef.id;
+    } catch (error) {
+      console.error("❌ Error creating plant:", error);
+      throw error;
+    }
   }
 }

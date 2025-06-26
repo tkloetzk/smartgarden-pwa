@@ -3,12 +3,12 @@ import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/Button";
 import { StatusBadge } from "@/components/ui/StatusBadge";
+import { UpcomingTask } from "@/types/scheduling";
+import { CheckCircle2, Clock } from "lucide-react";
 import {
-  UpcomingTask,
   QuickCompleteOption,
   QuickCompletionValues,
-} from "@/types/scheduling";
-import { CheckCircle2, Clock } from "lucide-react";
+} from "@/services/smartDefaultsService";
 
 interface TaskItemProps {
   task: UpcomingTask;
@@ -111,7 +111,7 @@ const TaskItem: React.FC<TaskItemProps> = ({
           <div className="text-2xl">{getTaskIcon(task.task)}</div>
           <div className="flex-1 min-w-0" onClick={handleTaskClick}>
             <div className="flex items-center gap-2 mb-1">
-              <h4 className="font-medium text-foreground">{task.name}</h4>
+              <h4 className="font-medium text-foreground">{task.plantName}</h4>
               <StatusBadge
                 status={getStatusFromPriority(task.priority)}
                 size="sm"
@@ -192,7 +192,7 @@ const TaskItem: React.FC<TaskItemProps> = ({
             ) : (
               <>
                 <h3 className="text-lg font-semibold mb-4">
-                  Bypass "{task.task}" for {task.name}
+                  Bypass "{task.task}" for {task.plantName}
                 </h3>
                 <p className="text-sm text-muted-foreground mb-4">
                   Why are you skipping this task? This helps us improve future

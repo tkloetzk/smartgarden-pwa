@@ -1,20 +1,17 @@
-// src/types/index.ts
 // Core types
 export * from "./core";
-export type { CategoryMoistureDefaults, MoistureProtocolInfo } from "./core";
-
-// Database types
+export * from "./protocols";
 export * from "./database";
-
-// Legacy compatibility - can be removed after migration
-export type {
-  PlantRecord as PlantInstance,
-  VarietyRecord as PlantVariety,
-  CareRecord as CareActivity,
-} from "./database";
-
-// Scheduling types
 export * from "./scheduling";
-
-// User settings
+export * from "./firebase";
 export * from "./user";
+
+// Re-export services explicitly to ensure they're available
+export { plantService, varietyService, careService, db } from "./database";
+
+// Convenience aliases
+export type {
+  PlantRecord as Plant,
+  VarietyRecord as Variety,
+  CareActivityRecord as CareActivity,
+} from "./database";

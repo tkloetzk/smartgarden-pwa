@@ -1,4 +1,4 @@
-// src/types/core.ts
+// Core domain types - fundamental enums and basic types
 export type GrowthStage =
   | "germination"
   | "seedling"
@@ -21,7 +21,9 @@ export type CareActivityType =
   | "fertilize"
   | "observe"
   | "harvest"
-  | "transplant";
+  | "transplant"
+  | "photo"
+  | "note";
 
 export type QualityRating =
   | "excellent"
@@ -37,50 +39,13 @@ export type HealthAssessment =
   | "concerning"
   | "critical";
 
-export type VolumeUnit = "oz" | "ml" | "gal" | "L";
+// Unit types
+export type VolumeUnit = "oz" | "ml" | "gal" | "L" | "cups";
 export type WeightUnit = "oz" | "lbs" | "g" | "kg";
 export type LengthUnit = "inches" | "cm" | "ft" | "m";
 export type TemperatureUnit = "F" | "C";
 
-export interface FertilizerProtocol {
-  product?: string;
-  dilution?: string;
-  amount?: string;
-  method?: ApplicationMethod;
-}
-
-export interface ApplicationDetails {
-  dilution?: string;
-  amount?: string;
-  method?: ApplicationMethod;
-}
-
-export interface VarietyProtocols {
-  watering?: Record<
-    GrowthStage,
-    {
-      trigger?: { moistureLevel?: string | number };
-      target?: { moistureLevel?: string | number };
-      volume?: { amount?: string | number; frequency?: string };
-    }
-  >;
-  fertilizing?: Record<
-    GrowthStage,
-    {
-      fertilizer?: FertilizerProtocol;
-      application?: ApplicationDetails;
-    }
-  >;
-  lighting?: Record<
-    GrowthStage,
-    {
-      ppfd?: { min: number; max: number; unit: string };
-      photoperiod?: { hours: number };
-      dli?: { min: number; max: number; unit: string };
-    }
-  >;
-}
-
+// Application methods
 export type ApplicationMethod =
   | "soil-drench"
   | "foliar-spray"
@@ -93,24 +58,7 @@ export type WateringMethod =
   | "drip"
   | "misting";
 
-// Common interfaces used across multiple domains
-export interface BaseRecord {
-  id: string;
-  createdAt: Date;
-  updatedAt: Date;
-}
-
-export interface TimestampedRecord {
-  id: string;
-  createdAt: Date;
-}
-
-export interface MoistureReading {
-  before: number;
-  after: number;
-  scale: "1-10" | "visual";
-}
-
+// Base measurement interfaces
 export interface Volume {
   amount: number;
   unit: VolumeUnit;
@@ -121,22 +69,8 @@ export interface Weight {
   unit: WeightUnit;
 }
 
-export interface GrowthTimeline {
-  germination: number;
-  seedling: number;
-  vegetative: number;
-  maturation: number;
-}
-export interface CategoryMoistureDefaults {
-  trigger: [number, number];
-  target: [number, number];
-}
-
-export interface MoistureProtocolInfo {
-  trigger: [number, number];
-  target: [number, number];
-  varietyName: string;
-  currentStage: GrowthStage;
-  isDefault: boolean;
-  source: "custom" | "category" | "universal";
+export interface MoistureReading {
+  before: number;
+  after: number;
+  scale: "1-10" | "visual";
 }

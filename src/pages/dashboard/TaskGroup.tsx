@@ -2,11 +2,9 @@
 
 import React, { useState } from "react";
 import { Card, CardContent, CardHeader } from "@/components/ui/Card";
-import {
-  QuickCompletionValues,
-  TaskGroup as TaskGroupType,
-} from "@/types/scheduling";
 import TaskItem from "./TaskItem";
+import { TaskGroup as TaskGroupType } from "@/types/scheduling";
+import { QuickCompletionValues } from "@/services/smartDefaultsService";
 
 interface TaskGroupProps {
   group: TaskGroupType;

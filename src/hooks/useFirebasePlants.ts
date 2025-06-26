@@ -34,7 +34,9 @@ export function useFirebasePlants(includeInactive = false) {
     plant: Omit<PlantRecord, "id" | "createdAt" | "updatedAt">
   ) => {
     try {
-      if (!user) throw new Error("User not authenticated");
+      if (!user) {
+        throw new Error("User not authenticated");
+      }
       setError(null);
       return await FirebasePlantService.createPlant(plant, user.uid);
     } catch (err) {

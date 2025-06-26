@@ -1,12 +1,12 @@
 // src/pages/plants/AddPlant.tsx
 import React from "react";
-import { PlantRegistrationForm } from "@/components/plant/PlantRegistrationForm";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/Button";
 import { OfflineIndicator } from "@/components/ui/OfflineIndicator";
 import Navigation from "@/components/Navigation";
 import { useFirebaseAuth } from "@/hooks/useFirebaseAuth";
 import { ArrowLeft } from "lucide-react";
+import { PlantRegistrationForm } from "@/components/plant/PlantRegistrationForm";
 
 const AddPlant: React.FC = () => {
   const navigate = useNavigate();

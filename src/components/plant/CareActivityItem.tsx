@@ -1,13 +1,6 @@
 // src/components/plant/CareActivityItem.tsx
 import React, { useState } from "react";
-import {
-  CareRecord,
-  WateringDetails,
-  FertilizingDetails,
-  ObservationDetails,
-  HarvestDetails,
-  TransplantDetails,
-} from "@/types/database";
+import { CareRecord } from "@/types";
 import { formatDateTime } from "@/utils/dateUtils";
 
 interface CareActivityItemProps {
@@ -35,26 +28,34 @@ const CareActivityItem: React.FC<CareActivityItemProps> = ({ activity }) => {
   };
 
   const getActivityTitle = (activity: CareRecord): string => {
+    const details = activity.details;
+
     switch (activity.type) {
       case "water": {
-        const waterDetails = activity.details as WateringDetails;
-        return `Watering (${waterDetails.amount.value} ${waterDetails.amount.unit})`;
+        // Handle both string and object amount formats
+        let amountDisplay = "unknown amount";
+        if (typeof details.amount === "object" && details.amount?.value) {
+          amountDisplay = `${details.amount.value} ${details.amount.unit}`;
+        } else if (details.waterAmount && details.waterUnit) {
+          amountDisplay = `${details.waterAmount} ${details.waterUnit}`;
+        }
+        return `Watering (${amountDisplay})`;
       }
       case "fertilize": {
-        const fertilizeDetails = activity.details as FertilizingDetails;
-        return `Fertilized with ${fertilizeDetails.product}`;
+        return `Fertilized with ${details.product || "fertilizer"}`;
       }
       case "observe": {
-        const observeDetails = activity.details as ObservationDetails;
-        return `Health Check (${observeDetails.healthAssessment})`;
+        return `Health Check (${details.healthAssessment || "unknown"})`;
       }
       case "harvest": {
-        const harvestDetails = activity.details as HarvestDetails;
-        return `Harvested ${harvestDetails.amount}`;
+        const amount =
+          typeof details.amount === "string"
+            ? details.amount
+            : "unknown amount";
+        return `Harvested ${amount}`;
       }
       case "transplant": {
-        const transplantDetails = activity.details as TransplantDetails;
-        return `Transplanted to ${transplantDetails.toContainer}`;
+        return `Transplanted to ${details.toContainer || "new container"}`;
       }
       default:
         return "Care Activity";
@@ -62,9 +63,10 @@ const CareActivityItem: React.FC<CareActivityItemProps> = ({ activity }) => {
   };
 
   const renderActivityDetails = (activity: CareRecord) => {
+    const details = activity.details;
+
     switch (activity.type) {
       case "water": {
-        const waterDetails = activity.details as WateringDetails;
         return (
           <div className="space-y-2">
             <div className="grid grid-cols-2 gap-4 text-sm">
@@ -73,36 +75,40 @@ const CareActivityItem: React.FC<CareActivityItemProps> = ({ activity }) => {
                   Amount:
                 </span>
                 <div>
-                  {waterDetails.amount.value} {waterDetails.amount.unit}
+                  {typeof details.amount === "object" && details.amount?.value
+                    ? `${details.amount.value} ${details.amount.unit}`
+                    : details.waterAmount && details.waterUnit
+                    ? `${details.waterAmount} ${details.waterUnit}`
+                    : "Not specified"}
                 </div>
               </div>
-              {waterDetails.method && (
+              {details.method && (
                 <div>
                   <span className="font-medium text-muted-foreground">
                     Method:
                   </span>
-                  <div>{waterDetails.method.replace("-", " ")}</div>
+                  <div>{details.method.replace("-", " ")}</div>
                 </div>
               )}
             </div>
-            {waterDetails.moistureReading && (
+            {details.moistureLevel && (
               <div>
                 <span className="font-medium text-muted-foreground">
                   Moisture Reading:
                 </span>
                 <div className="text-sm">
-                  Before: {waterDetails.moistureReading.before}/10 → After:{" "}
-                  {waterDetails.moistureReading.after}/10
+                  Before: {details.moistureLevel.before}/10 → After:{" "}
+                  {details.moistureLevel.after}/10
                 </div>
               </div>
             )}
-            {waterDetails.runoffObserved !== undefined && (
+            {details.runoffObserved !== undefined && (
               <div>
                 <span className="font-medium text-muted-foreground">
                   Runoff:
                 </span>
                 <div className="text-sm">
-                  {waterDetails.runoffObserved ? "Yes" : "No"}
+                  {details.runoffObserved ? "Yes" : "No"}
                 </div>
               </div>
             )}
@@ -111,7 +117,6 @@ const CareActivityItem: React.FC<CareActivityItemProps> = ({ activity }) => {
       }
 
       case "fertilize": {
-        const fertilizeDetails = activity.details as FertilizingDetails;
         return (
           <div className="space-y-2">
             <div className="grid grid-cols-2 gap-4 text-sm">
@@ -119,26 +124,30 @@ const CareActivityItem: React.FC<CareActivityItemProps> = ({ activity }) => {
                 <span className="font-medium text-muted-foreground">
                   Product:
                 </span>
-                <div>{fertilizeDetails.product}</div>
+                <div>{details.product || "Not specified"}</div>
               </div>
               <div>
                 <span className="font-medium text-muted-foreground">
                   Dilution:
                 </span>
-                <div>{fertilizeDetails.dilution}</div>
+                <div>{details.dilution || "Not specified"}</div>
               </div>
               <div>
                 <span className="font-medium text-muted-foreground">
                   Amount:
                 </span>
-                <div>{fertilizeDetails.amount}</div>
+                <div>
+                  {typeof details.amount === "string"
+                    ? details.amount
+                    : "Not specified"}
+                </div>
               </div>
             </div>
           </div>
         );
       }
+
       case "observe": {
-        const observeDetails = activity.details as ObservationDetails;
         return (
           <div className="space-y-2">
             <div>
@@ -146,22 +155,22 @@ const CareActivityItem: React.FC<CareActivityItemProps> = ({ activity }) => {
                 Health Assessment:
               </span>
               <div className="text-sm capitalize">
-                {observeDetails.healthAssessment}
+                {details.healthAssessment || "Not specified"}
               </div>
             </div>
             <div>
               <span className="font-medium text-muted-foreground">
                 Observations:
               </span>
-              <div className="text-sm">{observeDetails.observations}</div>
+              <div className="text-sm">{details.observations || "None"}</div>
             </div>
-            {observeDetails.photos && observeDetails.photos.length > 0 && (
+            {details.photos && details.photos.length > 0 && (
               <div>
                 <span className="font-medium text-muted-foreground">
                   Photos:
                 </span>
                 <div className="text-sm">
-                  {observeDetails.photos.length} photo(s) attached
+                  {details.photos.length} photo(s) attached
                 </div>
               </div>
             )}
@@ -170,7 +179,6 @@ const CareActivityItem: React.FC<CareActivityItemProps> = ({ activity }) => {
       }
 
       case "harvest": {
-        const harvestDetails = activity.details as HarvestDetails;
         return (
           <div className="space-y-2">
             <div className="grid grid-cols-2 gap-4 text-sm">
@@ -178,21 +186,27 @@ const CareActivityItem: React.FC<CareActivityItemProps> = ({ activity }) => {
                 <span className="font-medium text-muted-foreground">
                   Amount:
                 </span>
-                <div>{harvestDetails.amount}</div>
+                <div>
+                  {typeof details.amount === "string"
+                    ? details.amount
+                    : "Not specified"}
+                </div>
               </div>
               <div>
                 <span className="font-medium text-muted-foreground">
                   Quality:
                 </span>
-                <div className="capitalize">{harvestDetails.quality}</div>
+                <div className="capitalize">
+                  {details.quality || "Not specified"}
+                </div>
               </div>
             </div>
-            {harvestDetails.method && (
+            {details.harvestMethod && (
               <div>
                 <span className="font-medium text-muted-foreground">
                   Method:
                 </span>
-                <div className="text-sm">{harvestDetails.method}</div>
+                <div className="text-sm">{details.harvestMethod}</div>
               </div>
             )}
           </div>
@@ -200,22 +214,21 @@ const CareActivityItem: React.FC<CareActivityItemProps> = ({ activity }) => {
       }
 
       case "transplant": {
-        const transplantDetails = activity.details as TransplantDetails;
         return (
           <div className="space-y-2">
             <div className="grid grid-cols-2 gap-4 text-sm">
               <div>
                 <span className="font-medium text-muted-foreground">From:</span>
-                <div>{transplantDetails.fromContainer}</div>
+                <div>{details.fromContainer || "Not specified"}</div>
               </div>
               <div>
                 <span className="font-medium text-muted-foreground">To:</span>
-                <div>{transplantDetails.toContainer}</div>
+                <div>{details.toContainer || "Not specified"}</div>
               </div>
             </div>
             <div>
               <span className="font-medium text-muted-foreground">Reason:</span>
-              <div className="text-sm">{transplantDetails.reason}</div>
+              <div className="text-sm">{details.reason || "Not specified"}</div>
             </div>
           </div>
         );

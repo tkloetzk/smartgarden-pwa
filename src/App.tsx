@@ -1,16 +1,17 @@
-// src/App.tsx
 import { Routes, Route } from "react-router-dom";
 import { useFirebaseAuth } from "./hooks/useFirebaseAuth";
 import { useAppInitialization } from "./hooks/useAppInitialization";
-import { AuthForm } from "./components/AuthForm";
-import AddPlant from "./pages/plants/AddPlant";
-import Plants from "./pages/plants/Plants";
-import PlantDetail from "./pages/plants/PlantDetail";
+import { useDarkMode } from "./hooks/useDarkMode"; // Add this import
 import LogCare from "./pages/care/LogCare";
 import { Dashboard } from "./pages/dashboard";
+import Plants from "./pages/plants/Plants";
+import PlantDetail from "./pages/plants/PlantDetail";
+import { AuthForm } from "./components/AuthForm";
+import AddPlant from "./pages/plants/AddPlant";
 
 const App = () => {
   const { user, loading } = useFirebaseAuth();
+  useDarkMode(); // Initialize dark mode globally
   useAppInitialization();
 
   if (loading) {

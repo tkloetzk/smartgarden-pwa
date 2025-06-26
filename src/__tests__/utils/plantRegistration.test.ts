@@ -11,8 +11,10 @@ describe("Plant Registration Utils", () => {
       seedling: 14,
       vegetative: 21,
       maturation: 45,
+      rootDevelopment: 14,
     },
     createdAt: new Date(),
+    updatedAt: new Date(),
   };
 
   describe("calculateCurrentStageWithVariety", () => {

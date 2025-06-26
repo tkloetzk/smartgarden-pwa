@@ -1,245 +1,59 @@
-// src/pages/care/CareLogForm.tsx
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
-import { useSearchParams } from "react-router-dom";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
+import { useSearchParams } from "react-router-dom";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
+import { Button } from "@/components/ui/Button";
+import { LoadingSpinner } from "@/components/ui/LoadingSpinner";
+import { useFirebasePlants } from "@/hooks/useFirebasePlants";
+import { useFirebaseCareActivities } from "@/hooks/useFirebaseCareActivities";
 import {
-  plantService,
-  careService,
   varietyService,
-  PlantRecord,
   VarietyRecord,
   CareActivityDetails,
-  WateringDetails,
-  FertilizingDetails,
-  ObservationDetails,
 } from "@/types/database";
-import { Button } from "@/components/ui/Button";
-import { PhotoCapture } from "./PhotoCapture";
-import { calculateCurrentStage } from "@/utils/growthStage";
-import { GrowthStage } from "@/types/core";
-import toast from "react-hot-toast";
+import { calculateCurrentStageWithVariety } from "@/utils/growthStage";
+import { GrowthStage } from "@/types";
 import {
-  SmartDefaultsService,
-  SmartDefaults,
-  QuickCompletionValues,
-} from "@/services/smartDefaultsService";
-import QuickCompletionButtons from "@/pages/care/QuickCompletionButtons";
+  Droplets,
+  Beaker,
+  Eye,
+  Camera,
+  FileText,
+  Calendar,
+  Info,
+} from "lucide-react";
+import { getMethodDisplay } from "@/utils/fertilizationUtils";
+import { ApplicationMethod } from "@/types/core";
+import { FertilizationScheduleItem } from "@/types";
 
-// Enhanced moisture validation types
-interface MoistureValidationMessage {
-  field: "before" | "after" | "source";
-  message: string;
-  color: string;
-}
-
-interface MoistureValidationResult {
-  validations: MoistureValidationMessage[];
-  isValid: boolean;
-}
-
-interface CategoryMoistureDefaults {
-  trigger: [number, number];
-  target: [number, number];
-}
-
-interface PlantMoistureProtocol {
-  trigger: [number, number];
-  target: [number, number];
-  varietyName: string;
-  currentStage: GrowthStage;
-  isDefault: boolean;
-  source: "protocol" | "category" | "universal";
-}
-
-// Extract moisture ranges for a specific stage from variety protocols
-function extractMoistureRangesForStage(
-  variety: VarietyRecord,
-  stage: GrowthStage
-): PlantMoistureProtocol | null {
-  // 1. First try: Stage-specific protocol
-  const stageProtocol = variety.protocols?.watering?.[stage] as {
-    trigger?: { moistureLevel?: string | number };
-    target?: { moistureLevel?: string | number };
-  };
-
-  if (
-    stageProtocol?.trigger?.moistureLevel &&
-    stageProtocol?.target?.moistureLevel
-  ) {
-    const triggerRange = parseMoistureRange(
-      stageProtocol.trigger.moistureLevel
-    );
-    const targetRange = parseMoistureRange(stageProtocol.target.moistureLevel);
-
-    if (triggerRange && targetRange) {
-      return {
-        trigger: triggerRange,
-        target: targetRange,
-        varietyName: variety.name || "Unknown",
-        currentStage: stage,
-        isDefault: false,
-        source: "protocol",
-      };
+const careFormSchema = z
+  .object({
+    plantId: z.string().min(1, "Please select a plant"),
+    type: z.enum(["water", "fertilize", "observe", "photo", "note"]),
+    date: z.string().min(1, "Date is required"),
+    waterValue: z.number().optional(),
+    waterUnit: z.enum(["oz", "ml", "cups", "L"]).optional(),
+    moistureBefore: z.number().min(1).max(10).optional(),
+    moistureAfter: z.number().min(1).max(10).optional(),
+    fertilizeAmount: z.string().optional(),
+    fertilizeType: z.string().optional(),
+    fertilizeDilution: z.string().optional(),
+    notes: z.string().optional(),
+  })
+  .refine(
+    (data) => {
+      if (data.type === "water") {
+        return data.waterValue !== undefined && data.waterValue !== null;
+      }
+      return true;
+    },
+    {
+      message: "Water amount is required for watering activities.",
+      path: ["waterValue"],
     }
-  }
-
-  // 2. Second try: Category-based defaults
-  const categoryDefaults = getCategoryBasedDefaults(variety.category, stage);
-  if (categoryDefaults) {
-    return {
-      ...categoryDefaults,
-      varietyName: variety.name || "Unknown",
-      currentStage: stage,
-      isDefault: false,
-      source: "category",
-    };
-  }
-
-  // 3. Fallback: Universal defaults
-  return {
-    trigger: [3, 4] as [number, number],
-    target: [6, 7] as [number, number],
-    varietyName: variety.name || "Unknown",
-    currentStage: stage,
-    isDefault: true,
-    source: "universal",
-  };
-}
-
-function parseMoistureRange(value: string | number): [number, number] | null {
-  if (typeof value === "number") {
-    return [value, value];
-  }
-
-  if (typeof value === "string") {
-    // Handle ranges like "3-4" or "6-7"
-    const rangeMatch = value.match(/(\d+(?:\.\d+)?)-(\d+(?:\.\d+)?)/);
-    if (rangeMatch) {
-      return [parseFloat(rangeMatch[1]), parseFloat(rangeMatch[2])];
-    }
-
-    // Handle single values like "3" or "6"
-    const singleMatch = value.match(/(\d+(?:\.\d+)?)/);
-    if (singleMatch) {
-      const num = parseFloat(singleMatch[1]);
-      return [num, num];
-    }
-  }
-
-  return null;
-}
-
-function getCategoryBasedDefaults(
-  category: string,
-  stage: GrowthStage
-): CategoryMoistureDefaults | null {
-  // Category-based protocols provide reasonable defaults for plant types
-  const categoryProtocols: Record<
-    string,
-    Record<GrowthStage, CategoryMoistureDefaults>
-  > = {
-    "root-vegetables": {
-      germination: { trigger: [4, 5], target: [6, 7] },
-      seedling: { trigger: [4, 5], target: [6, 7] },
-      vegetative: { trigger: [3, 4], target: [6, 7] },
-      flowering: { trigger: [3, 4], target: [6, 7] },
-      fruiting: { trigger: [3, 4], target: [6, 7] },
-      maturation: { trigger: [3, 4], target: [6, 7] },
-      harvest: { trigger: [3, 4], target: [6, 7] },
-      "ongoing-production": { trigger: [3, 4], target: [6, 7] },
-    },
-    "leafy-greens": {
-      germination: { trigger: [3, 4], target: [6, 7] },
-      seedling: { trigger: [3, 4], target: [6, 7] },
-      vegetative: { trigger: [3, 4], target: [6, 7] },
-      flowering: { trigger: [3, 4], target: [6, 7] },
-      fruiting: { trigger: [3, 4], target: [6, 7] },
-      maturation: { trigger: [3, 4], target: [6, 7] },
-      harvest: { trigger: [3, 4], target: [6, 7] },
-      "ongoing-production": { trigger: [3, 4], target: [6, 7] },
-    },
-    "fruiting-plants": {
-      germination: { trigger: [4, 5], target: [7, 8] },
-      seedling: { trigger: [4, 5], target: [7, 8] },
-      vegetative: { trigger: [3, 4], target: [6, 7] },
-      flowering: { trigger: [3, 4], target: [6, 7] },
-      fruiting: { trigger: [3, 4], target: [6, 8] },
-      maturation: { trigger: [3, 4], target: [6, 8] },
-      harvest: { trigger: [3, 4], target: [6, 8] },
-      "ongoing-production": { trigger: [3, 4], target: [6, 8] },
-    },
-    herbs: {
-      germination: { trigger: [3, 4], target: [6, 7] },
-      seedling: { trigger: [3, 4], target: [6, 7] },
-      vegetative: { trigger: [3, 4], target: [6, 7] },
-      flowering: { trigger: [3, 4], target: [6, 7] },
-      fruiting: { trigger: [3, 4], target: [6, 7] },
-      maturation: { trigger: [3, 4], target: [6, 7] },
-      harvest: { trigger: [3, 4], target: [6, 7] },
-      "ongoing-production": { trigger: [3, 4], target: [6, 7] },
-    },
-    berries: {
-      germination: { trigger: [3, 4], target: [6, 7] },
-      seedling: { trigger: [3, 4], target: [6, 7] },
-      vegetative: { trigger: [3, 4], target: [6, 7] },
-      flowering: { trigger: [3, 4], target: [6, 7] },
-      fruiting: { trigger: [3, 4], target: [6, 7] },
-      maturation: { trigger: [3, 4], target: [6, 7] },
-      harvest: { trigger: [3, 4], target: [6, 7] },
-      "ongoing-production": { trigger: [3, 4], target: [6, 7] },
-    },
-  };
-
-  return categoryProtocols[category]?.[stage] || null;
-}
-
-// Schema definitions
-const baseCareSchema = z.object({
-  plantId: z.string().min(1, "Please select a plant"),
-  type: z.enum(["water", "fertilize", "observe", "harvest", "transplant"]),
-  date: z.string(),
-  notes: z.string().optional(),
-});
-
-const wateringSchema = baseCareSchema.extend({
-  type: z.literal("water"),
-  waterValue: z.number().min(0.1, "Water amount must be greater than 0"),
-  waterUnit: z.enum(["oz", "ml", "cups", "liters", "gallons"]),
-  moistureBefore: z.number().min(1).max(10).optional(),
-  moistureAfter: z.number().min(1).max(10).optional(),
-  applicationMethod: z
-    .enum(["top-watering", "bottom-watering", "drip", "misting"])
-    .optional(),
-  runoffObserved: z.boolean().optional(),
-});
-
-const fertilizingSchema = baseCareSchema.extend({
-  type: z.literal("fertilize"),
-  product: z.string().min(1, "Fertilizer product is required"),
-  dilution: z.string().min(1, "Dilution ratio is required"),
-  amount: z.string().min(1, "Application amount is required"),
-});
-
-const observationSchema = baseCareSchema.extend({
-  type: z.literal("observe"),
-  healthAssessment: z.enum([
-    "excellent",
-    "good",
-    "fair",
-    "concerning",
-    "critical",
-  ]),
-  observations: z.string().min(1, "Observations are required"),
-  photos: z.array(z.string()).optional(),
-});
-
-const careFormSchema = z.discriminatedUnion("type", [
-  wateringSchema,
-  fertilizingSchema,
-  observationSchema,
-]);
+  );
 
 type CareFormData = z.infer<typeof careFormSchema>;
 
@@ -247,8 +61,55 @@ interface CareLogFormProps {
   onSuccess?: () => void;
   onCancel?: () => void;
   preselectedPlantId?: string;
-  preselectedActivityType?: "water" | "fertilize" | "observe"; // Limit to supported types
+  preselectedActivityType?: "water" | "fertilize" | "observe";
 }
+
+interface FertilizerProduct {
+  name: string;
+  dilution?: string;
+  amount?: string;
+  frequency?: string;
+  method?: ApplicationMethod;
+}
+
+// Helper function to get protocol for current stage
+const getProtocolForStage = (
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  protocols: any,
+  stage: GrowthStage
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+): any | null => {
+  if (!protocols) return null;
+
+  if (protocols[stage]) return protocols[stage];
+
+  const stageMappings: { [key in GrowthStage]?: string[] } = {
+    vegetative: ["vegetativeGrowth", "vegetativeVining"],
+    flowering: ["flowerBudFormation"],
+    harvest: ["fruitingHarvesting", "podSetMaturation"],
+    "ongoing-production": ["ongoingProduction"],
+    germination: ["germinationEmergence", "slipProduction"],
+    seedling: ["establishment"],
+  };
+
+  const possibleKeys = stageMappings[stage] || [];
+  for (const key of possibleKeys) {
+    if (protocols[key]) {
+      return protocols[key];
+    }
+  }
+
+  return null;
+};
+
+const formatAmountText = (amount: string) => {
+  return amount.split(",").map((part, index, array) => (
+    <span key={index}>
+      {part.trim()}
+      {index < array.length - 1 && <br />}
+    </span>
+  ));
+};
 
 export function CareLogForm({
   onSuccess,
@@ -256,22 +117,26 @@ export function CareLogForm({
   preselectedPlantId,
   preselectedActivityType,
 }: CareLogFormProps) {
-  const [plants, setPlants] = useState<PlantRecord[]>([]);
+  const { plants, loading: plantsLoading } = useFirebasePlants();
+  const { logActivity } = useFirebaseCareActivities();
   const [isLoading, setIsLoading] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
-  const [capturedPhotos, setCapturedPhotos] = useState<string[]>([]);
   const [showDetailedTracking, setShowDetailedTracking] = useState(false);
+  const [plantVariety, setPlantVariety] = useState<VarietyRecord | null>(null);
+  const [currentStage, setCurrentStage] = useState<GrowthStage>("germination");
+  const [availableFertilizers, setAvailableFertilizers] = useState<
+    FertilizerProduct[]
+  >([]);
+  const [selectedFertilizer, setSelectedFertilizer] =
+    useState<FertilizerProduct | null>(null);
   const [searchParams] = useSearchParams();
 
-  // State for moisture validation
-  const [moistureValidation, setMoistureValidation] =
-    useState<MoistureValidationResult | null>(null);
-
-  // State for smart defaults
-  const [smartDefaults, setSmartDefaults] = useState<SmartDefaults | null>(
-    null
-  );
-  const [isLoadingDefaults, setIsLoadingDefaults] = useState(false);
+  const plantIdFromParams =
+    preselectedPlantId || searchParams.get("plantId") || "";
+  const activityTypeFromParams =
+    preselectedActivityType ||
+    (searchParams.get("type") as "water" | "fertilize" | "observe") ||
+    "water";
 
   const {
     register,
@@ -283,11 +148,8 @@ export function CareLogForm({
   } = useForm<CareFormData>({
     resolver: zodResolver(careFormSchema),
     defaultValues: {
-      plantId: preselectedPlantId || searchParams.get("plantId") || "",
-      type:
-        preselectedActivityType ||
-        (searchParams.get("type") as "water" | "fertilize" | "observe") ||
-        "water", // Now using preselectedActivityType
+      plantId: "",
+      type: activityTypeFromParams,
       date: new Date().toISOString().split("T")[0],
       waterValue: undefined,
       waterUnit: "oz",
@@ -296,50 +158,25 @@ export function CareLogForm({
 
   const activityType = watch("type");
   const selectedPlantId = watch("plantId");
-  const moistureBefore = watch("moistureBefore");
-  const moistureAfter = watch("moistureAfter");
-
-  // Load plants on component mount
-  useEffect(() => {
-    const loadPlants = async () => {
-      try {
-        const plantList = await plantService.getActivePlants();
-        setPlants(plantList);
-      } catch (error) {
-        console.error("Failed to load plants:", error);
-        toast.error("Failed to load plants");
-      }
-    };
-
-    loadPlants();
-  }, []);
+  const selectedFertilizerType = watch("fertilizeType");
 
   useEffect(() => {
-    const plantIdToSet = preselectedPlantId || searchParams.get("plantId");
-    if (plantIdToSet && plants.length > 0) {
-      const plant = plants.find((p) => p.id === plantIdToSet);
-      if (plant) {
-        setValue("plantId", plantIdToSet);
+    if (!plantsLoading && plants.length > 0 && plantIdFromParams) {
+      const plantExists = plants.some(
+        (plant) => plant.id === plantIdFromParams
+      );
+      if (plantExists) {
+        setValue("plantId", plantIdFromParams);
       }
     }
-  }, [plants, preselectedPlantId, searchParams, setValue]);
+  }, [plantsLoading, plants, plantIdFromParams, setValue]);
 
   useEffect(() => {
-    const activityTypeToSet =
-      preselectedActivityType || searchParams.get("type");
-    if (
-      activityTypeToSet &&
-      ["water", "fertilize", "observe"].includes(activityTypeToSet)
-    ) {
-      setValue("type", activityTypeToSet as "water" | "fertilize" | "observe");
-    }
-  }, [searchParams, preselectedActivityType, setValue]);
-
-  // Load smart defaults when plant is selected
-  useEffect(() => {
-    const loadSmartDefaults = async () => {
-      if (!selectedPlantId || !plants.length) {
-        setSmartDefaults(null);
+    const loadPlantData = async () => {
+      if (!selectedPlantId) {
+        setPlantVariety(null);
+        setCurrentStage("germination");
+        setAvailableFertilizers([]);
         return;
       }
 
@@ -347,818 +184,745 @@ export function CareLogForm({
       if (!plant) return;
 
       try {
-        setIsLoadingDefaults(true);
-        const defaults = await SmartDefaultsService.getDefaultsForPlant(plant);
-        setSmartDefaults(defaults);
+        const variety = await varietyService.getVariety(plant.varietyId);
+        setPlantVariety(variety || null);
 
-        // Auto-apply watering defaults when watering is selected
-        if (activityType === "water" && defaults?.watering) {
-          setValue("waterValue", defaults.watering.suggestedAmount);
-          setValue("waterUnit", defaults.watering.unit);
+        if (variety) {
+          const stage = calculateCurrentStageWithVariety(
+            plant.plantedDate,
+            variety
+          );
+          setCurrentStage(stage);
+
+          if (
+            activityType === "fertilize" &&
+            variety.protocols?.fertilization
+          ) {
+            const fertilizingProtocol = getProtocolForStage(
+              variety.protocols.fertilization,
+              stage
+            );
+            if (
+              fertilizingProtocol?.schedule &&
+              Array.isArray(fertilizingProtocol.schedule)
+            ) {
+              const products: FertilizerProduct[] =
+                fertilizingProtocol.schedule.map(
+                  (item: FertilizationScheduleItem) => ({
+                    name: item.details.product,
+                    dilution: item.details.dilution,
+                    amount: item.details.amount,
+                    method: item.details.method,
+                  })
+                );
+              setAvailableFertilizers(products);
+
+              if (products.length === 1) {
+                const firstProduct = products[0];
+                setValue("fertilizeType", firstProduct.name);
+                setSelectedFertilizer(firstProduct);
+              }
+            } else {
+              setAvailableFertilizers([]);
+            }
+          }
         }
       } catch (error) {
-        console.error("Error loading smart defaults:", error);
-      } finally {
-        setIsLoadingDefaults(false);
+        console.error("Failed to load plant variety:", error);
+        setPlantVariety(null);
       }
     };
 
-    loadSmartDefaults();
+    loadPlantData();
   }, [selectedPlantId, plants, activityType, setValue]);
 
-  // Helper function to apply quick completion values
-  const handleQuickComplete = (values: QuickCompletionValues) => {
-    Object.entries(values).forEach(([key, value]) => {
-      if (value !== undefined) {
-        setValue(key as keyof CareFormData, value);
-      }
-    });
-  };
-
-  // This function gets the moisture protocol for a specific plant
-  const getPlantMoistureProtocol = useCallback(
-    async (plantId: string) => {
-      const plant = plants.find((p) => p.id === plantId);
-      if (!plant) return null;
-
-      try {
-        const variety = await varietyService.getVariety(plant.varietyId);
-        if (!variety) return null;
-
-        // Calculate current growth stage for stage-specific protocols
-        const currentStage = calculateCurrentStage(
-          plant.plantedDate,
-          variety.growthTimeline
-        );
-
-        // Extract moisture ranges for current stage
-        return extractMoistureRangesForStage(variety, currentStage);
-      } catch (error) {
-        console.error("Error fetching plant moisture protocol:", error);
-        return null;
-      }
-    },
-    [plants]
-  );
-
-  // This function validates moisture readings against plant-specific protocols
-  const getMoistureValidationForPlant = useCallback(
-    async (
-      plantId: string,
-      moistureBefore?: number,
-      moistureAfter?: number
-    ): Promise<MoistureValidationResult | null> => {
-      const protocol = await getPlantMoistureProtocol(plantId);
-      if (!protocol) return null;
-
-      const validations: MoistureValidationMessage[] = [];
-
-      // Validate "before" reading against trigger range
-      if (moistureBefore !== undefined) {
-        const [triggerMin, triggerMax] = protocol.trigger;
-        if (moistureBefore >= triggerMin && moistureBefore <= triggerMax) {
-          validations.push({
-            field: "before",
-            message: `✓ Perfect timing! ${triggerMin}-${triggerMax} is ideal for watering.`,
-            color: "text-green-600",
-          });
-        } else if (moistureBefore > triggerMax) {
-          validations.push({
-            field: "before",
-            message: `ℹ️ Plant still moist (${triggerMin}-${triggerMax} recommended for watering).`,
-            color: "text-blue-600",
-          });
-        } else {
-          validations.push({
-            field: "before",
-            message: `⚠️ Very dry! Watering at ${triggerMin}-${triggerMax} prevents stress.`,
-            color: "text-orange-600",
-          });
-        }
-      }
-
-      // Validate "after" reading against target range
-      if (moistureAfter !== undefined) {
-        const [targetMin, targetMax] = protocol.target;
-        if (moistureAfter >= targetMin && moistureAfter <= targetMax) {
-          validations.push({
-            field: "after",
-            message: `✓ Perfect! Target range ${targetMin}-${targetMax} achieved.`,
-            color: "text-green-600",
-          });
-        } else if (moistureAfter > targetMax) {
-          validations.push({
-            field: "after",
-            message: `⚠️ Over-watered. Target is ${targetMin}-${targetMax}. Allow drying time.`,
-            color: "text-orange-600",
-          });
-        } else {
-          validations.push({
-            field: "after",
-            message: `ℹ️ Could use more water. Target: ${targetMin}-${targetMax}.`,
-            color: "text-blue-600",
-          });
-        }
-      }
-
-      // Add source information
-      const sourceMessages = {
-        protocol: `Using ${protocol.varietyName} ${protocol.currentStage} stage protocol`,
-        category: `Using category-based guidance for ${protocol.currentStage} stage`,
-        universal: `Using universal defaults (variety protocol incomplete)`,
-      };
-
-      validations.push({
-        field: "source",
-        message: sourceMessages[protocol.source],
-        color: protocol.isDefault ? "text-muted-foreground" : "text-foreground",
-      });
-
-      return {
-        validations,
-        isValid: true, // We're just providing guidance, not blocking
-      };
-    },
-    [getPlantMoistureProtocol]
-  );
-
-  // Update moisture validation when readings change
   useEffect(() => {
-    if (selectedPlantId && (moistureBefore || moistureAfter)) {
-      getMoistureValidationForPlant(
-        selectedPlantId,
-        moistureBefore,
-        moistureAfter
-      ).then(setMoistureValidation);
+    if (selectedFertilizerType) {
+      const fertilizer = availableFertilizers.find(
+        (f) => f.name === selectedFertilizerType
+      );
+      setSelectedFertilizer(fertilizer || null);
+
+      if (fertilizer) {
+        if (fertilizer.dilution) {
+          setValue("fertilizeDilution", fertilizer.dilution);
+        }
+        if (fertilizer.amount) {
+          setValue("fertilizeAmount", fertilizer.amount);
+        }
+      }
     } else {
-      setMoistureValidation(null);
+      setSelectedFertilizer(null);
     }
-  }, [
-    selectedPlantId,
-    moistureBefore,
-    moistureAfter,
-    getMoistureValidationForPlant,
-  ]);
+  }, [selectedFertilizerType, availableFertilizers, setValue]);
 
   const onSubmit = async (data: CareFormData) => {
     try {
       setIsLoading(true);
       setSubmitError(null);
 
-      // Build the care record with proper structure
-      let careDetails: CareActivityDetails;
+      let activityDetails: Partial<CareActivityDetails> = {
+        type: data.type,
+      };
 
       switch (data.type) {
-        case "water": {
-          const wateringDetails: WateringDetails = {
-            type: "water" as const,
+        case "water":
+          activityDetails = {
+            type: "water",
             amount: {
-              value: data.waterValue,
-              unit: data.waterUnit,
+              value: data.waterValue!,
+              unit: data.waterUnit!,
             },
-            moistureReading:
-              showDetailedTracking && data.moistureBefore && data.moistureAfter
-                ? {
+
+            ...(showDetailedTracking &&
+            data.moistureBefore &&
+            data.moistureAfter
+              ? {
+                  moistureReading: {
                     before: data.moistureBefore,
                     after: data.moistureAfter,
-                    scale: "1-10" as const,
-                  }
-                : undefined,
-            method: data.applicationMethod,
-            runoffObserved: data.runoffObserved,
-            notes: data.notes,
+                  },
+                }
+              : {}),
           };
-          careDetails = wateringDetails;
           break;
-        }
-
-        case "fertilize": {
-          const fertilizingDetails: FertilizingDetails = {
-            type: "fertilize" as const,
-            product: data.product,
-            dilution: data.dilution,
-            amount: data.amount,
-            notes: data.notes,
+        case "fertilize":
+          activityDetails = {
+            type: "fertilize",
+            product: data.fertilizeType,
+            dilution: data.fertilizeDilution,
+            amount: data.fertilizeAmount,
+            applicationMethod: selectedFertilizer?.method,
           };
-          careDetails = fertilizingDetails;
           break;
-        }
-
-        case "observe": {
-          const observationDetails: ObservationDetails = {
-            type: "observe" as const,
-            healthAssessment: data.healthAssessment,
-            observations: data.observations,
-            photos: capturedPhotos,
-            notes: data.notes,
+        case "observe":
+        case "photo":
+        case "note":
+          activityDetails = {
+            type: data.type,
           };
-          careDetails = observationDetails;
           break;
-        }
-
-        default: {
-          throw new Error(`Unsupported activity type`);
-        }
       }
 
-      await careService.addCareActivity({
+      if (data.notes) {
+        activityDetails.notes = data.notes;
+      }
+
+      await logActivity({
         plantId: data.plantId,
         type: data.type,
         date: new Date(data.date),
-        details: careDetails as WateringDetails | FertilizingDetails,
+        details: activityDetails as CareActivityDetails,
       });
 
-      toast.success("Care activity logged successfully!");
       reset();
-      setCapturedPhotos([]);
       onSuccess?.();
     } catch (error) {
       console.error("Failed to log care activity:", error);
       setSubmitError("Failed to log care activity. Please try again.");
-      toast.error("Failed to log care activity");
     } finally {
       setIsLoading(false);
     }
   };
 
-  function renderWateringFields() {
-    const selectedPlant = plants.find((p) => p.id === selectedPlantId);
+  const getActivityIcon = (type: string) => {
+    switch (type) {
+      case "water":
+        return <Droplets className="h-4 w-4" />;
+      case "fertilize":
+        return <Beaker className="h-4 w-4" />;
+      case "observe":
+        return <Eye className="h-4 w-4" />;
+      case "photo":
+        return <Camera className="h-4 w-4" />;
+      case "note":
+        return <FileText className="h-4 w-4" />;
+      default:
+        return <Droplets className="h-4 w-4" />;
+    }
+  };
+
+  const getActivityLabel = (type: string) => {
+    switch (type) {
+      case "water":
+        return "Watering";
+      case "fertilize":
+        return "Fertilizing";
+      case "observe":
+        return "Health Check";
+      case "photo":
+        return "Photo Log";
+      case "note":
+        return "General Note";
+      default:
+        return "Activity";
+    }
+  };
+
+  const renderWateringProtocol = () => {
+    if (!plantVariety?.protocols?.watering) return null;
+
+    const wateringProtocol = getProtocolForStage(
+      plantVariety.protocols.watering,
+      currentStage
+    );
+    if (!wateringProtocol) return null;
 
     return (
-      <>
-        {/* Smart Defaults Section */}
-        {smartDefaults?.watering && (
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
-            <div className="flex items-start justify-between">
-              <div>
-                <h4 className="text-sm font-medium text-blue-900 mb-1">
-                  💡 Smart Suggestion
-                </h4>
-                <p className="text-sm text-blue-700">
-                  {smartDefaults.watering.reasoning}
+      <div className="mt-4 p-3 bg-muted/50 dark:bg-muted/30 border border-border rounded-lg">
+        <div className="flex items-center gap-2 mb-2">
+          <Info className="h-4 w-4 text-muted-foreground" />
+          <span className="text-sm font-medium text-foreground">
+            Protocol for {currentStage} stage:
+          </span>
+        </div>
+        <div className="space-y-2 text-sm text-muted-foreground">
+          {wateringProtocol.trigger && (
+            <div>
+              <span className="font-medium text-foreground">
+                When to water:
+              </span>{" "}
+              {wateringProtocol.trigger.moistureLevel}
+            </div>
+          )}
+          {wateringProtocol.target && (
+            <div>
+              <span className="font-medium text-foreground">
+                Target moisture:
+              </span>{" "}
+              {wateringProtocol.target.moistureLevel}
+            </div>
+          )}
+          {wateringProtocol.volume && (
+            <div>
+              <span className="font-medium text-foreground">Amount:</span>{" "}
+              {formatAmountText(wateringProtocol.volume.amount)}
+              {wateringProtocol.volume.frequency && (
+                <span className="block mt-1">
+                  <span className="font-medium text-foreground">
+                    Frequency:
+                  </span>{" "}
+                  {wateringProtocol.volume.frequency}
+                </span>
+              )}
+            </div>
+          )}
+          {wateringProtocol.notes && wateringProtocol.notes.length > 0 && (
+            <div>
+              <span className="font-medium text-foreground">Notes:</span>
+              <ul className="list-disc list-inside ml-2 space-y-1 mt-1">
+                {wateringProtocol.notes.map((note: string, index: number) => (
+                  <li key={index}>{note}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  };
+
+  const renderWateringFields = () => {
+    return (
+      <Card className="border-border shadow-sm">
+        <CardHeader className="pb-3">
+          <CardTitle className="flex items-center gap-2 text-base">
+            <Droplets className="h-4 w-4" />
+            Watering Details
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="pt-0 space-y-4">
+          {renderWateringProtocol()}
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label
+                htmlFor="waterValue"
+                className="block text-sm font-medium text-foreground mb-2"
+              >
+                Water Amount *
+              </label>
+              <input
+                id="waterValue"
+                type="number"
+                step="0.1"
+                placeholder="Amount"
+                {...register("waterValue", { valueAsNumber: true })}
+                className="w-full p-3 border border-border rounded-lg bg-background text-foreground focus:ring-2 focus:ring-ring focus:border-ring"
+              />
+              {errors.waterValue && (
+                <p className="mt-1 text-sm text-red-600" role="alert">
+                  {errors.waterValue.message}
                 </p>
-                <div className="flex items-center mt-2 text-xs text-blue-600">
-                  <span
-                    className={`inline-block w-2 h-2 rounded-full mr-1 ${
-                      smartDefaults.watering.confidence === "high"
-                        ? "bg-green-500"
-                        : smartDefaults.watering.confidence === "medium"
-                        ? "bg-yellow-500"
-                        : "bg-red-500"
-                    }`}
-                  />
-                  {smartDefaults.watering.confidence} confidence
-                </div>
-              </div>
-              <div className="text-right">
-                <div className="text-lg font-semibold text-blue-900">
-                  {smartDefaults.watering.suggestedAmount}{" "}
-                  {smartDefaults.watering.unit}
-                </div>
-                <button
-                  type="button"
-                  onClick={() =>
-                    handleQuickComplete({
-                      waterValue: smartDefaults.watering!.suggestedAmount,
-                      waterUnit: smartDefaults.watering!.unit,
-                    })
-                  }
-                  className="text-xs text-blue-600 hover:text-blue-800 underline"
-                >
-                  Use this amount
-                </button>
-              </div>
+              )}
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-foreground mb-2">
+                Unit
+              </label>
+              <select
+                {...register("waterUnit")}
+                className="w-full p-3 border border-border rounded-lg bg-background text-foreground focus:ring-2 focus:ring-ring focus:border-ring"
+              >
+                <option value="oz">oz</option>
+                <option value="ml">ml</option>
+                <option value="cups">cups</option>
+                <option value="L">L</option>
+              </select>
             </div>
           </div>
-        )}
 
-        {/* Quick Action Buttons */}
-        {selectedPlant && (
-          <QuickCompletionButtons
-            plant={selectedPlant}
-            activityType="water"
-            onQuickComplete={handleQuickComplete}
-            className="mb-4"
-          />
-        )}
+          {showDetailedTracking && (
+            <div className="grid grid-cols-2 gap-3 pt-4 border-t border-border">
+              <div>
+                <label className="block text-sm font-medium text-foreground mb-2">
+                  Moisture Before (1-10)
+                </label>
+                <input
+                  type="number"
+                  min={1}
+                  max={10}
+                  placeholder="1-10"
+                  {...register("moistureBefore", { valueAsNumber: true })}
+                  className="w-full p-3 border border-border rounded-lg bg-background text-foreground focus:ring-2 focus:ring-ring focus:border-ring"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-foreground mb-2">
+                  Moisture After (1-10)
+                </label>
+                <input
+                  type="number"
+                  min={1}
+                  max={10}
+                  placeholder="1-10"
+                  {...register("moistureAfter", { valueAsNumber: true })}
+                  className="w-full p-3 border border-border rounded-lg bg-background text-foreground focus:ring-2 focus:ring-ring focus:border-ring"
+                />
+              </div>
+            </div>
+          )}
 
-        <div className="grid grid-cols-3 gap-4">
-          <div className="col-span-2">
-            <label
-              htmlFor="waterValue"
-              className="block text-sm font-medium text-foreground mb-2"
-            >
-              Water Amount *
-            </label>
+          <div className="flex items-center gap-2">
             <input
-              id="waterValue"
-              type="number"
-              step="0.1"
-              min="0.1"
-              {...register("waterValue", { valueAsNumber: true })}
-              className="w-full p-3 bg-card text-card-foreground border border-border rounded-md focus:ring-2 focus:ring-ring focus:border-ring"
-              placeholder="Amount"
+              type="checkbox"
+              id="detailed-tracking"
+              checked={showDetailedTracking}
+              onChange={(e) => setShowDetailedTracking(e.target.checked)}
+              className="rounded border-border"
             />
-            {"waterValue" in errors && errors.waterValue && (
-              <p className="mt-1 text-sm text-red-600">
-                {errors.waterValue.message}
-              </p>
-            )}
+            <label
+              htmlFor="detailed-tracking"
+              className="text-sm text-foreground"
+            >
+              Track moisture levels
+            </label>
           </div>
+        </CardContent>
+      </Card>
+    );
+  };
+
+  const renderFertilizationProtocol = () => {
+    if (!plantVariety?.protocols?.fertilization) return null;
+
+    const fertilizingProtocol = getProtocolForStage(
+      plantVariety.protocols.fertilization,
+      currentStage
+    );
+    if (!fertilizingProtocol) return null;
+
+    return (
+      <div className="mt-4 p-3 bg-muted/50 dark:bg-muted/30 border border-border rounded-lg">
+        <div className="flex items-center gap-2 mb-2">
+          <Info className="h-4 w-4 text-muted-foreground" />
+          <span className="text-sm font-medium text-foreground">
+            Protocol for {currentStage} stage:
+          </span>
+        </div>
+        <div className="space-y-2 text-sm text-muted-foreground">
+          {fertilizingProtocol.timing && (
+            <div>
+              <span className="font-medium text-foreground">Timing:</span>{" "}
+              {fertilizingProtocol.timing}
+            </div>
+          )}
+          {selectedFertilizer && (
+            <div className="space-y-1">
+              {selectedFertilizer.frequency && (
+                <div>
+                  <span className="font-medium text-foreground">
+                    Frequency:
+                  </span>{" "}
+                  {selectedFertilizer.frequency}
+                </div>
+              )}
+              {selectedFertilizer.method && (
+                <div>
+                  <span className="font-medium text-foreground">Method:</span>{" "}
+                  {getMethodDisplay(selectedFertilizer.method)}
+                </div>
+              )}
+            </div>
+          )}
+          {fertilizingProtocol.notes &&
+            fertilizingProtocol.notes.length > 0 && (
+              <div>
+                <span className="font-medium text-foreground">Notes:</span>
+                <ul className="list-disc list-inside ml-2 space-y-1 mt-1">
+                  {fertilizingProtocol.notes.map(
+                    (note: string, index: number) => (
+                      <li key={index}>{note}</li>
+                    )
+                  )}
+                </ul>
+              </div>
+            )}
+        </div>
+      </div>
+    );
+  };
+
+  const renderFertilizingFields = () => {
+    return (
+      <Card className="border-border shadow-sm">
+        <CardHeader className="pb-3">
+          <CardTitle className="flex items-center gap-2 text-base">
+            <Beaker className="h-4 w-4" />
+            Fertilizer Details
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="pt-0 space-y-4">
+          {renderFertilizationProtocol()}
 
           <div>
             <label
-              htmlFor="waterUnit"
+              htmlFor="fertilizeType"
               className="block text-sm font-medium text-foreground mb-2"
             >
-              Unit *
+              Fertilizer Product *
             </label>
             <select
-              id="waterUnit"
-              {...register("waterUnit")}
-              className="w-full p-3 bg-card text-card-foreground border border-border rounded-md focus:ring-2 focus:ring-ring focus:border-ring"
+              {...register("fertilizeType")}
+              id="fertilizeType"
+              className="w-full p-3 border border-border rounded-lg bg-background text-foreground focus:ring-2 focus:ring-ring focus:border-ring"
             >
-              <option value="oz">oz</option>
-              <option value="ml">ml</option>
-              <option value="cups">cups</option>
-              <option value="liters">liters</option>
-              <option value="gallons">gallons</option>
+              <option value="">Choose a fertilizer...</option>
+              {availableFertilizers.map((fertilizer, index) => (
+                <option key={index} value={fertilizer.name}>
+                  {fertilizer.name}
+                  {fertilizer.method &&
+                    ` (${getMethodDisplay(fertilizer.method)})`}
+                </option>
+              ))}
+              <option value="custom">Custom/Other</option>
             </select>
+            {errors.fertilizeType && (
+              <p className="mt-1 text-sm text-red-600" role="alert">
+                {errors.fertilizeType.message}
+              </p>
+            )}
           </div>
-        </div>
 
-        {/* Show detailed tracking checkbox */}
-        <div className="flex items-center">
-          <input
-            id="showDetailedTracking"
-            type="checkbox"
-            checked={showDetailedTracking}
-            onChange={(e) => setShowDetailedTracking(e.target.checked)}
-            className="h-4 w-4 text-garden-600 border-border rounded focus:ring-garden-500"
-          />
-          <label
-            htmlFor="showDetailedTracking"
-            className="ml-2 text-sm text-foreground"
-          >
-            📊 Track moisture readings & method
-          </label>
-        </div>
-
-        {/* Additional detailed tracking fields */}
-        {showDetailedTracking && (
-          <div className="space-y-4 p-4 bg-background rounded-lg border border-border">
-            <h4 className="text-sm font-medium text-foreground">
-              Detailed Tracking
-            </h4>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label
-                  htmlFor="moistureBefore"
-                  className="block text-sm font-medium text-foreground mb-2"
-                >
-                  Moisture Before (1-10 scale)
-                </label>
-                <input
-                  id="moistureBefore"
-                  type="number"
-                  min="1"
-                  max="10"
-                  step="0.5"
-                  {...register("moistureBefore", { valueAsNumber: true })}
-                  className="w-full p-3 border border-border rounded-md focus:ring-2 focus:ring-garden-500"
-                  placeholder="e.g., 3"
-                />
-                <p className="mt-1 text-xs text-muted-foreground">
-                  1 = bone dry, 10 = waterlogged
-                </p>
-
-                {/* Plant-specific validation feedback for before reading */}
-                {moistureValidation?.validations
-                  ?.filter((v) => v.field === "before")
-                  .map((validation, idx) => (
-                    <p
-                      key={idx}
-                      className={`mt-1 text-xs ${validation.color} flex items-start`}
-                    >
-                      <span className="flex-shrink-0 mr-1">
-                        {validation.message.split(" ")[0]}
-                      </span>
-                      <span>
-                        {validation.message.substring(
-                          validation.message.indexOf(" ") + 1
-                        )}
-                      </span>
-                    </p>
-                  ))}
-
-                {"moistureBefore" in errors && errors.moistureBefore && (
-                  <p className="mt-1 text-sm text-red-600">
-                    {errors.moistureBefore.message}
-                  </p>
-                )}
-              </div>
-
-              <div>
-                <label
-                  htmlFor="moistureAfter"
-                  className="block text-sm font-medium text-foreground mb-2"
-                >
-                  Moisture After (1-10 scale)
-                </label>
-                <input
-                  id="moistureAfter"
-                  type="number"
-                  min="1"
-                  max="10"
-                  step="0.5"
-                  {...register("moistureAfter", { valueAsNumber: true })}
-                  className="w-full p-3 border border-border rounded-md focus:ring-2 focus:ring-garden-500"
-                  placeholder="e.g., 7"
-                />
-                <p className="mt-1 text-xs text-muted-foreground">
-                  Target range varies by plant - see protocol above
-                </p>
-
-                {/* Plant-specific validation feedback for after reading */}
-                {moistureValidation?.validations
-                  ?.filter((v) => v.field === "after")
-                  .map((validation, idx) => (
-                    <p
-                      key={idx}
-                      className={`mt-1 text-xs ${validation.color} flex items-start`}
-                    >
-                      <span className="flex-shrink-0 mr-1">
-                        {validation.message.split(" ")[0]}
-                      </span>
-                      <span>
-                        {validation.message.substring(
-                          validation.message.indexOf(" ") + 1
-                        )}
-                      </span>
-                    </p>
-                  ))}
-
-                {"moistureAfter" in errors && errors.moistureAfter && (
-                  <p className="mt-1 text-sm text-red-600">
-                    {errors.moistureAfter.message}
-                  </p>
-                )}
-              </div>
-            </div>
-
-            <div className="flex items-start">
+          {selectedFertilizerType === "custom" && (
+            <div>
+              <label className="block text-sm font-medium text-foreground mb-2">
+                Custom Fertilizer Name *
+              </label>
               <input
-                id="runoffObserved"
-                type="checkbox"
-                {...register("runoffObserved")}
-                className="mt-1 h-4 w-4 text-garden-600 border-border rounded focus:ring-garden-500"
+                type="text"
+                placeholder="e.g., General Purpose, Bloom Booster"
+                {...register("fertilizeType")}
+                className="w-full p-3 border border-border rounded-lg bg-background text-foreground focus:ring-2 focus:ring-ring focus:border-ring"
               />
-              <div className="ml-3">
-                <label
-                  htmlFor="runoffObserved"
-                  className="text-sm font-medium text-foreground"
-                >
-                  Observed water runoff from drainage holes
-                </label>
-                <p className="text-xs text-muted-foreground mt-1">
-                  Runoff indicates thorough watering and good drainage
+            </div>
+          )}
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label
+                htmlFor="dilution"
+                className="block text-sm font-medium text-foreground mb-2"
+              >
+                Dilution
+              </label>
+              <input
+                id="dilution"
+                type="text"
+                placeholder="e.g., 2 Tbsp/gal"
+                {...register("fertilizeDilution")}
+                className="w-full p-3 border border-border rounded-lg bg-background text-foreground focus:ring-2 focus:ring-ring focus:border-ring"
+              />
+            </div>
+            <div>
+              <label
+                htmlFor="fertilizeAmount"
+                className="block text-sm font-medium text-foreground mb-2"
+              >
+                Amount *
+              </label>
+              <input
+                id="fertilizeAmount"
+                type="text"
+                placeholder="e.g., light application"
+                {...register("fertilizeAmount")}
+                className="w-full p-3 border border-border rounded-lg bg-background text-foreground focus:ring-2 focus:ring-ring focus:border-ring"
+              />
+              {errors.fertilizeAmount && (
+                <p className="mt-1 text-sm text-red-600" role="alert">
+                  {errors.fertilizeAmount.message}
                 </p>
+              )}
+            </div>
+          </div>
+
+          {selectedFertilizer && (
+            <div className="p-3 bg-muted/50 dark:bg-muted/30 border border-border rounded-lg">
+              <div className="flex items-center gap-2 mb-2">
+                <Info className="h-4 w-4 text-muted-foreground" />
+                <span className="text-sm font-medium text-foreground">
+                  Recommended Settings
+                </span>
+              </div>
+              <div className="space-y-1 text-sm text-muted-foreground">
+                {selectedFertilizer.frequency && (
+                  <div>
+                    <span className="font-medium text-foreground">
+                      Frequency:
+                    </span>{" "}
+                    {selectedFertilizer.frequency}
+                  </div>
+                )}
+                {selectedFertilizer.method && (
+                  <div>
+                    <span className="font-medium text-foreground">Method:</span>{" "}
+                    {getMethodDisplay(selectedFertilizer.method)}
+                  </div>
+                )}
+                {selectedFertilizer.amount && (
+                  <div>
+                    <span className="font-medium text-foreground">Amount:</span>{" "}
+                    {selectedFertilizer.amount}
+                  </div>
+                )}
+                {selectedFertilizer.dilution && (
+                  <div>
+                    <span className="font-medium text-foreground">
+                      Dilution:
+                    </span>{" "}
+                    {selectedFertilizer.dilution}
+                  </div>
+                )}
               </div>
             </div>
+          )}
 
-            {/* Protocol source information */}
-            {moistureValidation?.validations
-              ?.filter((v) => v.field === "source")
-              .map((validation, idx) => (
-                <div
-                  key={idx}
-                  className="mt-3 p-2 bg-background border border-border rounded-md"
-                >
-                  <p className={`text-xs ${validation.color}`}>
-                    {validation.message}
+          {selectedFertilizer?.method === "soil-drench" && (
+            <div className="p-3 bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-lg">
+              <div className="flex items-start gap-2">
+                <Droplets className="h-4 w-4 text-blue-600 mt-0.5" />
+                <div className="text-sm">
+                  <p className="font-medium text-blue-900 dark:text-blue-100">
+                    Water Required
+                  </p>
+                  <p className="text-blue-700 dark:text-blue-300 mt-1">
+                    This application method requires water. Consider combining
+                    with regular watering if due soon to prevent overwatering.
                   </p>
                 </div>
-              ))}
-          </div>
-        )}
-      </>
-    );
-  }
-
-  function renderFertilizingFields() {
-    const selectedPlant = plants.find((p) => p.id === selectedPlantId);
-
-    return (
-      <>
-        {/* Smart Fertilizer Suggestions */}
-        {smartDefaults?.fertilizer && (
-          <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-4">
-            <h4 className="text-sm font-medium text-green-900 mb-2">
-              💡 Smart Suggestion
-            </h4>
-            <p className="text-sm text-green-700 mb-3">
-              {smartDefaults.fertilizer.reasoning}
-            </p>
-            <div className="space-y-2">
-              {smartDefaults.fertilizer.products.map((product, index) => (
-                <button
-                  key={index}
-                  type="button"
-                  onClick={() =>
-                    handleQuickComplete({
-                      product: product.name,
-                      dilution: product.dilution,
-                      amount: product.amount,
-                    })
-                  }
-                  className="block w-full text-left p-2 bg-card border border-green-200 rounded hover:bg-green-50 transition-colors"
-                >
-                  <div className="font-medium text-green-900">
-                    {product.name}
-                  </div>
-                  <div className="text-xs text-green-600">
-                    {product.dilution} • {product.amount}
-                  </div>
-                </button>
-              ))}
+              </div>
             </div>
-          </div>
-        )}
-
-        {/* Quick Action Buttons */}
-        {selectedPlant && (
-          <QuickCompletionButtons
-            plant={selectedPlant}
-            activityType="fertilize"
-            onQuickComplete={handleQuickComplete}
-            className="mb-4"
-          />
-        )}
-
-        <div>
-          <label
-            htmlFor="product"
-            className="block text-sm font-medium text-foreground mb-2"
-          >
-            Fertilizer Product *
-          </label>
-          <input
-            id="product"
-            type="text"
-            {...register("product")}
-            className="w-full p-3 bg-card text-card-foreground border border-border rounded-md focus:ring-2 focus:ring-ring focus:border-ring"
-            placeholder="e.g., Neptune's Harvest Fish & Seaweed"
-          />
-          {"product" in errors && errors.product && (
-            <p className="mt-1 text-sm text-red-600">
-              {errors.product.message}
-            </p>
           )}
-        </div>
-
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <label
-              htmlFor="dilution"
-              className="block text-sm font-medium text-foreground mb-2"
-            >
-              Dilution Ratio *
-            </label>
-            <input
-              id="dilution"
-              type="text"
-              {...register("dilution")}
-              className="w-full p-3 bg-card text-card-foreground border border-border rounded-md focus:ring-2 focus:ring-ring focus:border-ring"
-              placeholder="e.g., 1 tbsp/gal, half strength"
-            />
-            {"dilution" in errors && errors.dilution && (
-              <p className="mt-1 text-sm text-red-600">
-                {errors.dilution.message}
-              </p>
-            )}
-          </div>
-
-          <div>
-            <label
-              htmlFor="amount"
-              className="block text-sm font-medium text-foreground mb-2"
-            >
-              Application Amount *
-            </label>
-            <input
-              id="amount"
-              type="text"
-              {...register("amount")}
-              className="w-full p-3 bg-card text-card-foreground border border-border rounded-md focus:ring-2 focus:ring-ring focus:border-ring"
-              placeholder="e.g., 16 oz, apply until runoff"
-            />
-            {"amount" in errors && errors.amount && (
-              <p className="mt-1 text-sm text-red-600">
-                {errors.amount.message}
-              </p>
-            )}
-          </div>
-        </div>
-      </>
+        </CardContent>
+      </Card>
     );
-  }
+  };
 
-  function renderObservationFields() {
-    return (
-      <>
-        <div>
-          <label
-            htmlFor="healthAssessment"
-            className="block text-sm font-medium text-foreground mb-2"
-          >
-            Health Assessment *
-          </label>
-          <select
-            id="healthAssessment"
-            {...register("healthAssessment")}
-            className="w-full p-3 bg-card text-card-foreground border border-border rounded-md focus:ring-2 focus:ring-ring focus:border-ring"
-          >
-            <option value="">Select assessment...</option>
-            <option value="excellent">🌟 Excellent</option>
-            <option value="good">😊 Good</option>
-            <option value="fair">😐 Fair</option>
-            <option value="concerning">😟 Concerning</option>
-            <option value="critical">🚨 Critical</option>
-          </select>
-          {"healthAssessment" in errors && errors.healthAssessment && (
-            <p className="mt-1 text-sm text-red-600">
-              {errors.healthAssessment.message}
-            </p>
-          )}
-        </div>
-
-        <div>
-          <label
-            htmlFor="observations"
-            className="block text-sm font-medium text-foreground mb-2"
-          >
-            Observations *
-          </label>
-          <textarea
-            id="observations"
-            rows={4}
-            {...register("observations")}
-            className="w-full p-3 bg-card text-card-foreground border border-border rounded-md focus:ring-2 focus:ring-ring focus:border-ring"
-            placeholder="Describe what you observed (growth, color, pests, diseases, etc.)"
-          />
-          {"observations" in errors && errors.observations && (
-            <p className="mt-1 text-sm text-red-600">
-              {errors.observations.message}
-            </p>
-          )}
-        </div>
-
-        <PhotoCapture
-          photos={capturedPhotos}
-          onPhotosChange={setCapturedPhotos}
-          maxPhotos={5}
-        />
-      </>
-    );
-  }
-
-  function renderActivitySpecificFields() {
+  const renderActivitySpecificFields = () => {
     switch (activityType) {
       case "water":
         return renderWateringFields();
       case "fertilize":
         return renderFertilizingFields();
-      case "observe":
-        return renderObservationFields();
       default:
         return null;
     }
-  }
+  };
 
-  return (
-    <div className="max-w-2xl mx-auto p-6 bg-card rounded-lg shadow-sm">
-      <div className="mb-6">
-        <h2 className="text-2xl font-bold text-foreground mb-2">
-          Log Care Activity
-        </h2>
-        <p className="text-muted-foreground">
-          Record care activities to track your plants' progress and optimize
-          their health.
-        </p>
-      </div>
-
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-        {submitError && (
-          <div className="bg-red-50 border border-red-200 rounded-md p-4">
-            <p className="text-sm text-red-600">{submitError}</p>
+  if (plantsLoading) {
+    return (
+      <Card className="border-border shadow-sm">
+        <CardContent className="pt-6">
+          <div className="flex items-center justify-center py-8">
+            <LoadingSpinner />
+            <span className="ml-2">Loading plants...</span>
           </div>
-        )}
-
-        {/* Plant Selection */}
-        <div>
-          <label
-            htmlFor="plantId"
-            className="block text-sm font-medium text-foreground mb-2"
-          >
-            Plant *
-          </label>
-          <select
-            id="plantId"
-            {...register("plantId")}
-            className="w-full p-3 bg-card text-card-foreground border border-border rounded-md focus:ring-2 focus:ring-ring focus:border-ring"
-          >
-            <option value="">Select a plant...</option>
-            {plants.map((plant) => (
-              <option key={plant.id} value={plant.id}>
-                {plant.name || plant.varietyName} - {plant.location}
-              </option>
-            ))}
-          </select>
-          {errors.plantId && (
-            <p className="mt-1 text-sm text-red-600">
-              {errors.plantId.message}
-            </p>
+        </CardContent>
+      </Card>
+    );
+  }
+  const sortedPlants = [...plants].sort((a, b) => {
+    const nameA = a.name || a.varietyName;
+    const nameB = b.name || b.varietyName;
+    return nameA.localeCompare(nameB);
+  });
+  return (
+    <Card className="border-border shadow-sm">
+      <CardHeader className="pb-3">
+        <CardTitle className="flex items-center gap-2 text-base">
+          {getActivityIcon(activityType)}
+          {getActivityLabel(activityType)} Log
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="pt-0">
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+          {submitError && (
+            <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
+              <p className="text-sm text-red-600" role="alert">
+                {submitError}
+              </p>
+            </div>
           )}
-        </div>
 
-        {/* Activity Type */}
-        <div>
-          <label
-            htmlFor="type"
-            className="block text-sm font-medium text-foreground mb-2"
-          >
-            Activity Type *
-          </label>
-          <select
-            id="type"
-            {...register("type")}
-            className="w-full p-3 bg-card text-card-foreground border border-border rounded-md focus:ring-2 focus:ring-ring focus:border-ring"
-          >
-            <option value="water">💧 Watering</option>
-            <option value="fertilize">🌱 Fertilizing</option>
-            <option value="observe">👁️ Observation</option>
-            {/* <option value="harvest">🌾 Harvest</option>
-            <option value="transplant">🪴 Transplant</option> */}
-          </select>
-        </div>
+          <Card className="border-border shadow-sm">
+            <CardHeader className="pb-3">
+              <CardTitle className="flex items-center gap-2 text-base">
+                <Calendar className="h-4 w-4" />
+                Basic Information
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="pt-0 space-y-4">
+              <div className="grid grid-cols-1 gap-4">
+                <div>
+                  <label
+                    htmlFor="plant-select"
+                    className="block text-sm font-medium text-foreground mb-2"
+                  >
+                    Plant *
+                  </label>
+                  <select
+                    id="plant-select"
+                    {...register("plantId")}
+                    className="w-full p-3 border border-border rounded-lg bg-background text-foreground focus:ring-2 focus:ring-ring focus:border-ring"
+                  >
+                    <option value="">Choose a plant...</option>
+                    {sortedPlants.map((plant) => (
+                      <option key={plant.id} value={plant.id}>
+                        {plant.name
+                          ? `${plant.name} (${plant.varietyName})`
+                          : plant.varietyName}
+                        {plant.location && ` - ${plant.location}`}
+                      </option>
+                    ))}
+                  </select>
+                  {errors.plantId && (
+                    <p className="mt-1 text-sm text-red-600" role="alert">
+                      {errors.plantId.message}
+                    </p>
+                  )}
+                </div>
 
-        {/* Date */}
-        <div>
-          <label
-            htmlFor="date"
-            className="block text-sm font-medium text-foreground mb-2"
-          >
-            Date *
-          </label>
-          <input
-            id="date"
-            type="date"
-            {...register("date")}
-            className="w-full p-3 bg-card text-card-foreground border border-border rounded-md focus:ring-2 focus:ring-ring focus:border-ring"
-          />
-          {errors.date && (
-            <p className="mt-1 text-sm text-red-600">{errors.date.message}</p>
-          )}
-        </div>
+                <div>
+                  <label
+                    htmlFor="type"
+                    className="block text-sm font-medium text-foreground mb-2"
+                  >
+                    Activity Type *
+                  </label>
+                  <select {...register("type")} id="type" className="...">
+                    <option value="water">💧 Watering</option>
+                    <option value="fertilize">🌱 Fertilizing</option>
+                    <option value="observe">👁️ Health Check</option>
+                    <option value="photo">📸 Photo Log</option>
+                    <option value="note">📝 General Note</option>
+                  </select>
+                  {errors.type && (
+                    <p className="mt-1 text-sm text-red-600" role="alert">
+                      {errors.type.message}
+                    </p>
+                  )}
+                </div>
 
-        {/* Activity-specific fields */}
-        {renderActivitySpecificFields()}
+                <div>
+                  <label className="block text-sm font-medium text-foreground mb-2">
+                    Date *
+                  </label>
+                  <input
+                    type="date"
+                    {...register("date")}
+                    className="w-full p-3 border border-border rounded-lg bg-background text-foreground focus:ring-2 focus:ring-ring focus:border-ring"
+                  />
+                  {errors.date && (
+                    <p className="mt-1 text-sm text-red-600" role="alert">
+                      {errors.date.message}
+                    </p>
+                  )}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
 
-        {/* Notes */}
-        <div>
-          <label
-            htmlFor="notes"
-            className="block text-sm font-medium text-foreground mb-2"
-          >
-            Notes (optional)
-          </label>
-          <textarea
-            id="notes"
-            rows={3}
-            {...register("notes")}
-            className="w-full p-3 bg-card text-card-foreground border border-border rounded-md focus:ring-2 focus:ring-ring focus:border-ring"
-            placeholder="Any additional observations or notes..."
-          />
-        </div>
+          {renderActivitySpecificFields()}
 
-        {/* Submit buttons */}
-        <div className="flex gap-4">
-          <Button
-            type="submit"
-            variant="primary"
-            disabled={isLoading || isLoadingDefaults}
-            className="flex-1"
-          >
-            {isLoading ? "Logging..." : "Log Activity"}
-          </Button>
-          {onCancel && (
-            <Button type="button" variant="outline" onClick={onCancel}>
-              Cancel
+          <Card className="border-border shadow-sm">
+            <CardHeader className="pb-3">
+              <CardTitle className="flex items-center gap-2 text-base">
+                <FileText className="h-4 w-4" />
+                Additional Notes
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="pt-0">
+              <div>
+                <label
+                  htmlFor="notes"
+                  className="block text-sm font-medium text-foreground mb-2"
+                >
+                  Notes (Optional)
+                </label>
+                <textarea
+                  id="notes"
+                  {...register("notes")}
+                  rows={3}
+                  placeholder="Add any additional observations or notes about this care activity..."
+                  className="w-full p-3 border border-border rounded-lg bg-background text-foreground focus:ring-2 focus:ring-ring focus:border-ring resize-none"
+                />
+              </div>
+            </CardContent>
+          </Card>
+
+          <div className="flex gap-3 pt-6 border-t border-border">
+            {onCancel && (
+              <Button
+                type="button"
+                variant="outline"
+                onClick={onCancel}
+                className="flex-1"
+                disabled={isLoading}
+              >
+                Cancel
+              </Button>
+            )}
+            <Button
+              type="submit"
+              disabled={isLoading}
+              className="flex-1"
+              size="lg"
+            >
+              {isLoading ? (
+                <div className="flex items-center gap-2">
+                  <LoadingSpinner size="sm" />
+                  <span>Logging...</span>
+                </div>
+              ) : (
+                <div className="flex items-center gap-2">
+                  <span>🌿</span>
+                  <span>Log Activity</span>
+                </div>
+              )}
             </Button>
-          )}
-        </div>
-      </form>
-    </div>
+          </div>
+        </form>
+      </CardContent>
+    </Card>
   );
 }

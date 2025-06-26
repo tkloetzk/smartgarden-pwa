@@ -242,7 +242,7 @@ export function PlantRegistrationForm({
 
       const baseName = varietyName;
 
-      // Create plants based on quantity and setup type
+      const plantPromises = [];
       for (let i = 0; i < data.quantity; i++) {
         let plantName = baseName;
 
@@ -255,21 +255,27 @@ export function PlantRegistrationForm({
           }
         }
 
-        await createPlant({
-          varietyId: data.varietyId,
-          varietyName: varietyName,
-          name: plantName,
-          plantedDate: new Date(data.plantedDate),
-          location: locationString,
-          container: containerDescription,
-          soilMix: data.soilMix,
-          isActive: true,
-          notes: data.notes ? [data.notes] : [""],
-          reminderPreferences,
-          quantity: data.quantity,
-          setupType: data.setupType,
-        });
+        // Use the Firebase createPlant (not PlantRegistrationService)
+        plantPromises.push(
+          createPlant({
+            varietyId: data.varietyId,
+            varietyName: varietyName,
+            name: plantName,
+            plantedDate: new Date(data.plantedDate),
+            location: locationString,
+            container: containerDescription,
+            soilMix: data.soilMix,
+            isActive: true,
+            notes: data.notes ? [data.notes] : [""],
+            reminderPreferences,
+            quantity: data.quantity,
+            setupType: data.setupType,
+          })
+        );
       }
+
+      // Wait for all plants to be created
+      await Promise.all(plantPromises);
 
       toast.success(`Successfully registered ${data.quantity} plant(s)! 🌱`);
       reset();
@@ -902,6 +908,7 @@ export function PlantRegistrationForm({
                 disabled={!isValid || isSubmitting || isLoading}
                 className="flex-1 bg-primary hover:bg-primary/90"
                 size="lg"
+                aria-label="Register Plant"
               >
                 {isLoading ? (
                   <div className="flex items-center space-x-2">

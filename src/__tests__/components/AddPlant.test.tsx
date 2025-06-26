@@ -5,7 +5,7 @@ import { BrowserRouter } from "react-router-dom";
 import AddPlant from "@/pages/plants/AddPlant";
 import { useFirebaseAuth } from "@/hooks/useFirebaseAuth";
 import { useFirebasePlants } from "@/hooks/useFirebasePlants";
-import { varietyService } from "@/types/database";
+import { varietyService } from "@/types";
 
 // Mock dependencies
 jest.mock("@/hooks/useFirebaseAuth");

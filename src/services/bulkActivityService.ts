@@ -49,7 +49,7 @@ export class BulkActivityService {
       details: {
         type: "water",
         amount: { value: amount, unit: unit as any },
-        moistureReading:
+        moistureLevel:
           moistureBefore && moistureAfter
             ? {
                 before: moistureBefore,

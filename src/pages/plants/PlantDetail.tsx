@@ -168,7 +168,11 @@ const PlantDetail: React.FC = () => {
           </CardContent>
         </Card>
 
-        <PlantInfoCard plant={plant} onLogCare={handleLogCare} />
+        <PlantInfoCard
+          plant={plant}
+          onLogCare={handleLogCare}
+          showQuickActions={false}
+        />
 
         <NextActivityCard plantId={plant.id} onTaskClick={handleLogCare} />
 

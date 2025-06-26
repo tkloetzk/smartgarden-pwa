@@ -133,13 +133,14 @@ export class CareSchedulingService {
       return {
         id: `water-${plant.id}`,
         plantId: plant.id,
-        name: getPlantDisplayName(plant),
+        plantName: getPlantDisplayName(plant),
         task: "Check water level",
+        type: "water", // Fix: Added missing 'type' property
         dueIn: this.formatDueIn(nextDueDate),
         priority: this.calculatePriority(daysOverdue),
         plantStage: currentStage,
         dueDate: nextDueDate,
-        canBypass: true, // Add this property
+        canBypass: true,
       };
     }
 
@@ -175,13 +176,14 @@ export class CareSchedulingService {
       return {
         id: `observe-${plant.id}`,
         plantId: plant.id,
-        name: getPlantDisplayName(plant),
+        plantName: getPlantDisplayName(plant),
         task: "Health check",
+        type: "observe", // Fix: Added missing 'type' property
         dueIn: this.formatDueIn(nextDueDate),
         priority: this.calculatePriority(daysOverdue),
         plantStage: currentStage,
         dueDate: nextDueDate,
-        canBypass: true, // Add this property
+        canBypass: true,
       };
     }
 
@@ -199,7 +201,7 @@ export class CareSchedulingService {
       const currentStage = calculateCurrentStage(
         plant.plantedDate,
         variety.growthTimeline
-      ); // Fix: use growthTimeline
+      );
 
       const protocolIntervals = {
         water: 3,
@@ -224,9 +226,10 @@ export class CareSchedulingService {
         tasks.push({
           id: `${plant.id}-${taskType}`,
           plantId: plant.id,
-          name: getPlantDisplayName(plant),
+          plantName: getPlantDisplayName(plant),
           task: this.getTaskName(taskType as CareActivityType),
-          dueIn: this.formatDueIn(nextDueDate), // Use existing method
+          type: taskType as CareActivityType, // Fix: Added missing 'type' property
+          dueIn: this.formatDueIn(nextDueDate),
           plantStage: currentStage,
           dueDate: nextDueDate,
           priority,

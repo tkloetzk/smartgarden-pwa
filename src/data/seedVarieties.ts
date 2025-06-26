@@ -1,122 +1,16 @@
 import { PlantCategory } from "@/types";
 
-interface StageSpecificWateringProtocol {
-  [stageName: string]: {
-    trigger: {
-      moistureLevel: string | number; // e.g., "3-4", 4, "surface dry"
-      description?: string;
-    };
-    target: {
-      moistureLevel: string | number; // e.g., "6-7", 7, "8-10"
-      description?: string;
-    };
-    volume: {
-      amount: string; // e.g., "16-24 oz", "32-40 oz per plant"
-      frequency: string; // e.g., "every 2-3 days", "3-4x/week"
-      perPlant?: boolean;
-    };
-    notes?: string[];
-  };
-}
+import {
+  StageSpecificWateringProtocol,
+  StageSpecificLightingProtocol,
+  StageSpecificFertilizationProtocol,
+  EnvironmentalProtocol,
+  SoilMixture,
+  ContainerRequirements,
+  SuccessionProtocol,
+} from "@/types";
 
-interface StageSpecificLightingProtocol {
-  [stageName: string]: {
-    ppfd: {
-      min: number;
-      max: number;
-      optimal?: number;
-      unit: "µmol/m²/s";
-    };
-    photoperiod: {
-      hours: number;
-      maxHours?: number; // Critical for preventing bolting
-      minHours?: number;
-      constraint?: string; // e.g., "strict maximum to prevent bolting"
-    };
-    dli: {
-      min: number;
-      max: number;
-      unit: "mol/m²/day";
-    };
-    notes?: string[];
-  };
-}
-
-interface StageSpecificFertilizationProtocol {
-  [stageName: string]: {
-    products?: {
-      name: string;
-      dilution: string;
-      amount: string;
-      frequency: string;
-      method?: "soil-drench" | "foliar-spray" | "top-dress" | "mix-in-soil";
-    }[];
-    timing?: string;
-    specialInstructions?: string[];
-    notes?: string[];
-  };
-}
-
-// Enhanced environmental protocol
-interface EnvironmentalProtocol {
-  temperature?: {
-    min?: number;
-    max?: number;
-    optimal?: number;
-    unit: "F" | "C";
-    criticalMax?: number; // e.g., ">75°F can cause bolting"
-    criticalMin?: number;
-    stage?: string;
-  };
-  humidity?: {
-    min?: number;
-    max?: number;
-    optimal?: number;
-    criticalForStage?: string;
-  };
-  pH: {
-    min: number;
-    max: number;
-    optimal: number;
-  };
-  specialConditions?: string[];
-  constraints?: {
-    description: string;
-    parameter: "temperature" | "humidity" | "light" | "other";
-    threshold: number;
-    consequence: string;
-  }[];
-}
-
-interface SoilMixture {
-  components: {
-    [component: string]: number; // percentage
-  };
-  amendments?: {
-    [amendment: string]: string; // amount per gallon/container
-  };
-}
-
-interface ContainerRequirements {
-  minSize?: string;
-  depth: string;
-  drainage?: string;
-  staging?: {
-    seedling?: string;
-    intermediate?: string;
-    final: string;
-  };
-}
-
-interface SuccessionProtocol {
-  interval: number; // days between plantings
-  method: "continuous" | "zoned" | "single";
-  harvestMethod: "cut-and-come-again" | "single-harvest" | "selective";
-  productiveWeeks?: number;
-  notes?: string[];
-}
-
-interface ComprehensivePlantProtocols {
+export interface ComprehensivePlantProtocols {
   lighting?: StageSpecificLightingProtocol;
   watering?: StageSpecificWateringProtocol;
   fertilization?: StageSpecificFertilizationProtocol;
@@ -131,10 +25,7 @@ export interface SeedVariety {
   name: string;
   category: PlantCategory;
   growthTimeline: {
-    germination: number;
-    seedling: number;
-    vegetative: number;
-    maturation: number;
+    [stageName: string]: number; // ← Allow any stage names
   };
   protocols?: ComprehensivePlantProtocols;
   isEverbearing?: boolean;
@@ -150,49 +41,392 @@ Caroline Raspberries (1095 days - 3 years): Not specified in document
  */
 export const seedVarieties: SeedVariety[] = [
   {
+    name: "Astro Arugula",
+    category: "leafy-greens",
+    isEverbearing: true,
+    productiveLifespan: 56, // Approx. 8-week lifecycle [cite: 346]
+    growthTimeline: {
+      germination: 7, // [cite: 167]
+      seedling: 14, // [cite: 168]
+      vegetative: 14, // [cite: 168]
+      maturation: 37, // [cite: 345]
+    },
+    protocols: {
+      watering: {
+        germination: {
+          trigger: { moistureLevel: "3-4" }, // [cite: 167]
+          target: { moistureLevel: "6-7" }, // [cite: 167]
+          volume: { amount: "2-4 fl oz", frequency: "2-3x/week" }, // [cite: 167]
+        },
+        seedling: {
+          trigger: { moistureLevel: "3-4" }, // [cite: 168]
+          target: { moistureLevel: "6-7" }, // [cite: 168]
+          volume: { amount: "2-4 fl oz", frequency: "2-3x/week" }, // [cite: 168]
+        },
+        vegetative: {
+          trigger: { moistureLevel: "3-4" }, // [cite: 168]
+          target: { moistureLevel: "6-7" }, // [cite: 168]
+          volume: { amount: "8-12 fl oz", frequency: "2-3x/week" }, // [cite: 168]
+        },
+      },
+      fertilization: {
+        seedling: {
+          schedule: [
+            {
+              taskName: "Light Fish Emulsion",
+              details: { product: "Fish Emulsion", dilution: "1-2 Tbsp/gal" }, // [cite: 168]
+              startDays: 14, // After true leaves appear [cite: 168]
+              frequencyDays: 14,
+              repeatCount: 1,
+            },
+          ],
+        },
+        vegetative: {
+          schedule: [
+            {
+              taskName: "Regular Fish Emulsion",
+              details: { product: "Fish Emulsion", dilution: "1-2 Tbsp/gal" }, // [cite: 168]
+              startDays: 28,
+              frequencyDays: 14,
+              repeatCount: 2,
+            },
+          ],
+        },
+      },
+    },
+  },
+  {
+    name: "Baby's Leaf Spinach",
+    category: "leafy-greens",
+    isEverbearing: true, // For cut-and-come-again harvesting
+    productiveLifespan: 60, // From plan notes [cite: 269, 270]
+    growthTimeline: {
+      germination: 7, // [cite: 169]
+      seedling: 14, // "Week 1-3" [cite: 169]
+      vegetative: 9, // "Week 4-6" [cite: 169]
+      maturation: 30, // [cite: 269]
+    },
+    protocols: {
+      watering: {
+        germination: {
+          trigger: { moistureLevel: "<4" }, // [cite: 169]
+          target: { moistureLevel: "6" }, // [cite: 169]
+          volume: { amount: "Mist as needed", frequency: "Daily" }, // [cite: 169]
+        },
+        seedling: {
+          trigger: { moistureLevel: "<4" }, // [cite: 169]
+          target: { moistureLevel: "6" }, // [cite: 169]
+          volume: { amount: "Mist as needed", frequency: "As needed" }, // [cite: 169]
+        },
+        vegetative: {
+          trigger: { moistureLevel: "<4" }, // [cite: 169]
+          target: { moistureLevel: "6" }, // [cite: 169]
+          volume: { amount: "~1 gal/week for bed", frequency: "As needed" }, // [cite: 169]
+        },
+      },
+      fertilization: {
+        seedling: {
+          schedule: [
+            {
+              taskName: "Light Fish Emulsion",
+              details: { product: "Fish emulsion", dilution: "2 Tbsp/gal" }, // [cite: 169]
+              startDays: 14,
+              frequencyDays: 14,
+              repeatCount: 1,
+            },
+          ],
+        },
+        vegetative: {
+          schedule: [
+            {
+              taskName: "Regular Fish Emulsion",
+              details: { product: "Fish emulsion", dilution: "2 Tbsp/gal" }, // [cite: 169]
+              startDays: 28,
+              frequencyDays: 14,
+              repeatCount: 2,
+            },
+          ],
+        },
+      },
+    },
+  },
+  {
+    name: "May Queen Lettuce",
+    category: "leafy-greens",
+    isEverbearing: true,
+    productiveLifespan: 60, // [cite: 173]
+    growthTimeline: {
+      germination: 10, // [cite: 172]
+      seedling: 20, // "Days 10-25/30" [cite: 172]
+      vegetative: 20, // "Days 25/30 - 40/45" [cite: 172]
+      maturation: 60, // "full heads 45-60 days" [cite: 173]
+    },
+    protocols: {
+      watering: {
+        germination: {
+          trigger: { moistureLevel: "Keep surface moist" }, // [cite: 172]
+          target: { moistureLevel: "7-8" }, // [cite: 172]
+          volume: { amount: "16-32 oz", frequency: "Daily/as needed" }, // [cite: 172]
+        },
+        seedling: {
+          trigger: { moistureLevel: "3-4" }, // [cite: 172]
+          target: { moistureLevel: "8-10" }, // [cite: 172]
+          volume: { amount: "0.5-1 gal", frequency: "Every 1-3 days" }, // [cite: 172]
+        },
+        vegetative: {
+          trigger: { moistureLevel: "3-4" }, // [cite: 172]
+          target: { moistureLevel: "8-10" }, // [cite: 172]
+          volume: { amount: "0.75-1.5 gal", frequency: "Every 2-3 days" }, // [cite: 172]
+        },
+      },
+      fertilization: {
+        seedling: {
+          schedule: [
+            {
+              taskName: "Diluted Fish Emulsion",
+              details: {
+                product: "Fish emulsion/fish+kelp blend",
+                dilution: "0.5-1 Tbsp/gal",
+              }, // [cite: 172]
+              startDays: 25,
+              frequencyDays: 14,
+              repeatCount: 2,
+            },
+          ],
+        },
+      },
+    },
+  },
+  {
+    name: "Rasmus Broccoli",
+    category: "fruiting-plants", // Broccoli is botanically a flowering vegetable
+    productiveLifespan: 95, // [cite: 198]
+    growthTimeline: {
+      germination: 7, // [cite: 194]
+      seedling: 17, // "Days 7-24" [cite: 194]
+      vegetative: 31, // "Days 25-55" [cite: 195]
+      maturation: 90, // "Main head 90-110 days" [cite: 197]
+    },
+    protocols: {
+      fertilization: {
+        seedling: {
+          schedule: [
+            {
+              taskName: "Fish + Seaweed Blend",
+              details: {
+                product: "Fish + Seaweed blend",
+                dilution: "½ strength",
+              }, // [cite: 194]
+              startDays: 7,
+              frequencyDays: 7,
+              repeatCount: 3,
+            },
+          ],
+        },
+        vegetative: {
+          schedule: [
+            {
+              taskName: "Fish + Seaweed Blend",
+              details: {
+                product: "Fish + Seaweed blend",
+                dilution: "full strength",
+              }, // [cite: 195]
+              startDays: 28,
+              frequencyDays: 7,
+              repeatCount: 4,
+            },
+          ],
+        },
+      },
+    },
+  },
+  {
+    name: "Stuttgarter Onions",
+    category: "root-vegetables",
+    productiveLifespan: 120, // [cite: 257]
+    growthTimeline: {
+      germination: 14, // [cite: 256]
+      seedling: 42, // ~8 weeks from seed [cite: 256]
+      vegetative: 42, // [cite: 154]
+      maturation: 120, // [cite: 257]
+    },
+    protocols: {},
+  },
+  {
+    name: "White Sweet Spanish Onions",
+    category: "root-vegetables",
+    productiveLifespan: 120, // [cite: 257]
+    growthTimeline: {
+      germination: 14, // [cite: 256]
+      seedling: 42, // ~8 weeks from seed [cite: 256]
+      vegetative: 42, // [cite: 154]
+      maturation: 120, // [cite: 257]
+    },
+    protocols: {},
+  },
+  {
+    name: "Garlic",
+    category: "root-vegetables",
+    productiveLifespan: 270, // ~9 months [cite: 248]
+    growthTimeline: {
+      germination: 30, // Fall planting assumes a dormant period
+      seedling: 120, // "Early Growth/Seedling"
+      vegetative: 90, // "Bulb Development/Vegetative" [cite: 243]
+      maturation: 270, // [cite: 248]
+    },
+    protocols: {},
+  },
+  {
+    name: "Rosemary",
+    category: "herbs",
+    productiveLifespan: 730, // Perennial [cite: 375]
+    growthTimeline: {
+      germination: 21, // [cite: 233]
+      seedling: 40, //
+      vegetative: 180, // "6-12 months to mature" [cite: 233]
+      maturation: 365,
+    },
+    protocols: {},
+  },
+  {
+    name: "Greek Oregano",
+    category: "herbs",
+    productiveLifespan: 730, // Perennial [cite: 375]
+    growthTimeline: {
+      germination: 14, // [cite: 201]
+      seedling: 28, // 4-6 weeks to transplant [cite: 294]
+      vegetative: 48, //
+      maturation: 90, // [cite: 203]
+    },
+    protocols: {},
+  },
+  {
+    name: "Italian Flat Leaf Parsley",
+    category: "herbs",
+    isEverbearing: true,
+    productiveLifespan: 90,
+    growthTimeline: {
+      germination: 28, // [cite: 301]
+      seedling: 21, //
+      vegetative: 41, //
+      maturation: 90, // [cite: 302]
+    },
+    protocols: {},
+  },
+  {
+    name: "Greek Dwarf Basil",
+    category: "herbs",
+    isEverbearing: true,
+    productiveLifespan: 60,
+    growthTimeline: {
+      germination: 10, // [cite: 221]
+      seedling: 28, // 2-4 weeks [cite: 221]
+      vegetative: 42, // 4-6 weeks [cite: 221]
+      maturation: 60, //
+    },
+    protocols: {},
+  },
+  {
+    name: "English Thyme",
+    category: "herbs",
+    productiveLifespan: 730, // Perennial [cite: 375]
+    growthTimeline: {
+      germination: 14, // [cite: 211]
+      seedling: 21, // 2-3 weeks [cite: 211]
+      vegetative: 84, // 6-12 weeks [cite: 212]
+      maturation: 120,
+    },
+    protocols: {},
+  },
+  {
     name: "Boston Pickling Cucumber",
     category: "fruiting-plants",
     isEverbearing: false,
-    productiveLifespan: 70, // 8-10 weeks continuous harvest
+    productiveLifespan: 70,
     growthTimeline: {
-      germination: 7, // 3-10 days typical
-      seedling: 14, // 10-14 days post-germination
-      vegetative: 21, // vine development
-      maturation: 50, // first fruit harvest at 50-70 days
+      germination: 7,
+      seedling: 14,
+      vegetative: 21,
+      flowering: 42,
+      fruitingHarvesting: 50,
     },
     protocols: {
       lighting: {
         seedling: {
-          ppfd: { min: 200, max: 400, unit: "µmol/m²/s" },
-          photoperiod: { hours: 12, maxHours: 16 },
-          dli: { min: 8.6, max: 23.0, unit: "mol/m²/day" },
+          ppfd: {
+            min: 200,
+            max: 400,
+            unit: "µmol/m²/s",
+          },
+          photoperiod: {
+            hours: 12,
+            maxHours: 16,
+          },
+          dli: {
+            min: 8.6,
+            max: 23,
+            unit: "mol/m²/day",
+          },
           notes: [
             "Start feeding 2-3 weeks post-germination with balanced liquid fertilizer",
             "Half strength during establishment to avoid nutrient burn",
           ],
         },
         vegetativeGrowth: {
-          ppfd: { min: 400, max: 600, unit: "µmol/m²/s" },
-          photoperiod: { hours: 14, maxHours: 16 },
-          dli: { min: 20.2, max: 34.6, unit: "mol/m²/day" },
+          ppfd: {
+            min: 400,
+            max: 600,
+            unit: "µmol/m²/s",
+          },
+          photoperiod: {
+            hours: 14,
+            maxHours: 16,
+          },
+          dli: {
+            min: 20.2,
+            max: 34.6,
+            unit: "mol/m²/day",
+          },
           notes: [
             "Vigorous vine growth requires high light intensity",
             "Higher nitrogen during this phase supports leaf and vine development",
           ],
         },
         flowering: {
-          ppfd: { min: 500, max: 700, unit: "µmol/m²/s" },
-          photoperiod: { hours: 14, maxHours: 16 },
-          dli: { min: 28.8, max: 40.3, unit: "mol/m²/day" },
+          ppfd: {
+            min: 500,
+            max: 700,
+            unit: "µmol/m²/s",
+          },
+          photoperiod: {
+            hours: 14,
+            maxHours: 16,
+          },
+          dli: {
+            min: 28.8,
+            max: 40.3,
+            unit: "mol/m²/day",
+          },
           notes: [
             "Critical phase - flower production determines fruit yield",
             "Hand pollination required daily during flowering period",
           ],
         },
         fruitingHarvesting: {
-          ppfd: { min: 500, max: 700, unit: "µmol/m²/s" },
-          photoperiod: { hours: 14, maxHours: 16 },
-          dli: { min: 28.8, max: 40.3, unit: "mol/m²/day" },
+          ppfd: {
+            min: 500,
+            max: 700,
+            unit: "µmol/m²/s",
+          },
+          photoperiod: {
+            hours: 14,
+            maxHours: 16,
+          },
+          dli: {
+            min: 28.8,
+            max: 40.3,
+            unit: "mol/m²/day",
+          },
           notes: [
             "Harvest 8-10 days after fruit set",
             "Regular picking encourages continued production",
@@ -201,8 +435,12 @@ export const seedVarieties: SeedVariety[] = [
       },
       watering: {
         seedling: {
-          trigger: { moistureLevel: "consistent moisture" },
-          target: { moistureLevel: "adequate but not waterlogged" },
+          trigger: {
+            moistureLevel: "consistent moisture",
+          },
+          target: {
+            moistureLevel: "adequate but not waterlogged",
+          },
           volume: {
             amount: "as needed for establishment",
             frequency: "daily monitoring",
@@ -210,17 +448,28 @@ export const seedVarieties: SeedVariety[] = [
           notes: ["Heavy feeders require consistent moisture from start"],
         },
         vegetativeGrowth: {
-          trigger: { moistureLevel: "when top inch dry" },
-          target: { moistureLevel: "thoroughly moist" },
-          volume: { amount: "heavy watering", frequency: "as soil indicates" },
+          trigger: {
+            moistureLevel: "when top inch dry",
+          },
+          target: {
+            moistureLevel: "thoroughly moist",
+          },
+          volume: {
+            amount: "heavy watering",
+            frequency: "as soil indicates",
+          },
           notes: [
             "Consistent moisture critical - never allow drought stress",
             "Container growing requires more frequent attention than ground cultivation",
           ],
         },
         flowering: {
-          trigger: { moistureLevel: "when top inch dry" },
-          target: { moistureLevel: "thoroughly moist" },
+          trigger: {
+            moistureLevel: "when top inch dry",
+          },
+          target: {
+            moistureLevel: "thoroughly moist",
+          },
           volume: {
             amount: "heavy watering",
             frequency: "consistent schedule",
@@ -231,8 +480,12 @@ export const seedVarieties: SeedVariety[] = [
           ],
         },
         fruitingHarvesting: {
-          trigger: { moistureLevel: "when top inch dry" },
-          target: { moistureLevel: "thoroughly moist" },
+          trigger: {
+            moistureLevel: "when top inch dry",
+          },
+          target: {
+            moistureLevel: "thoroughly moist",
+          },
           volume: {
             amount: "heavy watering",
             frequency: "daily during peak production",
@@ -245,59 +498,66 @@ export const seedVarieties: SeedVariety[] = [
       },
       fertilization: {
         seedling: {
-          products: [
+          schedule: [
             {
-              name: "Balanced liquid fertilizer",
-              dilution: "half strength",
-              amount: "light application",
-              frequency: "start 2-3 weeks post-germination",
+              taskName: "Initial balanced liquid feed",
+              details: {
+                product: "Balanced liquid fertilizer",
+                dilution: "half strength",
+              },
+              startDays: 14,
+              frequencyDays: 0,
+              repeatCount: 1,
             },
           ],
-          timing: "Weeks 2-4",
-          notes: ["Gentle introduction to feeding - young roots are sensitive"],
         },
-        vegetativeGrowth: {
-          products: [
+        vegetative: {
+          schedule: [
             {
-              name: "Balanced liquid fertilizer",
-              dilution: "full strength",
-              amount: "regular application",
-              frequency: "every 1-2 weeks",
+              taskName: "Balanced liquid feed",
+              details: {
+                product: "Balanced liquid fertilizer",
+                dilution: "full strength",
+              },
+              startDays: 21,
+              frequencyDays: 10,
+              repeatCount: 2,
             },
           ],
-          timing: "Weeks 4-8",
-          notes: ["Higher nitrogen during vine development phase"],
         },
         flowering: {
-          products: [
+          schedule: [
             {
-              name: "Higher P-K fertilizer (tomato/bloom booster)",
-              dilution: "as directed",
-              amount: "regular application",
-              frequency: "every 1-2 weeks",
+              taskName: "Apply bloom booster fertilizer",
+              details: {
+                product: "Higher P-K fertilizer (bloom booster)",
+              },
+              startDays: 42,
+              frequencyDays: 10,
+              repeatCount: 2,
             },
-          ],
-          timing: "When first flowers appear",
-          notes: [
-            "Switch from nitrogen-heavy to phosphorus-potassium emphasis",
-            "Supports flower production and fruit development",
           ],
         },
         fruitingHarvesting: {
-          products: [
+          schedule: [
             {
-              name: "Higher P-K fertilizer",
-              dilution: "as directed",
-              amount: "consistent application",
-              frequency: "every 1-2 weeks",
+              taskName: "Continue bloom booster fertilizer",
+              details: {
+                product: "Higher P-K fertilizer",
+              },
+              startDays: 56,
+              frequencyDays: 10,
+              repeatCount: 2,
             },
           ],
-          timing: "Throughout harvest period",
-          notes: ["Continuous fruiting demands consistent nutrition"],
         },
       },
       environment: {
-        pH: { min: 5.8, max: 6.5, optimal: 6.2 },
+        pH: {
+          min: 5.8,
+          max: 6.5,
+          optimal: 6.2,
+        },
       },
       soilMixture: {
         components: {
@@ -320,7 +580,7 @@ export const seedVarieties: SeedVariety[] = [
         },
       },
       succession: {
-        interval: 21, // 3-4 week intervals
+        interval: 21,
         method: "continuous",
         harvestMethod: "selective",
         productiveWeeks: 8,
@@ -338,53 +598,107 @@ export const seedVarieties: SeedVariety[] = [
       ],
     },
   },
-
   {
     name: "Sugar Snap Peas",
     category: "fruiting-plants",
     isEverbearing: true,
-    productiveLifespan: 56, // 6-8 weeks harvest window
+    productiveLifespan: 56,
     growthTimeline: {
-      germination: 10, // 7-14 days typical
-      seedling: 14, // first true leaves and tendrils
-      vegetative: 21, // vining growth weeks 3-6
-      maturation: 60, // pod harvest 50-70 days from sowing
+      germinationEmergence: 10,
+      seedling: 14,
+      vegetativeVining: 21,
+      flowerBudFormation: 50,
+      podSetMaturation: 60,
     },
     protocols: {
       lighting: {
         germinationEmergence: {
-          ppfd: { min: 100, max: 250, unit: "µmol/m²/s" },
-          photoperiod: { hours: 14, maxHours: 16 },
-          dli: { min: 5.0, max: 14.4, unit: "mol/m²/day" },
+          ppfd: {
+            min: 100,
+            max: 250,
+            unit: "µmol/m²/s",
+          },
+          photoperiod: {
+            hours: 14,
+            maxHours: 16,
+          },
+          dli: {
+            min: 5,
+            max: 14.4,
+            unit: "mol/m²/day",
+          },
           notes: ["Keep soil consistently moist during germination period"],
         },
         seedling: {
-          ppfd: { min: 200, max: 400, unit: "µmol/m²/s" },
-          photoperiod: { hours: 14, maxHours: 16 },
-          dli: { min: 11.5, max: 23.0, unit: "mol/m²/day" },
+          ppfd: {
+            min: 200,
+            max: 400,
+            unit: "µmol/m²/s",
+          },
+          photoperiod: {
+            hours: 14,
+            maxHours: 16,
+          },
+          dli: {
+            min: 11.5,
+            max: 23,
+            unit: "mol/m²/day",
+          },
           notes: [
             "First true leaves and tendrils developing - watch for climbing behavior",
           ],
         },
         vegetativeVining: {
-          ppfd: { min: 400, max: 600, unit: "µmol/m²/s" },
-          photoperiod: { hours: 14, maxHours: 16 },
-          dli: { min: 23.0, max: 34.6, unit: "mol/m²/day" },
+          ppfd: {
+            min: 400,
+            max: 600,
+            unit: "µmol/m²/s",
+          },
+          photoperiod: {
+            hours: 14,
+            maxHours: 16,
+          },
+          dli: {
+            min: 23,
+            max: 34.6,
+            unit: "mol/m²/day",
+          },
           notes: ["Rapid vine growth - ensure trellis support is adequate"],
         },
         flowerBudFormation: {
-          ppfd: { min: 500, max: 700, unit: "µmol/m²/s" },
-          photoperiod: { hours: 12, maxHours: 14 },
-          dli: { min: 21.6, max: 35.3, unit: "mol/m²/day" },
+          ppfd: {
+            min: 500,
+            max: 700,
+            unit: "µmol/m²/s",
+          },
+          photoperiod: {
+            hours: 12,
+            maxHours: 14,
+          },
+          dli: {
+            min: 21.6,
+            max: 35.3,
+            unit: "mol/m²/day",
+          },
           notes: [
             "Slight photoperiod reduction can encourage flowering",
             "Monitor for first flower buds around days 40-50",
           ],
         },
         podSetMaturation: {
-          ppfd: { min: 500, max: 700, unit: "µmol/m²/s" },
-          photoperiod: { hours: 12 },
-          dli: { min: 21.6, max: 30.2, unit: "mol/m²/day" },
+          ppfd: {
+            min: 500,
+            max: 700,
+            unit: "µmol/m²/s",
+          },
+          photoperiod: {
+            hours: 12,
+          },
+          dli: {
+            min: 21.6,
+            max: 30.2,
+            unit: "mol/m²/day",
+          },
           notes: [
             "Harvest pods when plump but before peas become starchy",
             "Regular harvesting encourages continued pod production",
@@ -393,129 +707,171 @@ export const seedVarieties: SeedVariety[] = [
       },
       watering: {
         germinationEmergence: {
-          trigger: { moistureLevel: "3-4" },
-          target: { moistureLevel: "7-8" },
-          volume: { amount: "16-24 oz (470-710 mL)", frequency: "3x/week" },
+          trigger: {
+            moistureLevel: "3-4",
+          },
+          target: {
+            moistureLevel: "7-8",
+          },
+          volume: {
+            amount: "16-24 oz (470-710 mL)",
+            frequency: "3x/week",
+          },
           notes: [
             "Keep consistently moist but not waterlogged during germination",
           ],
         },
         seedling: {
-          trigger: { moistureLevel: "3-4" },
-          target: { moistureLevel: "7-8" },
-          volume: { amount: "20-32 oz (590-945 mL)", frequency: "3x/week" },
+          trigger: {
+            moistureLevel: "3-4",
+          },
+          target: {
+            moistureLevel: "7-8",
+          },
+          volume: {
+            amount: "20-32 oz (590-945 mL)",
+            frequency: "3x/week",
+          },
           notes: ["Establishing root system requires consistent moisture"],
         },
         vegetativeVining: {
-          trigger: { moistureLevel: "3-4" },
-          target: { moistureLevel: "7-8" },
-          volume: { amount: "32-42 oz (945-1240 mL)", frequency: "3-4x/week" },
+          trigger: {
+            moistureLevel: "3-4",
+          },
+          target: {
+            moistureLevel: "7-8",
+          },
+          volume: {
+            amount: "32-42 oz (945-1240 mL)",
+            frequency: "3-4x/week",
+          },
           notes: ["Rapid vine growth increases water demands significantly"],
         },
         flowerBudFormation: {
-          trigger: { moistureLevel: "3-4" },
-          target: { moistureLevel: "7-8" },
-          volume: { amount: "40-48 oz (1180-1419 mL)", frequency: "4x/week" },
+          trigger: {
+            moistureLevel: "3-4",
+          },
+          target: {
+            moistureLevel: "7-8",
+          },
+          volume: {
+            amount: "40-48 oz (1180-1419 mL)",
+            frequency: "4x/week",
+          },
           notes: [
             "Critical period - water stress reduces flower and pod formation",
           ],
         },
         podSetMaturation: {
-          trigger: { moistureLevel: "3-4" },
-          target: { moistureLevel: "7-8" },
-          volume: { amount: "40-54 oz (1180-1600 mL)", frequency: "3-4x/week" },
+          trigger: {
+            moistureLevel: "3-4",
+          },
+          target: {
+            moistureLevel: "7-8",
+          },
+          volume: {
+            amount: "40-54 oz (1180-1600 mL)",
+            frequency: "3-4x/week",
+          },
           notes: ["Pod filling requires substantial water uptake"],
         },
       },
       fertilization: {
         germinationEmergence: {
-          products: [
+          schedule: [
             {
-              name: "Rhizobium leguminosarum inoculant",
-              dilution: "as directed",
-              amount: "apply to seed or planting hole",
-              frequency: "at sowing",
-              method: "soil-drench",
+              taskName: "Apply Rhizobium inoculant",
+              details: {
+                product: "Rhizobium leguminosarum inoculant",
+                method: "soil-drench",
+              },
+              startDays: 0,
+              frequencyDays: 0,
+              repeatCount: 1,
             },
           ],
-          timing: "At sowing",
           notes: [
-            "Inoculant enables nitrogen fixation - critical for pea nutrition",
-            "Soil pre-amended with gypsum, bone meal, and kelp meal",
+            "Inoculant enables nitrogen fixation - critical for pea nutrition.",
+            "Soil pre-amended with gypsum, bone meal, and kelp meal.",
           ],
         },
         seedling: {
-          products: [
+          schedule: [
             {
-              name: "5-10-10 fertilizer (light dose)",
-              dilution: "as directed for containers",
-              amount: "light application",
-              frequency: "early in containers if needed",
+              taskName: "Light container feed",
+              details: {
+                product: "5-10-10 fertilizer (light dose)",
+              },
+              startDays: 14,
+              frequencyDays: 0,
+              repeatCount: 1,
             },
           ],
-          timing: "Days 14-20",
-          notes: ["Minimal nitrogen needed - peas fix their own nitrogen"],
+          notes: ["Minimal nitrogen needed - peas fix their own nitrogen."],
         },
         vegetativeVining: {
-          products: [
+          schedule: [
             {
-              name: "Fish emulsion/fish+kelp (optional)",
-              dilution: "as directed",
-              amount: "light application",
-              frequency: "weekly/biweekly if desired",
+              taskName: "Optional light feeding",
+              details: {
+                product: "Fish emulsion/fish+kelp (optional)",
+              },
+              startDays: 21,
+              frequencyDays: 10,
+              repeatCount: 2,
             },
             {
-              name: "Worm casting top-dress",
-              dilution: "N/A",
-              amount: "light sprinkle around base",
-              frequency: "monthly",
-              method: "top-dress",
+              taskName: "Worm casting top-dress",
+              details: {
+                product: "Worm casting",
+                method: "top-dress",
+              },
+              startDays: 30,
+              frequencyDays: 30,
+              repeatCount: 1,
             },
-          ],
-          timing: "Weeks 3-6",
-          notes: [
-            "Light feeding only - excessive nitrogen reduces pod production",
           ],
         },
         flowerBudFormation: {
-          products: [
+          schedule: [
             {
-              name: "Bone meal side-dress",
-              dilution: "N/A",
-              amount: "light application around base",
-              frequency: "one-time",
-              method: "top-dress",
+              taskName: "Boost phosphorus with Bone Meal",
+              details: {
+                product: "Bone meal",
+                method: "top-dress",
+              },
+              startDays: 42,
+              frequencyDays: 0,
+              repeatCount: 1,
             },
             {
-              name: "Kelp/sea-mineral (if continuing liquid feed)",
-              dilution: "as directed",
-              amount: "dilute application",
-              frequency: "if needed",
+              taskName: "Apply Kelp/sea-mineral",
+              details: {
+                product: "Kelp/sea-mineral (if continuing liquid feed)",
+              },
+              startDays: 49,
+              frequencyDays: 0,
+              repeatCount: 1,
             },
           ],
-          timing: "Weeks 6-8",
           notes: [
-            "Reduce nitrogen completely",
-            "Boost phosphorus and potassium for flower and pod development",
+            "Reduce nitrogen completely.",
+            "Boost phosphorus and potassium for flower and pod development.",
           ],
         },
         podSetMaturation: {
-          products: [
-            {
-              name: "Light feeding only if needed",
-              dilution: "very dilute",
-              amount: "minimal",
-              frequency: "rarely",
-            },
-          ],
-          timing: "Days 60-70+",
+          schedule: [],
           notes: [
-            "Minimal feeding during harvest - focus on consistent watering",
+            "Minimal feeding during harvest - focus on consistent watering.",
           ],
         },
       },
       environment: {
-        pH: { min: 6.2, max: 6.8, optimal: 6.5 },
+        pH: {
+          min: 6.2,
+          max: 6.8,
+          optimal: 6.5,
+        },
       },
       soilMixture: {
         components: {
@@ -538,7 +894,7 @@ export const seedVarieties: SeedVariety[] = [
         depth: "12 inches minimum",
       },
       succession: {
-        interval: 14, // 2-3 week intervals
+        interval: 14,
         method: "continuous",
         harvestMethod: "selective",
         productiveWeeks: 6,
@@ -558,540 +914,116 @@ export const seedVarieties: SeedVariety[] = [
     },
   },
   {
-    name: "Greek Dwarf Basil",
-    category: "herbs",
-    isEverbearing: true,
-    productiveLifespan: 84, // 12 weeks typical for annual herb
-    growthTimeline: {
-      germination: 7, // 5-10 days when kept warm
-      seedling: 21, // 2-4 weeks seedling stage
-      vegetative: 28, // 4-6 weeks rapid growth
-      maturation: 56, // 6-8 weeks to flowering (if allowed)
-    },
-    protocols: {
-      lighting: {
-        seedling: {
-          ppfd: { min: 100, max: 400, unit: "µmol/m²/s" },
-          photoperiod: { hours: 12, maxHours: 16 },
-          dli: { min: 4.3, max: 23.0, unit: "mol/m²/day" },
-          notes: [
-            "Basil loves warmth - keep soil consistently warm during germination",
-            "Small plants emerge with initial characteristic basil leaves",
-          ],
-        },
-        vegetative: {
-          ppfd: { min: 400, max: 600, unit: "µmol/m²/s" },
-          photoperiod: { hours: 14, maxHours: 16 },
-          dli: { min: 23.0, max: 34.6, unit: "mol/m²/day" },
-          notes: [
-            "Pinching off growing tips encourages bushier growth",
-            "Higher light intensity produces more essential oils and stronger flavor",
-          ],
-        },
-        flowering: {
-          ppfd: { min: 600, max: 1000, unit: "µmol/m²/s" },
-          photoperiod: { hours: 14, maxHours: 16 },
-          dli: { min: 34.6, max: 57.6, unit: "mol/m²/day" },
-          notes: [
-            "Flowering usually occurs around 6-8 weeks after planting",
-            "Pinch flower buds immediately to extend leaf harvest period",
-          ],
-        },
-      },
-      watering: {
-        seedling: {
-          trigger: { moistureLevel: "when surface begins to dry" },
-          target: { moistureLevel: "evenly moist but not waterlogged" },
-          volume: {
-            amount: "light applications",
-            frequency: "daily monitoring",
-          },
-          notes: [
-            "Consistent moisture during establishment phase",
-            "Avoid overwatering which can cause damping-off disease",
-          ],
-        },
-        vegetative: {
-          trigger: { moistureLevel: "when top inch becomes dry" },
-          target: { moistureLevel: "thoroughly moist" },
-          volume: {
-            amount: "moderate watering",
-            frequency: "every 2-3 days typically",
-          },
-          notes: [
-            "Allow slight drying between waterings once established",
-            "Deep, less frequent watering encourages strong root development",
-          ],
-        },
-        flowering: {
-          trigger: { moistureLevel: "when top inch becomes dry" },
-          target: { moistureLevel: "adequately moist" },
-          volume: {
-            amount: "consistent applications",
-            frequency: "as soil indicates",
-          },
-          notes: [
-            "Maintain consistent moisture during active harvest period",
-            "Avoid getting water on leaves to prevent fungal issues",
-          ],
-        },
-      },
-      fertilization: {
-        seedling: {
-          products: [
-            {
-              name: "Bio-Tone starter fertilizer",
-              dilution: "0.5 teaspoon per container",
-              amount: "light application at transplanting",
-              frequency: "one-time at transplant",
-              method: "mix-in-soil",
-            },
-          ],
-          timing: "At transplant to larger container",
-          notes: [
-            "Gentle introduction to feeding - basil responds well to organic fertilizers",
-          ],
-        },
-        vegetative: {
-          products: [
-            {
-              name: "Balanced organic fertilizer or compost tea",
-              dilution: "half strength initially",
-              amount: "light but regular feeding",
-              frequency: "every 2-3 weeks",
-            },
-          ],
-          timing: "Active growth phase",
-          notes: [
-            "Avoid excessive nitrogen which reduces essential oil concentration",
-            "Organic fertilizers produce better flavor than synthetic",
-          ],
-        },
-        flowering: {
-          products: [
-            {
-              name: "Reduced feeding if flowers are pinched",
-              dilution: "very light",
-              amount: "minimal applications",
-              frequency: "monthly if needed",
-            },
-          ],
-          timing: "If flowering occurs",
-          notes: [
-            "Reduce feeding to maintain leaf quality",
-            "Focus on preventing flowering rather than supporting it",
-          ],
-        },
-      },
-      environment: {
-        temperature: { min: 65, max: 80, optimal: 75, unit: "F" },
-        pH: { min: 6.0, max: 7.0, optimal: 6.5 },
-      },
-      soilMixture: {
-        components: {
-          "coco coir": 40,
-          perlite: 30,
-          vermiculite: 20,
-          compost: 10,
-        },
-        amendments: {
-          "worm castings": "1 tbsp per gallon",
-          "Bio-Tone": "0.5 teaspoon per container",
-        },
-      },
-      container: {
-        minSize: "2-gallon container (8 inch diameter)",
-        depth: "6-8 inches adequate for compact variety",
-      },
-      succession: {
-        interval: 14, // 2-3 week intervals
-        method: "continuous",
-        harvestMethod: "cut-and-come-again",
-        productiveWeeks: 8,
-        notes: [
-          "Succession every 2-3 weeks ensures continuous fresh leaves",
-          "Pinch flowers immediately to extend productive harvest period",
-        ],
-      },
-      specialRequirements: [
-        "Warmth-loving plant - keep soil temperature above 65°F",
-        "Pinch growing tips regularly to encourage bushy growth",
-        "Remove flower buds immediately to maintain leaf production",
-        "Harvest frequently to encourage new growth",
-        "Prefers well-draining soil - avoid waterlogged conditions",
-      ],
-    },
-  },
-
-  {
-    name: "English Thyme",
-    category: "herbs",
-    isEverbearing: true,
-    productiveLifespan: 1095, // 3 years before replacement typically needed
-    growthTimeline: {
-      germination: 14, // 7-14 days with proper soil temperature
-      seedling: 21, // 2-3 weeks early development
-      vegetative: 84, // 6-12 weeks to establish
-      maturation: 365, // Full maturity takes nearly a year
-    },
-    protocols: {
-      lighting: {
-        seedling: {
-          ppfd: { min: 100, max: 300, unit: "µmol/m²/s" },
-          photoperiod: { hours: 10, maxHours: 14 },
-          dli: { min: 3.6, max: 15.1, unit: "mol/m²/day" },
-          notes: [
-            "Tiny seedlings emerge slowly - patience required",
-            "Soil temperature between 68-77°F critical for germination",
-          ],
-        },
-        vegetative: {
-          ppfd: { min: 300, max: 600, unit: "µmol/m²/s" },
-          photoperiod: { hours: 12, maxHours: 16 },
-          dli: { min: 13.0, max: 34.6, unit: "mol/m²/day" },
-          notes: [
-            "Leaves grow to about 1 inch long, becoming dark green and aromatic",
-            "Plant develops characteristic low, spreading growth habit",
-          ],
-        },
-        flowering: {
-          ppfd: { min: 600, max: 900, unit: "µmol/m²/s" },
-          photoperiod: { hours: 14, maxHours: 16 },
-          dli: { min: 30.2, max: 51.8, unit: "mol/m²/day" },
-          notes: [
-            "Small flowers appear in late spring to early summer",
-            "Flowers can be pink, lavender, or white depending on variety",
-          ],
-        },
-      },
-      watering: {
-        seedling: {
-          trigger: { moistureLevel: "when surface begins to dry" },
-          target: { moistureLevel: "barely moist" },
-          volume: {
-            amount: "very light applications",
-            frequency: "careful monitoring",
-          },
-          notes: [
-            "Critical period - overwatering kills more thyme seedlings than drought",
-            "Use spray bottle for gentle moisture application",
-          ],
-        },
-        vegetative: {
-          trigger: { moistureLevel: "when soil is dry 1-2 inches down" },
-          target: { moistureLevel: "lightly moist throughout" },
-          volume: {
-            amount: "moderate watering",
-            frequency: "infrequent but thorough",
-          },
-          notes: [
-            "Allow significant drying between waterings",
-            "Thyme tolerates drought better than excess moisture",
-          ],
-        },
-        flowering: {
-          trigger: { moistureLevel: "when soil is quite dry" },
-          target: { moistureLevel: "lightly moist" },
-          volume: {
-            amount: "minimal watering",
-            frequency: "only when necessary",
-          },
-          notes: [
-            "Established thyme is extremely drought tolerant",
-            "Excess water dilutes essential oils and reduces flavor intensity",
-          ],
-        },
-      },
-      fertilization: {
-        seedling: {
-          products: [
-            {
-              name: "Crushed oyster shell",
-              dilution: "0.5 teaspoon per container",
-              amount: "mixed into soil at planting",
-              frequency: "one-time soil amendment",
-              method: "mix-in-soil",
-            },
-          ],
-          timing: "At transplanting",
-          notes: [
-            "Provides slow-release calcium and helps with drainage",
-            "Mediterranean herbs prefer slightly alkaline conditions",
-          ],
-        },
-        vegetative: {
-          products: [
-            {
-              name: "Very dilute compost tea (optional)",
-              dilution: "quarter strength or less",
-              amount: "minimal application",
-              frequency: "monthly if at all",
-            },
-          ],
-          timing: "Growing season only",
-          notes: [
-            "Thyme actually performs better in lean soils",
-            "Too much fertility produces weak, less flavorful growth",
-          ],
-        },
-        flowering: {
-          notes: [
-            "No fertilization needed during flowering period",
-            "Plant has adapted to survive on minimal nutrients",
-          ],
-        },
-      },
-      environment: {
-        temperature: { min: 60, max: 80, optimal: 70, unit: "F" },
-        humidity: { min: 30, max: 50, optimal: 40 },
-        pH: { min: 6.0, max: 8.0, optimal: 6.5 },
-      },
-      soilMixture: {
-        components: {
-          "coco coir": 40,
-          perlite: 30,
-          "coarse sand": 20,
-          vermiculite: 10,
-        },
-        amendments: {
-          compost: "0.5 tablespoon per container (minimal)",
-          "crushed oyster shell": "0.5 teaspoon per container",
-        },
-      },
-      container: {
-        minSize: "2-gallon pot (8 inch diameter)",
-        depth: "6-8 inches adequate",
-        drainage: "Excellent drainage absolutely essential",
-      },
-      specialRequirements: [
-        "Excellent drainage absolutely critical - will not tolerate wet feet",
-        "Prefers lean, mineral soils over rich organic matter",
-        "Drought tolerant once established - err on side of underwatering",
-        "Benefits from good air circulation to prevent fungal issues",
-        "Harvest by cutting stems above woody growth to encourage branching",
-        "Extremely long-lived perennial if drainage requirements are met",
-      ],
-    },
-  },
-
-  {
-    name: "Greek Oregano",
-    category: "herbs",
-    isEverbearing: true,
-    productiveLifespan: 730, // 2 years typical productive life
-    growthTimeline: {
-      germination: 14, // 7-14 days at proper temperature
-      seedling: 28, // 4-6 weeks to establish
-      vegetative: 56, // 6-8 weeks to harvestable size
-      maturation: 90, // 80-90 days to full maturity
-    },
-    protocols: {
-      lighting: {
-        seedling: {
-          ppfd: { min: 100, max: 300, unit: "µmol/m²/s" },
-          photoperiod: { hours: 10, maxHours: 14 },
-          dli: { min: 3.6, max: 15.1, unit: "mol/m²/day" },
-          notes: [
-            "Seeds germinate at 65-70°F soil temperature",
-            "Transplant when seedlings have four true leaves",
-          ],
-        },
-        vegetative: {
-          ppfd: { min: 300, max: 600, unit: "µmol/m²/s" },
-          photoperiod: { hours: 12, maxHours: 16 },
-          dli: { min: 13.0, max: 34.6, unit: "mol/m²/day" },
-          notes: [
-            "Plant develops more leaves and branches during this phase",
-            "Pinching and pruning encourage bushy growth habit",
-          ],
-        },
-        flowering: {
-          ppfd: { min: 500, max: 750, unit: "µmol/m²/s" },
-          photoperiod: { hours: 14, maxHours: 16 },
-          dli: { min: 25.2, max: 43.2, unit: "mol/m²/day" },
-          notes: [
-            "Small white flowers appear as plant reaches maturity",
-            "Harvest often best when plant is beginning to flower",
-          ],
-        },
-      },
-      watering: {
-        seedling: {
-          trigger: { moistureLevel: "when surface starts to dry" },
-          target: { moistureLevel: "evenly moist but not saturated" },
-          volume: {
-            amount: "light, frequent applications",
-            frequency: "daily monitoring",
-          },
-          notes: [
-            "Keep soil consistently moist during establishment",
-            "Avoid waterlogging which can cause root rot",
-          ],
-        },
-        vegetative: {
-          trigger: { moistureLevel: "when top inch is dry" },
-          target: { moistureLevel: "moderately moist throughout" },
-          volume: {
-            amount: "thorough but infrequent watering",
-            frequency: "every 2-4 days",
-          },
-          notes: [
-            "Allow some drying between waterings to encourage strong roots",
-            "Deep watering less frequently better than frequent shallow watering",
-          ],
-        },
-        flowering: {
-          trigger: { moistureLevel: "when soil is quite dry" },
-          target: { moistureLevel: "lightly moist" },
-          volume: { amount: "minimal watering", frequency: "only as needed" },
-          notes: [
-            "Mature oregano is quite drought tolerant",
-            "Reduce watering to concentrate essential oils for better flavor",
-          ],
-        },
-      },
-      fertilization: {
-        seedling: {
-          products: [
-            {
-              name: "Light compost incorporation",
-              dilution: "0.5 tablespoon per container",
-              amount: "mixed into soil at planting",
-              frequency: "one-time soil preparation",
-              method: "mix-in-soil",
-            },
-          ],
-          timing: "At container preparation",
-          notes: [
-            "Light organic matter supports establishment without overfeeding",
-          ],
-        },
-        vegetative: {
-          products: [
-            {
-              name: "Dilute compost tea or fish emulsion",
-              dilution: "quarter to half strength",
-              amount: "light application",
-              frequency: "monthly during active growth",
-            },
-          ],
-          timing: "Growing season",
-          notes: [
-            "Light feeding only - oregano prefers lean conditions",
-            "Overfertilization reduces essential oil concentration",
-          ],
-        },
-        flowering: {
-          notes: [
-            "Cease fertilization when flowering begins",
-            "Lean conditions during flowering concentrate flavor compounds",
-          ],
-        },
-      },
-      environment: {
-        temperature: { min: 65, max: 85, optimal: 75, unit: "F" },
-        humidity: { min: 30, max: 60, optimal: 45 },
-        pH: { min: 6.0, max: 8.0, optimal: 6.8 },
-      },
-      soilMixture: {
-        components: {
-          "coco coir": 40,
-          perlite: 30,
-          "coarse sand": 20,
-          vermiculite: 10,
-        },
-        amendments: {
-          compost: "0.5 tablespoon per container",
-          "crushed oyster shell": "0.5 teaspoon per container",
-        },
-      },
-      container: {
-        minSize: "12 inch diameter pot",
-        depth: "6-8 inches adequate for root system",
-      },
-      succession: {
-        interval: 0, // Perennial - no succession needed
-        method: "single",
-        harvestMethod: "cut-and-come-again",
-        notes: [
-          "Harvest by cutting top third of stems above a node",
-          "Regular harvesting encourages new branching and continued production",
-        ],
-      },
-      specialRequirements: [
-        "Requires excellent drainage - will not tolerate waterlogged soil",
-        "Benefits from slightly alkaline soil conditions",
-        "Regular harvesting by cutting stems encourages bushier growth",
-        "Can be somewhat invasive if allowed to spread naturally",
-        "Winter protection may be needed in very cold climates",
-      ],
-    },
-  },
-
-  {
     name: "Albion Strawberries",
     category: "berries",
     isEverbearing: true,
-    productiveLifespan: 730, // 2 years before replacement recommended
+    productiveLifespan: 730,
     growthTimeline: {
-      germination: 14, // if starting from seed (rare)
-      seedling: 28, // establishment from bare root
-      vegetative: 42, // active growth before flowering
-      maturation: 90, // to full production
+      germination: 14,
+      establishment: 14,
+      vegetative: 28,
+      flowering: 56,
+      fruiting: 91,
+      ongoingProduction: 98,
     },
     protocols: {
       lighting: {
         establishment: {
-          ppfd: { min: 200, max: 200, optimal: 200, unit: "µmol/m²/s" },
+          ppfd: {
+            min: 200,
+            max: 200,
+            optimal: 200,
+            unit: "µmol/m²/s",
+          },
           photoperiod: {
             hours: 14,
             maxHours: 16,
             constraint: "day-neutral varieties require consistent photoperiod",
           },
-          dli: { min: 10.1, max: 11.5, unit: "mol/m²/day" },
+          dli: {
+            min: 10.1,
+            max: 11.5,
+            unit: "mol/m²/day",
+          },
           notes: [
             "Remove flowers for the first 4-6 weeks to encourage strong plant establishment",
             "Focus energy on root and crown development",
           ],
         },
         vegetative: {
-          ppfd: { min: 300, max: 400, unit: "µmol/m²/s" },
+          ppfd: {
+            min: 300,
+            max: 400,
+            unit: "µmol/m²/s",
+          },
           photoperiod: {
             hours: 16,
             constraint:
               "consistent 16h photoperiod is critical for continuous production",
           },
-          dli: { min: 17.3, max: 23.0, unit: "mol/m²/day" },
+          dli: {
+            min: 17.3,
+            max: 23,
+            unit: "mol/m²/day",
+          },
           notes: [
             "Remove ALL runners as soon as they are spotted - check weekly",
             "Energy must go to fruit production, not vegetative reproduction",
           ],
         },
         flowering: {
-          ppfd: { min: 350, max: 400, unit: "µmol/m²/s" },
+          ppfd: {
+            min: 350,
+            max: 400,
+            unit: "µmol/m²/s",
+          },
           photoperiod: {
             hours: 16,
             constraint:
               "critical for continuous flowering in day-neutral types",
           },
-          dli: { min: 20.2, max: 23.0, unit: "mol/m²/day" },
+          dli: {
+            min: 20.2,
+            max: 23,
+            unit: "mol/m²/day",
+          },
           notes: [
             "Hand pollination is critical indoors",
             "Use a small brush to transfer pollen every 1-2 days",
           ],
         },
         fruiting: {
-          ppfd: { min: 450, max: 500, unit: "µmol/m²/s" },
-          photoperiod: { hours: 16 },
-          dli: { min: 25.9, max: 28.8, unit: "mol/m²/day" },
+          ppfd: {
+            min: 450,
+            max: 500,
+            unit: "µmol/m²/s",
+          },
+          photoperiod: {
+            hours: 16,
+          },
+          dli: {
+            min: 25.9,
+            max: 28.8,
+            unit: "mol/m²/day",
+          },
           notes: [
             "Higher light intensity supports fruit development and sugar accumulation",
           ],
         },
         ongoingProduction: {
-          ppfd: { min: 350, max: 400, unit: "µmol/m²/s" },
-          photoperiod: { hours: 16 },
-          dli: { min: 20.2, max: 23.0, unit: "mol/m²/day" },
+          ppfd: {
+            min: 350,
+            max: 400,
+            unit: "µmol/m²/s",
+          },
+          photoperiod: {
+            hours: 16,
+          },
+          dli: {
+            min: 20.2,
+            max: 23,
+            unit: "mol/m²/day",
+          },
           notes: [
             "Monthly flush with pH-adjusted plain water until 20-30% runoff",
             "Prevents salt buildup from intensive feeding",
@@ -1100,8 +1032,12 @@ export const seedVarieties: SeedVariety[] = [
       },
       watering: {
         establishment: {
-          trigger: { moistureLevel: "3-4" },
-          target: { moistureLevel: "6-7" },
+          trigger: {
+            moistureLevel: "3-4",
+          },
+          target: {
+            moistureLevel: "6-7",
+          },
           volume: {
             amount:
               "5-gal: 20-30 oz (590-890 mL), 2-gal hanging: 8-10 oz (235-300 mL)",
@@ -1113,8 +1049,12 @@ export const seedVarieties: SeedVariety[] = [
           ],
         },
         vegetative: {
-          trigger: { moistureLevel: "3-4" },
-          target: { moistureLevel: "6-7" },
+          trigger: {
+            moistureLevel: "3-4",
+          },
+          target: {
+            moistureLevel: "6-7",
+          },
           volume: {
             amount:
               "5-gal: 25-35 oz (740-1030 mL), 2-gal hanging: 10-13 oz (300-385 mL)",
@@ -1126,8 +1066,12 @@ export const seedVarieties: SeedVariety[] = [
           ],
         },
         flowering: {
-          trigger: { moistureLevel: "3-4" },
-          target: { moistureLevel: "6-7" },
+          trigger: {
+            moistureLevel: "3-4",
+          },
+          target: {
+            moistureLevel: "6-7",
+          },
           volume: {
             amount:
               "5-gal: 30-35 oz (890-1030 mL), 2-gal hanging: 10-13 oz (300-385 mL)",
@@ -1139,8 +1083,12 @@ export const seedVarieties: SeedVariety[] = [
           ],
         },
         fruiting: {
-          trigger: { moistureLevel: "3-4" },
-          target: { moistureLevel: "6-7" },
+          trigger: {
+            moistureLevel: "3-4",
+          },
+          target: {
+            moistureLevel: "6-7",
+          },
           volume: {
             amount:
               "5-gal: 30-35 oz (890-1030 mL), 2-gal hanging: 10-13 oz (300-385 mL)",
@@ -1149,8 +1097,12 @@ export const seedVarieties: SeedVariety[] = [
           },
         },
         ongoingProduction: {
-          trigger: { moistureLevel: "3-4" },
-          target: { moistureLevel: "6-7" },
+          trigger: {
+            moistureLevel: "3-4",
+          },
+          target: {
+            moistureLevel: "6-7",
+          },
           volume: {
             amount:
               "5-gal: 25-35 oz (740-1030 mL), 2-gal hanging: 10-13 oz (300-385 mL)",
@@ -1164,113 +1116,145 @@ export const seedVarieties: SeedVariety[] = [
       },
       fertilization: {
         establishment: {
-          products: [
+          schedule: [
             {
-              name: "Neptune's Harvest Fish + Seaweed",
-              dilution: "½ strength, 0.5 Tbsp/gal",
-              amount: "Week 2 application",
-              frequency: "one-time during establishment",
+              taskName: "Mix in Bone Meal at planting",
+              details: {
+                product: "Bone meal",
+                amount: "1 Tbsp/5gal",
+                method: "mix-in-soil",
+              },
+              startDays: 0,
+              frequencyDays: 0,
+              repeatCount: 1,
             },
             {
-              name: "Bone meal",
-              dilution: "1 Tbsp/5gal",
-              amount: "mixed at planting",
-              frequency: "at planting",
-              method: "mix-in-soil",
+              taskName: "Apply Fish + Seaweed",
+              details: {
+                product: "Neptune's Harvest Fish + Seaweed",
+                dilution: "½ strength, 0.5 Tbsp/gal",
+              },
+              startDays: 14,
+              frequencyDays: 0,
+              repeatCount: 1,
             },
           ],
-          timing: "Weeks 0-3",
-          notes: ["Remove flowers for first 4-6 weeks"],
         },
         vegetative: {
-          products: [
+          schedule: [
             {
-              name: "Neptune's Harvest",
-              dilution: "½ strength",
-              amount: "Week 4, 6 applications",
-              frequency: "bi-weekly",
+              taskName: "Apply Neptune's Harvest (½ strength)",
+              details: {
+                product: "Neptune's Harvest",
+                dilution: "½ strength",
+              },
+              startDays: 28,
+              frequencyDays: 14,
+              repeatCount: 1,
             },
             {
-              name: "Neptune's Harvest",
-              dilution: "full strength, 1 Tbsp/gal",
-              amount: "Week 5, 7 applications",
-              frequency: "bi-weekly",
+              taskName: "Apply Neptune's Harvest (full strength)",
+              details: {
+                product: "Neptune's Harvest",
+                dilution: "full strength, 1 Tbsp/gal",
+              },
+              startDays: 35,
+              frequencyDays: 14,
+              repeatCount: 1,
             },
-          ],
-          timing: "Weeks 4-6",
-          notes: [
-            "Remove flowers for first 4-6 weeks",
-            "Remove ALL runners weekly",
           ],
         },
         flowering: {
-          products: [
+          schedule: [
             {
-              name: "Espoma Berry-Tone",
-              dilution: "2 Tbsp/bag",
-              amount: "Week 8 application",
-              frequency: "one-time",
-              method: "top-dress",
+              taskName: "Top-dress with Espoma Berry-Tone",
+              details: {
+                product: "Espoma Berry-Tone",
+                amount: "2 Tbsp/bag",
+                method: "top-dress",
+              },
+              startDays: 56,
+              frequencyDays: 0,
+              repeatCount: 1,
             },
             {
-              name: "Kelp/sea-mineral",
-              dilution: "1 Tbsp/gal",
-              amount: "Week 9, 11 applications",
-              frequency: "bi-weekly",
+              taskName: "Apply Kelp/Sea-Mineral",
+              details: {
+                product: "Kelp/sea-mineral",
+                dilution: "1 Tbsp/gal",
+              },
+              startDays: 63,
+              frequencyDays: 14,
+              repeatCount: 2,
             },
             {
-              name: "Bone meal",
-              dilution: "½ Tbsp/bag",
-              amount: "Week 10 application",
-              frequency: "one-time",
-              method: "top-dress",
+              taskName: "Top-dress with Bone Meal",
+              details: {
+                product: "Bone meal",
+                amount: "½ Tbsp/bag",
+                method: "top-dress",
+              },
+              startDays: 70,
+              frequencyDays: 0,
+              repeatCount: 1,
             },
           ],
-          timing: "Weeks 7-8",
-          notes: ["Hand pollinate every 1-2 days during flowering"],
         },
         fruiting: {
-          products: [
+          schedule: [
             {
-              name: "Kelp/sea-mineral",
-              dilution: "1 Tbsp/gal",
-              amount: "Week 13, 15 applications",
-              frequency: "bi-weekly",
+              taskName: "Apply Kelp/Sea-Mineral",
+              details: {
+                product: "Kelp/sea-mineral",
+                dilution: "1 Tbsp/gal",
+              },
+              startDays: 91,
+              frequencyDays: 14,
+              repeatCount: 2,
             },
             {
-              name: "Fish & Seaweed + high-K supplement",
-              dilution: "as directed",
-              amount: "bi-weekly applications",
-              frequency: "every 2 weeks",
+              taskName: "Apply High-K Supplement",
+              details: {
+                product: "Fish & Seaweed + high-K supplement",
+              },
+              startDays: 98,
+              frequencyDays: 14,
+              repeatCount: 3,
             },
           ],
-          timing: "Weeks 9-13",
-          notes: ["Harvest begins 4-5 weeks after flowering"],
         },
         ongoingProduction: {
-          products: [
+          schedule: [
             {
-              name: "Kelp",
-              dilution: "1 Tbsp/gal",
-              amount: "Week 1 of cycle",
-              frequency: "alternating 2-week cycle",
+              taskName: "Apply Kelp",
+              details: {
+                product: "Kelp",
+                dilution: "1 Tbsp/gal",
+              },
+              startDays: 98,
+              frequencyDays: 28,
+              repeatCount: 26,
             },
             {
-              name: "Berry-Tone",
-              dilution: "1 Tbsp/bag",
-              amount: "Week 3 of cycle",
-              frequency: "alternating 2-week cycle",
-              method: "top-dress",
+              taskName: "Top-dress with Berry-Tone",
+              details: {
+                product: "Berry-Tone",
+                amount: "1 Tbsp/bag",
+                method: "top-dress",
+              },
+              startDays: 112,
+              frequencyDays: 28,
+              repeatCount: 25,
             },
-          ],
-          timing: "Week 14+",
-          notes: [
-            "Monthly flush with pH-adjusted water to prevent salt buildup",
           ],
         },
       },
       environment: {
-        pH: { min: 5.8, max: 6.5, optimal: 6.2 },
+        pH: {
+          min: 5.8,
+          max: 6.5,
+          optimal: 6.2,
+        },
       },
       soilMixture: {
         components: {
@@ -1295,51 +1279,96 @@ export const seedVarieties: SeedVariety[] = [
       ],
     },
   },
-
   {
     name: "Caroline Raspberries",
     category: "berries",
     isEverbearing: true,
-    productiveLifespan: 1095, // 3 years productive life
+    productiveLifespan: 1095,
     growthTimeline: {
-      germination: 0, // typically grown from canes, not seed
-      seedling: 21, // cane establishment
-      vegetative: 42, // active growth
-      maturation: 120, // to fruit production
+      caneEstablishment: 0,
+      vegetative: 21,
+      floweringFruiting: 63,
+      ongoing: 120,
     },
     protocols: {
       lighting: {
         caneEstablishment: {
-          ppfd: { min: 200, max: 300, unit: "µmol/m²/s" },
-          photoperiod: { hours: 16, maxHours: 18 },
-          dli: { min: 11.5, max: 19.4, unit: "mol/m²/day" },
+          ppfd: {
+            min: 200,
+            max: 300,
+            unit: "µmol/m²/s",
+          },
+          photoperiod: {
+            hours: 16,
+            maxHours: 18,
+          },
+          dli: {
+            min: 11.5,
+            max: 19.4,
+            unit: "mol/m²/day",
+          },
           notes: [
             "Focus on establishing strong root system and cane structure",
           ],
         },
         vegetative: {
-          ppfd: { min: 300, max: 400, unit: "µmol/m²/s" },
-          photoperiod: { hours: 16 },
-          dli: { min: 17.3, max: 23.0, unit: "mol/m²/day" },
+          ppfd: {
+            min: 300,
+            max: 400,
+            unit: "µmol/m²/s",
+          },
+          photoperiod: {
+            hours: 16,
+          },
+          dli: {
+            min: 17.3,
+            max: 23,
+            unit: "mol/m²/day",
+          },
         },
         floweringFruiting: {
-          ppfd: { min: 400, max: 600, unit: "µmol/m²/s" },
-          photoperiod: { hours: 14, maxHours: 16 },
-          dli: { min: 22.7, max: 34.6, unit: "mol/m²/day" },
+          ppfd: {
+            min: 400,
+            max: 600,
+            unit: "µmol/m²/s",
+          },
+          photoperiod: {
+            hours: 14,
+            maxHours: 16,
+          },
+          dli: {
+            min: 22.7,
+            max: 34.6,
+            unit: "mol/m²/day",
+          },
           notes: [
             "Higher light intensity supports fruit development and sugar content",
           ],
         },
         ongoing: {
-          ppfd: { min: 350, max: 500, unit: "µmol/m²/s" },
-          photoperiod: { hours: 16 },
-          dli: { min: 20.2, max: 28.8, unit: "mol/m²/day" },
+          ppfd: {
+            min: 350,
+            max: 500,
+            unit: "µmol/m²/s",
+          },
+          photoperiod: {
+            hours: 16,
+          },
+          dli: {
+            min: 20.2,
+            max: 28.8,
+            unit: "mol/m²/day",
+          },
         },
       },
       watering: {
         caneEstablishment: {
-          trigger: { moistureLevel: "3-4" },
-          target: { moistureLevel: "6-7" },
+          trigger: {
+            moistureLevel: "3-4",
+          },
+          target: {
+            moistureLevel: "6-7",
+          },
           volume: {
             amount: "monitor with soil moisture meter",
             frequency: "as needed",
@@ -1347,16 +1376,24 @@ export const seedVarieties: SeedVariety[] = [
           notes: ["Always water until slight drainage occurs"],
         },
         vegetative: {
-          trigger: { moistureLevel: "3-4" },
-          target: { moistureLevel: "6-7" },
+          trigger: {
+            moistureLevel: "3-4",
+          },
+          target: {
+            moistureLevel: "6-7",
+          },
           volume: {
             amount: "monitor with soil moisture meter",
             frequency: "as needed",
           },
         },
         floweringFruiting: {
-          trigger: { moistureLevel: "3-4" },
-          target: { moistureLevel: "7-8" },
+          trigger: {
+            moistureLevel: "3-4",
+          },
+          target: {
+            moistureLevel: "7-8",
+          },
           volume: {
             amount: "monitor with soil moisture meter",
             frequency: "as needed",
@@ -1364,8 +1401,12 @@ export const seedVarieties: SeedVariety[] = [
           notes: ["Higher moisture during fruit development"],
         },
         ongoing: {
-          trigger: { moistureLevel: "3-4" },
-          target: { moistureLevel: "6-7" },
+          trigger: {
+            moistureLevel: "3-4",
+          },
+          target: {
+            moistureLevel: "6-7",
+          },
           volume: {
             amount: "monitor with soil moisture meter",
             frequency: "as needed",
@@ -1374,56 +1415,76 @@ export const seedVarieties: SeedVariety[] = [
       },
       fertilization: {
         caneEstablishment: {
-          products: [
+          schedule: [
             {
-              name: "Compost top-dress",
-              dilution: "1-2 inches",
-              amount: "at planting",
-              frequency: "at planting",
-              method: "top-dress",
+              taskName: "Top-dress with Compost",
+              details: {
+                product: "Compost",
+                amount: "1-2 inches",
+                method: "top-dress",
+              },
+              startDays: 0,
+              frequencyDays: 0,
+              repeatCount: 1,
             },
           ],
         },
         vegetative: {
-          products: [
+          schedule: [
             {
-              name: "Fish Emulsion",
-              dilution: "1-2 tbsp/gallon",
-              amount: "as needed",
-              frequency: "every 2-4 weeks",
+              taskName: "Apply Fish Emulsion",
+              details: {
+                product: "Fish Emulsion",
+                dilution: "1-2 tbsp/gallon",
+              },
+              startDays: 21,
+              frequencyDays: 21,
+              repeatCount: 2,
             },
           ],
         },
         floweringFruiting: {
-          products: [
+          schedule: [
             {
-              name: "Liquid Kelp + balanced organic fertilizer",
-              dilution: "as directed",
-              amount: "as needed",
-              frequency: "every 2-3 weeks",
+              taskName: "Apply Liquid Kelp & Balanced Fertilizer",
+              details: {
+                product: "Liquid Kelp + balanced organic fertilizer",
+              },
+              startDays: 63,
+              frequencyDays: 21,
+              repeatCount: 2,
             },
             {
-              name: "Kelp Extract + K-rich formula",
-              dilution: "as directed",
-              amount: "as needed",
-              frequency: "every 1-2 weeks",
+              taskName: "Apply K-Rich Formula",
+              details: {
+                product: "Kelp Extract + K-rich formula",
+              },
+              startDays: 70,
+              frequencyDays: 10,
+              repeatCount: 5,
             },
           ],
-          notes: ["Higher potassium supports fruit development and flavor"],
         },
         ongoing: {
-          products: [
+          schedule: [
             {
-              name: "Aerobically brewed compost tea",
-              dilution: "as brewed",
-              amount: "monthly applications",
-              frequency: "monthly",
+              taskName: "Apply Compost Tea",
+              details: {
+                product: "Aerobically brewed compost tea",
+              },
+              startDays: 120,
+              frequencyDays: 30,
+              repeatCount: 12,
             },
           ],
         },
       },
       environment: {
-        pH: { min: 5.8, max: 6.5, optimal: 6.0 },
+        pH: {
+          min: 5.8,
+          max: 6.5,
+          optimal: 6,
+        },
       },
       soilMixture: {
         components: {
@@ -1457,53 +1518,86 @@ export const seedVarieties: SeedVariety[] = [
     growthTimeline: {
       germination: 14,
       seedling: 14,
-      vegetative: 28, // 14 days vegetative + 14 days root development
-      maturation: 70,
+      vegetative: 28,
+      rootDevelopment: 42,
     },
     protocols: {
       lighting: {
         germination: {
-          ppfd: { min: 100, max: 150, unit: "µmol/m²/s" },
+          ppfd: {
+            min: 100,
+            max: 150,
+            unit: "µmol/m²/s",
+          },
           photoperiod: {
             hours: 12,
             maxHours: 12,
             constraint: "strict maximum to prevent bolting",
           },
-          dli: { min: 4.3, max: 6.5, unit: "mol/m²/day" },
+          dli: {
+            min: 4.3,
+            max: 6.5,
+            unit: "mol/m²/day",
+          },
           notes: [
             "Maintain consistent moisture",
             "Critical photoperiod control",
           ],
         },
         seedling: {
-          ppfd: { min: 150, max: 300, unit: "µmol/m²/s" },
+          ppfd: {
+            min: 150,
+            max: 300,
+            unit: "µmol/m²/s",
+          },
           photoperiod: {
             hours: 12,
             maxHours: 12,
             constraint: "photoperiods >12h may trigger premature bolting",
           },
-          dli: { min: 6.5, max: 13.0, unit: "mol/m²/day" },
+          dli: {
+            min: 6.5,
+            max: 13,
+            unit: "mol/m²/day",
+          },
           notes: ["Critical photoperiod - max 12 hours"],
         },
         vegetative: {
-          ppfd: { min: 200, max: 200, optimal: 200, unit: "µmol/m²/s" },
+          ppfd: {
+            min: 200,
+            max: 200,
+            optimal: 200,
+            unit: "µmol/m²/s",
+          },
           photoperiod: {
             hours: 12,
             maxHours: 12,
             constraint:
               "photoperiods >12h may trigger premature bolting, especially if warm",
           },
-          dli: { min: 8.6, max: 8.6, unit: "mol/m²/day" },
+          dli: {
+            min: 8.6,
+            max: 8.6,
+            unit: "mol/m²/day",
+          },
           notes: ["Strict 12-hour maximum", "Especially critical if warm"],
         },
         rootDevelopment: {
-          ppfd: { min: 300, max: 600, unit: "µmol/m²/s" },
+          ppfd: {
+            min: 300,
+            max: 600,
+            unit: "µmol/m²/s",
+          },
           photoperiod: {
             hours: 12,
             maxHours: 12,
             constraint: "maintain strict limit",
           },
-          dli: { min: 13.0, max: 25.9, unit: "mol/m²/day" },
+          dli: {
+            min: 13,
+            max: 25.9,
+            unit: "mol/m²/day",
+          },
           notes: [
             "Consistent moisture prevents splitting",
             "21-day succession",
@@ -1516,27 +1610,54 @@ export const seedVarieties: SeedVariety[] = [
             moistureLevel: "surface dry",
             description: "Keep surface moist",
           },
-          target: { moistureLevel: "6-7", description: "top inch" },
-          volume: { amount: "8-12 oz", frequency: "daily" },
+          target: {
+            moistureLevel: "6-7",
+            description: "top inch",
+          },
+          volume: {
+            amount: "8-12 oz",
+            frequency: "daily",
+          },
           notes: ["Maintain consistent moisture"],
         },
         seedling: {
-          trigger: { moistureLevel: "4-5" },
-          target: { moistureLevel: "6-7" },
-          volume: { amount: "16-24 oz", frequency: "every 2-3 days" },
+          trigger: {
+            moistureLevel: "4-5",
+          },
+          target: {
+            moistureLevel: "6-7",
+          },
+          volume: {
+            amount: "16-24 oz",
+            frequency: "every 2-3 days",
+          },
         },
         vegetative: {
-          trigger: { moistureLevel: "3-4" },
-          target: { moistureLevel: "6-7" },
-          volume: { amount: "24-32 oz", frequency: "every 2-4 days" },
+          trigger: {
+            moistureLevel: "3-4",
+          },
+          target: {
+            moistureLevel: "6-7",
+          },
+          volume: {
+            amount: "24-32 oz",
+            frequency: "every 2-4 days",
+          },
           notes: [
             "Photoperiods >12h may trigger premature bolting, especially if warm",
           ],
         },
         rootDevelopment: {
-          trigger: { moistureLevel: "3-4" },
-          target: { moistureLevel: "6-7" },
-          volume: { amount: "32-40 oz", frequency: "every 3-4 days" },
+          trigger: {
+            moistureLevel: "3-4",
+          },
+          target: {
+            moistureLevel: "6-7",
+          },
+          volume: {
+            amount: "32-40 oz",
+            frequency: "every 3-4 days",
+          },
           notes: [
             "Consistent moisture prevents splitting",
             "21-day succession",
@@ -1544,62 +1665,44 @@ export const seedVarieties: SeedVariety[] = [
         },
       },
       fertilization: {
-        germination: {
-          notes: ["None until true leaves appear"],
-        },
         seedling: {
-          products: [
+          schedule: [
             {
-              name: "Worm Casting Tea",
-              dilution: "1 part castings:10 parts water, steep 12-24h",
-              amount: "apply as needed",
-              frequency: "every 1-2 weeks",
-            },
-            {
-              name: "Fish Emulsion (alternative)",
-              dilution: "0.5-1 Tbsp/gal",
-              amount: "apply as needed",
-              frequency: "every 2-3 weeks",
+              taskName: "Apply Worm Casting Tea",
+              details: {
+                product: "Worm Casting Tea",
+                dilution: "1 part castings:10 parts water",
+              },
+              startDays: 21,
+              frequencyDays: 10,
+              repeatCount: 2,
             },
           ],
-          timing: "Weeks 3-5",
         },
         vegetative: {
-          products: [
+          schedule: [
             {
-              name: "Lower-N Fish Emulsion",
-              dilution: "1 Tbsp/gal",
-              amount: "apply as needed",
-              frequency: "every 2-3 weeks",
-            },
-            {
-              name: "Worm Casting Tea",
-              dilution: "1 part castings:10 parts water",
-              amount: "apply as needed",
-              frequency: "every 1-2 weeks",
-            },
-            {
-              name: "Liquid Kelp/Seaweed Extract",
-              dilution: "1-2 Tbsp/gal",
-              amount: "apply as needed",
-              frequency: "every 2-3 weeks",
+              taskName: "Apply Lower-N Fish Emulsion",
+              details: {
+                product: "Lower-N Fish Emulsion",
+                dilution: "1 Tbsp/gal",
+              },
+              startDays: 35,
+              frequencyDays: 21,
+              repeatCount: 2,
             },
           ],
-          timing: "Weeks 5/6 to Harvest",
         },
         rootDevelopment: {
-          products: [
-            {
-              name: "Continue same as vegetative",
-              dilution: "as above",
-              amount: "as above",
-              frequency: "as above",
-            },
-          ],
+          schedule: [],
         },
       },
       environment: {
-        pH: { min: 6.0, max: 6.8, optimal: 6.5 },
+        pH: {
+          min: 6,
+          max: 6.8,
+          optimal: 6.5,
+        },
       },
       soilMixture: {
         components: {
@@ -1630,149 +1733,6 @@ export const seedVarieties: SeedVariety[] = [
       ],
     },
   },
-
-  {
-    name: "Astro Arugula",
-    category: "leafy-greens",
-    isEverbearing: true,
-    productiveLifespan: 56, // 6-8 weeks productive per plant
-    growthTimeline: {
-      germination: 5,
-      seedling: 14,
-      vegetative: 14,
-      maturation: 37,
-    },
-    protocols: {
-      lighting: {
-        germination: {
-          ppfd: { min: 70, max: 150, unit: "µmol/m²/s" },
-          photoperiod: { hours: 12, maxHours: 12 },
-          dli: { min: 3.0, max: 6.5, unit: "mol/m²/day" },
-          notes: ["Keep soil warm 60-70°F", "Even moisture"],
-        },
-        seedling: {
-          ppfd: { min: 150, max: 250, unit: "µmol/m²/s" },
-          photoperiod: { hours: 10, maxHours: 12 },
-          dli: { min: 5.4, max: 10.8, unit: "mol/m²/day" },
-          notes: ["Keep soil warm 60-70°F", "Even moisture"],
-        },
-        vegetative: {
-          ppfd: { min: 200, max: 250, unit: "µmol/m²/s" },
-          photoperiod: { hours: 10, maxHours: 12 },
-          dli: { min: 7.2, max: 10.8, unit: "mol/m²/day" },
-        },
-        postHarvestRegrowth: {
-          ppfd: { min: 200, max: 250, unit: "µmol/m²/s" },
-          photoperiod: { hours: 10, maxHours: 12 },
-          dli: { min: 7.2, max: 10.8, unit: "mol/m²/day" },
-          notes: ["14-day succession interval", "Cut-and-come-again"],
-        },
-      },
-      watering: {
-        germination: {
-          trigger: { moistureLevel: "3-4" },
-          target: { moistureLevel: "6-7" },
-          volume: { amount: "2-4 fl oz (60-120 mL)", frequency: "2-3x/week" },
-          notes: ["Keep soil warm (60-70°F)", "Even moisture"],
-        },
-        seedling: {
-          trigger: { moistureLevel: "3-4" },
-          target: { moistureLevel: "6-7" },
-          volume: { amount: "2-4 fl oz (60-120 mL)", frequency: "2-3x/week" },
-          notes: ["Keep soil warm (60-70°F)", "Even moisture"],
-        },
-        vegetative: {
-          trigger: { moistureLevel: "3-4" },
-          target: { moistureLevel: "6-7" },
-          volume: { amount: "8-12 fl oz (240-350 mL)", frequency: "2-3x/week" },
-        },
-        postHarvestRegrowth: {
-          trigger: { moistureLevel: "3-4" },
-          target: { moistureLevel: "6-7" },
-          volume: {
-            amount: "12-16 fl oz (350-470 mL)",
-            frequency: "2-3x/week",
-          },
-          notes: ["14-day succession interval"],
-        },
-      },
-      fertilization: {
-        germination: {
-          notes: ["None until true leaves appear"],
-        },
-        seedling: {
-          products: [
-            {
-              name: "Fish Emulsion",
-              dilution: "1-2 Tbsp/gal",
-              amount: "apply as needed",
-              frequency: "every 2 weeks",
-            },
-          ],
-        },
-        vegetative: {
-          products: [
-            {
-              name: "Fish Emulsion",
-              dilution: "1-2 Tbsp/gal",
-              amount: "apply as needed",
-              frequency: "every 2 weeks",
-            },
-          ],
-        },
-        postHarvestRegrowth: {
-          products: [
-            {
-              name: "Fish Emulsion",
-              dilution: "1-2 Tbsp/gal",
-              amount: "apply as needed",
-              frequency: "every 2 weeks",
-            },
-          ],
-        },
-      },
-      environment: {
-        temperature: { min: 60, max: 70, optimal: 65, unit: "F" },
-        pH: { min: 6.0, max: 7.0, optimal: 6.5 },
-      },
-      soilMixture: {
-        components: {
-          "coco coir": 40,
-          perlite: 25,
-          vermiculite: 25,
-          "worm castings": 10,
-        },
-        amendments: {
-          "additional compost or organic 4-4-4 granular fertilizer":
-            "½–1 cup per cubic foot",
-        },
-      },
-      container: {
-        depth: "4-6 inches",
-        staging: {
-          seedling: "Cell tray",
-          intermediate: "4 inch pot",
-          final: "4-6 inch pot or bed section",
-        },
-      },
-      succession: {
-        interval: 14,
-        method: "continuous",
-        harvestMethod: "cut-and-come-again",
-        productiveWeeks: 8,
-        notes: [
-          "Baby leaves ~21 days",
-          "Full flavor ~37-40 days",
-          "6-8 weeks productive per plant",
-        ],
-      },
-      specialRequirements: [
-        "Strict photoperiod control prevents bolting",
-        "Cut outer leaves only, leave center intact",
-        "Temperature control critical in warm conditions",
-      ],
-    },
-  },
   {
     name: "Detroit Dark Red Beets",
     category: "root-vegetables",
@@ -1781,6 +1741,7 @@ export const seedVarieties: SeedVariety[] = [
       germination: 7,
       seedling: 14,
       vegetative: 21,
+      rootDevelopment: 42,
       maturation: 60,
     },
     protocols: {
@@ -1806,7 +1767,7 @@ export const seedVarieties: SeedVariety[] = [
         maturation: {
           ppfd: { min: 300, max: 450, unit: "µmol/m²/s" },
           photoperiod: { hours: 12, maxHours: 14 },
-          dli: { min: 13.0, max: 22.7, unit: "mol/m²/day" },
+          dli: { min: 13, max: 22.7, unit: "mol/m²/day" },
           notes: ["21-day succession"],
         },
       },
@@ -1840,48 +1801,46 @@ export const seedVarieties: SeedVariety[] = [
         },
       },
       fertilization: {
-        germination: {
-          notes: ["None during germination"],
-        },
         vegetative: {
-          products: [
+          schedule: [
             {
-              name: "Diluted fish/kelp tea",
-              dilution: "¼ strength",
-              amount: "apply after 2nd true leaf",
-              frequency: "weeks 1-3",
+              taskName: "Apply diluted Fish/Kelp Tea",
+              details: { product: "Fish/Kelp Tea", dilution: "¼ strength" },
+              startDays: 14,
+              frequencyDays: 0,
+              repeatCount: 1,
             },
             {
-              name: "Worm castings + bone meal",
-              dilution: "1 tbsp worm castings + 1 tbsp bone meal per container",
-              amount: "at transplant",
-              frequency: "weeks 3-6",
+              taskName: "Top-dress with Worm Castings & Bone Meal",
+              details: {
+                product: "Worm Castings & Bone Meal",
+                amount: "1 tbsp each",
+                method: "top-dress",
+              },
+              startDays: 21,
+              frequencyDays: 0,
+              repeatCount: 1,
             },
           ],
         },
         rootDevelopment: {
-          products: [
+          schedule: [
             {
-              name: "Liquid kelp or fish + seaweed",
-              dilution: "1 tbsp/gal",
-              amount: "apply as needed",
-              frequency: "every 2 weeks",
-            },
-            {
-              name: "Kelp meal for boron",
-              dilution: "as directed",
-              amount: "supplement",
-              frequency: "as needed",
+              taskName: "Apply Liquid Kelp",
+              details: {
+                product: "Liquid kelp or fish + seaweed",
+                dilution: "1 tbsp/gal",
+              },
+              startDays: 42,
+              frequencyDays: 14,
+              repeatCount: 2,
             },
           ],
-        },
-        maturation: {
-          notes: ["Stop feeding 10–14 days before harvest"],
         },
       },
       environment: {
         temperature: { min: 65, max: 75, optimal: 70, unit: "F" },
-        pH: { min: 6.5, max: 7.0, optimal: 6.8 },
+        pH: { min: 6.5, max: 7, optimal: 6.8 },
       },
       soilMixture: {
         components: {
@@ -1896,9 +1855,7 @@ export const seedVarieties: SeedVariety[] = [
           "bone meal": "1 tbsp per gallon",
         },
       },
-      container: {
-        depth: "10 inches minimum",
-      },
+      container: { depth: "10 inches minimum" },
       succession: {
         interval: 21,
         method: "zoned",
@@ -1912,16 +1869,15 @@ export const seedVarieties: SeedVariety[] = [
       ],
     },
   },
-
   {
     name: "Beauregard Sweet Potatoes",
     category: "root-vegetables",
     isEverbearing: false,
     growthTimeline: {
-      germination: 14, // slip production
-      seedling: 21, // establishment
-      vegetative: 42, // vine growth
-      maturation: 100, // tuber development to harvest
+      slipProduction: 14,
+      vegetativeGrowth: 21,
+      tuberDevelopment: 56,
+      maturation: 100,
     },
     protocols: {
       lighting: {
@@ -1990,74 +1946,54 @@ export const seedVarieties: SeedVariety[] = [
         },
       },
       fertilization: {
-        slipProduction: {
-          products: [
-            {
-              name: "Beauregard: Soil amendments at planting",
-              dilution: "N/A",
-              amount: "soil prep",
-              frequency: "at planting",
-            },
-            {
-              name: "Jewel: Neptune's Harvest (likely ½ strength)",
-              dilution: "½ strength",
-              amount: "Wk 1 & 2",
-              frequency: "weekly",
-            },
-            {
-              name: "Tomato & Veg Formula (2-4-2)",
-              dilution: "as directed",
-              amount: "for establishment",
-              frequency: "Wk 1 & 2",
-            },
-          ],
-        },
+        slipProduction: { schedule: [] },
         vegetativeGrowth: {
-          products: [
+          schedule: [
             {
-              name: "Beauregard: Blood Meal",
-              dilution: "0.5c bed / 5 Tbsp bag",
-              amount: "at Wk 4-5",
-              frequency: "once",
-            },
-            {
-              name: "Jewel: Blood Meal + Fish & Seaweed Blend",
-              dilution: "as directed",
-              amount: "Wk 4-5",
-              frequency: "as directed",
+              taskName: "Apply Blood Meal",
+              details: {
+                product: "Blood Meal",
+                amount: "0.5c bed / 5 Tbsp bag",
+              },
+              startDays: 28,
+              frequencyDays: 0,
+              repeatCount: 1,
             },
           ],
         },
         tuberDevelopment: {
-          products: [
+          schedule: [
             {
-              name: "Beauregard: Kelp Meal",
-              dilution: "0.75c bed / 7.5 Tbsp bag",
-              amount: "Wk 8-9",
-              frequency: "once",
+              taskName: "Apply Kelp Meal",
+              details: {
+                product: "Kelp Meal",
+                amount: "0.75c bed / 7.5 Tbsp bag",
+              },
+              startDays: 56,
+              frequencyDays: 28,
+              repeatCount: 2,
             },
             {
-              name: "Foliar K₂SO₄",
-              dilution: "1-2 Tbsp/gal",
-              amount: "foliar spray",
-              frequency: "Wk 10-11",
-              method: "foliar-spray",
-            },
-            {
-              name: "2nd Kelp Meal",
-              dilution: "as above",
-              amount: "Wk 12-13",
-              frequency: "once",
+              taskName: "Foliar spray with K₂SO₄",
+              details: {
+                product: "K₂SO₄",
+                dilution: "1-2 Tbsp/gal",
+                method: "foliar-spray",
+              },
+              startDays: 70,
+              frequencyDays: 0,
+              repeatCount: 1,
             },
           ],
         },
         maturation: {
-          products: [
+          schedule: [
             {
-              name: "Final K₂SO₄/KNO₃",
-              dilution: "as directed",
-              amount: "for skin set",
-              frequency: "2-3 wks pre-harvest",
+              taskName: "Apply K₂SO₄/KNO₃ for skin set",
+              details: { product: "K₂SO₄/KNO₃" },
+              startDays: 80,
+              frequencyDays: 0,
+              repeatCount: 1,
             },
           ],
           notes: ["Cease all feeding 3-4 wks pre-harvest"],
@@ -2072,7 +2008,7 @@ export const seedVarieties: SeedVariety[] = [
           stage: "tuber development",
         },
         humidity: { min: 85, max: 90, optimal: 87 },
-        pH: { min: 5.8, max: 6.2, optimal: 6.0 },
+        pH: { min: 5.8, max: 6.2, optimal: 6 },
       },
       soilMixture: {
         components: {
@@ -2081,18 +2017,14 @@ export const seedVarieties: SeedVariety[] = [
           vermiculite: 25,
           "sandy loam": 5,
         },
-        amendments: {
-          "well-rotted manure": "3 tbsp per gallon",
-        },
+        amendments: { "well-rotted manure": "3 tbsp per gallon" },
       },
       container: {
         depth: "18-24 inches",
-        staging: {
-          final: "Large containers for extensive root system",
-        },
+        staging: { final: "Large containers for extensive root system" },
       },
       succession: {
-        interval: 0, // Single harvest crop
+        interval: 0,
         method: "single",
         harvestMethod: "single-harvest",
         notes: ["Long cycle (90-120 days) best for single large harvest"],
@@ -2104,827 +2036,4 @@ export const seedVarieties: SeedVariety[] = [
       ],
     },
   },
-
-  {
-    name: "Baby's Leaf Spinach",
-    category: "leafy-greens",
-    isEverbearing: true,
-    productiveLifespan: 42, // 6-10 weeks harvest window
-    growthTimeline: {
-      germination: 7,
-      seedling: 14,
-      vegetative: 14,
-      maturation: 45,
-    },
-    protocols: {
-      lighting: {
-        germination: {
-          ppfd: { min: 100, max: 150, unit: "µmol/m²/s" },
-          photoperiod: { hours: 12, maxHours: 14 },
-          dli: { min: 4.3, max: 7.6, unit: "mol/m²/day" },
-          notes: ["Keep consistent temperature"],
-        },
-        seedling: {
-          ppfd: { min: 150, max: 200, unit: "µmol/m²/s" },
-          photoperiod: { hours: 12, maxHours: 14 },
-          dli: { min: 6.5, max: 10.1, unit: "mol/m²/day" },
-        },
-        transplant: {
-          ppfd: { min: 200, max: 250, unit: "µmol/m²/s" },
-          photoperiod: { hours: 12, maxHours: 14 },
-          dli: { min: 8.6, max: 12.6, unit: "mol/m²/day" },
-        },
-        vegetativeHarvest: {
-          ppfd: { min: 250, max: 250, optimal: 250, unit: "µmol/m²/s" },
-          photoperiod: { hours: 12, maxHours: 14 },
-          dli: { min: 10.8, max: 12.6, unit: "mol/m²/day" },
-          notes: ["14-day succession interval"],
-        },
-      },
-      watering: {
-        germination: {
-          trigger: { moistureLevel: "less than 4" },
-          target: { moistureLevel: 6 },
-          volume: { amount: "mist as needed", frequency: "daily" },
-        },
-        seedling: {
-          trigger: { moistureLevel: "less than 4" },
-          target: { moistureLevel: 6 },
-          volume: { amount: "mist as needed", frequency: "as needed" },
-        },
-        transplant: {
-          trigger: { moistureLevel: "less than 4" },
-          target: { moistureLevel: 6 },
-          volume: {
-            amount: "water thoroughly to settle then as needed",
-            frequency: "as needed",
-          },
-        },
-        vegetativeHarvest: {
-          trigger: { moistureLevel: "less than 4" },
-          target: { moistureLevel: 6 },
-          volume: { amount: "~1 gal/week for bed", frequency: "as needed" },
-          notes: ["14-day succession interval"],
-        },
-      },
-      fertilization: {
-        germination: {
-          notes: ["None during germination"],
-        },
-        seedling: {
-          products: [
-            {
-              name: "Fish emulsion",
-              dilution: "2 Tbsp/gal",
-              amount: "around Wk 2 (1-2 true leaves)",
-              frequency: "every 2 weeks",
-            },
-          ],
-        },
-        transplant: {
-          products: [
-            {
-              name: "Fish emulsion",
-              dilution: "2 Tbsp/gal",
-              amount: "continue regimen",
-              frequency: "every 2 weeks",
-            },
-          ],
-        },
-        vegetativeHarvest: {
-          products: [
-            {
-              name: "Fish emulsion",
-              dilution: "2 Tbsp/gal",
-              amount: "continue regimen",
-              frequency: "every 2 weeks",
-            },
-          ],
-          notes: ["14-day succession interval"],
-        },
-      },
-      environment: {
-        pH: { min: 6.0, max: 7.5, optimal: 6.7 },
-      },
-      soilMixture: {
-        components: {
-          "coco coir": 35,
-          perlite: 25,
-          vermiculite: 15,
-          compost: 25,
-        },
-        amendments: {
-          "worm castings": "1 tbsp per gallon",
-        },
-      },
-      succession: {
-        interval: 14,
-        method: "continuous",
-        harvestMethod: "cut-and-come-again",
-        notes: ["Baby leaves ready 30-45 days", "Multiple harvests per plant"],
-      },
-      specialRequirements: [
-        "Highly sensitive to bolting - strict photoperiod control",
-        "Cool season crop - avoid temperatures above 75°F",
-        "Cut outer leaves only for continuous harvest",
-      ],
-    },
-  },
-  {
-    name: "Rosemary",
-    category: "herbs",
-    isEverbearing: true,
-    productiveLifespan: 1095, // 3 years
-    growthTimeline: {
-      germination: 21, // 14-21 days - notoriously slow and difficult
-      seedling: 84, // 2-3 months to establish
-      vegetative: 365, // 6-12 months to reach harvestable size
-      maturation: 730, // 2+ years to full maturity
-    },
-    protocols: {
-      lighting: {
-        seedling: {
-          ppfd: { min: 100, max: 300, unit: "µmol/m²/s" },
-          photoperiod: { hours: 12, maxHours: 16 },
-          dli: { min: 4.3, max: 17.3, unit: "mol/m²/day" },
-          notes: [
-            "Starting from seed extremely challenging - low germination rates",
-            "Growth initially very slow - patience absolutely essential",
-            "Consider starting from cuttings for more reliable establishment",
-          ],
-        },
-        vegetative: {
-          ppfd: { min: 300, max: 600, unit: "µmol/m²/s" },
-          photoperiod: { hours: 14, maxHours: 16 },
-          dli: { min: 17.3, max: 34.6, unit: "mol/m²/day" },
-          notes: [
-            "Plant slowly develops into bush with woody stems and needle-like leaves",
-            "Growth accelerates significantly in second year",
-          ],
-        },
-        flowering: {
-          ppfd: { min: 200, max: 400, unit: "µmol/m²/s" },
-          photoperiod: { hours: 12, maxHours: 16 },
-          dli: { min: 8.6, max: 23.0, unit: "mol/m²/day" },
-          notes: [
-            "Small blue flowers appear along stems when mature",
-            "Pruning after flowering helps maintain compact shape",
-          ],
-        },
-      },
-      watering: {
-        seedling: {
-          trigger: { moistureLevel: "when surface becomes dry" },
-          target: { moistureLevel: "barely moist" },
-          volume: {
-            amount: "minimal applications",
-            frequency: "infrequent but careful",
-          },
-          notes: [
-            "Most critical phase - overwatering kills more rosemary than drought",
-            "Use spray bottle or very gentle watering to avoid disturbing tiny roots",
-          ],
-        },
-        vegetative: {
-          trigger: { moistureLevel: "when soil is dry 2-3 inches down" },
-          target: { moistureLevel: "lightly moist in root zone only" },
-          volume: {
-            amount: "deep but infrequent watering",
-            frequency: "weekly or less",
-          },
-          notes: [
-            "Allow substantial drying between waterings",
-            "Established rosemary can survive weeks without water",
-          ],
-        },
-        flowering: {
-          trigger: { moistureLevel: "when soil is quite dry throughout" },
-          target: { moistureLevel: "minimal moisture" },
-          volume: {
-            amount: "very light watering",
-            frequency: "only when absolutely necessary",
-          },
-          notes: [
-            "Mature rosemary is extremely drought tolerant",
-            "Excess water during flowering reduces essential oil concentration",
-          ],
-        },
-      },
-      fertilization: {
-        seedling: {
-          products: [
-            {
-              name: "Limestone",
-              dilution: "0.5 tbsp per gallon of soil mix",
-              amount: "incorporated during soil preparation",
-              frequency: "one-time soil amendment",
-              method: "mix-in-soil",
-            },
-          ],
-          timing: "Soil preparation",
-          notes: [
-            "Limestone provides calcium and raises pH to preferred alkaline range",
-            "No other fertilization needed during establishment",
-          ],
-        },
-        vegetative: {
-          products: [
-            {
-              name: "Very dilute compost tea (optional)",
-              dilution: "quarter strength maximum",
-              amount: "minimal application",
-              frequency: "2-3 times per growing season maximum",
-            },
-          ],
-          timing: "Spring growing season only",
-          notes: [
-            "Rosemary actually performs better with minimal nutrition",
-            "Rich soil produces weak growth susceptible to fungal problems",
-          ],
-        },
-        flowering: {
-          notes: [
-            "No fertilization during flowering or dormant periods",
-            "Plant has evolved to thrive in nutrient-poor Mediterranean soils",
-          ],
-        },
-      },
-      environment: {
-        temperature: { min: 55, max: 80, optimal: 68, unit: "F" },
-        humidity: { min: 20, max: 50, optimal: 35 },
-        pH: { min: 6.0, max: 7.0, optimal: 6.5 },
-      },
-      soilMixture: {
-        components: {
-          "coco coir": 40,
-          perlite: 30,
-          "coarse sand": 25,
-          compost: 5,
-        },
-        amendments: {
-          limestone: "0.5 tbsp per gallon of mix",
-        },
-      },
-      container: {
-        minSize: "2-gallon pot minimum (12 inch diameter preferred)",
-        depth: "8-10 inches minimum for mature root system",
-        drainage: "Exceptional drainage absolutely critical",
-      },
-      specialRequirements: [
-        "Requires exceptional drainage - will die in waterlogged soil",
-        "Extremely sensitive to overwatering at all growth stages",
-        "Benefits from good air circulation to prevent fungal issues",
-        "Harvest by cutting stems, never pull or damage woody structure",
-        "May require winter protection or reduced watering in cold periods",
-        "Can live for many years if drainage and watering requirements are met",
-        "Consider propagation from cuttings rather than seed for better success",
-      ],
-    },
-  },
-
-  {
-    name: "Italian Flat Leaf Parsley",
-    category: "herbs",
-    isEverbearing: true,
-    productiveLifespan: 365, // Annual, but can be harvested for full growing season
-    growthTimeline: {
-      germination: 21, // 2-4 weeks - notoriously slow germination
-      seedling: 42, // 5-7 weeks to transplant size
-      vegetative: 63, // active growth and harvest period
-      maturation: 90, // 70-90 days to full size
-    },
-    protocols: {
-      lighting: {
-        seedling: {
-          ppfd: { min: 100, max: 300, unit: "µmol/m²/s" },
-          photoperiod: { hours: 12, maxHours: 16 },
-          dli: { min: 4.3, max: 17.3, unit: "mol/m²/day" },
-          notes: [
-            "Germination can take 2-4 weeks - be patient",
-            "Soak seeds 12-24 hours before planting to improve germination",
-          ],
-        },
-        vegetativeHarvest: {
-          ppfd: { min: 300, max: 600, unit: "µmol/m²/s" },
-          photoperiod: { hours: 14, maxHours: 16 },
-          dli: { min: 17.3, max: 34.6, unit: "mol/m²/day" },
-          notes: [
-            "Plant develops abundant, flavorful leaves with characteristic flat shape",
-            "Higher light produces more robust growth and stronger flavor",
-          ],
-        },
-        flowering: {
-          ppfd: { min: 200, max: 400, unit: "µmol/m²/s" },
-          photoperiod: { hours: 12, maxHours: 16 },
-          dli: { min: 8.6, max: 23.0, unit: "mol/m²/day" },
-          notes: [
-            "Bolting produces tall flower stalk with yellow-green flowers",
-            "Flowering makes leaves bitter - harvest before bolting occurs",
-          ],
-        },
-      },
-      watering: {
-        seedling: {
-          trigger: { moistureLevel: "when surface begins to dry" },
-          target: { moistureLevel: "consistently moist" },
-          volume: {
-            amount: "gentle, frequent applications",
-            frequency: "daily monitoring",
-          },
-          notes: [
-            "Consistent moisture critical during long germination period",
-            "Use fine spray to avoid disturbing seeds or tiny seedlings",
-          ],
-        },
-        vegetativeHarvest: {
-          trigger: { moistureLevel: "when top inch becomes dry" },
-          target: { moistureLevel: "evenly moist throughout" },
-          volume: {
-            amount: "thorough watering",
-            frequency: "every 2-3 days typically",
-          },
-          notes: [
-            "Unlike Mediterranean herbs, parsley prefers consistent moisture",
-            "Deeper root system benefits from thorough watering",
-          ],
-        },
-        flowering: {
-          trigger: { moistureLevel: "as vegetative stage" },
-          target: { moistureLevel: "consistently moist" },
-          volume: {
-            amount: "maintain regular watering",
-            frequency: "as needed",
-          },
-          notes: [
-            "Continue consistent watering even if plant begins to bolt",
-            "Consistent moisture may delay onset of flowering",
-          ],
-        },
-      },
-      fertilization: {
-        seedling: {
-          products: [
-            {
-              name: "Worm castings",
-              dilution: "1 tbsp per gallon of soil mix",
-              amount: "incorporated during soil preparation",
-              frequency: "one-time soil amendment",
-              method: "mix-in-soil",
-            },
-          ],
-          timing: "Soil preparation",
-          notes: [
-            "Gentle organic matter supports establishment without burning tender roots",
-          ],
-        },
-        vegetativeHarvest: {
-          products: [
-            {
-              name: "Balanced organic fertilizer or compost tea",
-              dilution: "half to full strength",
-              amount: "regular applications",
-              frequency: "every 2-3 weeks during active harvest",
-            },
-          ],
-          timing: "Throughout growing season",
-          notes: [
-            "Parsley is a moderate feeder requiring regular nutrition",
-            "Benefits from nitrogen for leaf production unlike Mediterranean herbs",
-          ],
-        },
-        flowering: {
-          products: [
-            {
-              name: "Reduce feeding if bolting occurs",
-              dilution: "light applications only",
-              amount: "minimal",
-              frequency: "monthly if needed",
-            },
-          ],
-          notes: [
-            "Focus on preventing bolting rather than supporting flower production",
-          ],
-        },
-      },
-      environment: {
-        temperature: { min: 60, max: 75, optimal: 68, unit: "F" },
-        humidity: { min: 40, max: 70, optimal: 55 },
-        pH: { min: 6.0, max: 7.0, optimal: 6.5 },
-      },
-      soilMixture: {
-        components: {
-          "coco coir": 35,
-          perlite: 25,
-          vermiculite: 25,
-          compost: 15,
-        },
-        amendments: {
-          "worm castings": "1 tbsp per gallon",
-        },
-      },
-      container: {
-        minSize: "2-gallon container minimum",
-        depth: "8-12 inches - deeper than most herbs due to taproot",
-        drainage:
-          "Good drainage but retains more moisture than Mediterranean herbs",
-      },
-      succession: {
-        interval: 21, // 3-week intervals for continuous harvest
-        method: "continuous",
-        harvestMethod: "cut-and-come-again",
-        notes: [
-          "Cut outer stems at base, leave center growing point intact",
-          "Succession planting every 3 weeks provides continuous fresh harvest",
-        ],
-      },
-      specialRequirements: [
-        "Unlike Mediterranean herbs, parsley needs consistent moisture and feeding",
-        "Deeper containers required to accommodate taproot development",
-        "Harvest outer stems regularly to encourage continued production",
-        "Cool-season crop that may bolt in hot weather",
-        "Biennial but typically grown as annual for best leaf quality",
-      ],
-    },
-  },
-
-  {
-    name: "Garlic",
-    category: "herbs", // Often used as herb though technically allium
-    isEverbearing: false,
-    productiveLifespan: 240, // 8-10 months from planting to harvest
-    growthTimeline: {
-      germination: 14, // sprouting from cloves
-      seedling: 28, // early shoot development
-      vegetative: 120, // bulb development phase
-      maturation: 240, // full cycle to harvest
-    },
-    protocols: {
-      lighting: {
-        earlyGrowth: {
-          ppfd: { min: 100, max: 300, unit: "µmol/m²/s" },
-          photoperiod: { hours: 10, maxHours: 14 },
-          dli: { min: 3.6, max: 15.1, unit: "mol/m²/day" },
-          notes: [
-            "Green shoots emerge from planted cloves",
-            "Plant establishes root system during this phase",
-          ],
-        },
-        bulbDevelopment: {
-          ppfd: { min: 400, max: 600, unit: "µmol/m²/s" },
-          photoperiod: { hours: 12, maxHours: 16 },
-          dli: { min: 17.3, max: 34.6, unit: "mol/m²/day" },
-          notes: [
-            "Occurs as daylight hours increase and soil temperatures rise above 60°F",
-            "Plant focuses energy on growing the bulb underground",
-          ],
-        },
-        maturation: {
-          ppfd: { min: 200, max: 400, unit: "µmol/m²/s" },
-          photoperiod: { hours: 8, maxHours: 12 },
-          dli: { min: 5.8, max: 17.3, unit: "mol/m²/day" },
-          notes: [
-            "Lower leaves begin to yellow and die back",
-            "Reduced light needs as plant approaches harvest",
-          ],
-        },
-      },
-      watering: {
-        earlyGrowth: {
-          trigger: { moistureLevel: "when top inch becomes dry" },
-          target: { moistureLevel: "evenly moist" },
-          volume: {
-            amount: "moderate applications",
-            frequency: "weekly typically",
-          },
-          notes: [
-            "Consistent moisture supports root development",
-            "Avoid waterlogging which can cause clove rot",
-          ],
-        },
-        bulbDevelopment: {
-          trigger: { moistureLevel: "when top 2 inches become dry" },
-          target: { moistureLevel: "adequately moist" },
-          volume: { amount: "regular watering", frequency: "every 5-7 days" },
-          notes: [
-            "Critical period for bulb formation requires consistent moisture",
-            "Monitor soil moisture more carefully during active bulbing",
-          ],
-        },
-        maturation: {
-          trigger: { moistureLevel: "allow significant drying" },
-          target: { moistureLevel: "minimal moisture" },
-          volume: {
-            amount: "reduce watering significantly",
-            frequency: "infrequent",
-          },
-          notes: [
-            "Reduce watering as harvest approaches to firm up bulbs",
-            "Stop watering completely 2-3 weeks before harvest",
-          ],
-        },
-      },
-      fertilization: {
-        earlyGrowth: {
-          products: [
-            {
-              name: "Well-rotted compost",
-              dilution: "2 tbsp per gallon of soil",
-              amount: "incorporated during soil preparation",
-              frequency: "one-time soil amendment",
-              method: "mix-in-soil",
-            },
-            {
-              name: "Bone meal",
-              dilution: "1 tsp per gallon",
-              amount: "mixed into soil at planting",
-              frequency: "one-time amendment",
-              method: "mix-in-soil",
-            },
-          ],
-          timing: "At planting",
-          notes: ["Slow-release nutrients support long growing cycle"],
-        },
-        bulbDevelopment: {
-          products: [
-            {
-              name: "Balanced liquid fertilizer (low nitrogen)",
-              dilution: "half strength",
-              amount: "light application",
-              frequency: "monthly during active bulbing",
-            },
-          ],
-          timing: "Spring growing season",
-          notes: [
-            "Moderate feeding during bulb development",
-            "Avoid high nitrogen which produces more leaves than bulb",
-          ],
-        },
-        maturation: {
-          notes: [
-            "Cease all fertilization 6-8 weeks before harvest",
-            "Allow plant to focus energy on bulb maturation",
-          ],
-        },
-      },
-      environment: {
-        temperature: { min: 50, max: 80, optimal: 65, unit: "F" },
-        pH: { min: 6.0, max: 7.0, optimal: 6.5 },
-      },
-      soilMixture: {
-        components: {
-          "coco coir": 40,
-          perlite: 30,
-          vermiculite: 20,
-          compost: 10,
-        },
-        amendments: {
-          "well-rotted compost": "2 tbsp per gallon",
-          "bone meal": "1 tsp per gallon",
-        },
-      },
-      container: {
-        minSize: "2-gallon pot (8 inch diameter)",
-        depth: "6-8 inches adequate for bulb development",
-      },
-      succession: {
-        interval: 0, // Single harvest crop
-        method: "single",
-        harvestMethod: "single-harvest",
-        notes: [
-          "Plant cloves in fall for summer harvest",
-          "Harvest when lower leaves begin to brown but upper leaves still green",
-        ],
-      },
-      specialRequirements: [
-        "Requires cold period for proper bulb formation - may need refrigeration",
-        "Plant individual cloves pointed end up, 2 inches deep",
-        "Harvest timing critical - too early gives small bulbs, too late causes splitting",
-        "Cure harvested bulbs in warm, dry, well-ventilated area for storage",
-        "Remove flower stalks (scapes) to encourage bulb development",
-      ],
-    },
-  },
-  {
-    name: "May Queen Lettuce",
-    category: "leafy-greens",
-    isEverbearing: true,
-    productiveLifespan: 63, // Can harvest baby leaves at 30-35 days, full heads at 45-60 days
-    growthTimeline: {
-      germination: 7, // 5-10 days from your plan
-      seedling: 20, // Days 10-25/30 post-emergence
-      vegetative: 35, // Rosette stage, days 25/30 - 40/45
-      maturation: 56, // 49-63 days total per your plan, using 56 as middle
-    },
-    protocols: {
-      lighting: {
-        germination: {
-          ppfd: { min: 100, max: 150, unit: "µmol/m²/s" },
-          photoperiod: { hours: 10, maxHours: 12 },
-          dli: { min: 3.6, max: 6.5, unit: "mol/m²/day" },
-          notes: [
-            "Keep surface moist during germination",
-            "Pre-soak seed 2h in 0.2% kelp solution",
-          ],
-        },
-        seedling: {
-          ppfd: { min: 200, max: 300, unit: "µmol/m²/s" },
-          photoperiod: { hours: 10, maxHours: 12 },
-          dli: { min: 7.2, max: 13.0, unit: "mol/m²/day" },
-          notes: [
-            "Once 3-4 true leaves appear, begin light fertilization",
-            "Strict photoperiod control to prevent bolting",
-          ],
-        },
-        vegetativeRosette: {
-          ppfd: { min: 300, max: 350, unit: "µmol/m²/s" },
-          photoperiod: { hours: 10, maxHours: 12 },
-          dli: { min: 10.8, max: 15.1, unit: "mol/m²/day" },
-          notes: [
-            "Critical phase for leaf and rosette development",
-            "Maintain strict 10-12 hour maximum photoperiod",
-          ],
-        },
-        headFormation: {
-          ppfd: { min: 300, max: 350, unit: "µmol/m²/s" },
-          photoperiod: { hours: 10, maxHours: 12 },
-          dli: { min: 10.8, max: 15.1, unit: "mol/m²/day" },
-          notes: [
-            "Outer leaves curl inward to form head",
-            "Monitor for tip burn (calcium deficiency)",
-          ],
-        },
-      },
-      watering: {
-        germination: {
-          trigger: { moistureLevel: "surface moist" },
-          target: { moistureLevel: "7-8" },
-          volume: {
-            amount: "16-32 oz (0.5-1 L)",
-            frequency: "daily/as needed",
-          },
-          notes: [
-            "Keep surface consistently moist",
-            "Use mist or light watering",
-          ],
-        },
-        seedling: {
-          trigger: { moistureLevel: "3-4" },
-          target: { moistureLevel: "8-10" },
-          volume: {
-            amount: "0.5-1 gal (1.9-3.8 L)",
-            frequency: "every 1-3 days",
-          },
-          notes: ["Water thoroughly until drainage occurs"],
-        },
-        vegetativeRosette: {
-          trigger: { moistureLevel: "3-4" },
-          target: { moistureLevel: "8-10" },
-          volume: {
-            amount: "0.75-1.5 gal (2.8-5.7 L)",
-            frequency: "every 2-3 days",
-          },
-          notes: ["Consistent moisture critical for leaf development"],
-        },
-        headFormation: {
-          trigger: { moistureLevel: "3-4" },
-          target: { moistureLevel: "8-10" },
-          volume: {
-            amount: "0.75-1.5 gal (2.8-5.7 L)",
-            frequency: "every 2-3 days",
-          },
-          notes: ["Stop fertilization 1-2 weeks before final head harvest"],
-        },
-      },
-      fertilization: {
-        seedling: {
-          products: [
-            {
-              name: "Diluted fish emulsion",
-              dilution: "0.5-1 Tbsp/gal",
-              amount: "as needed",
-              frequency: "every 2-3 weeks",
-            },
-            {
-              name: "Fish+kelp blend",
-              dilution: "0.5-1 Tbsp/gal",
-              amount: "as needed",
-              frequency: "every 2-3 weeks",
-            },
-          ],
-          timing: "Once 3-4 true leaves appear",
-        },
-        vegetativeRosette: {
-          products: [
-            {
-              name: "Fish emulsion/fish+kelp",
-              dilution: "1-2 Tbsp/gal",
-              amount: "as needed",
-              frequency: "every 2-3 weeks",
-            },
-          ],
-        },
-        headFormation: {
-          products: [
-            {
-              name: "Continue as vegetative",
-              dilution: "1-2 Tbsp/gal",
-              amount: "as needed",
-              frequency: "every 2-3 weeks",
-            },
-          ],
-          notes: ["Stop 1-2 weeks before final head harvest"],
-        },
-      },
-      environment: {
-        temperature: { min: 60, max: 75, optimal: 68, unit: "F" },
-        humidity: { min: 40, max: 70, optimal: 55 },
-        pH: { min: 6.0, max: 7.0, optimal: 6.5 },
-        constraints: [
-          {
-            description:
-              "Prone to bolting in warm conditions with extended daylight",
-            parameter: "light",
-            threshold: 12,
-            consequence: "premature bolting reduces head quality",
-          },
-        ],
-      },
-      soilMixture: {
-        components: {
-          "coco coir": 40,
-          perlite: 30,
-          vermiculite: 20,
-          compost: 10,
-        },
-        amendments: {
-          compost: "2 tbsp per gallon",
-          "worm castings": "1 tbsp per gallon",
-        },
-      },
-      container: {
-        minSize: "bed section 24 inch width",
-        depth: "4-6 inches soil depth",
-      },
-      succession: {
-        interval: 14, // 1-2 weeks per your plan
-        method: "continuous",
-        harvestMethod: "cut-and-come-again",
-        notes: [
-          "Baby leaves ready 30-35 days",
-          "Full heads ready 45-60 days",
-          "Can harvest outer leaves for extended yield",
-        ],
-      },
-      specialRequirements: [
-        "Strict 10-12 hour photoperiod maximum to prevent bolting",
-        "Monitor for tip burn (calcium deficiency) - add gypsum if needed",
-        "Butterhead lettuce variety - forms loose heads",
-        "Cut-and-come-again harvesting extends yield",
-        "Succession plant every 1-2 weeks for continuous harvest",
-      ],
-    },
-  },
-
-  // Future expansion crops mentioned in your document
-  // These represent the next phase of your indoor garden development
-
-  /*
-{
-  name: "Bell Peppers", // Future crop from your document
-  category: "fruiting-plants",
-  isEverbearing: true,
-  productiveLifespan: 120,
-  growthTimeline: {
-    germination: 14,
-    seedling: 28,
-    vegetative: 42,
-    maturation: 90
-  },
-  // Basic framework from your document notes:
-  // Container: 2 × 10-gallon containers
-  // Soil: 30% coco coir, 25% perlite, 20% vermiculite, 25% compost
-  // Amendments: 2 tbsp well-rotted manure per gallon, 1 tbsp bone meal per gallon, 1 tsp Epsom salts per gallon
-  // pH: 6.0-6.8 (ideal: 6.5)
-  // Notes: Moderate-heavy feeders requiring well-draining soil, benefits from magnesium and calcium supplements
-},
-
-{
-  name: "Indeterminate Tomatoes", // Future crop from your document  
-  category: "fruiting-plants",
-  isEverbearing: true,
-  productiveLifespan: 150,
-  growthTimeline: {
-    germination: 10,
-    seedling: 21,
-    vegetative: 35,
-    maturation: 80
-  },
-  // Basic framework from your document notes:
-  // Container: 2 × 10-gallon containers
-  // Soil: 30% coco coir, 20% perlite, 20% vermiculite, 30% compost
-  // Amendments: 3 tbsp well-rotted manure per gallon, 1 tbsp bone meal per gallon, 1 tsp Epsom salts per gallon
-  // pH: 6.0-6.8 (ideal: 6.5)
-  // Notes: Very heavy feeders requiring rich soil, benefits from calcium supplementation to prevent blossom end rot
-}
-*/
 ];
