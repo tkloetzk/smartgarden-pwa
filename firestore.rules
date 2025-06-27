@@ -1,22 +1,37 @@
 rules_version = '2';
+
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Users can only access their own data
+
+    // Helper function to check ownership
+    function isOwner(userId) {
+      return request.auth != null && request.auth.uid == userId;
+    }
+
+    // Plants - users can only access their own plants
     match /plants/{plantId} {
-      allow read, write: if request.auth != null && request.auth.uid == resource.data.userId;
+      // Allow creation if the new document's userId matches the requester's UID.
+      allow create: if isOwner(request.resource.data.userId);
+
+      // Allow read, update, and delete if the user owns the existing document.
+      allow read, update, delete: if isOwner(resource.data.userId);
     }
     
+    // Varieties - all authenticated users can read and write
     match /varieties/{varietyId} {
-      allow read: if request.auth != null;
-      allow write: if request.auth != null; // Or more restrictive rules
+      allow read, write: if request.auth != null;
     }
     
+    // Care Activities - users can only access their own activities
     match /careActivities/{activityId} {
-      allow read, write: if request.auth != null && request.auth.uid == resource.data.userId;
+      allow create: if isOwner(request.resource.data.userId);
+      allow read, update, delete: if isOwner(resource.data.userId);
     }
     
+    // Scheduled Tasks - users can only access their own tasks
     match /scheduledTasks/{taskId} {
-      allow read, write: if request.auth != null && request.auth.uid == resource.data.userId;
+      allow create: if isOwner(request.resource.data.userId);
+      allow read, update, delete: if isOwner(resource.data.userId);
     }
   }
 }

@@ -106,6 +106,7 @@ export class FirebasePlantService {
       const plantWithDates: PlantRecord = {
         ...plant,
         id: "",
+        userId,
         createdAt: new Date(),
         updatedAt: new Date(),
       };

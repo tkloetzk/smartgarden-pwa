@@ -274,7 +274,9 @@ import {
 } from "@/types/protocols";
 import { GrowthStage } from "@/types/core";
 
-// This mapping helps standardize different stage names used in the seed data.
+// Add this flag at the top of the file
+let isDatabaseInitialized = false;
+
 const stageNameMapping: { [key: string]: GrowthStage } = {
   germination: "germination",
   germinationEmergence: "germination",
@@ -405,15 +407,22 @@ const convertSeedVarietyToVarietyRecord = (variety: SeedVariety) => {
 };
 
 export const initializeDatabase = async (): Promise<void> => {
+  // Add this check at the beginning of the function
+  if (isDatabaseInitialized) {
+    return;
+  }
+
   try {
     const existingCount = await db.varieties.count();
     // Only seed if the database is empty
     if (existingCount > 0) {
       console.log("✅ Database already seeded.");
+      isDatabaseInitialized = true; // Mark as initialized
       return;
     }
 
     console.log("🌱 Initializing database with seed data...");
+    isDatabaseInitialized = true; // Set the flag early to prevent race conditions
 
     const uniqueVarieties = new Map<string, SeedVariety>();
     for (const variety of seedVarieties) {
@@ -436,7 +445,18 @@ export const initializeDatabase = async (): Promise<void> => {
       `✅ Successfully seeded ${uniqueVarieties.size} unique varieties`
     );
   } catch (error) {
+    // If there's an error, reset the flag to allow a retry if needed.
+    isDatabaseInitialized = false;
     console.error("❌ Error initializing database:", error);
-    throw error;
+    // It's important to check for the specific error to avoid masking other issues.
+    // In a race condition, one of the calls will fail with a ConstraintError.
+    if (error.name === "ConstraintError") {
+      console.warn(
+        "Seeding aborted, likely due to a race condition. The database should be correctly seeded by another process."
+      );
+      isDatabaseInitialized = true; // We can safely assume the other process will succeed or has succeeded.
+    } else {
+      throw error; // Re-throw other, unexpected errors.
+    }
   }
 };
