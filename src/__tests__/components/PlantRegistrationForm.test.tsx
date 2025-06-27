@@ -245,6 +245,27 @@ describe("PlantRegistrationForm", () => {
       });
     });
 
+    it("should prevent future planting dates", async () => {
+      const dateInput = screen.getByLabelText(/planting date/i);
+
+      const tomorrow = new Date();
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      const futureDate = tomorrow.toISOString().split("T")[0];
+
+      await user.clear(dateInput);
+      await user.type(dateInput, futureDate);
+
+      // Trigger validation by interacting with another field
+      await user.click(screen.getByLabelText(/plant variety/i));
+
+      await waitFor(() => {
+        expect(
+          screen.getByText(
+            "Planting date must be within the past year and not in the future"
+          )
+        ).toBeInTheDocument();
+      });
+    });
     it("enables form submission when all required fields are filled", async () => {
       // Select variety
       const varietySelect = screen.getByLabelText(/plant variety/i);

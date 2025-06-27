@@ -12,17 +12,12 @@ import {
 } from "./core";
 import { VarietyProtocols, GrowthTimeline } from "./protocols";
 
-// Base record interface - single source of truth
 export interface BaseRecord {
   id: string;
   createdAt: Date;
   updatedAt?: Date;
 }
 
-// Remove TimestampedRecord - use BaseRecord instead
-// Remove duplicate BaseRecord definitions
-
-// Plant-related records
 export interface PlantRecord extends BaseRecord {
   varietyId: string;
   varietyName: string;
@@ -46,6 +41,7 @@ export interface PlantRecord extends BaseRecord {
 
 export interface VarietyRecord extends BaseRecord {
   name: string;
+  normalizedName: string; // Add this field for case-insensitive unique index
   category: PlantCategory;
   description?: string;
   growthTimeline: GrowthTimeline;
@@ -55,10 +51,8 @@ export interface VarietyRecord extends BaseRecord {
   isCustom?: boolean;
 }
 
-// Unified care activity details (removing multiple versions)
 export interface CareActivityDetails {
   type: CareActivityType;
-  // Water details
   waterAmount?: number;
   waterUnit?: VolumeUnit;
   moistureLevel?: {
@@ -156,7 +150,7 @@ class SmartGardenDatabase extends Dexie {
 
     this.version(5).stores({
       plants: "++id, varietyId, isActive, plantedDate",
-      varieties: "++id, name, category",
+      varieties: "++id, &normalizedName, name, category", // The '&' makes normalizedName a unique index
       careActivities: "++id, plantId, type, date",
       taskBypasses: "++id, taskId, plantId, taskType, bypassDate",
       taskCompletions:
@@ -219,12 +213,17 @@ export const plantService = {
 };
 
 export const varietyService = {
+  // [addVariety method remains the same]...
   async addVariety(
-    variety: Omit<VarietyRecord, "id" | "createdAt" | "updatedAt">
+    variety: Omit<
+      VarietyRecord,
+      "id" | "createdAt" | "updatedAt" | "normalizedName"
+    >
   ): Promise<string> {
+    const normalizedName = variety.name.toLowerCase();
     const existingVariety = await db.varieties
-      .where("name")
-      .equals(variety.name)
+      .where("normalizedName")
+      .equals(normalizedName)
       .first();
 
     if (existingVariety) {
@@ -239,6 +238,7 @@ export const varietyService = {
     const fullVariety: VarietyRecord = {
       ...variety,
       id,
+      normalizedName,
       createdAt: now,
       updatedAt: now,
     };
@@ -257,7 +257,22 @@ export const varietyService = {
   },
 
   async getAllVarieties(): Promise<VarietyRecord[]> {
-    return db.varieties.toArray();
+    const allVarieties = await db.varieties.toArray();
+    const uniqueVarieties = new Map<string, VarietyRecord>();
+
+    for (const variety of allVarieties) {
+      // Use the normalizedName field for case-insensitive checking
+      const normalizedName =
+        variety.normalizedName || variety.name.toLowerCase();
+      if (!uniqueVarieties.has(normalizedName)) {
+        uniqueVarieties.set(normalizedName, variety);
+      }
+    }
+
+    const sortedVarieties = Array.from(uniqueVarieties.values());
+    sortedVarieties.sort((a, b) => a.name.localeCompare(b.name));
+
+    return sortedVarieties;
   },
 
   async getVarietiesByCategory(
@@ -267,7 +282,8 @@ export const varietyService = {
   },
 
   async getVarietyByName(name: string): Promise<VarietyRecord | undefined> {
-    return db.varieties.where("name").equals(name).first();
+    const normalizedName = name.toLowerCase();
+    return db.varieties.where("normalizedName").equals(normalizedName).first();
   },
 };
 

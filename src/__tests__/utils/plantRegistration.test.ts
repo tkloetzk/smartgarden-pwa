@@ -5,6 +5,7 @@ describe("Plant Registration Utils", () => {
   const mockVariety = {
     id: "test-variety",
     name: "Test Plant",
+    normalizedName: "Test Plant",
     category: "herbs" as const,
     growthTimeline: {
       germination: 7,

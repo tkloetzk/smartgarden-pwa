@@ -3,15 +3,19 @@ import { CareSchedulingService } from "@/services/careSchedulingService";
 import { plantService, varietyService, careService } from "@/types/database";
 import { initializeDatabase } from "@/db/seedData";
 import { subDays } from "date-fns";
+import { mockDate, restoreDate } from "../../setupTests";
 
 describe("CareSchedulingService", () => {
   beforeEach(async () => {
-    // Clear and reinitialize database before each test
     const { db } = await import("@/types/database");
     await db.plants.clear();
     await db.varieties.clear();
     await db.careActivities.clear();
     await initializeDatabase();
+  });
+
+  afterEach(() => {
+    restoreDate();
   });
 
   describe("Reminder Filtering", () => {
@@ -30,10 +34,10 @@ describe("CareSchedulingService", () => {
         container: "4 inch pot",
         isActive: true,
         reminderPreferences: {
-          watering: false, // Disabled
+          watering: false,
           fertilizing: true,
-          observation: true, // Enabled
-          lighting: false, // Disabled
+          observation: true,
+          lighting: false,
           pruning: true,
         },
       });
@@ -611,6 +615,90 @@ describe("CareSchedulingService", () => {
       expect(mockCalculateCurrentStage).toHaveBeenCalled();
 
       mockCalculateCurrentStage.mockRestore();
+    });
+  });
+  describe("Due Date and Overdue Logic", () => {
+    it("should compute next due dates with no previous logs", async () => {
+      // 1. Setup
+      const varieties = await varietyService.getAllVarieties();
+      const testVariety = varieties.find((v) => v.name === "Astro Arugula")!;
+      // Set a "current" date for the test
+      mockDate("2024-06-20T12:00:00Z");
+
+      // Create a plant that was planted more than 1 day ago
+      const plantId = await plantService.addPlant({
+        varietyId: testVariety.id,
+        varietyName: testVariety.name,
+        plantedDate: new Date("2024-06-18T12:00:00Z"), // Planted 2 days ago
+        location: "Indoor",
+        container: "4 inch pot",
+        isActive: true,
+      });
+
+      // Mock the service to ensure no care logs are found for this plant
+      jest.spyOn(careService, "getLastActivityByType").mockResolvedValue(null);
+
+      // 2. Act: Get tasks for the plant
+      const tasks = await CareSchedulingService.getUpcomingTasks();
+      const wateringTask = tasks.find(
+        (task) => task.plantId === plantId && task.type === "water"
+      );
+
+      // 3. Assert
+      // The logic dictates if daysSincePlanting > 1, the due date is "now" [cite: 1803]
+      expect(wateringTask).toBeDefined();
+      expect(wateringTask?.dueDate.toISOString()).toBe(
+        "2024-06-20T12:00:00.000Z"
+      );
+    });
+
+    it("should detect overdue tasks correctly and assign high priority", async () => {
+      // 1. Setup
+      const varieties = await varietyService.getAllVarieties();
+      const testVariety = varieties.find((v) => v.name === "Astro Arugula")!;
+      mockDate("2024-06-25T12:00:00Z"); // Set current date for the test
+
+      const plantId = await plantService.addPlant({
+        varietyId: testVariety.id,
+        varietyName: testVariety.name,
+        plantedDate: new Date("2024-06-15T12:00:00Z"), // Planted 10 days ago (in seedling stage)
+        location: "Indoor",
+        container: "4 inch pot",
+        isActive: true,
+      });
+
+      // Mock that the last watering was 5 days ago
+      const lastWateringDate = new Date("2024-06-20T12:00:00Z");
+      jest
+        .spyOn(careService, "getLastActivityByType")
+        .mockImplementation(async (pId, type) => {
+          if (pId === plantId && type === "water") {
+            return {
+              id: "care-1",
+              plantId: plantId,
+              type: "water",
+              date: lastWateringDate,
+              details: { type: "water", amount: { value: 8, unit: "oz" } },
+              createdAt: new Date(),
+              updatedAt: new Date(),
+            };
+          }
+          return null;
+        });
+
+      // 2. Act
+      const tasks = await CareSchedulingService.getUpcomingTasks();
+      const wateringTask = tasks.find(
+        (task) => task.plantId === plantId && task.type === "water"
+      );
+
+      // 3. Assert
+      // The watering interval for the seedling stage is 2 days.
+      // Last watered 5 days ago, so the task was due 3 days ago.
+      expect(wateringTask).toBeDefined();
+      expect(wateringTask?.dueIn).toBe("3 days overdue");
+      // Since it's more than 2 days overdue, the priority should be "high"[cite: 1819].
+      expect(wateringTask?.priority).toBe("high");
     });
   });
 });

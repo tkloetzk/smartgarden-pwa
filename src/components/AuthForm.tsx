@@ -37,34 +37,61 @@ export const AuthForm = () => {
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
             {isSignUp && (
+              <div>
+                <label
+                  htmlFor="displayName"
+                  className="block text-sm font-medium text-foreground mb-2"
+                >
+                  Display Name
+                </label>
+                <Input
+                  id="displayName"
+                  type="text"
+                  placeholder="Display Name"
+                  value={displayName}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                    setDisplayName(e.target.value)
+                  }
+                  required
+                />
+              </div>
+            )}
+            <div>
+              <label
+                htmlFor="email"
+                className="block text-sm font-medium text-foreground mb-2"
+              >
+                Email
+              </label>
               <Input
-                type="text"
-                placeholder="Display Name"
-                value={displayName}
+                id="email"
+                type="email"
+                placeholder="Email"
+                value={email}
                 onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                  setDisplayName(e.target.value)
+                  setEmail(e.target.value)
                 }
                 required
               />
-            )}
-            <Input
-              type="email"
-              placeholder="Email"
-              value={email}
-              onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                setEmail(e.target.value)
-              }
-              required
-            />
-            <Input
-              type="password"
-              placeholder="Password"
-              value={password}
-              onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                setPassword(e.target.value)
-              }
-              required
-            />
+            </div>
+            <div>
+              <label
+                htmlFor="password"
+                className="block text-sm font-medium text-foreground mb-2"
+              >
+                Password
+              </label>
+              <Input
+                id="password"
+                type="password"
+                placeholder="••••••••"
+                value={password}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                  setPassword(e.target.value)
+                }
+                required
+              />
+            </div>
 
             {error && <div className="text-red-600 text-sm">{error}</div>}
 

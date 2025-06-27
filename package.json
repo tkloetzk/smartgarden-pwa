@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite --config vite.config.ts",
+    "test:e2e:debug": "node tests/e2e/helpers/debug-setup.js",
     "dev:api": "node dev-server.js",
     "dev:client": "vite",
     "dev:watch": "concurrently \"npm run dev\" \"npm run test:watch\"",

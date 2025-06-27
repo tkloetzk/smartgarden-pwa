@@ -22,6 +22,7 @@ describe("Growth Stage Utilities", () => {
   const mockEverbearingVariety: VarietyRecord = {
     id: "albion-strawberry",
     name: "Albion Strawberries",
+    normalizedName: "Albion Strawberries",
     category: "berries",
     growthTimeline: {
       germination: 14,
@@ -37,6 +38,7 @@ describe("Growth Stage Utilities", () => {
   const mockNonEverbearingVariety: VarietyRecord = {
     id: "little-finger-carrots",
     name: "Little Finger Carrots",
+    normalizedName: "Little Finger Carrots",
     category: "root-vegetables",
     growthTimeline: {
       germination: 10,
@@ -398,6 +400,7 @@ describe("Growth Stage Utilities", () => {
       const raspberryVariety: VarietyRecord = {
         id: "caroline-raspberry",
         name: "Caroline Raspberries",
+        normalizedName: "Caroline Raspberries",
         category: "berries",
         growthTimeline: {
           germination: 0, // typically grown from canes

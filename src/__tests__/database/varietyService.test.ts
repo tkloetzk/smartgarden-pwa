@@ -7,6 +7,13 @@ describe("varietyService", () => {
   // Before each test, clear the varieties table and re-seed it
   // This ensures each test runs against a clean, predictable state.
   beforeEach(async () => {
+    try {
+      await db.varieties.clear();
+      await initializeDatabase();
+    } catch (error) {
+      console.error("ERROR IN TEST SETUP (beforeEach):", error);
+      throw error; // Re-throw to ensure Jest knows the setup failed
+    }
     await db.varieties.clear();
     await initializeDatabase();
   });
