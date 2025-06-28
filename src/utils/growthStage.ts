@@ -26,47 +26,64 @@ export interface VarietyTimeline {
  * @returns The calculated GrowthStage.
  */
 export function calculateCurrentStageWithVariety(
-  plantedDate: Date,
+  anchorDate: Date, // Renamed from plantedDate for clarity
   variety: VarietyRecord | undefined | null,
-  currentDate: Date = new Date()
+  currentDate: Date = new Date(),
+  startingStage: GrowthStage = "germination" // New parameter
 ): GrowthStage {
   if (!variety || !variety.growthTimeline) {
     console.warn(
       "❌ calculateCurrentStageWithVariety: Invalid variety data, defaulting to vegetative."
     );
-    // Default to a safe, neutral stage if variety data is missing.
     return "vegetative";
   }
 
-  const daysSincePlanting = differenceInDays(currentDate, plantedDate);
+  const daysSinceAnchor = differenceInDays(currentDate, anchorDate);
+  if (daysSinceAnchor < 0) return startingStage; // Return starting stage if anchor is in the future
+
   const timeline = variety.growthTimeline;
+  const stageOrder: GrowthStage[] = [
+    "germination",
+    "seedling",
+    "vegetative",
+    "flowering",
+    "maturation",
+    "ongoing-production",
+    "harvest",
+  ];
 
-  if (daysSincePlanting < 0 || daysSincePlanting < timeline.germination) {
-    return "germination";
-  }
-  if (daysSincePlanting < timeline.germination + timeline.seedling) {
-    return "seedling";
-  }
-  if (
-    daysSincePlanting <
-    timeline.germination + timeline.seedling + timeline.vegetative
-  ) {
-    return "vegetative";
-  }
-  if (daysSincePlanting < timeline.maturation) {
-    return "flowering";
+  const stageDurations: Record<string, number> = {
+    germination: timeline.germination,
+    seedling: timeline.seedling,
+    vegetative: timeline.vegetative,
+    // The time from vegetative end to full maturation is the flowering period.
+    flowering:
+      timeline.maturation -
+      (timeline.germination + timeline.seedling + timeline.vegetative),
+    maturation: 0, // Maturation is a point in time, not a duration in this context
+  };
+
+  let cumulativeDays = 0;
+  const currentStageIndex = stageOrder.indexOf(startingStage);
+
+  for (let i = currentStageIndex; i < stageOrder.length; i++) {
+    const stage = stageOrder[i];
+    const duration = stageDurations[stage];
+
+    if (daysSinceAnchor < cumulativeDays + duration) {
+      return stage;
+    }
+    cumulativeDays += duration;
   }
 
   if (variety.isEverbearing) {
-    const effectiveLifespan = variety.productiveLifespan ?? 730;
-
-    if (daysSincePlanting >= effectiveLifespan) {
-      return "harvest";
+    const effectiveLifespan = variety.productiveLifespan ?? 730; // Default to 2 years
+    if (daysSinceAnchor < effectiveLifespan) {
+      return "ongoing-production";
     }
-    return "ongoing-production";
-  } else {
-    return "harvest";
   }
+
+  return "harvest";
 }
 
 /**
@@ -97,6 +114,34 @@ export function calculateCurrentStage(
 
   return "harvest";
 }
+
+// --- NEW FUNCTION ---
+/**
+ * Determines the next logical growth stage.
+ * @param currentStage The current stage of the plant.
+ * @returns The next GrowthStage, or null if it's the final stage.
+ */
+export function getNextStage(currentStage: GrowthStage): GrowthStage | null {
+  const stages: GrowthStage[] = [
+    "germination",
+    "seedling",
+    "vegetative",
+    "flowering",
+    "maturation",
+    "ongoing-production",
+    "harvest",
+  ];
+  const currentIndex = stages.indexOf(currentStage);
+
+  if (currentIndex === -1 || currentIndex >= stages.length - 1) {
+    return null;
+  }
+
+  return stages[currentIndex + 1];
+}
+
+// --- Other existing functions (getStageProgress, estimateStageTransition) can remain for now ---
+// They may need updating later if you want progress bars to respect the new confirmed stage.
 
 export function getStageProgress(
   plantedDate: Date,
@@ -136,25 +181,6 @@ export function getStageProgress(
   const stageProgress =
     ((daysSincePlanting - stageStart) / (stageEnd - stageStart)) * 100;
   return Math.min(Math.max(stageProgress, 0), 100);
-}
-
-export function getNextStage(currentStage: GrowthStage): GrowthStage | null {
-  const stages: GrowthStage[] = [
-    "germination",
-    "seedling",
-    "vegetative",
-    "flowering",
-    "maturation",
-    "ongoing-production",
-    "harvest",
-  ];
-  const currentIndex = stages.indexOf(currentStage);
-
-  if (currentIndex === -1 || currentIndex === stages.length - 1) {
-    return null;
-  }
-
-  return stages[currentIndex + 1];
 }
 
 export function estimateStageTransition(

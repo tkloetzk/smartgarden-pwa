@@ -2,7 +2,10 @@ import { render, screen, waitFor, within } from "@testing-library/react";
 import { BrowserRouter } from "react-router-dom";
 import Plants from "../../pages/plants/Plants";
 import { varietyService, PlantRecord } from "@/types/database";
-import { initializeDatabase } from "@/db/seedData";
+import {
+  initializeDatabase,
+  resetDatabaseInitializationFlag,
+} from "@/db/seedData";
 import { subDays } from "date-fns";
 
 // Mock the hooks used by the Plants component
@@ -18,6 +21,8 @@ describe("Stage Calculation and Display Integration", () => {
     (useFirebasePlants as jest.Mock).mockClear();
 
     // Clear and re-initialize the mock database
+    resetDatabaseInitializationFlag();
+
     const { db } = await import("@/types/database");
     await db.plants.clear();
     await db.varieties.clear();

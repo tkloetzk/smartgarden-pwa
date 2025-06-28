@@ -10,44 +10,40 @@ export function useDynamicStage(plant: PlantRecord): GrowthStage {
 
   useEffect(() => {
     const calculateStage = async () => {
+      if (!plant?.varietyId) {
+        setCalculatedStage("germination");
+        return;
+      }
       try {
-        // If user has manually overridden the stage, use that
-        // if (plant.manualStageOverride) {
-        //   console.log(
-        //     "✅ Using manual stage override:",
-        //     plant.manualStageOverride
-        //   );
-        //   setCalculatedStage(plant.manualStageOverride);
-        //   return;
-        // }
-
         const variety = await varietyService.getVariety(plant.varietyId);
 
         if (!variety) {
-          // Try to find by name as fallback
-          const allVarieties = await varietyService.getAllVarieties();
-
-          const varietyByName = allVarieties.find(
-            (v) => v.name === plant.varietyName
+          // Fallback logic if variety is not found
+          console.warn(
+            `Variety with id ${plant.varietyId} not found. Defaulting stage.`
           );
-
-          if (varietyByName) {
-            const stage = calculateCurrentStageWithVariety(
-              plant.plantedDate,
-              varietyByName
-            );
-            setCalculatedStage(stage);
-            return;
-          }
-          setCalculatedStage("germination");
+          setCalculatedStage("vegetative"); // A safe default
           return;
         }
 
-        const stage = calculateCurrentStageWithVariety(
-          plant.plantedDate,
-          variety
-        );
-        setCalculatedStage(stage);
+        // --- NEW LOGIC ---
+        // Prioritize user-confirmed stage if it exists
+        if (plant.confirmedStage && plant.stageConfirmedDate) {
+          const stage = calculateCurrentStageWithVariety(
+            plant.stageConfirmedDate, // Use confirmed date as the new anchor
+            variety,
+            new Date(),
+            plant.confirmedStage // Tell the function which stage we're starting from
+          );
+          setCalculatedStage(stage);
+        } else {
+          // Fallback to original calculation from planted date
+          const stage = calculateCurrentStageWithVariety(
+            plant.plantedDate,
+            variety
+          );
+          setCalculatedStage(stage);
+        }
       } catch (error) {
         console.error("❌ Error calculating stage:", error);
         setCalculatedStage("germination");
@@ -55,12 +51,7 @@ export function useDynamicStage(plant: PlantRecord): GrowthStage {
     };
 
     calculateStage();
-  }, [
-    plant.varietyId,
-    plant.plantedDate,
-    plant.varietyName,
-    // plant.manualStageOverride,
-  ]);
+  }, [plant]); // Depend on the entire plant object to react to updates
 
   return calculatedStage;
 }

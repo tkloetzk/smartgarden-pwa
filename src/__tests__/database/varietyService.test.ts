@@ -1,5 +1,8 @@
 import { varietyService } from "../../types/database";
-import { initializeDatabase } from "../../db/seedData";
+import {
+  initializeDatabase,
+  resetDatabaseInitializationFlag,
+} from "../../db/seedData";
 import { seedVarieties } from "../../data/seedVarieties";
 import { db, PlantCategory } from "@/types";
 
@@ -14,6 +17,7 @@ describe("varietyService", () => {
       console.error("ERROR IN TEST SETUP (beforeEach):", error);
       throw error; // Re-throw to ensure Jest knows the setup failed
     }
+    resetDatabaseInitializationFlag();
     await db.varieties.clear();
     await initializeDatabase();
   });

@@ -30,6 +30,10 @@ export interface PlantRecord extends BaseRecord {
   notes?: string[];
   quantity?: number;
   setupType?: "multiple-containers" | "same-container";
+  /** The growth stage manually confirmed by the user. */
+  confirmedStage?: GrowthStage;
+  /** The date the user confirmed the growth stage. */
+  stageConfirmedDate?: Date;
   reminderPreferences?: {
     watering?: boolean;
     fertilizing?: boolean;

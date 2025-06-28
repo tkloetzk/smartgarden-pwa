@@ -7,6 +7,8 @@ import {
   onSnapshot,
   orderBy,
   Timestamp,
+  writeBatch, // <-- Import writeBatch
+  getDocs, // <-- Import getDocs for one-time fetch
 } from "firebase/firestore";
 import { db } from "./config";
 import { ScheduledTask } from "../ProtocolTranspilerService";
@@ -108,5 +110,37 @@ export class FirebaseScheduledTaskService {
         errorCallback(error);
       }
     );
+  }
+  static async deletePendingTasksForPlant(plantId: string): Promise<void> {
+    try {
+      const q = query(
+        this.tasksCollection,
+        where("plantId", "==", plantId),
+        where("status", "==", "pending")
+      );
+
+      const querySnapshot = await getDocs(q);
+      if (querySnapshot.empty) {
+        return; // No tasks to delete
+      }
+
+      const batch = writeBatch(db);
+      querySnapshot.forEach((doc) => {
+        batch.delete(doc.ref);
+      });
+
+      await batch.commit();
+      console.log(
+        `🗑️ Deleted ${querySnapshot.size} pending tasks for plant ${plantId}.`
+      );
+    } catch (error) {
+      console.error(
+        `❌ Failed to delete pending tasks for plant ${plantId}:`,
+        error
+      );
+      // Depending on requirements, you might want to re-throw the error
+      // or handle it gracefully (e.g., with a toast notification).
+      throw error;
+    }
   }
 }

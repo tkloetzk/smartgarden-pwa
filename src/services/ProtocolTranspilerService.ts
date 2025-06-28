@@ -5,6 +5,7 @@ import {
   GrowthStage,
   CareActivityType,
   FertilizationScheduleItem,
+  GrowthTimeline,
 } from "@/types";
 
 export interface ScheduledTask {
@@ -32,38 +33,65 @@ export interface ScheduledTask {
   updatedAt: Date;
 }
 
+// Define the canonical order of growth stages
+const STAGE_ORDER: GrowthStage[] = [
+  "germination",
+  "seedling",
+  "vegetative",
+  "flowering",
+  "fruiting",
+  "maturation",
+  "ongoing-production",
+  "harvest",
+];
+
 export class ProtocolTranspilerService {
-  /**
-   * Convert a plant's variety protocols into concrete scheduled tasks
-   */
-  static async transpilePlantProtocol(
+  static async transpileProtocolFromStage(
     plant: PlantRecord,
-    variety: VarietyRecord
+    variety: VarietyRecord,
+    startStage: GrowthStage,
+    anchorDate: Date = new Date()
   ): Promise<ScheduledTask[]> {
     const tasks: ScheduledTask[] = [];
-    const plantedDate = new Date(plant.plantedDate);
-
     if (!variety.protocols?.fertilization) {
       return tasks;
     }
 
-    // For each growth stage with fertilization
-    for (const [stageName, stageProtocol] of Object.entries(
-      variety.protocols.fertilization
-    )) {
+    const startStageIndex = STAGE_ORDER.indexOf(startStage);
+    if (startStageIndex === -1) {
+      console.error(`Invalid start stage provided: ${startStage}`);
+      return [];
+    }
+
+    const anchorStageStartDays = this.calculateStageStartDays(
+      variety.growthTimeline,
+      startStage
+    );
+
+    // --- REVISED LOGIC: Iterate over the canonical STAGE_ORDER ---
+    for (let i = startStageIndex; i < STAGE_ORDER.length; i++) {
+      const currentStage = STAGE_ORDER[i];
+      const stageProtocol = variety.protocols.fertilization[currentStage];
+
+      if (!stageProtocol || !stageProtocol.schedule) {
+        continue;
+      }
+
       const stageStartDays = this.calculateStageStartDays(
         variety.growthTimeline,
-        stageName as GrowthStage
+        currentStage
       );
 
-      // For each scheduled task in that stage
-      for (const scheduleItem of stageProtocol.schedule || []) {
+      // This is the offset from our new anchor date
+      const daysFromAnchor = stageStartDays - anchorStageStartDays;
+
+      for (const scheduleItem of stageProtocol.schedule) {
         const taskInstances = this.createTaskInstances(
           plant,
-          stageName as GrowthStage,
+          currentStage,
           scheduleItem,
-          plantedDate,
-          stageStartDays
+          anchorDate, // Use the new anchor date
+          daysFromAnchor // Use the calculated offset
         );
         tasks.push(...taskInstances);
       }
@@ -72,20 +100,45 @@ export class ProtocolTranspilerService {
     return tasks;
   }
 
-  /**
-   * Calculate when a growth stage starts (in days from planting)
-   */
+  static async transpilePlantProtocol(
+    plant: PlantRecord,
+    variety: VarietyRecord
+  ): Promise<ScheduledTask[]> {
+    return this.transpileProtocolFromStage(
+      plant,
+      variety,
+      "germination",
+      plant.plantedDate
+    );
+  }
   private static calculateStageStartDays(
-    growthTimeline: any,
-    stageName: string
+    growthTimeline: GrowthTimeline, // Corrected from Record<string, number>
+    stageName: GrowthStage
   ): number {
-    // No mapping needed - direct lookup!
-    if (growthTimeline[stageName] !== undefined) {
-      return growthTimeline[stageName];
+    switch (stageName) {
+      case "germination":
+        return 0;
+      case "seedling":
+        return growthTimeline.germination;
+      case "vegetative":
+        return growthTimeline.germination + growthTimeline.seedling;
+      case "flowering":
+        return (
+          growthTimeline.germination +
+          growthTimeline.seedling +
+          growthTimeline.vegetative
+        );
+      case "fruiting":
+      case "maturation":
+      case "ongoing-production":
+      case "harvest":
+        return growthTimeline.maturation;
+      default:
+        console.warn(
+          `Unknown stage name: ${stageName} in calculateStageStartDays`
+        );
+        return 0;
     }
-
-    console.warn(`Stage '${stageName}' not found in growth timeline`);
-    return 0;
   }
 
   /**
@@ -95,21 +148,26 @@ export class ProtocolTranspilerService {
     plant: PlantRecord,
     stage: GrowthStage,
     scheduleItem: FertilizationScheduleItem,
-    plantedDate: Date,
+    anchorDate: Date,
     stageStartDays: number
   ): ScheduledTask[] {
     const tasks: ScheduledTask[] = [];
     const absoluteStartDays = stageStartDays + scheduleItem.startDays;
 
     for (let i = 0; i < scheduleItem.repeatCount; i++) {
-      const dueDate = new Date(plantedDate);
+      const dueDate = new Date(anchorDate);
       dueDate.setDate(
         dueDate.getDate() + absoluteStartDays + i * scheduleItem.frequencyDays
       );
 
+      // Skip tasks that would have been in the past relative to today
+      if (dueDate < new Date()) {
+        continue;
+      }
+
       const taskId = `${plant.id}-${stage}-${scheduleItem.taskName
         .replace(/\s+/g, "-")
-        .toLowerCase()}-${i}`;
+        .toLowerCase()}-${i}-${new Date().getTime()}`;
 
       tasks.push({
         id: taskId,
@@ -128,7 +186,7 @@ export class ProtocolTranspilerService {
         sourceProtocol: {
           stage,
           originalStartDays: scheduleItem.startDays,
-          isDynamic: false,
+          isDynamic: true, // Mark as dynamically scheduled
         },
         priority: "normal",
         createdAt: new Date(),

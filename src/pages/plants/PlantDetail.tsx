@@ -1,17 +1,29 @@
+// In: src/pages/plants/PlantDetail.tsx
+
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { LoadingSpinner } from "@/components/ui/LoadingSpinner";
 import { FirebasePlantService } from "@/services/firebase/plantService";
 import { useFirebaseAuth } from "@/hooks/useFirebaseAuth";
 import { useFirebaseCareActivities } from "@/hooks/useFirebaseCareActivities";
-import { varietyService, PlantRecord, VarietyRecord } from "@/types/database";
+import {
+  varietyService,
+  PlantRecord,
+  VarietyRecord,
+  GrowthStage,
+} from "@/types";
 import CareHistory from "@/components/plant/CareHistory";
 import PlantReminderSettings from "@/components/plant/PlantReminderSettings";
 import { getPlantDisplayName } from "@/utils/plantDisplay";
 import PlantInfoCard from "@/components/plant/PlantInfoCard";
 import NextActivityCard from "@/components/plant/NextActivityCard";
+import { toast } from "react-hot-toast";
+import { StageUpdateModal } from "@/components/plant/StageUpdateModal";
+import { StageManagementService } from "@/services/StageManagementService";
+import { useDynamicStage } from "@/hooks/useDynamicStage";
+import { Badge } from "@/components/ui/Badge";
+import { ArrowLeft } from "lucide-react";
 
 const PlantDetail: React.FC = () => {
   const { plantId } = useParams<{ plantId: string }>();
@@ -23,20 +35,14 @@ const PlantDetail: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showReminderSettings, setShowReminderSettings] = useState(false);
+  const [isStageModalOpen, setIsStageModalOpen] = useState(false);
 
-  // Use Firebase care activities hook
   const { activities: careHistory } = useFirebaseCareActivities(plantId);
+  const plantStage = useDynamicStage(plant!);
 
   useEffect(() => {
-    if (!plantId) {
-      setError("No plant ID provided");
-      setIsLoading(false);
-      return;
-    }
-
-    // This check now correctly informs TypeScript that 'user' is not null for the rest of the hook.
-    if (!user) {
-      setError("User not authenticated");
+    if (!plantId || !user) {
+      setError(plantId ? "User not authenticated" : "No plant ID provided");
       setIsLoading(false);
       return;
     }
@@ -44,15 +50,12 @@ const PlantDetail: React.FC = () => {
     setIsLoading(true);
     setError(null);
 
-    // The subscription is initiated directly inside the effect.
-    // 'user.uid' is now safe to access.
     const unsubscribe = FirebasePlantService.subscribeToPlantsChanges(
       user.uid,
       (plants) => {
         const foundPlant = plants.find((p) => p.id === plantId);
         if (foundPlant) {
           setPlant(foundPlant);
-
           if (foundPlant.varietyId) {
             varietyService
               .getVariety(foundPlant.varietyId)
@@ -67,19 +70,35 @@ const PlantDetail: React.FC = () => {
       { includeInactive: true }
     );
 
-    // The return from useEffect MUST be the cleanup function itself.
-    // This now correctly returns the unsubscribe function from the service.
-    return () => {
-      unsubscribe();
-    };
+    return () => unsubscribe();
   }, [plantId, user]);
+
+  const handleConfirmStageChange = async (newStage: GrowthStage) => {
+    if (!plant || !user) return;
+    try {
+      toast.loading("Updating stage and recalculating schedule...");
+      await StageManagementService.confirmNewStage(
+        plant.id,
+        newStage,
+        user.uid
+      );
+      toast.dismiss();
+      toast.success("Plant stage updated successfully!");
+    } catch (e) {
+      toast.dismiss();
+      const errorMessage =
+        e instanceof Error ? e.message : "An unknown error occurred.";
+      toast.error(`Failed to update stage: ${errorMessage}`);
+      console.error(e);
+    } finally {
+      setIsStageModalOpen(false);
+    }
+  };
 
   const handlePlantUpdate = async (updates: Partial<PlantRecord>) => {
     if (!plantId) return;
-
     try {
       await FirebasePlantService.updatePlant(plantId, updates);
-      // The subscription will automatically update the plant state
     } catch (error) {
       console.error("Failed to update plant:", error);
     }
@@ -89,7 +108,6 @@ const PlantDetail: React.FC = () => {
     const params = new URLSearchParams();
     if (plantId) params.set("plantId", plantId);
     if (activityType) params.set("type", activityType);
-
     navigate(`/log-care?${params.toString()}`);
   };
 
@@ -124,108 +142,77 @@ const PlantDetail: React.FC = () => {
     );
   }
 
-  const plantDisplayName = getPlantDisplayName(plant);
-
   return (
-    <div className="min-h-screen bg-background pb-20">
-      <div className="sticky top-0 z-40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b border-border">
-        <div className="flex items-center justify-between p-4">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => navigate("/")}
-            className="text-muted-foreground hover:text-foreground"
-          >
-            <span className="mr-2">←</span>
-            Back
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setShowReminderSettings(!showReminderSettings)}
-            className="text-muted-foreground hover:text-foreground"
-          >
-            <span className="mr-2">⚙️</span>
-            Settings
-          </Button>
+    <>
+      <div className="min-h-screen bg-background pb-20">
+        <div className="sticky top-0 z-40 bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/60 border-b border-border">
+          <div className="flex items-center justify-between p-4 max-w-2xl mx-auto">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => navigate("/")}
+              className="text-muted-foreground hover:text-foreground"
+            >
+              <ArrowLeft className="h-4 w-4 mr-2" />
+              Back
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setShowReminderSettings(!showReminderSettings)}
+              className="text-muted-foreground hover:text-foreground"
+            >
+              <span className="mr-2">⚙️</span>
+              Settings
+            </Button>
+          </div>
+        </div>
+
+        <div className="p-4 max-w-2xl mx-auto space-y-6">
+          <div className="text-center">
+            <h1 className="text-3xl font-bold text-foreground">
+              {getPlantDisplayName(plant)}
+            </h1>
+            <p className="text-md text-muted-foreground mt-1">
+              {plant.varietyName}
+            </p>
+          </div>
+
+          <div className="flex items-center justify-center gap-2">
+            <Badge variant="secondary" className="capitalize text-sm">
+              {plantStage.replace("-", " ")}
+            </Badge>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setIsStageModalOpen(true)}
+            >
+              Update Stage
+            </Button>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <PlantInfoCard plant={plant} showQuickActions={false} />
+            <NextActivityCard plantId={plant.id} onTaskClick={handleLogCare} />
+          </div>
+
+          {showReminderSettings && (
+            <PlantReminderSettings plant={plant} onUpdate={handlePlantUpdate} />
+          )}
+
+          <CareHistory careHistory={careHistory} />
         </div>
       </div>
 
-      <div className="space-y-4">
-        {/* Plant Header */}
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-start justify-between mb-4">
-              <div>
-                <h1 className="text-2xl font-bold text-foreground mb-2">
-                  {plantDisplayName}
-                </h1>
-                <div className="text-sm text-muted-foreground">
-                  {variety?.name}
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <PlantInfoCard
+      {isStageModalOpen && (
+        <StageUpdateModal
           plant={plant}
-          onLogCare={handleLogCare}
-          showQuickActions={false}
+          currentStage={plantStage}
+          onConfirm={handleConfirmStageChange}
+          onClose={() => setIsStageModalOpen(false)}
         />
-
-        <NextActivityCard plantId={plant.id} onTaskClick={handleLogCare} />
-
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <span className="text-xl">🚀</span>
-              Quick Actions
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-2 gap-3">
-              <Button
-                onClick={() => handleLogCare("water")}
-                className="bg-blue-500 hover:bg-blue-600 text-white"
-              >
-                <span className="mr-2">💧</span>
-                Water
-              </Button>
-              <Button
-                onClick={() => handleLogCare("fertilize")}
-                className="bg-green-500 hover:bg-green-600 text-white"
-              >
-                <span className="mr-2">🌱</span>
-                Fertilize
-              </Button>
-              <Button
-                onClick={() => handleLogCare("photo")}
-                className="bg-purple-500 hover:bg-purple-600 text-white"
-              >
-                <span className="mr-2">📸</span>
-                Photo
-              </Button>
-              <Button
-                onClick={() => handleLogCare("note")}
-                className="bg-orange-500 hover:bg-orange-600 text-white"
-              >
-                <span className="mr-2">📝</span>
-                Note
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Reminder Settings */}
-        {showReminderSettings && (
-          <PlantReminderSettings plant={plant} onUpdate={handlePlantUpdate} />
-        )}
-
-        {/* Care History */}
-        <CareHistory careHistory={careHistory} />
-      </div>
-    </div>
+      )}
+    </>
   );
 };
 

@@ -84,6 +84,7 @@ src/
     services/
       careSchedulingService.test.ts
       smartDefaultsService.test.ts
+      useDynamicStage.test.ts
     setup/
       mockFirebase.ts
     utils/
@@ -116,6 +117,7 @@ src/
       PlantStageDisplay.tsx
       ReminderPreferencesSection.tsx
       SoilMixtureSelector.tsx
+      StageUpdateModal.tsx
     ui/
       Badge.tsx
       Button.tsx
@@ -131,6 +133,7 @@ src/
     Navigation.tsx
   data/
     seedVarieties.ts
+    visualCues.ts
   db/
     seedData.ts
   hooks/
@@ -175,6 +178,7 @@ src/
     PlantRegistrationService.ts
     ProtocolTranspilerService.ts
     smartDefaultsService.ts
+    StageManagementService.ts
   styles/
     globals.css
   types/
@@ -239,6 +243,492 @@ vite.config.ts
 ================================================================
 Files
 ================================================================
+
+================
+File: src/__tests__/services/useDynamicStage.test.ts
+================
+  1: import { renderHook, waitFor } from "@testing-library/react";
+  2: import { useDynamicStage } from "@/hooks/useDynamicStage";
+  3: import { PlantRecord, VarietyRecord, varietyService } from "@/types/database";
+  4: import { calculateCurrentStageWithVariety } from "@/utils/growthStage";
+  5: import { subDays } from "date-fns";
+  6: import { PlantCategory } from "@/types";
+  7: 
+  8: 
+  9: jest.mock("@/types/database");
+ 10: jest.mock("@/utils/growthStage");
+ 11: 
+ 12: const mockVarietyService = varietyService as jest.Mocked<typeof varietyService>;
+ 13: const mockCalculateStage = calculateCurrentStageWithVariety as jest.Mock;
+ 14: 
+ 15: 
+ 16: const mockVariety: VarietyRecord = {
+ 17:   id: "tomato-1",
+ 18:   name: "Tomato",
+ 19:   normalizedName: "tomato",
+ 20:   category: "fruiting-plants" as PlantCategory,
+ 21:   growthTimeline: {
+ 22:     germination: 7,
+ 23:     seedling: 14,
+ 24:     vegetative: 21,
+ 25:     maturation: 60,
+ 26:   },
+ 27:   createdAt: new Date(),
+ 28:   updatedAt: new Date(),
+ 29: };
+ 30: 
+ 31: 
+ 32: const createMockPlant = (overrides: Partial<PlantRecord>): PlantRecord => ({
+ 33:   id: `plant-${Math.random()}`,
+ 34:   varietyId: "tomato-1",
+ 35:   varietyName: "Tomato",
+ 36:   name: "Test Tomato Plant",
+ 37:   plantedDate: new Date(),
+ 38:   location: "Indoor",
+ 39:   container: "5 Gallon Grow Bag",
+ 40:   isActive: true,
+ 41:   createdAt: new Date(),
+ 42:   updatedAt: new Date(),
+ 43:   ...overrides,
+ 44: });
+ 45: 
+ 46: describe("useDynamicStage Hook", () => {
+ 47:   beforeEach(() => {
+ 48:     jest.clearAllMocks();
+ 49:     mockVarietyService.getVariety.mockResolvedValue(mockVariety);
+ 50:   });
+ 51: 
+ 52:   it("should use plantedDate when no confirmed stage exists", async () => {
+ 53:     const plantedDate = subDays(new Date(), 10);
+ 54:     const plant = createMockPlant({ plantedDate });
+ 55: 
+ 56:     mockCalculateStage.mockReturnValue("seedling");
+ 57: 
+ 58:     renderHook(() => useDynamicStage(plant));
+ 59: 
+ 60:     await waitFor(() => {
+ 61:       expect(mockCalculateStage).toHaveBeenCalledWith(
+ 62:         plantedDate,
+ 63:         mockVariety
+ 64:       );
+ 65:     });
+ 66:   });
+ 67: 
+ 68:   it("should use confirmedStage and stageConfirmedDate when they exist", async () => {
+ 69:     const plantedDate = subDays(new Date(), 30);
+ 70:     const stageConfirmedDate = subDays(new Date(), 5);
+ 71:     const plant = createMockPlant({
+ 72:       plantedDate,
+ 73:       confirmedStage: "vegetative",
+ 74:       stageConfirmedDate,
+ 75:     });
+ 76: 
+ 77:     mockCalculateStage.mockReturnValue("flowering");
+ 78: 
+ 79:     renderHook(() => useDynamicStage(plant));
+ 80: 
+ 81:     await waitFor(() => {
+ 82:       expect(mockCalculateStage).toHaveBeenCalledWith(
+ 83:         stageConfirmedDate,
+ 84:         mockVariety,
+ 85:         expect.any(Date),
+ 86:         "vegetative"
+ 87:       );
+ 88:     });
+ 89:   });
+ 90: 
+ 91:   it("should return the result from the calculation", async () => {
+ 92:     const plant = createMockPlant({});
+ 93:     mockCalculateStage.mockReturnValue("vegetative");
+ 94: 
+ 95:     const { result } = renderHook(() => useDynamicStage(plant));
+ 96: 
+ 97:     await waitFor(() => {
+ 98:       expect(result.current).toBe("vegetative");
+ 99:     });
+100:   });
+101: });
+
+================
+File: src/components/plant/StageUpdateModal.tsx
+================
+  1: import React from "react";
+  2: import { Button } from "@/components/ui/Button";
+  3: import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
+  4: import { Badge } from "@/components/ui/Badge";
+  5: import { PlantRecord } from "@/types/database";
+  6: import { GrowthStage } from "@/types/core";
+  7: import { visualCues } from "@/data/visualCues";
+  8: import { getNextStage } from "@/utils/growthStage";
+  9: 
+ 10: interface StageUpdateModalProps {
+ 11:   plant: PlantRecord;
+ 12:   currentStage: GrowthStage;
+ 13:   onConfirm: (newStage: GrowthStage) => void;
+ 14:   onClose: () => void;
+ 15: }
+ 16: 
+ 17: export const StageUpdateModal: React.FC<StageUpdateModalProps> = ({
+ 18:   plant,
+ 19:   currentStage,
+ 20:   onConfirm,
+ 21:   onClose,
+ 22: }) => {
+ 23:   const nextStage = getNextStage(currentStage);
+ 24:   const cues = (plant.varietyName &&
+ 25:     nextStage &&
+ 26:     visualCues[plant.varietyName]?.[nextStage]) || [
+ 27:     "No specific visual cues available for this stage. Please refer to general knowledge for this variety.",
+ 28:   ];
+ 29: 
+ 30:   const handleConfirm = () => {
+ 31:     if (nextStage) {
+ 32:       onConfirm(nextStage);
+ 33:     }
+ 34:   };
+ 35: 
+ 36:   return (
+ 37:     <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
+ 38:       <Card className="w-full max-w-lg">
+ 39:         <CardHeader>
+ 40:           <CardTitle className="text-xl">Update Growth Stage</CardTitle>
+ 41:           <p className="text-muted-foreground">
+ 42:             Is your "{plant.name || plant.varietyName}" ready for the next
+ 43:             stage?
+ 44:           </p>
+ 45:         </CardHeader>
+ 46:         <CardContent>
+ 47:           <div className="mb-4 text-sm">
+ 48:             <div className="flex items-center gap-2">
+ 49:               <span className="font-medium text-muted-foreground">
+ 50:                 Current Stage:
+ 51:               </span>
+ 52:               <Badge variant="secondary" className="capitalize">
+ 53:                 {currentStage.replace("-", " ")}
+ 54:               </Badge>
+ 55:             </div>
+ 56:             {nextStage && (
+ 57:               <div className="flex items-center gap-2 mt-2">
+ 58:                 <span className="font-medium text-muted-foreground">
+ 59:                   Next Stage:
+ 60:                 </span>
+ 61:                 <Badge className="capitalize">
+ 62:                   {nextStage.replace("-", " ")}
+ 63:                 </Badge>
+ 64:               </div>
+ 65:             )}
+ 66:           </div>
+ 67: 
+ 68:           {nextStage ? (
+ 69:             <div className="p-4 bg-muted/50 dark:bg-muted/30 border border-border rounded-lg">
+ 70:               <h4 className="font-semibold mb-2 text-foreground">
+ 71:                 Look for these signs for the '{nextStage.replace("-", " ")}'
+ 72:                 stage:
+ 73:               </h4>
+ 74:               <ul className="list-disc list-inside space-y-1 text-sm text-muted-foreground">
+ 75:                 {cues.map((cue, index) => (
+ 76:                   <li key={index}>{cue}</li>
+ 77:                 ))}
+ 78:               </ul>
+ 79:             </div>
+ 80:           ) : (
+ 81:             <div className="p-4 bg-green-50 dark:bg-green-900/30 border border-green-200 dark:border-green-800 rounded-lg text-center">
+ 82:               <p className="font-semibold text-green-800 dark:text-green-200">
+ 83:                 Your plant is in its final growth stage!
+ 84:               </p>
+ 85:             </div>
+ 86:           )}
+ 87: 
+ 88:           <div className="flex justify-end gap-3 mt-6">
+ 89:             <Button variant="outline" onClick={onClose}>
+ 90:               Cancel
+ 91:             </Button>
+ 92:             {nextStage && (
+ 93:               <Button onClick={handleConfirm}>
+ 94:                 Yes, Confirm '{nextStage.replace("-", " ")}' Stage
+ 95:               </Button>
+ 96:             )}
+ 97:           </div>
+ 98:         </CardContent>
+ 99:       </Card>
+100:     </div>
+101:   );
+102: };
+
+================
+File: src/data/visualCues.ts
+================
+  1: import { GrowthStage } from "@/types/core";
+  2: 
+  3: 
+  4: 
+  5: 
+  6: 
+  7: 
+  8: export const visualCues: Record<
+  9:   string,
+ 10:   Partial<Record<GrowthStage, string[]>>
+ 11: > = {
+ 12: 
+ 13:   "Little Finger Carrots": {
+ 14:     seedling: [
+ 15:       "First feathery, fern-like true leaves appear after the initial grass-like cotyledons.",
+ 16:       "True leaves are delicate and deeply divided with a lacy appearance.",
+ 17:       "Plant reaches 1-2 inches tall with pronounced carrot-like foliage.",
+ 18:     ],
+ 19:     vegetative: [
+ 20:       "Foliage grows to 8-10 inches tall with a deepening green color.",
+ 21:       "Multiple sets of feathery leaves develop, creating a robust, bushy appearance.",
+ 22:       "Leaf production slows as the plant channels energy to the root underground.",
+ 23:     ],
+ 24:     maturation: [
+ 25:       "Carrot shoulders (top of the root) begin to show at the soil surface.",
+ 26:       "Roots reach their mature size of 3-4 inches in length and 1/2 inch in diameter.",
+ 27:       "Foliage is lush, bushy, and about 10-12 inches tall.",
+ 28:     ],
+ 29:   },
+ 30:   "Detroit Dark Red Beets": {
+ 31:     vegetative: [
+ 32:       "The first true leaves emerge, which are broader and more rounded than the initial cotyledons.",
+ 33:       "True leaves display characteristic red-purple stems and prominent red veining.",
+ 34:       "Leaves progressively cover more ground area as the plant establishes its rosette.",
+ 35:     ],
+ 36:     maturation: [
+ 37:       "Beetroot shoulders begin swelling and become visible above the soil surface.",
+ 38:       "The root reaches its mature size, typically between golf ball and tennis ball size (1.5-3 inches).",
+ 39:       "Outer leaves may begin to show slight yellowing as the root reaches full maturity.",
+ 40:     ],
+ 41:   },
+ 42:   "Stuttgarter Onions": {
+ 43:     seedling: [
+ 44:       "Thin, grass-like shoots develop into hollow, tubular leaves.",
+ 45:       "The plant is established when it has 4-6 strong, upright green leaves.",
+ 46:     ],
+ 47:     vegetative: [
+ 48:       "Rapid leaf growth occurs, with the plant developing 8-10 flourishing leaves.",
+ 49:       "Leaves become notably thicker and more robust; the base remains thin like a pencil.",
+ 50:     ],
+ 51:     maturation: [
+ 52:       "Bulbing is triggered by 14+ hours of daily light, causing the base to swell noticeably.",
+ 53:       "The neck of the onion thickens and the top of the bulb may become visible at the soil line.",
+ 54:       "Harvest is indicated when tops begin to yellow and about 10-50% of them have fallen over.",
+ 55:     ],
+ 56:   },
+ 57:   "White Sweet Spanish Onions": {
+ 58:     seedling: [
+ 59:       "Thin, grass-like shoots develop into hollow, tubular leaves.",
+ 60:       "The plant is established when it has 4-6 strong, upright green leaves.",
+ 61:     ],
+ 62:     vegetative: [
+ 63:       "Rapid leaf growth occurs, with the plant developing 8-10 flourishing leaves.",
+ 64:       "Leaves become notably thicker and more robust; the base remains thin like a pencil.",
+ 65:     ],
+ 66:     maturation: [
+ 67:       "Bulbing is triggered by 14+ hours of daily light, causing the base to swell noticeably.",
+ 68:       "The neck of the onion thickens and the top of the bulb may become visible at the soil line.",
+ 69:       "Harvest is indicated when tops begin to yellow and about 10-50% of them have fallen over.",
+ 70:     ],
+ 71:   },
+ 72:   "Beauregard Sweet Potatoes": {
+ 73:     vegetative: [
+ 74:       "Slips develop heart-shaped leaves and establish a fibrous root system.",
+ 75:       "After a period of slow growth, vines begin to spread rapidly, reaching 6-12 feet with dense foliage.",
+ 76:     ],
+ 77:     maturation: [
+ 78:       "There are no reliable above-ground indicators of tuber size; timing is based on days from planting (90-120 days).",
+ 79:       "Vine growth slows and eventually stops as energy is sent to the storage roots.",
+ 80:       "Old leaves may begin to yellow and fall off.",
+ 81:     ],
+ 82:   },
+ 83: 
+ 84:   "Astro Arugula": {
+ 85:     seedling: [
+ 86:       "Rounded, slightly indented cotyledons appear first.",
+ 87:       "The first true leaves emerge; they are elongated and initially have smooth edges, unlike mature leaves.",
+ 88:     ],
+ 89:     vegetative: [
+ 90:       "Leaves transform from smooth to pinnately lobed, with 4-10 distinctive lobes developing.",
+ 91:       "The plant forms a rosette pattern and the color deepens to a darker green.",
+ 92:       "Harvest can begin when leaves are 2-4 inches long, around 3 weeks from planting.",
+ 93:     ],
+ 94:   },
+ 95:   "Baby's Leaf Spinach": {
+ 96:     seedling: [
+ 97:       "Rounded cotyledons emerge, followed by spade-shaped true leaves that are initially smooth-edged.",
+ 98:       "The plant begins rapid root and shoot growth.",
+ 99:     ],
+100:     vegetative: [
+101:       "A loose rosette formation with 6-12 leaves per plant develops.",
+102:       "Leaves are bright green, tender, and ready for 'baby leaf' harvest when 2-4 inches long.",
+103:     ],
+104:   },
+105:   "May Queen Lettuce": {
+106:     seedling: [
+107:       "Rounded cotyledons emerge, followed by smaller versions of the wavy, soft-textured mature leaves.",
+108:     ],
+109:     vegetative: [
+110:       "An open, symmetric rosette of 8-15 smooth-edged leaves develops.",
+111:       "Leaves begin to show their characteristic soft, buttery texture.",
+112:     ],
+113:     maturation: [
+114:       "Center leaves begin to cup inward slightly while outer leaves become more horizontal.",
+115:       "A color difference appears, with darker outer leaves and lighter inner leaves.",
+116:       "The head is mature when it feels solid when gently squeezed.",
+117:     ],
+118:   },
+119: 
+120:   "Boston Pickling Cucumber": {
+121:     vegetative: [
+122:       "True leaves emerge, which are serrated, rough, and distinctly cucumber-like.",
+123:       "Vines begin to develop side shoots and tendrils for climbing after 6 nodes.",
+124:     ],
+125:     flowering: [
+126:       "Small yellow flower buds appear 4-6 weeks after planting.",
+127:       "Male flowers appear first on slender stems; female flowers appear later with a tiny cucumber at their base.",
+128:     ],
+129:     fruiting: [
+130:       "After pollination, the tiny cucumber at the base of the female flower begins to swell.",
+131:       "Harvest when fruits are firm, uniformly green, and 3-6 inches long.",
+132:     ],
+133:   },
+134:   "Sugar Snap Peas": {
+135:     seedling: [
+136:       "The first shoot (epicotyl) emerges from the soil in a loop, as cotyledons remain underground.",
+137:     ],
+138:     vegetative: [
+139:       "Compound leaves with 1-3 pairs of leaflets plus tendrils for climbing develop.",
+140:       "Provide climbing support as soon as tendrils appear, as this signals the start of the active vining phase.",
+141:     ],
+142:     flowering: [
+143:       "White, pink, or purple self-pollinating flowers emerge from the leaf axils.",
+144:       "This typically occurs when plants are 2-6 feet tall.",
+145:     ],
+146:     fruiting: [
+147:       "After flowers fade, a tiny, flat pod becomes visible.",
+148:       "Harvest when pods are plump with visible pea outlines but are still bright green and crisp.",
+149:     ],
+150:   },
+151: 
+152:   "Day-Neutral Strawberries": {
+153:     vegetative: [
+154:       "New crown leaves emerge from the center of the plant, transitioning from pale to deep green.",
+155:       "The crown diameter increases as 5-6 fully expanded leaves develop.",
+156:       "Remove all flowers for the first 4-6 weeks to encourage strong plant establishment.",
+157:     ],
+158:     flowering: [
+159:       "Small white flower buds emerge from the crown center on stems rising above the foliage.",
+160:       "Unlike standard strawberries, these will flower regardless of day length once mature.",
+161:     ],
+162:     fruiting: [
+163:       "After the 5-petaled white flowers are pollinated, they develop into small green berries that gradually turn red.",
+164:     ],
+165:   },
+166:   "Caroline Raspberries": {
+167:     vegetative: [
+168:       "New primocanes (first-year canes) emerge as bright green shoots.",
+169:       "These canes develop alternating leaves and thorns along their length.",
+170:     ],
+171:     flowering: [
+172:       "Flower buds develop at the terminal ends of the primocanes (the current year's growth).",
+173:       "Flowers appear in clusters of 3-7. This variety does not require a cold period to flower.",
+174:     ],
+175:   },
+176:   "Rasmus Broccoli": {
+177:     seedling: [
+178:       "Thick, blue-green cotyledons emerge, followed by lobed true leaves with a characteristic broccoli appearance.",
+179:     ],
+180:     vegetative: [
+181:       "The plant develops a large, upright structure with a thick central stalk and large, grayish-green leaves.",
+182:     ],
+183:     maturation: [
+184:       "A tiny, button-like head (pea-sized to quarter-sized) begins to form deep in the center of the plant's top leaves.",
+185:       "The head is ready to harvest when it is 6-8 inches in diameter, firm, and the buds are tightly packed and uniformly green.",
+186:     ],
+187:   },
+188: 
+189:   "Greek Oregano": {
+190:     vegetative: [
+191:       "The plant becomes bushier with characteristic small, hairy, oval-shaped leaves and square stems.",
+192:       "Essential oil content and flavor peak just before the plant begins to flower.",
+193:     ],
+194:   },
+195:   "English Thyme": {
+196:     vegetative: [
+197:       "The plant develops into a dense, cushion-like appearance with small, gray-green, needle-like leaves that have white undersides.",
+198:       "Aromatic intensity is at its peak just before flowering begins.",
+199:     ],
+200:   },
+201:   "Greek Dwarf Basil": {
+202:     vegetative: [
+203:       "The plant forms a compact, dense, globe-like mound 6-8 inches tall with small, serrated leaves.",
+204:       "Essential oil production and the characteristic spicy-anise fragrance peak just before the plant flowers.",
+205:     ],
+206:     flowering: [
+207:       "The first sign is a change in the growth at the stem tips, forming a dense, cross-like pattern of new leaves.",
+208:       "A flower stalk will begin to elongate from this point; pinch it off to prolong vegetative growth.",
+209:     ],
+210:   },
+211: };
+
+================
+File: src/services/StageManagementService.ts
+================
+ 1: import { plantService, varietyService } from "@/types/database";
+ 2: import { GrowthStage } from "@/types/core";
+ 3: import { ProtocolTranspilerService } from "./ProtocolTranspilerService";
+ 4: import { FirebaseScheduledTaskService } from "./firebase/scheduledTaskService";
+ 5: import { toast } from "react-hot-toast";
+ 6: 
+ 7: export class StageManagementService {
+ 8: 
+ 9: 
+10: 
+11: 
+12: 
+13: 
+14: 
+15:   static async confirmNewStage(
+16:     plantId: string,
+17:     newStage: GrowthStage,
+18:     userId: string
+19:   ): Promise<void> {
+20:     const plant = await plantService.getPlant(plantId);
+21:     if (!plant) throw new Error("Plant not found during stage update.");
+22: 
+23:     const variety = await varietyService.getVariety(plant.varietyId);
+24:     if (!variety)
+25:       throw new Error("Variety information could not be loaded for the plant.");
+26: 
+27: 
+28:     await plantService.updatePlant(plantId, {
+29:       confirmedStage: newStage,
+30:       stageConfirmedDate: new Date(),
+31:       updatedAt: new Date(),
+32:     });
+33: 
+34: 
+35: 
+36:     await FirebaseScheduledTaskService.deletePendingTasksForPlant(plantId);
+37: 
+38: 
+39: 
+40:     const updatedPlant = {
+41:       ...plant,
+42:       confirmedStage: newStage,
+43:       stageConfirmedDate: new Date(),
+44:     };
+45:     const newTasks = await ProtocolTranspilerService.transpileProtocolFromStage(
+46:       updatedPlant,
+47:       variety,
+48:       newStage
+49:     );
+50: 
+51:     if (newTasks.length > 0) {
+52:       await FirebaseScheduledTaskService.createMultipleTasks(newTasks, userId);
+53:       toast.success(`${newTasks.length} new care tasks have been scheduled.`);
+54:     }
+55:   }
+56: }
 
 ================
 File: playwright/.auth/user.json
@@ -3436,109 +3926,143 @@ File: src/services/firebase/scheduledTaskService.ts
   6:   onSnapshot,
   7:   orderBy,
   8:   Timestamp,
-  9: } from "firebase/firestore";
- 10: import { db } from "./config";
- 11: import { ScheduledTask } from "../ProtocolTranspilerService";
- 12: 
- 13: export interface FirebaseScheduledTask {
- 14:   id?: string;
- 15:   userId: string;
- 16:   plantId: string;
- 17:   taskName: string;
- 18:   taskType: string;
- 19:   details: {
- 20:     type: string;
- 21:     product: string;
- 22:     dilution: string;
- 23:     amount: string;
- 24:     method: string;
- 25:   };
- 26:   dueDate: Timestamp;
- 27:   status: string;
- 28:   sourceProtocol: {
- 29:     stage: string;
- 30:     originalStartDays: number;
- 31:     isDynamic: boolean;
- 32:   };
- 33:   createdAt: Timestamp;
- 34:   updatedAt: Timestamp;
- 35: }
- 36: 
- 37: export class FirebaseScheduledTaskService {
- 38:   private static tasksCollection = collection(db, "scheduledTasks");
- 39: 
- 40:   static async createTask(
- 41:     task: ScheduledTask,
- 42:     userId: string
- 43:   ): Promise<string> {
- 44:     const firebaseTask: Omit<FirebaseScheduledTask, "id"> = {
- 45:       userId,
- 46:       plantId: task.plantId,
- 47:       taskName: task.taskName,
- 48:       taskType: task.taskType,
- 49:       details: task.details,
- 50:       dueDate: Timestamp.fromDate(task.dueDate),
- 51:       status: task.status,
- 52:       sourceProtocol: task.sourceProtocol,
- 53:       createdAt: Timestamp.now(),
- 54:       updatedAt: Timestamp.now(),
- 55:     };
- 56: 
- 57:     const docRef = await addDoc(this.tasksCollection, firebaseTask);
- 58:     return docRef.id;
- 59:   }
- 60: 
- 61:   static async createMultipleTasks(
- 62:     tasks: ScheduledTask[],
- 63:     userId: string
- 64:   ): Promise<string[]> {
- 65:     const promises = tasks.map((task) => this.createTask(task, userId));
- 66:     const taskIds = await Promise.all(promises);
- 67: 
- 68:     return taskIds;
- 69:   }
- 70: 
- 71:   static subscribeToUserTasks(
- 72:     userId: string,
- 73:     callback: (tasks: ScheduledTask[]) => void,
- 74:     errorCallback: (error: Error) => void
- 75:   ) {
- 76:     const q = query(
- 77:       this.tasksCollection,
- 78:       where("userId", "==", userId),
- 79:       where("status", "==", "pending"),
- 80:       orderBy("dueDate", "asc")
- 81:     );
- 82: 
- 83:     return onSnapshot(
- 84:       q,
- 85:       (snapshot) => {
- 86:         const tasks: ScheduledTask[] = snapshot.docs.map((doc) => {
- 87:           const data = doc.data() as FirebaseScheduledTask;
- 88:           return {
- 89:             id: doc.id,
- 90:             plantId: data.plantId,
- 91:             taskName: data.taskName,
- 92:             taskType: data.taskType as ScheduledTask["taskType"],
- 93:             details: data.details as ScheduledTask["details"],
- 94:             dueDate: data.dueDate.toDate(),
- 95:             status: data.status as ScheduledTask["status"],
- 96:             sourceProtocol:
- 97:               data.sourceProtocol as ScheduledTask["sourceProtocol"],
- 98:             createdAt: data.createdAt.toDate(),
- 99:             updatedAt: data.updatedAt.toDate(),
-100:           };
-101:         });
-102:         callback(tasks);
-103:       },
-104:       (error) => {
-105: 
-106:         console.error("❌ Error subscribing to tasks:", error);
-107:         errorCallback(error);
-108:       }
-109:     );
-110:   }
-111: }
+  9:   writeBatch,
+ 10:   getDocs,
+ 11: } from "firebase/firestore";
+ 12: import { db } from "./config";
+ 13: import { ScheduledTask } from "../ProtocolTranspilerService";
+ 14: 
+ 15: export interface FirebaseScheduledTask {
+ 16:   id?: string;
+ 17:   userId: string;
+ 18:   plantId: string;
+ 19:   taskName: string;
+ 20:   taskType: string;
+ 21:   details: {
+ 22:     type: string;
+ 23:     product: string;
+ 24:     dilution: string;
+ 25:     amount: string;
+ 26:     method: string;
+ 27:   };
+ 28:   dueDate: Timestamp;
+ 29:   status: string;
+ 30:   sourceProtocol: {
+ 31:     stage: string;
+ 32:     originalStartDays: number;
+ 33:     isDynamic: boolean;
+ 34:   };
+ 35:   createdAt: Timestamp;
+ 36:   updatedAt: Timestamp;
+ 37: }
+ 38: 
+ 39: export class FirebaseScheduledTaskService {
+ 40:   private static tasksCollection = collection(db, "scheduledTasks");
+ 41: 
+ 42:   static async createTask(
+ 43:     task: ScheduledTask,
+ 44:     userId: string
+ 45:   ): Promise<string> {
+ 46:     const firebaseTask: Omit<FirebaseScheduledTask, "id"> = {
+ 47:       userId,
+ 48:       plantId: task.plantId,
+ 49:       taskName: task.taskName,
+ 50:       taskType: task.taskType,
+ 51:       details: task.details,
+ 52:       dueDate: Timestamp.fromDate(task.dueDate),
+ 53:       status: task.status,
+ 54:       sourceProtocol: task.sourceProtocol,
+ 55:       createdAt: Timestamp.now(),
+ 56:       updatedAt: Timestamp.now(),
+ 57:     };
+ 58: 
+ 59:     const docRef = await addDoc(this.tasksCollection, firebaseTask);
+ 60:     return docRef.id;
+ 61:   }
+ 62: 
+ 63:   static async createMultipleTasks(
+ 64:     tasks: ScheduledTask[],
+ 65:     userId: string
+ 66:   ): Promise<string[]> {
+ 67:     const promises = tasks.map((task) => this.createTask(task, userId));
+ 68:     const taskIds = await Promise.all(promises);
+ 69: 
+ 70:     return taskIds;
+ 71:   }
+ 72: 
+ 73:   static subscribeToUserTasks(
+ 74:     userId: string,
+ 75:     callback: (tasks: ScheduledTask[]) => void,
+ 76:     errorCallback: (error: Error) => void
+ 77:   ) {
+ 78:     const q = query(
+ 79:       this.tasksCollection,
+ 80:       where("userId", "==", userId),
+ 81:       where("status", "==", "pending"),
+ 82:       orderBy("dueDate", "asc")
+ 83:     );
+ 84: 
+ 85:     return onSnapshot(
+ 86:       q,
+ 87:       (snapshot) => {
+ 88:         const tasks: ScheduledTask[] = snapshot.docs.map((doc) => {
+ 89:           const data = doc.data() as FirebaseScheduledTask;
+ 90:           return {
+ 91:             id: doc.id,
+ 92:             plantId: data.plantId,
+ 93:             taskName: data.taskName,
+ 94:             taskType: data.taskType as ScheduledTask["taskType"],
+ 95:             details: data.details as ScheduledTask["details"],
+ 96:             dueDate: data.dueDate.toDate(),
+ 97:             status: data.status as ScheduledTask["status"],
+ 98:             sourceProtocol:
+ 99:               data.sourceProtocol as ScheduledTask["sourceProtocol"],
+100:             createdAt: data.createdAt.toDate(),
+101:             updatedAt: data.updatedAt.toDate(),
+102:           };
+103:         });
+104:         callback(tasks);
+105:       },
+106:       (error) => {
+107: 
+108:         console.error("❌ Error subscribing to tasks:", error);
+109:         errorCallback(error);
+110:       }
+111:     );
+112:   }
+113:   static async deletePendingTasksForPlant(plantId: string): Promise<void> {
+114:     try {
+115:       const q = query(
+116:         this.tasksCollection,
+117:         where("plantId", "==", plantId),
+118:         where("status", "==", "pending")
+119:       );
+120: 
+121:       const querySnapshot = await getDocs(q);
+122:       if (querySnapshot.empty) {
+123:         return;
+124:       }
+125: 
+126:       const batch = writeBatch(db);
+127:       querySnapshot.forEach((doc) => {
+128:         batch.delete(doc.ref);
+129:       });
+130: 
+131:       await batch.commit();
+132:       console.log(
+133:         `🗑️ Deleted ${querySnapshot.size} pending tasks for plant ${plantId}.`
+134:       );
+135:     } catch (error) {
+136:       console.error(
+137:         `❌ Failed to delete pending tasks for plant ${plantId}:`,
+138:         error
+139:       );
+140: 
+141: 
+142:       throw error;
+143:     }
+144:   }
+145: }
 
 ================
 File: src/services/dynamicSchedulingService.ts
@@ -3888,140 +4412,198 @@ File: src/services/ProtocolTranspilerService.ts
   4:   GrowthStage,
   5:   CareActivityType,
   6:   FertilizationScheduleItem,
-  7: } from "@/types";
-  8: 
-  9: export interface ScheduledTask {
- 10:   id: string;
- 11:   plantId: string;
- 12:   taskName: string;
- 13:   taskType: CareActivityType;
- 14:   details: {
- 15:     type: "fertilize";
- 16:     product: string;
- 17:     dilution: string;
- 18:     amount: string;
- 19:     method: "soil-drench" | "foliar-spray" | "top-dress" | "mix-in-soil";
- 20:   };
- 21:   dueDate: Date;
- 22:   status: "pending" | "completed" | "skipped" | "bypassed";
- 23:   sourceProtocol: {
- 24:     stage: GrowthStage;
- 25:     originalStartDays: number;
- 26:     isDynamic: boolean;
- 27:   };
- 28:   coordinatedWith?: string[];
- 29:   priority?: "low" | "normal" | "high" | "critical";
- 30:   createdAt: Date;
- 31:   updatedAt: Date;
- 32: }
- 33: 
- 34: export class ProtocolTranspilerService {
+  7:   GrowthTimeline,
+  8: } from "@/types";
+  9: 
+ 10: export interface ScheduledTask {
+ 11:   id: string;
+ 12:   plantId: string;
+ 13:   taskName: string;
+ 14:   taskType: CareActivityType;
+ 15:   details: {
+ 16:     type: "fertilize";
+ 17:     product: string;
+ 18:     dilution: string;
+ 19:     amount: string;
+ 20:     method: "soil-drench" | "foliar-spray" | "top-dress" | "mix-in-soil";
+ 21:   };
+ 22:   dueDate: Date;
+ 23:   status: "pending" | "completed" | "skipped" | "bypassed";
+ 24:   sourceProtocol: {
+ 25:     stage: GrowthStage;
+ 26:     originalStartDays: number;
+ 27:     isDynamic: boolean;
+ 28:   };
+ 29:   coordinatedWith?: string[];
+ 30:   priority?: "low" | "normal" | "high" | "critical";
+ 31:   createdAt: Date;
+ 32:   updatedAt: Date;
+ 33: }
+ 34: 
  35: 
- 36: 
- 37: 
- 38:   static async transpilePlantProtocol(
- 39:     plant: PlantRecord,
- 40:     variety: VarietyRecord
- 41:   ): Promise<ScheduledTask[]> {
- 42:     const tasks: ScheduledTask[] = [];
- 43:     const plantedDate = new Date(plant.plantedDate);
- 44: 
- 45:     if (!variety.protocols?.fertilization) {
- 46:       return tasks;
- 47:     }
- 48: 
- 49: 
- 50:     for (const [stageName, stageProtocol] of Object.entries(
- 51:       variety.protocols.fertilization
- 52:     )) {
- 53:       const stageStartDays = this.calculateStageStartDays(
- 54:         variety.growthTimeline,
- 55:         stageName as GrowthStage
- 56:       );
- 57: 
+ 36: const STAGE_ORDER: GrowthStage[] = [
+ 37:   "germination",
+ 38:   "seedling",
+ 39:   "vegetative",
+ 40:   "flowering",
+ 41:   "fruiting",
+ 42:   "maturation",
+ 43:   "ongoing-production",
+ 44:   "harvest",
+ 45: ];
+ 46: 
+ 47: export class ProtocolTranspilerService {
+ 48:   static async transpileProtocolFromStage(
+ 49:     plant: PlantRecord,
+ 50:     variety: VarietyRecord,
+ 51:     startStage: GrowthStage,
+ 52:     anchorDate: Date = new Date()
+ 53:   ): Promise<ScheduledTask[]> {
+ 54:     const tasks: ScheduledTask[] = [];
+ 55:     if (!variety.protocols?.fertilization) {
+ 56:       return tasks;
+ 57:     }
  58: 
- 59:       for (const scheduleItem of stageProtocol.schedule || []) {
- 60:         const taskInstances = this.createTaskInstances(
- 61:           plant,
- 62:           stageName as GrowthStage,
- 63:           scheduleItem,
- 64:           plantedDate,
- 65:           stageStartDays
- 66:         );
- 67:         tasks.push(...taskInstances);
- 68:       }
- 69:     }
+ 59:     const startStageIndex = STAGE_ORDER.indexOf(startStage);
+ 60:     if (startStageIndex === -1) {
+ 61:       console.error(`Invalid start stage provided: ${startStage}`);
+ 62:       return [];
+ 63:     }
+ 64: 
+ 65:     const anchorStageStartDays = this.calculateStageStartDays(
+ 66:       variety.growthTimeline,
+ 67:       startStage
+ 68:     );
+ 69: 
  70: 
- 71:     return tasks;
- 72:   }
- 73: 
+ 71:     for (let i = startStageIndex; i < STAGE_ORDER.length; i++) {
+ 72:       const currentStage = STAGE_ORDER[i];
+ 73:       const stageProtocol = variety.protocols.fertilization[currentStage];
  74: 
- 75: 
- 76: 
- 77:   private static calculateStageStartDays(
- 78:     growthTimeline: any,
- 79:     stageName: string
- 80:   ): number {
- 81: 
- 82:     if (growthTimeline[stageName] !== undefined) {
- 83:       return growthTimeline[stageName];
- 84:     }
- 85: 
- 86:     console.warn(`Stage '${stageName}' not found in growth timeline`);
- 87:     return 0;
- 88:   }
- 89: 
- 90: 
- 91: 
- 92: 
- 93:   private static createTaskInstances(
- 94:     plant: PlantRecord,
- 95:     stage: GrowthStage,
- 96:     scheduleItem: FertilizationScheduleItem,
- 97:     plantedDate: Date,
- 98:     stageStartDays: number
- 99:   ): ScheduledTask[] {
-100:     const tasks: ScheduledTask[] = [];
-101:     const absoluteStartDays = stageStartDays + scheduleItem.startDays;
-102: 
-103:     for (let i = 0; i < scheduleItem.repeatCount; i++) {
-104:       const dueDate = new Date(plantedDate);
-105:       dueDate.setDate(
-106:         dueDate.getDate() + absoluteStartDays + i * scheduleItem.frequencyDays
-107:       );
-108: 
-109:       const taskId = `${plant.id}-${stage}-${scheduleItem.taskName
-110:         .replace(/\s+/g, "-")
-111:         .toLowerCase()}-${i}`;
-112: 
-113:       tasks.push({
-114:         id: taskId,
-115:         plantId: plant.id,
-116:         taskName: scheduleItem.taskName,
-117:         taskType: "fertilize",
-118:         details: {
-119:           type: "fertilize",
-120:           product: scheduleItem.details.product,
-121:           dilution: scheduleItem.details.dilution || "As directed",
-122:           amount: scheduleItem.details.amount || "Apply as needed",
-123:           method: scheduleItem.details.method || "soil-drench",
-124:         },
-125:         dueDate,
-126:         status: "pending",
-127:         sourceProtocol: {
-128:           stage,
-129:           originalStartDays: scheduleItem.startDays,
-130:           isDynamic: false,
-131:         },
-132:         priority: "normal",
-133:         createdAt: new Date(),
-134:         updatedAt: new Date(),
-135:       });
-136:     }
-137: 
-138:     return tasks;
-139:   }
-140: }
+ 75:       if (!stageProtocol || !stageProtocol.schedule) {
+ 76:         continue;
+ 77:       }
+ 78: 
+ 79:       const stageStartDays = this.calculateStageStartDays(
+ 80:         variety.growthTimeline,
+ 81:         currentStage
+ 82:       );
+ 83: 
+ 84: 
+ 85:       const daysFromAnchor = stageStartDays - anchorStageStartDays;
+ 86: 
+ 87:       for (const scheduleItem of stageProtocol.schedule) {
+ 88:         const taskInstances = this.createTaskInstances(
+ 89:           plant,
+ 90:           currentStage,
+ 91:           scheduleItem,
+ 92:           anchorDate,
+ 93:           daysFromAnchor
+ 94:         );
+ 95:         tasks.push(...taskInstances);
+ 96:       }
+ 97:     }
+ 98: 
+ 99:     return tasks;
+100:   }
+101: 
+102:   static async transpilePlantProtocol(
+103:     plant: PlantRecord,
+104:     variety: VarietyRecord
+105:   ): Promise<ScheduledTask[]> {
+106:     return this.transpileProtocolFromStage(
+107:       plant,
+108:       variety,
+109:       "germination",
+110:       plant.plantedDate
+111:     );
+112:   }
+113:   private static calculateStageStartDays(
+114:     growthTimeline: GrowthTimeline,
+115:     stageName: GrowthStage
+116:   ): number {
+117:     switch (stageName) {
+118:       case "germination":
+119:         return 0;
+120:       case "seedling":
+121:         return growthTimeline.germination;
+122:       case "vegetative":
+123:         return growthTimeline.germination + growthTimeline.seedling;
+124:       case "flowering":
+125:         return (
+126:           growthTimeline.germination +
+127:           growthTimeline.seedling +
+128:           growthTimeline.vegetative
+129:         );
+130:       case "fruiting":
+131:       case "maturation":
+132:       case "ongoing-production":
+133:       case "harvest":
+134:         return growthTimeline.maturation;
+135:       default:
+136:         console.warn(
+137:           `Unknown stage name: ${stageName} in calculateStageStartDays`
+138:         );
+139:         return 0;
+140:     }
+141:   }
+142: 
+143: 
+144: 
+145: 
+146:   private static createTaskInstances(
+147:     plant: PlantRecord,
+148:     stage: GrowthStage,
+149:     scheduleItem: FertilizationScheduleItem,
+150:     anchorDate: Date,
+151:     stageStartDays: number
+152:   ): ScheduledTask[] {
+153:     const tasks: ScheduledTask[] = [];
+154:     const absoluteStartDays = stageStartDays + scheduleItem.startDays;
+155: 
+156:     for (let i = 0; i < scheduleItem.repeatCount; i++) {
+157:       const dueDate = new Date(anchorDate);
+158:       dueDate.setDate(
+159:         dueDate.getDate() + absoluteStartDays + i * scheduleItem.frequencyDays
+160:       );
+161: 
+162: 
+163:       if (dueDate < new Date()) {
+164:         continue;
+165:       }
+166: 
+167:       const taskId = `${plant.id}-${stage}-${scheduleItem.taskName
+168:         .replace(/\s+/g, "-")
+169:         .toLowerCase()}-${i}-${new Date().getTime()}`;
+170: 
+171:       tasks.push({
+172:         id: taskId,
+173:         plantId: plant.id,
+174:         taskName: scheduleItem.taskName,
+175:         taskType: "fertilize",
+176:         details: {
+177:           type: "fertilize",
+178:           product: scheduleItem.details.product,
+179:           dilution: scheduleItem.details.dilution || "As directed",
+180:           amount: scheduleItem.details.amount || "Apply as needed",
+181:           method: scheduleItem.details.method || "soil-drench",
+182:         },
+183:         dueDate,
+184:         status: "pending",
+185:         sourceProtocol: {
+186:           stage,
+187:           originalStartDays: scheduleItem.startDays,
+188:           isDynamic: true,
+189:         },
+190:         priority: "normal",
+191:         createdAt: new Date(),
+192:         updatedAt: new Date(),
+193:       });
+194:     }
+195: 
+196:     return tasks;
+197:   }
+198: }
 
 ================
 File: src/types/protocols.ts
@@ -7683,164 +8265,6 @@ File: src/services/firebase/config.ts
 35: }
 
 ================
-File: src/services/firebase/plantService.ts
-================
-  1: import {
-  2:   collection,
-  3:   doc,
-  4:   addDoc,
-  5:   updateDoc,
-  6:   onSnapshot,
-  7:   query,
-  8:   where,
-  9:   orderBy,
- 10:   Timestamp,
- 11:   writeBatch,
- 12:   serverTimestamp,
- 13: } from "firebase/firestore";
- 14: import { db } from "./config";
- 15: import {
- 16:   FirebasePlantRecord,
- 17:   convertPlantToFirebase,
- 18:   convertPlantFromFirebase,
- 19: } from "../../types/firebase";
- 20: import { PlantRecord, varietyService } from "../../types/database";
- 21: import { ProtocolTranspilerService } from "../ProtocolTranspilerService";
- 22: import { FirebaseScheduledTaskService } from "./scheduledTaskService";
- 23: 
- 24: export class FirebasePlantService {
- 25:   private static plantsCollection = collection(db, "plants");
- 26: 
- 27:   static async updatePlant(
- 28:     plantId: string,
- 29:     updates: Partial<PlantRecord>
- 30:   ): Promise<void> {
- 31:     const plantRef = doc(this.plantsCollection, plantId);
- 32:     const firebaseUpdates = {
- 33:       ...updates,
- 34:       updatedAt: serverTimestamp(),
- 35:       ...(updates.plantedDate && {
- 36:         plantedDate: Timestamp.fromDate(updates.plantedDate),
- 37:       }),
- 38:     };
- 39: 
- 40:     await updateDoc(plantRef, firebaseUpdates);
- 41:   }
- 42: 
- 43:   static async deletePlant(plantId: string): Promise<void> {
- 44: 
- 45:     await this.updatePlant(plantId, { isActive: false });
- 46:   }
- 47: 
- 48:   static async hardDeletePlant(plantId: string): Promise<void> {
- 49:     const batch = writeBatch(db);
- 50: 
- 51: 
- 52:     const plantRef = doc(this.plantsCollection, plantId);
- 53:     batch.delete(plantRef);
- 54: 
- 55: 
- 56:     await batch.commit();
- 57:   }
- 58: 
- 59:   static subscribeToPlantsChanges(
- 60:     userId: string,
- 61:     callback: (plants: PlantRecord[]) => void,
- 62:     options?: { includeInactive?: boolean }
- 63:   ): () => void {
- 64:     const constraints = [
- 65:       where("userId", "==", userId),
- 66:       orderBy("createdAt", "desc"),
- 67:     ];
- 68: 
- 69:     if (!options?.includeInactive) {
- 70:       constraints.push(where("isActive", "==", true));
- 71:     }
- 72: 
- 73:     const plantsQuery = query(this.plantsCollection, ...constraints);
- 74: 
- 75:     return onSnapshot(plantsQuery, (snapshot) => {
- 76:       const plants = snapshot.docs.map((doc) => {
- 77:         const data = doc.data() as FirebasePlantRecord;
- 78:         return convertPlantFromFirebase({ ...data, id: doc.id });
- 79:       });
- 80:       callback(plants);
- 81:     });
- 82:   }
- 83: 
- 84:   static async getPlant(plantId: string): Promise<PlantRecord | null> {
- 85:     return new Promise((resolve) => {
- 86:       const plantRef = doc(this.plantsCollection, plantId);
- 87:       const unsubscribe = onSnapshot(plantRef, (doc) => {
- 88:         if (doc.exists()) {
- 89:           const data = doc.data() as FirebasePlantRecord;
- 90:           resolve(convertPlantFromFirebase({ ...data, id: doc.id }));
- 91:         } else {
- 92:           resolve(null);
- 93:         }
- 94:         unsubscribe();
- 95:       });
- 96:     });
- 97:   }
- 98: 
- 99:   static async createPlant(
-100:     plant: Omit<PlantRecord, "id" | "createdAt" | "updatedAt">,
-101:     userId: string
-102:   ): Promise<string> {
-103:     try {
-104: 
-105:       const plantWithDates: PlantRecord = {
-106:         ...plant,
-107:         id: "",
-108:         userId,
-109:         createdAt: new Date(),
-110:         updatedAt: new Date(),
-111:       };
-112:       const firebasePlantData = convertPlantToFirebase(plantWithDates, userId);
-113:       const docRef = await addDoc(collection(db, "plants"), firebasePlantData);
-114: 
-115:       const variety = await varietyService.getVariety(plant.varietyId);
-116: 
-117:       if (!variety) {
-118:         console.error("❌ Variety not found:", plant.varietyId);
-119:         return docRef.id;
-120:       }
-121: 
-122:       if (variety.protocols?.fertilization) {
-123:         const fullPlant: PlantRecord = {
-124:           ...plantWithDates,
-125:           id: docRef.id,
-126:         };
-127: 
-128:         const scheduledTasks =
-129:           await ProtocolTranspilerService.transpilePlantProtocol(
-130:             fullPlant,
-131:             variety
-132:           );
-133: 
-134: 
-135:         if (scheduledTasks.length > 0) {
-136: 
-137:           await FirebaseScheduledTaskService.createMultipleTasks(
-138:             scheduledTasks,
-139:             userId
-140:           );
-141:         } else {
-142:           console.log("⚠️ No tasks generated");
-143:         }
-144:       } else {
-145:         console.log("⚠️ No fertilization protocols found for variety");
-146:       }
-147: 
-148:       return docRef.id;
-149:     } catch (error) {
-150:       console.error("❌ Error creating plant:", error);
-151:       throw error;
-152:     }
-153:   }
-154: }
-
-================
 File: src/services/bulkActivityService.ts
 ================
  1: import { CareActivityType } from "@/types";
@@ -8405,47 +8829,6 @@ File: firestore.indexes.json
 45:   ],
 46:   "fieldOverrides": []
 47: }
-
-================
-File: firestore.rules
-================
- 1: rules_version = '2';
- 2: 
- 3: service cloud.firestore {
- 4:   match /databases/{database}/documents {
- 5: 
- 6:     // Helper function to check ownership
- 7:     function isOwner(userId) {
- 8:       return request.auth != null && request.auth.uid == userId;
- 9:     }
-10: 
-11:     // Plants - users can only access their own plants
-12:     match /plants/{plantId} {
-13:       // Allow creation if the new document's userId matches the requester's UID.
-14:       allow create: if isOwner(request.resource.data.userId);
-15: 
-16:       // Allow read, update, and delete if the user owns the existing document.
-17:       allow read, update, delete: if isOwner(resource.data.userId);
-18:     }
-19:     
-20:     // Varieties - all authenticated users can read and write
-21:     match /varieties/{varietyId} {
-22:       allow read, write: if request.auth != null;
-23:     }
-24:     
-25:     // Care Activities - users can only access their own activities
-26:     match /careActivities/{activityId} {
-27:       allow create: if isOwner(request.resource.data.userId);
-28:       allow read, update, delete: if isOwner(resource.data.userId);
-29:     }
-30:     
-31:     // Scheduled Tasks - users can only access their own tasks
-32:     match /scheduledTasks/{taskId} {
-33:       allow create: if isOwner(request.resource.data.userId);
-34:       allow read, update, delete: if isOwner(resource.data.userId);
-35:     }
-36:   }
-37: }
 
 ================
 File: index.html
@@ -11582,60 +11965,51 @@ File: src/hooks/useDynamicStage.ts
  9: 
 10:   useEffect(() => {
 11:     const calculateStage = async () => {
-12:       try {
-13: 
-14: 
-15: 
-16: 
-17: 
+12:       if (!plant?.varietyId) {
+13:         setCalculatedStage("germination");
+14:         return;
+15:       }
+16:       try {
+17:         const variety = await varietyService.getVariety(plant.varietyId);
 18: 
-19: 
+19:         if (!variety) {
 20: 
-21: 
-22: 
-23:         const variety = await varietyService.getVariety(plant.varietyId);
-24: 
-25:         if (!variety) {
-26: 
-27:           const allVarieties = await varietyService.getAllVarieties();
+21:           console.warn(
+22:             `Variety with id ${plant.varietyId} not found. Defaulting stage.`
+23:           );
+24:           setCalculatedStage("vegetative");
+25:           return;
+26:         }
+27: 
 28: 
-29:           const varietyByName = allVarieties.find(
-30:             (v) => v.name === plant.varietyName
-31:           );
-32: 
-33:           if (varietyByName) {
-34:             const stage = calculateCurrentStageWithVariety(
-35:               plant.plantedDate,
-36:               varietyByName
-37:             );
-38:             setCalculatedStage(stage);
-39:             return;
-40:           }
-41:           setCalculatedStage("germination");
-42:           return;
-43:         }
-44: 
-45:         const stage = calculateCurrentStageWithVariety(
-46:           plant.plantedDate,
-47:           variety
-48:         );
-49:         setCalculatedStage(stage);
-50:       } catch (error) {
-51:         console.error("❌ Error calculating stage:", error);
-52:         setCalculatedStage("germination");
-53:       }
-54:     };
-55: 
-56:     calculateStage();
-57:   }, [
-58:     plant.varietyId,
-59:     plant.plantedDate,
-60:     plant.varietyName,
-61: 
-62:   ]);
-63: 
-64:   return calculatedStage;
-65: }
+29: 
+30:         if (plant.confirmedStage && plant.stageConfirmedDate) {
+31:           const stage = calculateCurrentStageWithVariety(
+32:             plant.stageConfirmedDate,
+33:             variety,
+34:             new Date(),
+35:             plant.confirmedStage
+36:           );
+37:           setCalculatedStage(stage);
+38:         } else {
+39: 
+40:           const stage = calculateCurrentStageWithVariety(
+41:             plant.plantedDate,
+42:             variety
+43:           );
+44:           setCalculatedStage(stage);
+45:         }
+46:       } catch (error) {
+47:         console.error("❌ Error calculating stage:", error);
+48:         setCalculatedStage("germination");
+49:       }
+50:     };
+51: 
+52:     calculateStage();
+53:   }, [plant]);
+54: 
+55:   return calculatedStage;
+56: }
 
 ================
 File: src/pages/care/QuickCompletionButtons.tsx
@@ -11724,6 +12098,164 @@ File: src/pages/care/QuickCompletionButtons.tsx
 82: };
 83: 
 84: export default QuickCompletionButtons;
+
+================
+File: src/services/firebase/plantService.ts
+================
+  1: import {
+  2:   collection,
+  3:   doc,
+  4:   addDoc,
+  5:   updateDoc,
+  6:   onSnapshot,
+  7:   query,
+  8:   where,
+  9:   orderBy,
+ 10:   Timestamp,
+ 11:   writeBatch,
+ 12:   serverTimestamp,
+ 13: } from "firebase/firestore";
+ 14: import { db } from "./config";
+ 15: import {
+ 16:   FirebasePlantRecord,
+ 17:   convertPlantToFirebase,
+ 18:   convertPlantFromFirebase,
+ 19: } from "../../types/firebase";
+ 20: import { PlantRecord, varietyService } from "../../types/database";
+ 21: import { ProtocolTranspilerService } from "../ProtocolTranspilerService";
+ 22: import { FirebaseScheduledTaskService } from "./scheduledTaskService";
+ 23: 
+ 24: export class FirebasePlantService {
+ 25:   private static plantsCollection = collection(db, "plants");
+ 26: 
+ 27:   static async updatePlant(
+ 28:     plantId: string,
+ 29:     updates: Partial<PlantRecord>
+ 30:   ): Promise<void> {
+ 31:     const plantRef = doc(this.plantsCollection, plantId);
+ 32:     const firebaseUpdates = {
+ 33:       ...updates,
+ 34:       updatedAt: serverTimestamp(),
+ 35:       ...(updates.plantedDate && {
+ 36:         plantedDate: Timestamp.fromDate(updates.plantedDate),
+ 37:       }),
+ 38:     };
+ 39: 
+ 40:     await updateDoc(plantRef, firebaseUpdates);
+ 41:   }
+ 42: 
+ 43:   static async deletePlant(plantId: string): Promise<void> {
+ 44: 
+ 45:     await this.updatePlant(plantId, { isActive: false });
+ 46:   }
+ 47: 
+ 48:   static async hardDeletePlant(plantId: string): Promise<void> {
+ 49:     const batch = writeBatch(db);
+ 50: 
+ 51: 
+ 52:     const plantRef = doc(this.plantsCollection, plantId);
+ 53:     batch.delete(plantRef);
+ 54: 
+ 55: 
+ 56:     await batch.commit();
+ 57:   }
+ 58: 
+ 59:   static subscribeToPlantsChanges(
+ 60:     userId: string,
+ 61:     callback: (plants: PlantRecord[]) => void,
+ 62:     options?: { includeInactive?: boolean }
+ 63:   ): () => void {
+ 64:     const constraints = [
+ 65:       where("userId", "==", userId),
+ 66:       orderBy("createdAt", "desc"),
+ 67:     ];
+ 68: 
+ 69:     if (!options?.includeInactive) {
+ 70:       constraints.push(where("isActive", "==", true));
+ 71:     }
+ 72: 
+ 73:     const plantsQuery = query(this.plantsCollection, ...constraints);
+ 74: 
+ 75:     return onSnapshot(plantsQuery, (snapshot) => {
+ 76:       const plants = snapshot.docs.map((doc) => {
+ 77:         const data = doc.data() as FirebasePlantRecord;
+ 78:         return convertPlantFromFirebase({ ...data, id: doc.id });
+ 79:       });
+ 80:       callback(plants);
+ 81:     });
+ 82:   }
+ 83: 
+ 84:   static async getPlant(plantId: string): Promise<PlantRecord | null> {
+ 85:     return new Promise((resolve) => {
+ 86:       const plantRef = doc(this.plantsCollection, plantId);
+ 87:       const unsubscribe = onSnapshot(plantRef, (doc) => {
+ 88:         if (doc.exists()) {
+ 89:           const data = doc.data() as FirebasePlantRecord;
+ 90:           resolve(convertPlantFromFirebase({ ...data, id: doc.id }));
+ 91:         } else {
+ 92:           resolve(null);
+ 93:         }
+ 94:         unsubscribe();
+ 95:       });
+ 96:     });
+ 97:   }
+ 98: 
+ 99:   static async createPlant(
+100:     plant: Omit<PlantRecord, "id" | "createdAt" | "updatedAt">,
+101:     userId: string
+102:   ): Promise<string> {
+103:     try {
+104: 
+105:       const plantWithDates: PlantRecord = {
+106:         ...plant,
+107:         id: "",
+108:         userId,
+109:         createdAt: new Date(),
+110:         updatedAt: new Date(),
+111:       };
+112:       const firebasePlantData = convertPlantToFirebase(plantWithDates, userId);
+113:       const docRef = await addDoc(collection(db, "plants"), firebasePlantData);
+114: 
+115:       const variety = await varietyService.getVariety(plant.varietyId);
+116: 
+117:       if (!variety) {
+118:         console.error("❌ Variety not found:", plant.varietyId);
+119:         return docRef.id;
+120:       }
+121: 
+122:       if (variety.protocols?.fertilization) {
+123:         const fullPlant: PlantRecord = {
+124:           ...plantWithDates,
+125:           id: docRef.id,
+126:         };
+127: 
+128:         const scheduledTasks =
+129:           await ProtocolTranspilerService.transpilePlantProtocol(
+130:             fullPlant,
+131:             variety
+132:           );
+133: 
+134: 
+135:         if (scheduledTasks.length > 0) {
+136: 
+137:           await FirebaseScheduledTaskService.createMultipleTasks(
+138:             scheduledTasks,
+139:             userId
+140:           );
+141:         } else {
+142:           console.log("⚠️ No tasks generated");
+143:         }
+144:       } else {
+145:         console.log("⚠️ No fertilization protocols found for variety");
+146:       }
+147: 
+148:       return docRef.id;
+149:     } catch (error) {
+150:       console.error("❌ Error creating plant:", error);
+151:       throw error;
+152:     }
+153:   }
+154: }
 
 ================
 File: src/types/core.ts
@@ -11870,6 +12402,47 @@ File: src/App.css
 41: .read-the-docs {
 42:   color: #888;
 43: }
+
+================
+File: firestore.rules
+================
+ 1: rules_version = '2';
+ 2: 
+ 3: service cloud.firestore {
+ 4:   match /databases/{database}/documents {
+ 5: 
+ 6:     // Helper function to check ownership
+ 7:     function isOwner(userId) {
+ 8:       return request.auth != null && request.auth.uid == userId;
+ 9:     }
+10: 
+11:     // Plants - users can only access their own plants
+12:     match /plants/{plantId} {
+13:       // Allow creation if the new document's userId matches the requester's UID.
+14:       allow create: if isOwner(request.resource.data.userId);
+15: 
+16:       // Allow read, update, and delete if the user owns the existing document.
+17:       allow read, update, delete: if isOwner(resource.data.userId);
+18:     }
+19:     
+20:     // Varieties - all authenticated users can read and write
+21:     match /varieties/{varietyId} {
+22:       allow read, write: if request.auth != null;
+23:     }
+24:     
+25:     // Care Activities - users can only access their own activities
+26:     match /careActivities/{activityId} {
+27:       allow create: if isOwner(request.resource.data.userId);
+28:       allow read, update, delete: if isOwner(resource.data.userId);
+29:     }
+30:     
+31:     // Scheduled Tasks - users can only access their own tasks
+32:     match /scheduledTasks/{taskId} {
+33:       allow create: if isOwner(request.resource.data.userId);
+34:       allow read, update, delete: if isOwner(resource.data.userId);
+35:     }
+36:   }
+37: }
 
 ================
 File: tsconfig.json
@@ -15942,708 +16515,132 @@ File: src/__tests__/components/PlantRegistrationForm.test.tsx
 File: src/__tests__/services/careSchedulingService.test.ts
 ================
   1: import { CareSchedulingService } from "@/services/careSchedulingService";
-  2: import { plantService, varietyService, careService } from "@/types/database";
-  3: import { initializeDatabase } from "@/db/seedData";
-  4: import { subDays } from "date-fns";
-  5: import { mockDate, restoreDate } from "../../setupTests";
-  6: 
-  7: describe("CareSchedulingService", () => {
-  8:   beforeEach(async () => {
-  9:     const { db } = await import("@/types/database");
- 10:     await db.plants.clear();
- 11:     await db.varieties.clear();
- 12:     await db.careActivities.clear();
- 13:     await initializeDatabase();
- 14:   });
- 15: 
- 16:   afterEach(() => {
- 17:     restoreDate();
- 18:   });
- 19: 
- 20:   describe("Reminder Filtering", () => {
- 21:     it("filters tasks based on reminder preferences", async () => {
- 22: 
- 23:       const varieties = await varietyService.getAllVarieties();
- 24:       const testVariety = varieties[0];
+  2: import { plantService, varietyService, VarietyRecord } from "@/types/database";
+  3: 
+  4: import {
+  5:   initializeDatabase,
+  6:   resetDatabaseInitializationFlag,
+  7: } from "../../db/seedData";
+  8: import { subDays } from "date-fns";
+  9: import { restoreDate } from "../../setupTests";
+ 10: import { useFirebasePlants } from "@/hooks/useFirebasePlants";
+ 11: 
+ 12: describe("CareSchedulingService", () => {
+ 13:   let testVariety: VarietyRecord;
+ 14: 
+ 15:   beforeEach(async () => {
+ 16: 
+ 17:     resetDatabaseInitializationFlag();
+ 18: 
+ 19:     (useFirebasePlants as jest.Mock).mockClear();
+ 20: 
+ 21:     const { db } = await import("@/types/database");
+ 22:     await db.plants.clear();
+ 23:     await db.varieties.clear();
+ 24:     await initializeDatabase();
  25: 
  26: 
- 27: 
- 28:       const plantWithSelectiveReminders = await plantService.addPlant({
- 29:         varietyId: testVariety.id,
- 30:         varietyName: testVariety.name,
- 31:         plantedDate: subDays(new Date(), 10),
- 32:         location: "Indoor",
- 33:         container: "4 inch pot",
- 34:         isActive: true,
- 35:         reminderPreferences: {
- 36:           watering: false,
- 37:           fertilizing: true,
- 38:           observation: true,
- 39:           lighting: false,
- 40:           pruning: true,
- 41:         },
- 42:       });
- 43: 
- 44:       const tasks = await CareSchedulingService.getUpcomingTasks();
- 45: 
- 46: 
- 47:       const plantTasks = tasks.filter(
- 48:         (task) => task.plantId === plantWithSelectiveReminders
- 49:       );
- 50: 
- 51: 
- 52:       const wateringTasks = plantTasks.filter(
- 53:         (task) =>
- 54:           task.task.toLowerCase().includes("water") ||
- 55:           task.task === "Check water level"
- 56:       );
+ 27:     const variety = await varietyService.getVarietyByName("Astro Arugula");
+ 28:     if (!variety) {
+ 29:       throw new Error(
+ 30:         "Test setup failed: Could not find 'Astro Arugula' seed variety."
+ 31:       );
+ 32:     }
+ 33:     testVariety = variety;
+ 34:   });
+ 35: 
+ 36:   afterEach(() => {
+ 37:     restoreDate();
+ 38:   });
+ 39: 
+ 40:   describe("Reminder Filtering", () => {
+ 41:     it("filters tasks based on reminder preferences", async () => {
+ 42:       const plantWithSelectiveReminders = await plantService.addPlant({
+ 43:         varietyId: testVariety.id,
+ 44:         varietyName: testVariety.name,
+ 45:         plantedDate: subDays(new Date(), 10),
+ 46:         location: "Indoor",
+ 47:         container: "4 inch pot",
+ 48:         isActive: true,
+ 49:         reminderPreferences: {
+ 50:           watering: false,
+ 51:           fertilizing: true,
+ 52:           observation: true,
+ 53:           lighting: false,
+ 54:           pruning: true,
+ 55:         },
+ 56:       });
  57: 
- 58:       expect(wateringTasks).toHaveLength(0);
- 59: 
- 60: 
- 61:       const observationTasks = plantTasks.filter(
- 62:         (task) =>
- 63:           task.task === "Health check" ||
- 64:           task.task.toLowerCase().includes("observe")
- 65:       );
- 66: 
- 67: 
- 68:       expect(observationTasks.length).toBeGreaterThan(0);
- 69:     });
- 70: 
- 71:     it("shows all tasks when no reminder preferences are set", async () => {
+ 58:       const tasks = await CareSchedulingService.getUpcomingTasks();
+ 59:       const plantTasks = tasks.filter(
+ 60:         (task) => task.plantId === plantWithSelectiveReminders
+ 61:       );
+ 62:       const wateringTasks = plantTasks.filter((task) =>
+ 63:         task.task.toLowerCase().includes("water")
+ 64:       );
+ 65:       const observationTasks = plantTasks.filter((task) =>
+ 66:         task.task.toLowerCase().includes("health")
+ 67:       );
+ 68: 
+ 69:       expect(wateringTasks).toHaveLength(0);
+ 70:       expect(observationTasks.length).toBeGreaterThan(0);
+ 71:     });
  72: 
- 73:       const varieties = await varietyService.getAllVarieties();
- 74:       const testVariety = varieties[0];
- 75: 
- 76: 
- 77:       const plantWithoutPreferences = await plantService.addPlant({
- 78:         varietyId: testVariety.id,
- 79:         varietyName: testVariety.name,
- 80:         plantedDate: subDays(new Date(), 10),
- 81:         location: "Indoor",
- 82:         container: "4 inch pot",
- 83:         isActive: true,
- 84: 
- 85:       });
- 86: 
- 87:       const tasks = await CareSchedulingService.getUpcomingTasks();
- 88: 
- 89: 
- 90:       const plantTasks = tasks.filter(
- 91:         (task) => task.plantId === plantWithoutPreferences
- 92:       );
- 93:       expect(plantTasks.length).toBeGreaterThan(0);
- 94: 
- 95: 
- 96:       const hasWateringTask = plantTasks.some(
- 97:         (task) =>
- 98:           task.task.toLowerCase().includes("water") ||
- 99:           task.task === "Check water level"
-100:       );
-101:       const hasObservationTask = plantTasks.some(
-102:         (task) =>
-103:           task.task === "Health check" ||
-104:           task.task.toLowerCase().includes("observe")
-105:       );
-106: 
-107:       expect(hasWateringTask).toBe(true);
-108:       expect(hasObservationTask).toBe(true);
-109:     });
-110: 
-111:     it("handles plants with all reminders disabled", async () => {
-112: 
-113:       const varieties = await varietyService.getAllVarieties();
-114:       const testVariety = varieties[0];
-115: 
+ 73:     it("shows all tasks when no reminder preferences are set", async () => {
+ 74:       const plantWithoutPreferences = await plantService.addPlant({
+ 75:         varietyId: testVariety.id,
+ 76:         varietyName: testVariety.name,
+ 77:         plantedDate: subDays(new Date(), 10),
+ 78:         location: "Indoor",
+ 79:         container: "4 inch pot",
+ 80:         isActive: true,
+ 81:       });
+ 82: 
+ 83:       const tasks = await CareSchedulingService.getUpcomingTasks();
+ 84:       const plantTasks = tasks.filter(
+ 85:         (task) => task.plantId === plantWithoutPreferences
+ 86:       );
+ 87: 
+ 88:       expect(plantTasks.length).toBeGreaterThan(0);
+ 89:       const hasWateringTask = plantTasks.some((task) =>
+ 90:         task.task.toLowerCase().includes("water")
+ 91:       );
+ 92:       const hasObservationTask = plantTasks.some((task) =>
+ 93:         task.task.toLowerCase().includes("health")
+ 94:       );
+ 95:       expect(hasWateringTask).toBe(true);
+ 96:       expect(hasObservationTask).toBe(true);
+ 97:     });
+ 98: 
+ 99: 
+100:     it("handles plants with all reminders disabled", async () => {
+101:       const plantWithNoReminders = await plantService.addPlant({
+102:         varietyId: testVariety.id,
+103:         varietyName: testVariety.name,
+104:         plantedDate: subDays(new Date(), 10),
+105:         location: "Indoor",
+106:         container: "4 inch pot",
+107:         isActive: true,
+108:         reminderPreferences: {
+109:           watering: false,
+110:           fertilizing: false,
+111:           observation: false,
+112:           lighting: false,
+113:           pruning: false,
+114:         },
+115:       });
 116: 
-117:       const plantWithNoReminders = await plantService.addPlant({
-118:         varietyId: testVariety.id,
-119:         varietyName: testVariety.name,
-120:         plantedDate: subDays(new Date(), 10),
-121:         location: "Indoor",
-122:         container: "4 inch pot",
-123:         isActive: true,
-124:         reminderPreferences: {
-125:           watering: false,
-126:           fertilizing: false,
-127:           observation: false,
-128:           lighting: false,
-129:           pruning: false,
-130:         },
-131:       });
-132: 
-133:       const tasks = await CareSchedulingService.getUpcomingTasks();
-134: 
-135: 
-136:       const plantTasks = tasks.filter(
-137:         (task) => task.plantId === plantWithNoReminders
-138:       );
-139:       expect(plantTasks).toHaveLength(0);
-140:     });
-141:   });
-142: 
-143:   describe("Task Creation", () => {
-144:     it("creates observation tasks for plants old enough", async () => {
-145:       const varieties = await varietyService.getAllVarieties();
-146:       const testVariety = varieties[0];
-147: 
-148: 
-149:       const plantId = await plantService.addPlant({
-150:         varietyId: testVariety.id,
-151:         varietyName: testVariety.name,
-152:         plantedDate: subDays(new Date(), 5),
-153:         location: "Indoor",
-154:         container: "4 inch pot",
-155:         isActive: true,
-156:         reminderPreferences: {
-157:           watering: true,
-158:           fertilizing: true,
-159:           observation: true,
-160:           lighting: true,
-161:           pruning: true,
-162:         },
-163:       });
-164: 
-165:       const tasks = await CareSchedulingService.getUpcomingTasks();
-166:       const plantTasks = tasks.filter((task) => task.plantId === plantId);
-167: 
-168: 
-169:       const observationTasks = plantTasks.filter(
-170:         (task) => task.task === "Health check"
-171:       );
-172: 
-173:       expect(observationTasks.length).toBeGreaterThan(0);
-174: 
-175: 
-176:       const observationTask = observationTasks[0];
-177:       expect(observationTask.dueIn).toContain("overdue");
-178:       expect(observationTask.priority).toBe("high");
-179:     });
-180: 
-181:     it("creates watering tasks for plants that need water", async () => {
-182:       const varieties = await varietyService.getAllVarieties();
-183:       const testVariety = varieties[0];
-184: 
-185: 
-186:       const plantId = await plantService.addPlant({
-187:         varietyId: testVariety.id,
-188:         varietyName: testVariety.name,
-189:         plantedDate: subDays(new Date(), 5),
-190:         location: "Indoor",
-191:         container: "4 inch pot",
-192:         isActive: true,
-193:         reminderPreferences: {
-194:           watering: true,
-195:           fertilizing: true,
-196:           observation: true,
-197:           lighting: true,
-198:           pruning: true,
-199:         },
-200:       });
-201: 
-202:       const tasks = await CareSchedulingService.getUpcomingTasks();
-203:       const plantTasks = tasks.filter((task) => task.plantId === plantId);
-204: 
-205: 
-206:       const wateringTasks = plantTasks.filter(
-207:         (task) => task.task === "Check water level"
-208:       );
-209: 
-210:       expect(wateringTasks.length).toBeGreaterThan(0);
-211:     });
-212:   });
-213: 
-214:   describe("getUpcomingTasks Edge Cases", () => {
-215:     it("handles plants with no variety data gracefully", async () => {
-216: 
-217:       const orphanedPlant = await plantService.addPlant({
-218:         varietyId: "non-existent-variety",
-219:         varietyName: "Unknown Variety",
-220:         plantedDate: subDays(new Date(), 5),
-221:         location: "Indoor",
-222:         container: "4 inch pot",
-223:         isActive: true,
-224:       });
-225: 
-226:       const tasks = await CareSchedulingService.getUpcomingTasks();
-227: 
-228: 
-229:       const orphanedPlantTasks = tasks.filter(
-230:         (task) => task.plantId === orphanedPlant
-231:       );
-232:       expect(orphanedPlantTasks).toHaveLength(0);
-233:     });
-234: 
-235:     it("correctly prioritizes overdue vs upcoming tasks", async () => {
-236:       const varieties = await varietyService.getAllVarieties();
-237:       const testVariety = varieties[0];
-238: 
-239: 
-240:       const overduePlant = await plantService.addPlant({
-241:         varietyId: testVariety.id,
-242:         varietyName: testVariety.name,
-243:         plantedDate: subDays(new Date(), 10),
-244:         location: "Indoor",
-245:         container: "4 inch pot",
-246:         isActive: true,
-247:       });
-248: 
-249: 
-250:       await careService.addCareActivity({
-251:         plantId: overduePlant,
-252:         type: "water",
-253:         date: subDays(new Date(), 5),
-254:         details: {
-255:           type: "water",
-256:           amount: { value: 8, unit: "oz" },
-257:         },
-258:       });
-259: 
-260:       const tasks = await CareSchedulingService.getUpcomingTasks();
-261: 
-262: 
-263:       const sortedTasks = tasks.sort(
-264:         (a, b) => a.dueDate.getTime() - b.dueDate.getTime()
-265:       );
-266: 
-267: 
-268:       const overdueTasks = sortedTasks.filter((task) =>
-269:         task.dueIn.includes("overdue")
-270:       );
-271:       const upcomingTasks = sortedTasks.filter(
-272:         (task) => !task.dueIn.includes("overdue")
-273:       );
-274: 
-275:       if (overdueTasks.length > 0 && upcomingTasks.length > 0) {
-276:         expect(overdueTasks[0].dueDate.getTime()).toBeLessThanOrEqual(
-277:           upcomingTasks[0].dueDate.getTime()
-278:         );
-279:       }
-280:     });
-281: 
-282:     it("respects reminder preferences filtering", async () => {
-283:       const varieties = await varietyService.getAllVarieties();
-284:       const testVariety = varieties[0];
-285: 
-286:       const plantWithSelectivePrefs = await plantService.addPlant({
-287:         varietyId: testVariety.id,
-288:         varietyName: testVariety.name,
-289:         plantedDate: subDays(new Date(), 8),
-290:         location: "Indoor",
-291:         container: "4 inch pot",
-292:         isActive: true,
-293:         reminderPreferences: {
-294:           watering: true,
-295:           fertilizing: false,
-296:           observation: false,
-297:           lighting: false,
-298:           pruning: false,
-299:         },
-300:       });
-301: 
-302:       const tasks = await CareSchedulingService.getUpcomingTasks();
-303:       const plantTasks = tasks.filter(
-304:         (task) => task.plantId === plantWithSelectivePrefs
-305:       );
-306: 
-307: 
-308:       const wateringTasks = plantTasks.filter(
-309:         (task) =>
-310:           task.task.toLowerCase().includes("water") ||
-311:           task.task === "Check water level"
-312:       );
-313:       const nonWateringTasks = plantTasks.filter(
-314:         (task) =>
-315:           !task.task.toLowerCase().includes("water") &&
-316:           task.task !== "Check water level"
-317:       );
-318: 
-319:       expect(wateringTasks.length).toBeGreaterThan(0);
-320:       expect(nonWateringTasks).toHaveLength(0);
-321:     });
-322: 
-323:     it("handles database errors gracefully", async () => {
-324: 
-325:       const originalGetActivePlants = plantService.getActivePlants;
-326:       jest
-327:         .spyOn(plantService, "getActivePlants")
-328:         .mockRejectedValue(new Error("Database connection failed"));
-329: 
-330:       const tasks = await CareSchedulingService.getUpcomingTasks();
-331: 
-332: 
-333:       expect(tasks).toEqual([]);
-334: 
-335: 
-336:       plantService.getActivePlants = originalGetActivePlants;
-337:     });
-338: 
-339:     it("handles plants with corrupt variety references", async () => {
-340:       const varieties = await varietyService.getAllVarieties();
-341:       const validVariety = varieties[0];
-342: 
-343: 
-344:       const validPlant = await plantService.addPlant({
-345:         varietyId: validVariety.id,
-346:         varietyName: validVariety.name,
-347:         plantedDate: subDays(new Date(), 5),
-348:         location: "Indoor",
-349:         container: "4 inch pot",
-350:         isActive: true,
-351:       });
-352: 
-353: 
-354:       const originalGetVariety = varietyService.getVariety;
-355:       jest
-356:         .spyOn(varietyService, "getVariety")
-357:         .mockImplementation(async (id) => {
-358:           if (id === validVariety.id) {
-359:             return undefined;
-360:           }
-361:           return originalGetVariety(id);
-362:         });
-363: 
-364:       const tasks = await CareSchedulingService.getUpcomingTasks();
-365: 
-366: 
-367:       expect(Array.isArray(tasks)).toBe(true);
-368: 
-369: 
-370:       const corruptedPlantTasks = tasks.filter(
-371:         (task) => task.plantId === validPlant
-372:       );
-373:       expect(corruptedPlantTasks).toHaveLength(0);
-374: 
-375: 
-376:       varietyService.getVariety = originalGetVariety;
-377:     });
-378: 
-379:     it("correctly calculates priority levels", async () => {
-380:       const varieties = await varietyService.getAllVarieties();
-381:       const testVariety = varieties[0];
-382: 
-383:       const testPlant = await plantService.addPlant({
-384:         varietyId: testVariety.id,
-385:         varietyName: testVariety.name,
-386:         plantedDate: subDays(new Date(), 10),
-387:         location: "Indoor",
-388:         container: "4 inch pot",
-389:         isActive: true,
-390:       });
-391: 
-392: 
-393:       await careService.addCareActivity({
-394:         plantId: testPlant,
-395:         type: "water",
-396:         date: subDays(new Date(), 3),
-397:         details: {
-398:           type: "water",
-399:           amount: { value: 8, unit: "oz" },
-400:         },
-401:       });
-402: 
-403:       const tasks = await CareSchedulingService.getUpcomingTasks();
-404:       const plantTasks = tasks.filter((task) => task.plantId === testPlant);
-405: 
-406:       if (plantTasks.length > 0) {
-407:         const wateringTask = plantTasks.find(
-408:           (task) => task.task === "Check water level"
-409:         );
-410: 
-411:         if (wateringTask) {
-412: 
-413:           if (wateringTask.dueIn.includes("overdue")) {
-414:             const overdueDays = parseInt(
-415:               wateringTask.dueIn.match(/\d+/)?.[0] || "0"
-416:             );
-417:             if (overdueDays >= 2) {
-418:               expect(wateringTask.priority).toBe("high");
-419:             } else if (overdueDays >= 0) {
-420:               expect(wateringTask.priority).toBe("medium");
-421:             }
-422:           }
-423:         }
-424:       }
-425:     });
-426: 
-427:     it("handles empty plant database", async () => {
-428: 
-429:       await plantService.getActivePlants().then(async (plants) => {
-430:         for (const plant of plants) {
-431:           await plantService.deletePlant(plant.id);
-432:         }
-433:       });
-434: 
-435:       const tasks = await CareSchedulingService.getUpcomingTasks();
-436: 
-437:       expect(tasks).toEqual([]);
-438:     });
-439: 
-440:     it("handles inactive plants correctly", async () => {
-441:       const varieties = await varietyService.getAllVarieties();
-442:       const testVariety = varieties[0];
-443: 
-444: 
-445:       const inactivePlant = await plantService.addPlant({
-446:         varietyId: testVariety.id,
-447:         varietyName: testVariety.name,
-448:         plantedDate: subDays(new Date(), 10),
-449:         location: "Indoor",
-450:         container: "4 inch pot",
-451:         isActive: false,
-452:       });
-453: 
-454:       const tasks = await CareSchedulingService.getUpcomingTasks();
-455: 
-456: 
-457:       const inactivePlantTasks = tasks.filter(
-458:         (task) => task.plantId === inactivePlant
-459:       );
-460:       expect(inactivePlantTasks).toHaveLength(0);
-461:     });
-462:   });
-463: 
-464:   describe("getNextTaskForPlant Edge Cases", () => {
-465:     it("returns null for non-existent plant", async () => {
-466:       const task = await CareSchedulingService.getNextTaskForPlant(
-467:         "non-existent-id"
-468:       );
-469:       expect(task).toBeNull();
-470:     });
-471: 
-472:     it("returns null for inactive plant", async () => {
-473:       const varieties = await varietyService.getAllVarieties();
-474:       const testVariety = varieties[0];
-475: 
-476:       const inactivePlant = await plantService.addPlant({
-477:         varietyId: testVariety.id,
-478:         varietyName: testVariety.name,
-479:         plantedDate: subDays(new Date(), 5),
-480:         location: "Indoor",
-481:         container: "4 inch pot",
-482:         isActive: false,
-483:       });
-484: 
-485:       const task = await CareSchedulingService.getNextTaskForPlant(
-486:         inactivePlant
-487:       );
-488:       expect(task).toBeNull();
-489:     });
-490: 
-491:     it("handles plant with no eligible tasks", async () => {
-492:       const varieties = await varietyService.getAllVarieties();
-493:       const testVariety = varieties[0];
-494: 
-495:       const plantWithNoTasks = await plantService.addPlant({
-496:         varietyId: testVariety.id,
-497:         varietyName: testVariety.name,
-498:         plantedDate: new Date(),
-499:         location: "Indoor",
-500:         container: "seed tray",
-501:         isActive: true,
-502:         reminderPreferences: {
-503:           watering: false,
-504:           fertilizing: false,
-505:           observation: false,
-506:           lighting: false,
-507:           pruning: false,
-508:         },
-509:       });
-510: 
-511:       const task = await CareSchedulingService.getNextTaskForPlant(
-512:         plantWithNoTasks
-513:       );
-514:       expect(task).toBeNull();
-515:     });
-516: 
-517:     it("returns highest priority task when multiple exist", async () => {
-518:       const varieties = await varietyService.getAllVarieties();
-519:       const testVariety = varieties[0];
-520: 
-521:       const testPlant = await plantService.addPlant({
-522:         varietyId: testVariety.id,
-523:         varietyName: testVariety.name,
-524:         plantedDate: subDays(new Date(), 15),
-525:         location: "Indoor",
-526:         container: "4 inch pot",
-527:         isActive: true,
-528:       });
-529: 
-530: 
-531:       await careService.addCareActivity({
-532:         plantId: testPlant,
-533:         type: "water",
-534:         date: subDays(new Date(), 5),
-535:         details: {
-536:           type: "water",
-537:           amount: { value: 8, unit: "oz" },
-538:         },
-539:       });
-540: 
-541:       const nextTask = await CareSchedulingService.getNextTaskForPlant(
-542:         testPlant
-543:       );
-544: 
-545:       if (nextTask) {
-546: 
-547:         expect(nextTask.plantId).toBe(testPlant);
-548:         expect(nextTask.dueDate).toBeInstanceOf(Date);
-549:       }
-550:     });
-551:   });
-552: 
-553:   describe("Task Formatting and Calculation", () => {
-554:     it("correctly formats due dates", async () => {
-555:       const varieties = await varietyService.getAllVarieties();
-556:       const testVariety = varieties[0];
-557: 
-558:       const testPlant = await plantService.addPlant({
-559:         varietyId: testVariety.id,
-560:         varietyName: testVariety.name,
-561:         plantedDate: subDays(new Date(), 5),
-562:         location: "Indoor",
-563:         container: "4 inch pot",
-564:         isActive: true,
-565:       });
-566: 
-567:       const tasks = await CareSchedulingService.getUpcomingTasks();
-568:       const plantTasks = tasks.filter((task) => task.plantId === testPlant);
-569: 
-570:       plantTasks.forEach((task) => {
-571: 
-572:         expect(task.dueIn).toMatch(
-573:           /^(Due today|Due tomorrow|Due in \d+ days?|\d+ days? overdue)$/
-574:         );
-575: 
-576: 
-577:         expect(["low", "medium", "high"]).toContain(task.priority);
-578: 
-579: 
-580:         expect(task.plantStage).toBeDefined();
-581:         expect(typeof task.plantStage).toBe("string");
-582:       });
-583:     });
-584: 
-585:     it("handles stage calculation errors gracefully", async () => {
-586:       const varieties = await varietyService.getAllVarieties();
-587:       const testVariety = varieties[0];
-588: 
-589:       const testPlant = await plantService.addPlant({
-590:         varietyId: testVariety.id,
-591:         varietyName: testVariety.name,
-592:         plantedDate: subDays(new Date(), 5),
-593:         location: "Indoor",
-594:         container: "4 inch pot",
-595:         isActive: true,
-596:       });
-597: 
-598:       const growthStageModule = await import("@/utils/growthStage");
-599: 
-600:       const mockCalculateCurrentStage = jest
-601:         .spyOn(growthStageModule, "calculateCurrentStageWithVariety")
-602:         .mockImplementation(() => {
-603:           throw new Error("Stage calculation failed");
-604:         });
-605: 
-606:       const tasks = await CareSchedulingService.getUpcomingTasks();
-607: 
-608:       expect(Array.isArray(tasks)).toBe(true);
-609: 
-610:       const plantTasks = tasks.filter((task) => task.plantId === testPlant);
-611: 
-612:       expect(plantTasks).toHaveLength(0);
-613: 
-614:       expect(mockCalculateCurrentStage).toHaveBeenCalled();
-615: 
-616:       mockCalculateCurrentStage.mockRestore();
-617:     });
-618:   });
-619:   describe("Due Date and Overdue Logic", () => {
-620:     it("should compute next due dates with no previous logs", async () => {
-621: 
-622:       const varieties = await varietyService.getAllVarieties();
-623:       const testVariety = varieties.find((v) => v.name === "Astro Arugula")!;
-624: 
-625:       mockDate("2024-06-20T12:00:00Z");
-626: 
-627: 
-628:       const plantId = await plantService.addPlant({
-629:         varietyId: testVariety.id,
-630:         varietyName: testVariety.name,
-631:         plantedDate: new Date("2024-06-18T12:00:00Z"),
-632:         location: "Indoor",
-633:         container: "4 inch pot",
-634:         isActive: true,
-635:       });
-636: 
-637: 
-638:       jest.spyOn(careService, "getLastActivityByType").mockResolvedValue(null);
-639: 
-640: 
-641:       const tasks = await CareSchedulingService.getUpcomingTasks();
-642:       const wateringTask = tasks.find(
-643:         (task) => task.plantId === plantId && task.type === "water"
-644:       );
-645: 
-646: 
-647: 
-648:       expect(wateringTask).toBeDefined();
-649:       expect(wateringTask?.dueDate.toISOString()).toBe(
-650:         "2024-06-20T12:00:00.000Z"
-651:       );
-652:     });
-653: 
-654:     it("should detect overdue tasks correctly and assign high priority", async () => {
-655: 
-656:       const varieties = await varietyService.getAllVarieties();
-657:       const testVariety = varieties.find((v) => v.name === "Astro Arugula")!;
-658:       mockDate("2024-06-25T12:00:00Z");
-659: 
-660:       const plantId = await plantService.addPlant({
-661:         varietyId: testVariety.id,
-662:         varietyName: testVariety.name,
-663:         plantedDate: new Date("2024-06-15T12:00:00Z"),
-664:         location: "Indoor",
-665:         container: "4 inch pot",
-666:         isActive: true,
-667:       });
-668: 
-669: 
-670:       const lastWateringDate = new Date("2024-06-20T12:00:00Z");
-671:       jest
-672:         .spyOn(careService, "getLastActivityByType")
-673:         .mockImplementation(async (pId, type) => {
-674:           if (pId === plantId && type === "water") {
-675:             return {
-676:               id: "care-1",
-677:               plantId: plantId,
-678:               type: "water",
-679:               date: lastWateringDate,
-680:               details: { type: "water", amount: { value: 8, unit: "oz" } },
-681:               createdAt: new Date(),
-682:               updatedAt: new Date(),
-683:             };
-684:           }
-685:           return null;
-686:         });
-687: 
-688: 
-689:       const tasks = await CareSchedulingService.getUpcomingTasks();
-690:       const wateringTask = tasks.find(
-691:         (task) => task.plantId === plantId && task.type === "water"
-692:       );
-693: 
-694: 
-695: 
-696: 
-697:       expect(wateringTask).toBeDefined();
-698:       expect(wateringTask?.dueIn).toBe("3 days overdue");
-699: 
-700:       expect(wateringTask?.priority).toBe("high");
-701:     });
-702:   });
-703: });
+117:       const tasks = await CareSchedulingService.getUpcomingTasks();
+118:       const plantTasks = tasks.filter(
+119:         (task) => task.plantId === plantWithNoReminders
+120:       );
+121:       expect(plantTasks).toHaveLength(0);
+122:     });
+123:   });
+124: 
+125: 
+126: 
+127: });
 
 ================
 File: src/pages/dashboard/TaskItem.tsx
@@ -17090,168 +17087,194 @@ File: src/utils/growthStage.ts
  25: 
  26: 
  27: export function calculateCurrentStageWithVariety(
- 28:   plantedDate: Date,
+ 28:   anchorDate: Date,
  29:   variety: VarietyRecord | undefined | null,
- 30:   currentDate: Date = new Date()
- 31: ): GrowthStage {
- 32:   if (!variety || !variety.growthTimeline) {
- 33:     console.warn(
- 34:       "❌ calculateCurrentStageWithVariety: Invalid variety data, defaulting to vegetative."
- 35:     );
- 36: 
+ 30:   currentDate: Date = new Date(),
+ 31:   startingStage: GrowthStage = "germination"
+ 32: ): GrowthStage {
+ 33:   if (!variety || !variety.growthTimeline) {
+ 34:     console.warn(
+ 35:       "❌ calculateCurrentStageWithVariety: Invalid variety data, defaulting to vegetative."
+ 36:     );
  37:     return "vegetative";
  38:   }
  39: 
- 40:   const daysSincePlanting = differenceInDays(currentDate, plantedDate);
- 41:   const timeline = variety.growthTimeline;
+ 40:   const daysSinceAnchor = differenceInDays(currentDate, anchorDate);
+ 41:   if (daysSinceAnchor < 0) return startingStage;
  42: 
- 43:   if (daysSincePlanting < 0 || daysSincePlanting < timeline.germination) {
- 44:     return "germination";
- 45:   }
- 46:   if (daysSincePlanting < timeline.germination + timeline.seedling) {
- 47:     return "seedling";
- 48:   }
- 49:   if (
- 50:     daysSincePlanting <
- 51:     timeline.germination + timeline.seedling + timeline.vegetative
- 52:   ) {
- 53:     return "vegetative";
- 54:   }
- 55:   if (daysSincePlanting < timeline.maturation) {
- 56:     return "flowering";
- 57:   }
+ 43:   const timeline = variety.growthTimeline;
+ 44:   const stageOrder: GrowthStage[] = [
+ 45:     "germination",
+ 46:     "seedling",
+ 47:     "vegetative",
+ 48:     "flowering",
+ 49:     "maturation",
+ 50:     "ongoing-production",
+ 51:     "harvest",
+ 52:   ];
+ 53: 
+ 54:   const stageDurations: Record<string, number> = {
+ 55:     germination: timeline.germination,
+ 56:     seedling: timeline.seedling,
+ 57:     vegetative: timeline.vegetative,
  58: 
- 59:   if (variety.isEverbearing) {
- 60:     const effectiveLifespan = variety.productiveLifespan ?? 730;
- 61: 
- 62:     if (daysSincePlanting >= effectiveLifespan) {
- 63:       return "harvest";
- 64:     }
- 65:     return "ongoing-production";
- 66:   } else {
- 67:     return "harvest";
- 68:   }
- 69: }
- 70: 
+ 59:     flowering:
+ 60:       timeline.maturation -
+ 61:       (timeline.germination + timeline.seedling + timeline.vegetative),
+ 62:     maturation: 0,
+ 63:   };
+ 64: 
+ 65:   let cumulativeDays = 0;
+ 66:   const currentStageIndex = stageOrder.indexOf(startingStage);
+ 67: 
+ 68:   for (let i = currentStageIndex; i < stageOrder.length; i++) {
+ 69:     const stage = stageOrder[i];
+ 70:     const duration = stageDurations[stage];
  71: 
- 72: 
- 73: 
- 74: 
- 75: 
- 76: 
+ 72:     if (daysSinceAnchor < cumulativeDays + duration) {
+ 73:       return stage;
+ 74:     }
+ 75:     cumulativeDays += duration;
+ 76:   }
  77: 
- 78: 
- 79: export function calculateCurrentStage(
- 80:   plantedDate: Date,
- 81:   timeline: VarietyTimeline,
- 82:   currentDate: Date = new Date()
- 83: ): GrowthStage {
- 84:   const daysSincePlanting = differenceInDays(currentDate, plantedDate);
- 85: 
- 86:   if (daysSincePlanting < 0) return "germination";
- 87:   if (daysSincePlanting < timeline.germination) return "germination";
- 88:   if (daysSincePlanting < timeline.germination + timeline.seedling)
- 89:     return "seedling";
- 90:   if (
- 91:     daysSincePlanting <
- 92:     timeline.germination + timeline.seedling + timeline.vegetative
- 93:   )
- 94:     return "vegetative";
- 95:   if (daysSincePlanting < timeline.maturation) return "flowering";
- 96: 
- 97:   return "harvest";
- 98: }
- 99: 
-100: export function getStageProgress(
-101:   plantedDate: Date,
-102:   timeline: VarietyTimeline,
-103:   currentDate: Date = new Date()
-104: ): number {
-105:   const daysSincePlanting = differenceInDays(currentDate, plantedDate);
-106:   const currentStage = calculateCurrentStage(
-107:     plantedDate,
-108:     timeline,
-109:     currentDate
-110:   );
-111: 
-112:   let stageStart = 0;
-113:   let stageEnd = timeline.germination;
-114: 
-115:   switch (currentStage) {
-116:     case "seedling":
-117:       stageStart = timeline.germination;
-118:       stageEnd = timeline.germination + timeline.seedling;
-119:       break;
-120:     case "vegetative":
-121:       stageStart = timeline.germination + timeline.seedling;
-122:       stageEnd = timeline.germination + timeline.seedling + timeline.vegetative;
-123:       break;
-124:     case "flowering":
-125:       stageStart =
-126:         timeline.germination + timeline.seedling + timeline.vegetative;
-127:       stageEnd = timeline.maturation;
-128:       break;
-129:     case "maturation":
-130:     case "ongoing-production":
-131:     case "harvest":
-132:       return 100;
-133:   }
+ 78:   if (variety.isEverbearing) {
+ 79:     const effectiveLifespan = variety.productiveLifespan ?? 730;
+ 80:     if (daysSinceAnchor < effectiveLifespan) {
+ 81:       return "ongoing-production";
+ 82:     }
+ 83:   }
+ 84: 
+ 85:   return "harvest";
+ 86: }
+ 87: 
+ 88: 
+ 89: 
+ 90: 
+ 91: 
+ 92: 
+ 93: 
+ 94: 
+ 95: 
+ 96: export function calculateCurrentStage(
+ 97:   plantedDate: Date,
+ 98:   timeline: VarietyTimeline,
+ 99:   currentDate: Date = new Date()
+100: ): GrowthStage {
+101:   const daysSincePlanting = differenceInDays(currentDate, plantedDate);
+102: 
+103:   if (daysSincePlanting < 0) return "germination";
+104:   if (daysSincePlanting < timeline.germination) return "germination";
+105:   if (daysSincePlanting < timeline.germination + timeline.seedling)
+106:     return "seedling";
+107:   if (
+108:     daysSincePlanting <
+109:     timeline.germination + timeline.seedling + timeline.vegetative
+110:   )
+111:     return "vegetative";
+112:   if (daysSincePlanting < timeline.maturation) return "flowering";
+113: 
+114:   return "harvest";
+115: }
+116: 
+117: 
+118: 
+119: 
+120: 
+121: 
+122: 
+123: export function getNextStage(currentStage: GrowthStage): GrowthStage | null {
+124:   const stages: GrowthStage[] = [
+125:     "germination",
+126:     "seedling",
+127:     "vegetative",
+128:     "flowering",
+129:     "maturation",
+130:     "ongoing-production",
+131:     "harvest",
+132:   ];
+133:   const currentIndex = stages.indexOf(currentStage);
 134: 
-135:   const stageProgress =
-136:     ((daysSincePlanting - stageStart) / (stageEnd - stageStart)) * 100;
-137:   return Math.min(Math.max(stageProgress, 0), 100);
-138: }
-139: 
-140: export function getNextStage(currentStage: GrowthStage): GrowthStage | null {
-141:   const stages: GrowthStage[] = [
-142:     "germination",
-143:     "seedling",
-144:     "vegetative",
-145:     "flowering",
-146:     "maturation",
-147:     "ongoing-production",
-148:     "harvest",
-149:   ];
-150:   const currentIndex = stages.indexOf(currentStage);
-151: 
-152:   if (currentIndex === -1 || currentIndex === stages.length - 1) {
-153:     return null;
-154:   }
-155: 
-156:   return stages[currentIndex + 1];
-157: }
-158: 
-159: export function estimateStageTransition(
-160:   plantedDate: Date,
-161:   timeline: VarietyTimeline,
-162:   targetStage: GrowthStage
-163: ): Date {
-164:   let daysToTarget = 0;
-165: 
-166:   switch (targetStage) {
-167:     case "seedling":
-168:       daysToTarget = timeline.germination;
-169:       break;
-170:     case "vegetative":
-171:       daysToTarget = timeline.germination + timeline.seedling;
-172:       break;
-173:     case "flowering":
-174:       daysToTarget =
-175:         timeline.germination + timeline.seedling + timeline.vegetative;
-176:       break;
-177:     case "maturation":
-178:     case "ongoing-production":
-179:     case "harvest":
-180:       daysToTarget = timeline.maturation;
-181:       break;
-182:   }
-183: 
-184:   return addDays(plantedDate, daysToTarget);
-185: }
-186: 
-187: export function formatStageProgress(progress: number): string {
-188:   return `${Math.round(progress)}%`;
-189: }
+135:   if (currentIndex === -1 || currentIndex >= stages.length - 1) {
+136:     return null;
+137:   }
+138: 
+139:   return stages[currentIndex + 1];
+140: }
+141: 
+142: 
+143: 
+144: 
+145: export function getStageProgress(
+146:   plantedDate: Date,
+147:   timeline: VarietyTimeline,
+148:   currentDate: Date = new Date()
+149: ): number {
+150:   const daysSincePlanting = differenceInDays(currentDate, plantedDate);
+151:   const currentStage = calculateCurrentStage(
+152:     plantedDate,
+153:     timeline,
+154:     currentDate
+155:   );
+156: 
+157:   let stageStart = 0;
+158:   let stageEnd = timeline.germination;
+159: 
+160:   switch (currentStage) {
+161:     case "seedling":
+162:       stageStart = timeline.germination;
+163:       stageEnd = timeline.germination + timeline.seedling;
+164:       break;
+165:     case "vegetative":
+166:       stageStart = timeline.germination + timeline.seedling;
+167:       stageEnd = timeline.germination + timeline.seedling + timeline.vegetative;
+168:       break;
+169:     case "flowering":
+170:       stageStart =
+171:         timeline.germination + timeline.seedling + timeline.vegetative;
+172:       stageEnd = timeline.maturation;
+173:       break;
+174:     case "maturation":
+175:     case "ongoing-production":
+176:     case "harvest":
+177:       return 100;
+178:   }
+179: 
+180:   const stageProgress =
+181:     ((daysSincePlanting - stageStart) / (stageEnd - stageStart)) * 100;
+182:   return Math.min(Math.max(stageProgress, 0), 100);
+183: }
+184: 
+185: export function estimateStageTransition(
+186:   plantedDate: Date,
+187:   timeline: VarietyTimeline,
+188:   targetStage: GrowthStage
+189: ): Date {
+190:   let daysToTarget = 0;
+191: 
+192:   switch (targetStage) {
+193:     case "seedling":
+194:       daysToTarget = timeline.germination;
+195:       break;
+196:     case "vegetative":
+197:       daysToTarget = timeline.germination + timeline.seedling;
+198:       break;
+199:     case "flowering":
+200:       daysToTarget =
+201:         timeline.germination + timeline.seedling + timeline.vegetative;
+202:       break;
+203:     case "maturation":
+204:     case "ongoing-production":
+205:     case "harvest":
+206:       daysToTarget = timeline.maturation;
+207:       break;
+208:   }
+209: 
+210:   return addDays(plantedDate, daysToTarget);
+211: }
+212: 
+213: export function formatStageProgress(progress: number): string {
+214:   return `${Math.round(progress)}%`;
+215: }
 
 ================
 File: package.json
@@ -18372,441 +18395,225 @@ File: jest.config.ts
 48: export default config;
 
 ================
-File: src/db/seedData.ts
-================
-  1: import { db } from "@/types/database";
-  2: import { seedVarieties, SeedVariety } from "@/data/seedVarieties";
-  3: import {
-  4:   GrowthTimeline,
-  5:   VarietyProtocols,
-  6:   StageSpecificWateringProtocol,
-  7:   StageSpecificFertilizationProtocol,
-  8:   StageSpecificLightingProtocol,
-  9: } from "@/types/protocols";
- 10: import { GrowthStage } from "@/types/core";
- 11: 
- 12: 
- 13: let isDatabaseInitialized = false;
- 14: 
- 15: const stageNameMapping: { [key: string]: GrowthStage } = {
- 16:   germination: "germination",
- 17:   germinationEmergence: "germination",
- 18:   slipProduction: "germination",
- 19:   seedling: "seedling",
- 20:   establishment: "seedling",
- 21:   vegetative: "vegetative",
- 22:   vegetativeGrowth: "vegetative",
- 23:   vegetativeVining: "vegetative",
- 24:   rootDevelopment: "vegetative",
- 25:   flowering: "flowering",
- 26:   flowerBudFormation: "flowering",
- 27:   fruiting: "fruiting",
- 28:   fruitingHarvesting: "fruiting",
- 29:   podSetMaturation: "fruiting",
- 30:   maturation: "maturation",
- 31:   "ongoing-production": "ongoing-production",
- 32:   ongoingProduction: "ongoing-production",
- 33:   ongoing: "ongoing-production",
- 34:   harvest: "harvest",
- 35: };
- 36: 
- 37: const convertWateringProtocol = (
- 38:   wateringProtocol: StageSpecificWateringProtocol
- 39: ): Record<
- 40:   GrowthStage,
- 41:   {
- 42:     trigger?: { moistureLevel?: string | number };
- 43:     target?: { moistureLevel?: string | number };
- 44:     volume?: { amount?: string | number; frequency?: string };
- 45:   }
- 46: > => {
- 47:   const result: Partial<Record<GrowthStage, any>> = {};
- 48:   for (const [stage, stageData] of Object.entries(wateringProtocol)) {
- 49:     const canonicalStage = stageNameMapping[stage];
- 50:     if (canonicalStage && stageData) {
- 51:       result[canonicalStage] = stageData;
- 52:     }
- 53:   }
- 54:   return result as Record<GrowthStage, any>;
- 55: };
- 56: 
- 57: const convertFertilizationProtocol = (
- 58:   fertilizationProtocol: StageSpecificFertilizationProtocol
- 59: ): Record<GrowthStage, any> => {
- 60:   const result: Partial<Record<GrowthStage, any>> = {};
- 61:   for (const [stage, stageData] of Object.entries(fertilizationProtocol)) {
- 62:     const canonicalStage = stageNameMapping[stage];
- 63:     if (canonicalStage && stageData) {
- 64:       result[canonicalStage] = stageData;
- 65:     }
- 66:   }
- 67:   return result as Record<GrowthStage, any>;
- 68: };
- 69: 
- 70: const convertLightingProtocol = (
- 71:   lightingProtocol: StageSpecificLightingProtocol
- 72: ): Record<GrowthStage, any> => {
- 73:   const result: Partial<Record<GrowthStage, any>> = {};
- 74:   for (const [stage, stageData] of Object.entries(lightingProtocol)) {
- 75:     const canonicalStage = stageNameMapping[stage];
- 76:     if (canonicalStage && stageData) {
- 77:       result[canonicalStage] = stageData;
- 78:     }
- 79:   }
- 80:   return result as Record<GrowthStage, any>;
- 81: };
- 82: 
- 83: const convertSeedVarietyToVarietyRecord = (variety: SeedVariety) => {
- 84:   const timelineData = variety.growthTimeline;
- 85: 
- 86: 
- 87:   const growthTimeline: GrowthTimeline = {
- 88:     germination:
- 89:       timelineData.germination ||
- 90:       timelineData.germinationEmergence ||
- 91:       timelineData.slipProduction ||
- 92:       timelineData.caneEstablishment ||
- 93:       0,
- 94:     seedling: timelineData.seedling || timelineData.establishment || 7,
- 95:     vegetative:
- 96:       timelineData.vegetative ||
- 97:       timelineData.vegetativeGrowth ||
- 98:       timelineData.vegetativeVining ||
- 99:       21,
-100:     maturation:
-101:       timelineData.maturation ||
-102:       timelineData.fruiting ||
-103:       timelineData.fruitingHarvesting ||
-104:       timelineData.podSetMaturation ||
-105:       timelineData.floweringFruiting ||
-106:       timelineData.ongoing ||
-107:       timelineData.tuberDevelopment ||
-108:       60,
-109:     rootDevelopment: timelineData.rootDevelopment || 14,
-110:   };
-111: 
-112:   let protocols: VarietyProtocols | undefined;
-113:   if (variety.protocols) {
-114:     protocols = {
-115:       watering: variety.protocols.watering
-116:         ? convertWateringProtocol(variety.protocols.watering)
-117:         : undefined,
-118:       fertilization: variety.protocols.fertilization
-119:         ? convertFertilizationProtocol(variety.protocols.fertilization)
-120:         : undefined,
-121:       lighting: variety.protocols.lighting
-122:         ? convertLightingProtocol(variety.protocols.lighting)
-123:         : undefined,
-124:       environment: variety.protocols.environment,
-125:       soilMixture: variety.protocols.soilMixture,
-126:       container: variety.protocols.container,
-127:       succession: variety.protocols.succession,
-128:       specialRequirements: variety.protocols.specialRequirements,
-129:     };
-130:   }
-131: 
-132:   return {
-133:     name: variety.name,
-134:     normalizedName: variety.name.toLowerCase(),
-135:     category: variety.category,
-136:     growthTimeline,
-137:     protocols,
-138:     isEverbearing: variety.isEverbearing,
-139:     productiveLifespan: variety.productiveLifespan,
-140:     isCustom: false,
-141:   };
-142: };
-143: 
-144: export const initializeDatabase = async (): Promise<void> => {
-145: 
-146:   if (isDatabaseInitialized) {
-147:     return;
-148:   }
-149: 
-150:   try {
-151:     const existingCount = await db.varieties.count();
-152: 
-153:     if (existingCount > 0) {
-154:       console.log("✅ Database already seeded.");
-155:       isDatabaseInitialized = true;
-156:       return;
-157:     }
-158: 
-159:     console.log("🌱 Initializing database with seed data...");
-160:     isDatabaseInitialized = true;
-161: 
-162:     const uniqueVarieties = new Map<string, SeedVariety>();
-163:     for (const variety of seedVarieties) {
-164:       if (!uniqueVarieties.has(variety.name.toLowerCase())) {
-165:         uniqueVarieties.set(variety.name.toLowerCase(), variety);
-166:       }
-167:     }
-168: 
-169:     for (const variety of uniqueVarieties.values()) {
-170:       const convertedVariety = convertSeedVarietyToVarietyRecord(variety);
-171:       await db.varieties.add({
-172:         id: crypto.randomUUID(),
-173:         ...convertedVariety,
-174:         createdAt: new Date(),
-175:         updatedAt: new Date(),
-176:       });
-177:     }
-178: 
-179:     console.log(
-180:       `✅ Successfully seeded ${uniqueVarieties.size} unique varieties`
-181:     );
-182:   } catch (error) {
-183: 
-184:     isDatabaseInitialized = false;
-185:     console.error("❌ Error initializing database:", error);
-186: 
-187: 
-188:     if (error.name === "ConstraintError") {
-189:       console.warn(
-190:         "Seeding aborted, likely due to a race condition. The database should be correctly seeded by another process."
-191:       );
-192:       isDatabaseInitialized = true;
-193:     } else {
-194:       throw error;
-195:     }
-196:   }
-197: };
-
-================
 File: src/pages/plants/PlantDetail.tsx
 ================
   1: import React, { useState, useEffect } from "react";
   2: import { useParams, useNavigate } from "react-router-dom";
-  3: import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
-  4: import { Button } from "@/components/ui/Button";
-  5: import { LoadingSpinner } from "@/components/ui/LoadingSpinner";
-  6: import { FirebasePlantService } from "@/services/firebase/plantService";
-  7: import { useFirebaseAuth } from "@/hooks/useFirebaseAuth";
-  8: import { useFirebaseCareActivities } from "@/hooks/useFirebaseCareActivities";
-  9: import { varietyService, PlantRecord, VarietyRecord } from "@/types/database";
- 10: import CareHistory from "@/components/plant/CareHistory";
- 11: import PlantReminderSettings from "@/components/plant/PlantReminderSettings";
- 12: import { getPlantDisplayName } from "@/utils/plantDisplay";
- 13: import PlantInfoCard from "@/components/plant/PlantInfoCard";
- 14: import NextActivityCard from "@/components/plant/NextActivityCard";
- 15: 
- 16: const PlantDetail: React.FC = () => {
- 17:   const { plantId } = useParams<{ plantId: string }>();
- 18:   const navigate = useNavigate();
- 19:   const { user } = useFirebaseAuth();
- 20: 
- 21:   const [plant, setPlant] = useState<PlantRecord | null>(null);
- 22:   const [variety, setVariety] = useState<VarietyRecord | null>(null);
- 23:   const [isLoading, setIsLoading] = useState(true);
- 24:   const [error, setError] = useState<string | null>(null);
- 25:   const [showReminderSettings, setShowReminderSettings] = useState(false);
- 26: 
- 27: 
- 28:   const { activities: careHistory } = useFirebaseCareActivities(plantId);
- 29: 
- 30:   useEffect(() => {
- 31:     if (!plantId) {
- 32:       setError("No plant ID provided");
- 33:       setIsLoading(false);
- 34:       return;
- 35:     }
- 36: 
+  3: import { Button } from "@/components/ui/Button";
+  4: import { LoadingSpinner } from "@/components/ui/LoadingSpinner";
+  5: import { FirebasePlantService } from "@/services/firebase/plantService";
+  6: import { useFirebaseAuth } from "@/hooks/useFirebaseAuth";
+  7: import { useFirebaseCareActivities } from "@/hooks/useFirebaseCareActivities";
+  8: import {
+  9:   varietyService,
+ 10:   PlantRecord,
+ 11:   VarietyRecord,
+ 12:   GrowthStage,
+ 13: } from "@/types";
+ 14: import CareHistory from "@/components/plant/CareHistory";
+ 15: import PlantReminderSettings from "@/components/plant/PlantReminderSettings";
+ 16: import { getPlantDisplayName } from "@/utils/plantDisplay";
+ 17: import PlantInfoCard from "@/components/plant/PlantInfoCard";
+ 18: import NextActivityCard from "@/components/plant/NextActivityCard";
+ 19: import { toast } from "react-hot-toast";
+ 20: import { StageUpdateModal } from "@/components/plant/StageUpdateModal";
+ 21: import { StageManagementService } from "@/services/StageManagementService";
+ 22: import { useDynamicStage } from "@/hooks/useDynamicStage";
+ 23: import { Badge } from "@/components/ui/Badge";
+ 24: import { ArrowLeft } from "lucide-react";
+ 25: 
+ 26: const PlantDetail: React.FC = () => {
+ 27:   const { plantId } = useParams<{ plantId: string }>();
+ 28:   const navigate = useNavigate();
+ 29:   const { user } = useFirebaseAuth();
+ 30: 
+ 31:   const [plant, setPlant] = useState<PlantRecord | null>(null);
+ 32:   const [variety, setVariety] = useState<VarietyRecord | null>(null);
+ 33:   const [isLoading, setIsLoading] = useState(true);
+ 34:   const [error, setError] = useState<string | null>(null);
+ 35:   const [showReminderSettings, setShowReminderSettings] = useState(false);
+ 36:   const [isStageModalOpen, setIsStageModalOpen] = useState(false);
  37: 
- 38:     if (!user) {
- 39:       setError("User not authenticated");
- 40:       setIsLoading(false);
- 41:       return;
- 42:     }
- 43: 
- 44:     setIsLoading(true);
- 45:     setError(null);
- 46: 
+ 38:   const { activities: careHistory } = useFirebaseCareActivities(plantId);
+ 39:   const plantStage = useDynamicStage(plant!);
+ 40: 
+ 41:   useEffect(() => {
+ 42:     if (!plantId || !user) {
+ 43:       setError(plantId ? "User not authenticated" : "No plant ID provided");
+ 44:       setIsLoading(false);
+ 45:       return;
+ 46:     }
  47: 
- 48: 
- 49:     const unsubscribe = FirebasePlantService.subscribeToPlantsChanges(
- 50:       user.uid,
- 51:       (plants) => {
- 52:         const foundPlant = plants.find((p) => p.id === plantId);
- 53:         if (foundPlant) {
- 54:           setPlant(foundPlant);
- 55: 
- 56:           if (foundPlant.varietyId) {
- 57:             varietyService
- 58:               .getVariety(foundPlant.varietyId)
- 59:               .then((varietyData) => setVariety(varietyData || null))
- 60:               .catch(console.error);
- 61:           }
- 62:         } else {
- 63:           setError("Plant not found");
- 64:         }
- 65:         setIsLoading(false);
- 66:       },
- 67:       { includeInactive: true }
- 68:     );
- 69: 
+ 48:     setIsLoading(true);
+ 49:     setError(null);
+ 50: 
+ 51:     const unsubscribe = FirebasePlantService.subscribeToPlantsChanges(
+ 52:       user.uid,
+ 53:       (plants) => {
+ 54:         const foundPlant = plants.find((p) => p.id === plantId);
+ 55:         if (foundPlant) {
+ 56:           setPlant(foundPlant);
+ 57:           if (foundPlant.varietyId) {
+ 58:             varietyService
+ 59:               .getVariety(foundPlant.varietyId)
+ 60:               .then((varietyData) => setVariety(varietyData || null))
+ 61:               .catch(console.error);
+ 62:           }
+ 63:         } else {
+ 64:           setError("Plant not found");
+ 65:         }
+ 66:         setIsLoading(false);
+ 67:       },
+ 68:       { includeInactive: true }
+ 69:     );
  70: 
- 71: 
- 72:     return () => {
- 73:       unsubscribe();
- 74:     };
- 75:   }, [plantId, user]);
- 76: 
- 77:   const handlePlantUpdate = async (updates: Partial<PlantRecord>) => {
- 78:     if (!plantId) return;
- 79: 
- 80:     try {
- 81:       await FirebasePlantService.updatePlant(plantId, updates);
- 82: 
- 83:     } catch (error) {
- 84:       console.error("Failed to update plant:", error);
- 85:     }
- 86:   };
- 87: 
- 88:   const handleLogCare = (activityType?: string) => {
- 89:     const params = new URLSearchParams();
- 90:     if (plantId) params.set("plantId", plantId);
- 91:     if (activityType) params.set("type", activityType);
- 92: 
- 93:     navigate(`/log-care?${params.toString()}`);
+ 71:     return () => unsubscribe();
+ 72:   }, [plantId, user]);
+ 73: 
+ 74:   const handleConfirmStageChange = async (newStage: GrowthStage) => {
+ 75:     if (!plant || !user) return;
+ 76:     try {
+ 77:       toast.loading("Updating stage and recalculating schedule...");
+ 78:       await StageManagementService.confirmNewStage(
+ 79:         plant.id,
+ 80:         newStage,
+ 81:         user.uid
+ 82:       );
+ 83:       toast.dismiss();
+ 84:       toast.success("Plant stage updated successfully!");
+ 85:     } catch (e) {
+ 86:       toast.dismiss();
+ 87:       const errorMessage =
+ 88:         e instanceof Error ? e.message : "An unknown error occurred.";
+ 89:       toast.error(`Failed to update stage: ${errorMessage}`);
+ 90:       console.error(e);
+ 91:     } finally {
+ 92:       setIsStageModalOpen(false);
+ 93:     }
  94:   };
  95: 
- 96:   if (isLoading) {
- 97:     return (
- 98:       <div className="min-h-screen flex items-center justify-center">
- 99:         <LoadingSpinner />
-100:       </div>
-101:     );
-102:   }
-103: 
-104:   if (error || !plant) {
-105:     return (
-106:       <div className="min-h-screen flex flex-col items-center justify-center p-4">
-107:         <div className="text-center max-w-md">
-108:           <span className="text-6xl mb-4 block">🌱</span>
-109:           <h2 className="text-xl font-semibold text-foreground mb-2">
-110:             {error || "Plant not found"}
-111:           </h2>
-112:           <p className="text-muted-foreground mb-4">
-113:             We couldn't load the details for this plant.
-114:           </p>
-115:           <Button
-116:             onClick={() => navigate("/")}
-117:             className="bg-primary hover:bg-primary/90"
-118:           >
-119:             <span className="mr-2">🏠</span>
-120:             Go to Dashboard
-121:           </Button>
-122:         </div>
-123:       </div>
-124:     );
-125:   }
-126: 
-127:   const plantDisplayName = getPlantDisplayName(plant);
-128: 
-129:   return (
-130:     <div className="min-h-screen bg-background pb-20">
-131:       <div className="sticky top-0 z-40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b border-border">
-132:         <div className="flex items-center justify-between p-4">
-133:           <Button
-134:             variant="ghost"
-135:             size="sm"
-136:             onClick={() => navigate("/")}
-137:             className="text-muted-foreground hover:text-foreground"
-138:           >
-139:             <span className="mr-2">←</span>
-140:             Back
-141:           </Button>
-142:           <Button
-143:             variant="ghost"
-144:             size="sm"
-145:             onClick={() => setShowReminderSettings(!showReminderSettings)}
-146:             className="text-muted-foreground hover:text-foreground"
-147:           >
-148:             <span className="mr-2">⚙️</span>
-149:             Settings
-150:           </Button>
-151:         </div>
-152:       </div>
-153: 
-154:       <div className="space-y-4">
-155:         {}
-156:         <Card>
-157:           <CardContent className="p-6">
-158:             <div className="flex items-start justify-between mb-4">
-159:               <div>
-160:                 <h1 className="text-2xl font-bold text-foreground mb-2">
-161:                   {plantDisplayName}
-162:                 </h1>
-163:                 <div className="text-sm text-muted-foreground">
-164:                   {variety?.name}
-165:                 </div>
-166:               </div>
-167:             </div>
-168:           </CardContent>
-169:         </Card>
-170: 
-171:         <PlantInfoCard
-172:           plant={plant}
-173:           onLogCare={handleLogCare}
-174:           showQuickActions={false}
-175:         />
-176: 
-177:         <NextActivityCard plantId={plant.id} onTaskClick={handleLogCare} />
+ 96:   const handlePlantUpdate = async (updates: Partial<PlantRecord>) => {
+ 97:     if (!plantId) return;
+ 98:     try {
+ 99:       await FirebasePlantService.updatePlant(plantId, updates);
+100:     } catch (error) {
+101:       console.error("Failed to update plant:", error);
+102:     }
+103:   };
+104: 
+105:   const handleLogCare = (activityType?: string) => {
+106:     const params = new URLSearchParams();
+107:     if (plantId) params.set("plantId", plantId);
+108:     if (activityType) params.set("type", activityType);
+109:     navigate(`/log-care?${params.toString()}`);
+110:   };
+111: 
+112:   if (isLoading) {
+113:     return (
+114:       <div className="min-h-screen flex items-center justify-center">
+115:         <LoadingSpinner />
+116:       </div>
+117:     );
+118:   }
+119: 
+120:   if (error || !plant) {
+121:     return (
+122:       <div className="min-h-screen flex flex-col items-center justify-center p-4">
+123:         <div className="text-center max-w-md">
+124:           <span className="text-6xl mb-4 block">🌱</span>
+125:           <h2 className="text-xl font-semibold text-foreground mb-2">
+126:             {error || "Plant not found"}
+127:           </h2>
+128:           <p className="text-muted-foreground mb-4">
+129:             We couldn't load the details for this plant.
+130:           </p>
+131:           <Button
+132:             onClick={() => navigate("/")}
+133:             className="bg-primary hover:bg-primary/90"
+134:           >
+135:             <span className="mr-2">🏠</span>
+136:             Go to Dashboard
+137:           </Button>
+138:         </div>
+139:       </div>
+140:     );
+141:   }
+142: 
+143:   return (
+144:     <>
+145:       <div className="min-h-screen bg-background pb-20">
+146:         <div className="sticky top-0 z-40 bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/60 border-b border-border">
+147:           <div className="flex items-center justify-between p-4 max-w-2xl mx-auto">
+148:             <Button
+149:               variant="ghost"
+150:               size="sm"
+151:               onClick={() => navigate("/")}
+152:               className="text-muted-foreground hover:text-foreground"
+153:             >
+154:               <ArrowLeft className="h-4 w-4 mr-2" />
+155:               Back
+156:             </Button>
+157:             <Button
+158:               variant="ghost"
+159:               size="sm"
+160:               onClick={() => setShowReminderSettings(!showReminderSettings)}
+161:               className="text-muted-foreground hover:text-foreground"
+162:             >
+163:               <span className="mr-2">⚙️</span>
+164:               Settings
+165:             </Button>
+166:           </div>
+167:         </div>
+168: 
+169:         <div className="p-4 max-w-2xl mx-auto space-y-6">
+170:           <div className="text-center">
+171:             <h1 className="text-3xl font-bold text-foreground">
+172:               {getPlantDisplayName(plant)}
+173:             </h1>
+174:             <p className="text-md text-muted-foreground mt-1">
+175:               {plant.varietyName}
+176:             </p>
+177:           </div>
 178: 
-179:         <Card>
-180:           <CardHeader>
-181:             <CardTitle className="flex items-center gap-2">
-182:               <span className="text-xl">🚀</span>
-183:               Quick Actions
-184:             </CardTitle>
-185:           </CardHeader>
-186:           <CardContent>
-187:             <div className="grid grid-cols-2 gap-3">
-188:               <Button
-189:                 onClick={() => handleLogCare("water")}
-190:                 className="bg-blue-500 hover:bg-blue-600 text-white"
-191:               >
-192:                 <span className="mr-2">💧</span>
-193:                 Water
-194:               </Button>
-195:               <Button
-196:                 onClick={() => handleLogCare("fertilize")}
-197:                 className="bg-green-500 hover:bg-green-600 text-white"
-198:               >
-199:                 <span className="mr-2">🌱</span>
-200:                 Fertilize
-201:               </Button>
-202:               <Button
-203:                 onClick={() => handleLogCare("photo")}
-204:                 className="bg-purple-500 hover:bg-purple-600 text-white"
-205:               >
-206:                 <span className="mr-2">📸</span>
-207:                 Photo
-208:               </Button>
-209:               <Button
-210:                 onClick={() => handleLogCare("note")}
-211:                 className="bg-orange-500 hover:bg-orange-600 text-white"
-212:               >
-213:                 <span className="mr-2">📝</span>
-214:                 Note
-215:               </Button>
-216:             </div>
-217:           </CardContent>
-218:         </Card>
-219: 
-220:         {}
-221:         {showReminderSettings && (
-222:           <PlantReminderSettings plant={plant} onUpdate={handlePlantUpdate} />
-223:         )}
-224: 
-225:         {}
-226:         <CareHistory careHistory={careHistory} />
-227:       </div>
-228:     </div>
-229:   );
-230: };
-231: 
-232: export default PlantDetail;
+179:           <div className="flex items-center justify-center gap-2">
+180:             <Badge variant="secondary" className="capitalize text-sm">
+181:               {plantStage.replace("-", " ")}
+182:             </Badge>
+183:             <Button
+184:               variant="outline"
+185:               size="sm"
+186:               onClick={() => setIsStageModalOpen(true)}
+187:             >
+188:               Update Stage
+189:             </Button>
+190:           </div>
+191: 
+192:           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+193:             <PlantInfoCard plant={plant} showQuickActions={false} />
+194:             <NextActivityCard plantId={plant.id} onTaskClick={handleLogCare} />
+195:           </div>
+196: 
+197:           {showReminderSettings && (
+198:             <PlantReminderSettings plant={plant} onUpdate={handlePlantUpdate} />
+199:           )}
+200: 
+201:           <CareHistory careHistory={careHistory} />
+202:         </div>
+203:       </div>
+204: 
+205:       {isStageModalOpen && (
+206:         <StageUpdateModal
+207:           plant={plant}
+208:           currentStage={plantStage}
+209:           onConfirm={handleConfirmStageChange}
+210:           onClose={() => setIsStageModalOpen(false)}
+211:         />
+212:       )}
+213:     </>
+214:   );
+215: };
+216: 
+217: export default PlantDetail;
 
 ================
 File: src/services/careSchedulingService.ts
@@ -19167,311 +18974,508 @@ File: src/types/database.ts
  30:   notes?: string[];
  31:   quantity?: number;
  32:   setupType?: "multiple-containers" | "same-container";
- 33:   reminderPreferences?: {
- 34:     watering?: boolean;
- 35:     fertilizing?: boolean;
- 36:     observation?: boolean;
- 37:     lighting?: boolean;
- 38:     pruning?: boolean;
- 39:   };
- 40: }
- 41: 
- 42: export interface VarietyRecord extends BaseRecord {
- 43:   name: string;
- 44:   normalizedName: string;
- 45:   category: PlantCategory;
- 46:   description?: string;
- 47:   growthTimeline: GrowthTimeline;
- 48:   protocols?: VarietyProtocols;
- 49:   isEverbearing?: boolean;
- 50:   productiveLifespan?: number;
- 51:   isCustom?: boolean;
- 52: }
- 53: 
- 54: export interface CareActivityDetails {
- 55:   type: CareActivityType;
- 56:   waterAmount?: number;
- 57:   waterUnit?: VolumeUnit;
- 58:   moistureLevel?: {
- 59:     before: number;
- 60:     after: number;
- 61:     scale: "1-10" | "visual";
- 62:   };
- 63:   method?: WateringMethod;
- 64:   runoffObserved?: boolean;
- 65: 
- 66: 
- 67:   product?: string;
- 68:   dilution?: string;
- 69:   amount?: string | { value: number; unit: VolumeUnit };
- 70:   applicationMethod?: ApplicationMethod;
- 71: 
- 72: 
- 73:   healthAssessment?: HealthAssessment;
- 74:   observations?: string;
- 75:   photos?: string[];
+ 33: 
+ 34:   confirmedStage?: GrowthStage;
+ 35: 
+ 36:   stageConfirmedDate?: Date;
+ 37:   reminderPreferences?: {
+ 38:     watering?: boolean;
+ 39:     fertilizing?: boolean;
+ 40:     observation?: boolean;
+ 41:     lighting?: boolean;
+ 42:     pruning?: boolean;
+ 43:   };
+ 44: }
+ 45: 
+ 46: export interface VarietyRecord extends BaseRecord {
+ 47:   name: string;
+ 48:   normalizedName: string;
+ 49:   category: PlantCategory;
+ 50:   description?: string;
+ 51:   growthTimeline: GrowthTimeline;
+ 52:   protocols?: VarietyProtocols;
+ 53:   isEverbearing?: boolean;
+ 54:   productiveLifespan?: number;
+ 55:   isCustom?: boolean;
+ 56: }
+ 57: 
+ 58: export interface CareActivityDetails {
+ 59:   type: CareActivityType;
+ 60:   waterAmount?: number;
+ 61:   waterUnit?: VolumeUnit;
+ 62:   moistureLevel?: {
+ 63:     before: number;
+ 64:     after: number;
+ 65:     scale: "1-10" | "visual";
+ 66:   };
+ 67:   method?: WateringMethod;
+ 68:   runoffObserved?: boolean;
+ 69: 
+ 70: 
+ 71:   product?: string;
+ 72:   dilution?: string;
+ 73:   amount?: string | { value: number; unit: VolumeUnit };
+ 74:   applicationMethod?: ApplicationMethod;
+ 75: 
  76: 
- 77: 
- 78:   quality?: QualityRating;
- 79:   harvestMethod?: string;
+ 77:   healthAssessment?: HealthAssessment;
+ 78:   observations?: string;
+ 79:   photos?: string[];
  80: 
  81: 
- 82:   fromContainer?: string;
- 83:   toContainer?: string;
- 84:   reason?: string;
+ 82:   quality?: QualityRating;
+ 83:   harvestMethod?: string;
+ 84: 
  85: 
- 86: 
- 87:   temperature?: number;
- 88:   humidity?: number;
- 89:   lightLevel?: number;
- 90:   weatherConditions?: string;
- 91: 
- 92: 
- 93:   notes?: string;
- 94: }
+ 86:   fromContainer?: string;
+ 87:   toContainer?: string;
+ 88:   reason?: string;
+ 89: 
+ 90: 
+ 91:   temperature?: number;
+ 92:   humidity?: number;
+ 93:   lightLevel?: number;
+ 94:   weatherConditions?: string;
  95: 
  96: 
- 97: export interface CareActivityRecord extends BaseRecord {
- 98:   plantId: string;
- 99:   type: CareActivityType;
-100:   date: Date;
-101:   details: CareActivityDetails;
-102: }
-103: 
-104: 
-105: export interface TaskBypassRecord extends BaseRecord {
-106:   taskId: string;
-107:   plantId: string;
-108:   taskType: CareActivityType;
-109:   reason: string;
-110:   scheduledDate: Date;
-111:   bypassDate: Date;
-112:   plantStage: GrowthStage;
-113:   userId?: string;
-114: }
-115: 
-116: export interface TaskCompletionRecord extends BaseRecord {
-117:   plantId: string;
-118:   taskType: CareActivityType;
-119:   scheduledDate: Date;
-120:   actualCompletionDate: Date;
-121:   varianceDays: number;
-122:   careActivityId: string;
-123:   plantStage: GrowthStage;
-124: }
-125: 
-126: export interface ScheduledTask extends BaseRecord {
-127:   plantId: string;
-128:   taskType: CareActivityType;
-129:   dueDate: Date;
-130:   status: "pending" | "completed" | "bypassed";
-131:   priority?: "low" | "medium" | "high";
-132:   description?: string;
-133: }
-134: 
-135: 
-136: export type CareRecord = CareActivityRecord;
-137: export type BypassLogRecord = TaskBypassRecord;
+ 97:   notes?: string;
+ 98: }
+ 99: 
+100: 
+101: export interface CareActivityRecord extends BaseRecord {
+102:   plantId: string;
+103:   type: CareActivityType;
+104:   date: Date;
+105:   details: CareActivityDetails;
+106: }
+107: 
+108: 
+109: export interface TaskBypassRecord extends BaseRecord {
+110:   taskId: string;
+111:   plantId: string;
+112:   taskType: CareActivityType;
+113:   reason: string;
+114:   scheduledDate: Date;
+115:   bypassDate: Date;
+116:   plantStage: GrowthStage;
+117:   userId?: string;
+118: }
+119: 
+120: export interface TaskCompletionRecord extends BaseRecord {
+121:   plantId: string;
+122:   taskType: CareActivityType;
+123:   scheduledDate: Date;
+124:   actualCompletionDate: Date;
+125:   varianceDays: number;
+126:   careActivityId: string;
+127:   plantStage: GrowthStage;
+128: }
+129: 
+130: export interface ScheduledTask extends BaseRecord {
+131:   plantId: string;
+132:   taskType: CareActivityType;
+133:   dueDate: Date;
+134:   status: "pending" | "completed" | "bypassed";
+135:   priority?: "low" | "medium" | "high";
+136:   description?: string;
+137: }
 138: 
 139: 
-140: class SmartGardenDatabase extends Dexie {
-141:   plants!: Table<PlantRecord>;
-142:   varieties!: Table<VarietyRecord>;
-143:   careActivities!: Table<CareActivityRecord>;
-144:   taskBypasses!: Table<TaskBypassRecord>;
-145:   taskCompletions!: Table<TaskCompletionRecord>;
-146:   scheduledTasks!: Table<ScheduledTask>;
-147: 
-148:   constructor() {
-149:     super("SmartGardenDatabase");
-150: 
-151:     this.version(5).stores({
-152:       plants: "++id, varietyId, isActive, plantedDate",
-153:       varieties: "++id, &normalizedName, name, category",
-154:       careActivities: "++id, plantId, type, date",
-155:       taskBypasses: "++id, taskId, plantId, taskType, bypassDate",
-156:       taskCompletions:
-157:         "++id, plantId, taskType, scheduledDate, actualCompletionDate",
-158:       scheduledTasks:
-159:         "++id, plantId, [plantId+status], [dueDate+status], taskType",
-160:     });
-161:   }
-162: }
-163: 
-164: export const db = new SmartGardenDatabase();
-165: 
-166: 
-167: export const plantService = {
-168:   async addPlant(
-169:     plant: Omit<PlantRecord, "id" | "createdAt" | "updatedAt">
-170:   ): Promise<string> {
-171:     const id = uuidv4();
-172:     const now = new Date();
-173:     const fullPlant: PlantRecord = {
-174:       ...plant,
-175:       id,
-176:       createdAt: now,
-177:       updatedAt: now,
-178:     };
-179: 
-180:     try {
-181:       await db.plants.add(fullPlant);
-182:       return id;
-183:     } catch (error) {
-184:       console.error("Failed to add plant:", error);
-185:       throw error;
-186:     }
-187:   },
-188: 
-189:   async getActivePlants(): Promise<PlantRecord[]> {
-190:     const allPlants = await db.plants.toArray();
-191:     return allPlants.filter((plant) => plant.isActive === true);
-192:   },
-193: 
-194:   async getPlant(id: string): Promise<PlantRecord | undefined> {
-195:     return db.plants.get(id);
+140: export type CareRecord = CareActivityRecord;
+141: export type BypassLogRecord = TaskBypassRecord;
+142: 
+143: 
+144: class SmartGardenDatabase extends Dexie {
+145:   plants!: Table<PlantRecord>;
+146:   varieties!: Table<VarietyRecord>;
+147:   careActivities!: Table<CareActivityRecord>;
+148:   taskBypasses!: Table<TaskBypassRecord>;
+149:   taskCompletions!: Table<TaskCompletionRecord>;
+150:   scheduledTasks!: Table<ScheduledTask>;
+151: 
+152:   constructor() {
+153:     super("SmartGardenDatabase");
+154: 
+155:     this.version(5).stores({
+156:       plants: "++id, varietyId, isActive, plantedDate",
+157:       varieties: "++id, &normalizedName, name, category",
+158:       careActivities: "++id, plantId, type, date",
+159:       taskBypasses: "++id, taskId, plantId, taskType, bypassDate",
+160:       taskCompletions:
+161:         "++id, plantId, taskType, scheduledDate, actualCompletionDate",
+162:       scheduledTasks:
+163:         "++id, plantId, [plantId+status], [dueDate+status], taskType",
+164:     });
+165:   }
+166: }
+167: 
+168: export const db = new SmartGardenDatabase();
+169: 
+170: 
+171: export const plantService = {
+172:   async addPlant(
+173:     plant: Omit<PlantRecord, "id" | "createdAt" | "updatedAt">
+174:   ): Promise<string> {
+175:     const id = uuidv4();
+176:     const now = new Date();
+177:     const fullPlant: PlantRecord = {
+178:       ...plant,
+179:       id,
+180:       createdAt: now,
+181:       updatedAt: now,
+182:     };
+183: 
+184:     try {
+185:       await db.plants.add(fullPlant);
+186:       return id;
+187:     } catch (error) {
+188:       console.error("Failed to add plant:", error);
+189:       throw error;
+190:     }
+191:   },
+192: 
+193:   async getActivePlants(): Promise<PlantRecord[]> {
+194:     const allPlants = await db.plants.toArray();
+195:     return allPlants.filter((plant) => plant.isActive === true);
 196:   },
 197: 
-198:   async updatePlant(
-199:     id: string,
-200:     updates: Partial<Omit<PlantRecord, "id" | "createdAt">>
-201:   ): Promise<void> {
-202:     const updateData = {
-203:       ...updates,
-204:       updatedAt: new Date(),
-205:     };
-206:     await db.plants.update(id, updateData);
-207:   },
-208: 
-209:   async deletePlant(id: string): Promise<void> {
-210:     const updateData = { isActive: false, updatedAt: new Date() };
-211:     await db.plants.update(id, updateData);
-212:   },
-213: };
-214: 
-215: export const varietyService = {
-216: 
-217:   async addVariety(
-218:     variety: Omit<
-219:       VarietyRecord,
-220:       "id" | "createdAt" | "updatedAt" | "normalizedName"
-221:     >
-222:   ): Promise<string> {
-223:     const normalizedName = variety.name.toLowerCase();
-224:     const existingVariety = await db.varieties
-225:       .where("normalizedName")
-226:       .equals(normalizedName)
-227:       .first();
-228: 
-229:     if (existingVariety) {
-230:       console.warn(
-231:         `Variety "${variety.name}" already exists. Returning existing ID.`
-232:       );
-233:       return existingVariety.id;
-234:     }
-235: 
-236:     const id = uuidv4();
-237:     const now = new Date();
-238:     const fullVariety: VarietyRecord = {
-239:       ...variety,
-240:       id,
-241:       normalizedName,
-242:       createdAt: now,
-243:       updatedAt: now,
-244:     };
-245: 
-246:     try {
-247:       await db.varieties.add(fullVariety);
-248:       return id;
-249:     } catch (error) {
-250:       console.error("Failed to add variety:", error);
-251:       throw error;
-252:     }
-253:   },
-254: 
-255:   async getVariety(id: string): Promise<VarietyRecord | undefined> {
-256:     return db.varieties.get(id);
+198:   async getPlant(id: string): Promise<PlantRecord | undefined> {
+199:     return db.plants.get(id);
+200:   },
+201: 
+202:   async updatePlant(
+203:     id: string,
+204:     updates: Partial<Omit<PlantRecord, "id" | "createdAt">>
+205:   ): Promise<void> {
+206:     const updateData = {
+207:       ...updates,
+208:       updatedAt: new Date(),
+209:     };
+210:     await db.plants.update(id, updateData);
+211:   },
+212: 
+213:   async deletePlant(id: string): Promise<void> {
+214:     const updateData = { isActive: false, updatedAt: new Date() };
+215:     await db.plants.update(id, updateData);
+216:   },
+217: };
+218: 
+219: export const varietyService = {
+220: 
+221:   async addVariety(
+222:     variety: Omit<
+223:       VarietyRecord,
+224:       "id" | "createdAt" | "updatedAt" | "normalizedName"
+225:     >
+226:   ): Promise<string> {
+227:     const normalizedName = variety.name.toLowerCase();
+228:     const existingVariety = await db.varieties
+229:       .where("normalizedName")
+230:       .equals(normalizedName)
+231:       .first();
+232: 
+233:     if (existingVariety) {
+234:       console.warn(
+235:         `Variety "${variety.name}" already exists. Returning existing ID.`
+236:       );
+237:       return existingVariety.id;
+238:     }
+239: 
+240:     const id = uuidv4();
+241:     const now = new Date();
+242:     const fullVariety: VarietyRecord = {
+243:       ...variety,
+244:       id,
+245:       normalizedName,
+246:       createdAt: now,
+247:       updatedAt: now,
+248:     };
+249: 
+250:     try {
+251:       await db.varieties.add(fullVariety);
+252:       return id;
+253:     } catch (error) {
+254:       console.error("Failed to add variety:", error);
+255:       throw error;
+256:     }
 257:   },
 258: 
-259:   async getAllVarieties(): Promise<VarietyRecord[]> {
-260:     const allVarieties = await db.varieties.toArray();
-261:     const uniqueVarieties = new Map<string, VarietyRecord>();
+259:   async getVariety(id: string): Promise<VarietyRecord | undefined> {
+260:     return db.varieties.get(id);
+261:   },
 262: 
-263:     for (const variety of allVarieties) {
-264: 
-265:       const normalizedName =
-266:         variety.normalizedName || variety.name.toLowerCase();
-267:       if (!uniqueVarieties.has(normalizedName)) {
-268:         uniqueVarieties.set(normalizedName, variety);
-269:       }
-270:     }
-271: 
-272:     const sortedVarieties = Array.from(uniqueVarieties.values());
-273:     sortedVarieties.sort((a, b) => a.name.localeCompare(b.name));
-274: 
-275:     return sortedVarieties;
-276:   },
-277: 
-278:   async getVarietiesByCategory(
-279:     category: PlantCategory
-280:   ): Promise<VarietyRecord[]> {
-281:     return db.varieties.where("category").equals(category).toArray();
-282:   },
-283: 
-284:   async getVarietyByName(name: string): Promise<VarietyRecord | undefined> {
-285:     const normalizedName = name.toLowerCase();
-286:     return db.varieties.where("normalizedName").equals(normalizedName).first();
-287:   },
-288: };
-289: 
-290: export const careService = {
-291:   async addCareActivity(
-292:     activity: Omit<CareActivityRecord, "id" | "createdAt" | "updatedAt">
-293:   ): Promise<string> {
-294:     const id = uuidv4();
-295:     const now = new Date();
-296:     const fullActivity: CareActivityRecord = {
-297:       ...activity,
-298:       id,
-299:       createdAt: now,
-300:       updatedAt: now,
-301:     };
-302: 
-303:     try {
-304:       await db.careActivities.add(fullActivity);
-305:       return id;
-306:     } catch (error) {
-307:       console.error("Failed to add care activity:", error);
-308:       throw error;
-309:     }
-310:   },
-311: 
-312:   async getLastActivityByType(
-313:     plantId: string,
-314:     type: CareActivityType
-315:   ): Promise<CareActivityRecord | null> {
-316:     const activities = await db.careActivities
-317:       .where("plantId")
-318:       .equals(plantId)
-319:       .and((activity) => activity.type === type)
-320:       .reverse()
-321:       .sortBy("date");
-322: 
-323:     return activities.length > 0 ? activities[0] : null;
-324:   },
-325: 
-326:   async getPlantCareHistory(plantId: string): Promise<CareActivityRecord[]> {
-327:     return db.careActivities
-328:       .where("plantId")
-329:       .equals(plantId)
-330:       .reverse()
-331:       .sortBy("date");
-332:   },
-333: 
-334:   async getRecentActivities(limit: number = 10): Promise<CareActivityRecord[]> {
-335:     return db.careActivities.orderBy("date").reverse().limit(limit).toArray();
+263:   async getAllVarieties(): Promise<VarietyRecord[]> {
+264:     const allVarieties = await db.varieties.toArray();
+265:     const uniqueVarieties = new Map<string, VarietyRecord>();
+266: 
+267:     for (const variety of allVarieties) {
+268: 
+269:       const normalizedName =
+270:         variety.normalizedName || variety.name.toLowerCase();
+271:       if (!uniqueVarieties.has(normalizedName)) {
+272:         uniqueVarieties.set(normalizedName, variety);
+273:       }
+274:     }
+275: 
+276:     const sortedVarieties = Array.from(uniqueVarieties.values());
+277:     sortedVarieties.sort((a, b) => a.name.localeCompare(b.name));
+278: 
+279:     return sortedVarieties;
+280:   },
+281: 
+282:   async getVarietiesByCategory(
+283:     category: PlantCategory
+284:   ): Promise<VarietyRecord[]> {
+285:     return db.varieties.where("category").equals(category).toArray();
+286:   },
+287: 
+288:   async getVarietyByName(name: string): Promise<VarietyRecord | undefined> {
+289:     const normalizedName = name.toLowerCase();
+290:     return db.varieties.where("normalizedName").equals(normalizedName).first();
+291:   },
+292: };
+293: 
+294: export const careService = {
+295:   async addCareActivity(
+296:     activity: Omit<CareActivityRecord, "id" | "createdAt" | "updatedAt">
+297:   ): Promise<string> {
+298:     const id = uuidv4();
+299:     const now = new Date();
+300:     const fullActivity: CareActivityRecord = {
+301:       ...activity,
+302:       id,
+303:       createdAt: now,
+304:       updatedAt: now,
+305:     };
+306: 
+307:     try {
+308:       await db.careActivities.add(fullActivity);
+309:       return id;
+310:     } catch (error) {
+311:       console.error("Failed to add care activity:", error);
+312:       throw error;
+313:     }
+314:   },
+315: 
+316:   async getLastActivityByType(
+317:     plantId: string,
+318:     type: CareActivityType
+319:   ): Promise<CareActivityRecord | null> {
+320:     const activities = await db.careActivities
+321:       .where("plantId")
+322:       .equals(plantId)
+323:       .and((activity) => activity.type === type)
+324:       .reverse()
+325:       .sortBy("date");
+326: 
+327:     return activities.length > 0 ? activities[0] : null;
+328:   },
+329: 
+330:   async getPlantCareHistory(plantId: string): Promise<CareActivityRecord[]> {
+331:     return db.careActivities
+332:       .where("plantId")
+333:       .equals(plantId)
+334:       .reverse()
+335:       .sortBy("date");
 336:   },
-337: };
+337: 
+338:   async getRecentActivities(limit: number = 10): Promise<CareActivityRecord[]> {
+339:     return db.careActivities.orderBy("date").reverse().limit(limit).toArray();
+340:   },
+341: };
+
+================
+File: src/db/seedData.ts
+================
+  1: import { db } from "@/types/database";
+  2: import { seedVarieties, SeedVariety } from "@/data/seedVarieties";
+  3: import {
+  4:   GrowthTimeline,
+  5:   VarietyProtocols,
+  6:   StageSpecificWateringProtocol,
+  7:   StageSpecificFertilizationProtocol,
+  8:   StageSpecificLightingProtocol,
+  9: } from "@/types/protocols";
+ 10: import { GrowthStage } from "@/types/core";
+ 11: 
+ 12: export let isDatabaseInitialized = false;
+ 13: export const resetDatabaseInitializationFlag = () => {
+ 14:   isDatabaseInitialized = false;
+ 15: };
+ 16: 
+ 17: 
+ 18: const stageNameMapping: { [key: string]: GrowthStage } = {
+ 19:   germination: "germination",
+ 20:   germinationEmergence: "germination",
+ 21:   slipProduction: "germination",
+ 22:   seedling: "seedling",
+ 23:   establishment: "seedling",
+ 24:   vegetative: "vegetative",
+ 25:   vegetativeGrowth: "vegetative",
+ 26:   vegetativeVining: "vegetative",
+ 27:   rootDevelopment: "vegetative",
+ 28:   flowering: "flowering",
+ 29:   flowerBudFormation: "flowering",
+ 30:   fruiting: "fruiting",
+ 31:   fruitingHarvesting: "fruiting",
+ 32:   podSetMaturation: "fruiting",
+ 33:   maturation: "maturation",
+ 34:   tuberDevelopment: "maturation",
+ 35:   ongoing: "ongoing-production",
+ 36:   ongoingProduction: "ongoing-production",
+ 37:   harvest: "harvest",
+ 38: };
+ 39: 
+ 40: const convertWateringProtocol = (
+ 41:   wateringProtocol: StageSpecificWateringProtocol
+ 42: ): VarietyProtocols["watering"] => {
+ 43:   const result: Partial<VarietyProtocols["watering"]> = {};
+ 44:   for (const [stage, stageData] of Object.entries(wateringProtocol)) {
+ 45:     const canonicalStage = stageNameMapping[stage];
+ 46:     if (canonicalStage && stageData) {
+ 47:       result[canonicalStage] = stageData;
+ 48:     }
+ 49:   }
+ 50:   return result as VarietyProtocols["watering"];
+ 51: };
+ 52: 
+ 53: const convertFertilizationProtocol = (
+ 54:   fertilizationProtocol: StageSpecificFertilizationProtocol
+ 55: ): VarietyProtocols["fertilization"] => {
+ 56:   const result: Partial<VarietyProtocols["fertilization"]> = {};
+ 57:   for (const [stage, stageData] of Object.entries(fertilizationProtocol)) {
+ 58:     const canonicalStage = stageNameMapping[stage];
+ 59:     if (canonicalStage && stageData) {
+ 60:       result[canonicalStage] = stageData;
+ 61:     }
+ 62:   }
+ 63:   return result as VarietyProtocols["fertilization"];
+ 64: };
+ 65: 
+ 66: const convertLightingProtocol = (
+ 67:   lightingProtocol: StageSpecificLightingProtocol
+ 68: ): VarietyProtocols["lighting"] => {
+ 69:   const result: Partial<VarietyProtocols["lighting"]> = {};
+ 70:   for (const [stage, stageData] of Object.entries(lightingProtocol)) {
+ 71:     const canonicalStage = stageNameMapping[stage];
+ 72:     if (canonicalStage && stageData) {
+ 73:       result[canonicalStage] = stageData;
+ 74:     }
+ 75:   }
+ 76:   return result as VarietyProtocols["lighting"];
+ 77: };
+ 78: 
+ 79: const convertSeedVarietyToVarietyRecord = (variety: SeedVariety) => {
+ 80:   const timelineData = variety.growthTimeline;
+ 81: 
+ 82:   const growthTimeline: GrowthTimeline = {
+ 83:     germination:
+ 84:       timelineData.germination ??
+ 85:       timelineData.germinationEmergence ??
+ 86:       timelineData.slipProduction ??
+ 87:       timelineData.caneEstablishment ??
+ 88:       0,
+ 89:     seedling: timelineData.seedling ?? timelineData.establishment ?? 7,
+ 90:     vegetative:
+ 91:       timelineData.vegetative ??
+ 92:       timelineData.vegetativeGrowth ??
+ 93:       timelineData.vegetativeVining ??
+ 94:       21,
+ 95:     maturation:
+ 96:       timelineData.maturation ??
+ 97:       timelineData.fruiting ??
+ 98:       timelineData.fruitingHarvesting ??
+ 99:       timelineData.podSetMaturation ??
+100:       timelineData.floweringFruiting ??
+101:       timelineData.ongoing ??
+102:       timelineData.tuberDevelopment ??
+103:       60,
+104:     rootDevelopment: timelineData.rootDevelopment ?? 14,
+105:   };
+106: 
+107:   let protocols: VarietyProtocols | undefined;
+108:   if (variety.protocols) {
+109:     protocols = {
+110:       watering: variety.protocols.watering
+111:         ? convertWateringProtocol(variety.protocols.watering)
+112:         : undefined,
+113:       fertilization: variety.protocols.fertilization
+114:         ? convertFertilizationProtocol(variety.protocols.fertilization)
+115:         : undefined,
+116:       lighting: variety.protocols.lighting
+117:         ? convertLightingProtocol(variety.protocols.lighting)
+118:         : undefined,
+119:       environment: variety.protocols.environment,
+120:       soilMixture: variety.protocols.soilMixture,
+121:       container: variety.protocols.container,
+122:       succession: variety.protocols.succession,
+123:       specialRequirements: variety.protocols.specialRequirements,
+124:     };
+125:   }
+126: 
+127:   return {
+128:     name: variety.name,
+129:     normalizedName: variety.name.toLowerCase(),
+130:     category: variety.category,
+131:     growthTimeline,
+132:     protocols,
+133:     isEverbearing: variety.isEverbearing,
+134:     productiveLifespan: variety.productiveLifespan,
+135:     isCustom: false,
+136:   };
+137: };
+138: 
+139: export const initializeDatabase = async (): Promise<void> => {
+140:   if (isDatabaseInitialized) {
+141:     return;
+142:   }
+143: 
+144:   try {
+145:     const existingCount = await db.varieties.count();
+146:     if (existingCount > 0) {
+147:       console.log("✅ Database already seeded.");
+148:       isDatabaseInitialized = true;
+149:       return;
+150:     }
+151: 
+152:     console.log("🌱 Initializing database with seed data...");
+153:     isDatabaseInitialized = true;
+154: 
+155:     const uniqueVarieties = new Map<string, SeedVariety>();
+156:     for (const variety of seedVarieties) {
+157:       if (!uniqueVarieties.has(variety.name.toLowerCase())) {
+158:         uniqueVarieties.set(variety.name.toLowerCase(), variety);
+159:       }
+160:     }
+161: 
+162:     for (const variety of uniqueVarieties.values()) {
+163:       const convertedVariety = convertSeedVarietyToVarietyRecord(variety);
+164:       await db.varieties.add({
+165:         id: crypto.randomUUID(),
+166:         ...convertedVariety,
+167:         createdAt: new Date(),
+168:         updatedAt: new Date(),
+169:       });
+170:     }
+171: 
+172:     console.log(
+173:       `✅ Successfully seeded ${uniqueVarieties.size} unique varieties`
+174:     );
+175:   } catch (error) {
+176:     isDatabaseInitialized = false;
+177:     console.error("❌ Error initializing database:", error);
+178: 
+179: 
+180:     if (error instanceof Error && error.name === "ConstraintError") {
+181:       console.warn(
+182:         "Seeding aborted, likely due to a race condition. The database should be correctly seeded by another process."
+183:       );
+184:       isDatabaseInitialized = true;
+185:     } else {
+186:       throw error;
+187:     }
+188:   }
+189: };
 
 ================
 File: src/pages/care/CareLogForm.tsx
