@@ -844,10 +844,14 @@ export function CareLogForm({
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-foreground mb-2">
+                  <label
+                    htmlFor="date" // Add the htmlFor attribute
+                    className="block text-sm font-medium text-foreground mb-2"
+                  >
                     Date *
                   </label>
                   <input
+                    id="date" // Add the id attribute
                     type="date"
                     {...register("date")}
                     className="w-full p-3 border border-border rounded-lg bg-background text-foreground focus:ring-2 focus:ring-ring focus:border-ring"

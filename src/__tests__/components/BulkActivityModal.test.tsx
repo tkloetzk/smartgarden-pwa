@@ -29,6 +29,17 @@ describe("BulkActivityModal", () => {
     varietyName: "Cherry Tomato",
   };
 
+  it("does not render when isOpen is false", () => {
+    render(
+      <BulkActivityModal
+        {...defaultProps}
+        isOpen={false}
+        activityType="water"
+      />
+    );
+    expect(screen.queryByText("💧 Water All Plants")).not.toBeInTheDocument();
+  });
+
   it("renders the correct title for watering multiple plants", () => {
     render(<BulkActivityModal {...defaultProps} activityType="water" />);
     expect(screen.getByText("💧 Water All Plants")).toBeInTheDocument();
@@ -109,5 +120,114 @@ describe("BulkActivityModal", () => {
     await user.click(closeButton);
 
     expect(mockOnClose).toHaveBeenCalledTimes(1);
+  });
+  it("renders correctly for observe activity type", () => {
+    render(<BulkActivityModal {...defaultProps} activityType="observe" />);
+    expect(screen.getByText("👁️ Inspect All Plants")).toBeInTheDocument();
+    // Should not show amount input for observe
+    expect(screen.queryByLabelText(/Amount/i)).not.toBeInTheDocument();
+  });
+  describe("form validation", () => {
+    it("handles empty amount input gracefully", async () => {
+      render(<BulkActivityModal {...defaultProps} activityType="water" />);
+
+      const amountInput = screen.getByLabelText(/Amount \(oz\)/i);
+      await user.clear(amountInput);
+
+      const submitButton = screen.getByRole("button", {
+        name: /Log Activity for All 2 Plants/i,
+      });
+      await user.click(submitButton);
+
+      await waitFor(() => {
+        expect(mockLogActivity).toHaveBeenCalledWith(
+          expect.objectContaining({
+            details: expect.objectContaining({
+              amount: { value: NaN, unit: "oz" },
+            }),
+          })
+        );
+      });
+    });
+
+    it("handles negative amount values", async () => {
+      render(<BulkActivityModal {...defaultProps} activityType="water" />);
+
+      const amountInput = screen.getByLabelText(/Amount \(oz\)/i);
+      await user.clear(amountInput);
+      await user.type(amountInput, "-5");
+
+      const submitButton = screen.getByRole("button", {
+        name: /Log Activity for All 2 Plants/i,
+      });
+      await user.click(submitButton);
+
+      await waitFor(() => {
+        expect(mockLogActivity).toHaveBeenCalledWith(
+          expect.objectContaining({
+            details: expect.objectContaining({
+              amount: { value: -5, unit: "oz" },
+            }),
+          })
+        );
+      });
+    });
+  });
+  it("successfully completes full water logging flow", async () => {
+    const mockOnClose = jest.fn();
+    render(
+      <BulkActivityModal
+        {...defaultProps}
+        activityType="water"
+        onClose={mockOnClose}
+      />
+    );
+
+    // Fill form
+    const amountInput = screen.getByLabelText(/Amount \(oz\)/i);
+    await user.clear(amountInput);
+    await user.type(amountInput, "30");
+
+    const notesInput = screen.getByLabelText(/Notes/i);
+    await user.type(notesInput, "Morning watering");
+
+    // Submit
+    const submitButton = screen.getByRole("button", {
+      name: /Log Activity for All 2 Plants/i,
+    });
+    await user.click(submitButton);
+
+    // Verify complete flow
+    await waitFor(() => {
+      expect(mockLogActivity).toHaveBeenCalledTimes(2);
+      expect(toast.success).toHaveBeenCalledWith(
+        "Activity logged for all 2 Cherry Tomato plants! 🌱"
+      );
+      expect(mockOnClose).toHaveBeenCalledTimes(1);
+    });
+  });
+  describe("error scenarios", () => {
+    it("displays error toast when logActivity fails", async () => {
+      const mockError = new Error("Network error");
+      mockLogActivity.mockRejectedValue(mockError);
+      const consoleSpy = jest.spyOn(console, "error").mockImplementation();
+
+      render(<BulkActivityModal {...defaultProps} activityType="water" />);
+
+      const submitButton = screen.getByRole("button", {
+        name: /Log Activity for All 2 Plants/i,
+      });
+      await user.click(submitButton);
+
+      await waitFor(() => {
+        expect(toast.error).toHaveBeenCalledWith("Failed to log activities");
+        expect(consoleSpy).toHaveBeenCalledWith(
+          "Activity logging error:",
+          mockError
+        );
+      });
+
+      consoleSpy.mockRestore();
+    });
   });
 });
