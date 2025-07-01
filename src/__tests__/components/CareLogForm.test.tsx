@@ -1,14 +1,25 @@
-import { describe, it, expect, beforeEach } from "@jest/globals";
+// src/__tests__/components/CareLogForm.test.tsx
+import { describe, it, expect, beforeEach, afterEach } from "@jest/globals";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
 import { CareLogForm } from "@/pages/care/CareLogForm";
-import { initializeDatabase } from "@/db/seedData";
+import {
+  initializeDatabase,
+  resetDatabaseInitializationFlag,
+} from "@/db/seedData";
 import { plantService } from "@/types/database";
 import { useFirebasePlants } from "@/hooks/useFirebasePlants";
 
 jest.mock("@/hooks/useFirebasePlants");
 const mockUseFirebasePlants = useFirebasePlants as jest.Mock;
+
+jest.mock("@/hooks/useFirebaseCareActivities", () => ({
+  useFirebaseCareActivities: () => ({
+    logActivity: jest.fn(),
+  }),
+}));
+
 // Helper to render components with Router context
 const renderWithRouter = (
   component: React.ReactElement,
@@ -23,16 +34,30 @@ describe("CareLogForm Pre-Selection", () => {
   const mockOnSuccess = jest.fn();
 
   beforeEach(async () => {
-    await initializeDatabase();
-    const { db } = await import("@/types/database");
-    await db.plants.clear();
+    // Reset database initialization flag
+    resetDatabaseInitializationFlag();
 
-    // Add this line to fix the error
+    // Clear the database and reinitialize
+    const { db } = await import("@/types/database");
+    await db.delete();
+    await db.open();
+    await initializeDatabase();
+
+    // Clear mocks
+    jest.clearAllMocks();
+
+    // Default mock return value
     mockUseFirebasePlants.mockReturnValue({
       plants: [],
       loading: false,
       error: null,
     });
+  });
+
+  afterEach(async () => {
+    // Clean up database after each test
+    const { db } = await import("@/types/database");
+    await db.delete();
   });
 
   it("pre-selects plant when preselectedPlantId is provided", async () => {
@@ -50,21 +75,19 @@ describe("CareLogForm Pre-Selection", () => {
     // 2. Retrieve the full plant record
     const createdPlant = await plantService.getPlant(plantId);
 
-    // 3. **CRITICAL FIX**: Mock the hook to return the created plant
+    // 3. Mock the hook to return the created plant
     mockUseFirebasePlants.mockReturnValue({
       plants: [createdPlant],
       loading: false,
       error: null,
     });
 
-    const mockOnSuccess = jest.fn();
-
     // 4. Render the component with the preselected ID
     renderWithRouter(
       <CareLogForm onSuccess={mockOnSuccess} preselectedPlantId={plantId} />
     );
 
-    // 5. Assert that the dropdown value is now correctly set
+    // 5. Assert that the dropdown value is correctly set
     await waitFor(() => {
       const plantSelect = screen.getByLabelText(/Plant/i) as HTMLSelectElement;
       expect(plantSelect.value).toBe(plantId);
@@ -86,14 +109,13 @@ describe("CareLogForm Pre-Selection", () => {
     // 2. Retrieve the created plant
     const createdPlant = await plantService.getPlant(plantId);
 
-    // 3. **CRITICAL FIX**: Mock the hook to return the created plant
+    // 3. Mock the hook to return the created plant
     mockUseFirebasePlants.mockReturnValue({
       plants: [createdPlant],
       loading: false,
       error: null,
     });
 
-    const mockOnSuccess = jest.fn();
     renderWithRouter(<CareLogForm onSuccess={mockOnSuccess} />);
 
     // 4. Wait for the form to be ready
@@ -102,7 +124,7 @@ describe("CareLogForm Pre-Selection", () => {
       expect(plantSelect.value).toBe("");
     });
 
-    // 5. **CRITICAL FIX**: Assert using the correct text format
+    // 5. Assert the plant option appears in the correct format
     await waitFor(() => {
       expect(
         screen.getByText("Test Plant (Test Variety) - Location 1")
@@ -136,14 +158,13 @@ describe("CareLogForm Pre-Selection", () => {
     const createdPlant1 = await plantService.getPlant(plant1Id);
     const createdPlant2 = await plantService.getPlant(plant2Id);
 
-    // 3. **CRITICAL FIX**: Mock the useFirebasePlants hook to return the created plants
+    // 3. Mock the useFirebasePlants hook to return the created plants
     mockUseFirebasePlants.mockReturnValue({
       plants: [createdPlant1, createdPlant2],
       loading: false,
       error: null,
     });
 
-    const mockOnSuccess = jest.fn();
     const user = userEvent.setup();
 
     // 4. Render the component with one plant pre-selected
@@ -151,9 +172,8 @@ describe("CareLogForm Pre-Selection", () => {
       <CareLogForm onSuccess={mockOnSuccess} preselectedPlantId={plant1Id} />
     );
 
-    // 5. **CRITICAL FIX**: Assert using the correct text format
+    // 5. Assert using the correct text format
     await waitFor(() => {
-      // The format is: Plant Name (Variety Name) - Location
       expect(
         screen.getByText("Plant One (Plant One) - Location 1")
       ).toBeInTheDocument();
@@ -162,12 +182,13 @@ describe("CareLogForm Pre-Selection", () => {
       ).toBeInTheDocument();
     });
 
-    // 6. Verify the rest of the functionality
+    // 6. Verify the initial selection
     await waitFor(() => {
       const plantSelect = screen.getByLabelText(/Plant/i) as HTMLSelectElement;
       expect(plantSelect.value).toBe(plant1Id);
     });
 
+    // 7. Change selection to the second plant
     const plantSelect = screen.getByLabelText(/Plant/i);
     await user.selectOptions(plantSelect, plant2Id);
 
@@ -180,7 +201,8 @@ describe("CareLogForm Pre-Selection", () => {
     await waitFor(() => {
       expect(screen.getByText("Water Amount *")).toBeInTheDocument();
     });
-    expect(screen.getByText(/Watering Log/i)).toBeInTheDocument();
+
+    expect(screen.getByText("Watering Details")).toBeInTheDocument();
     expect(screen.getByPlaceholderText("Amount")).toBeInTheDocument();
 
     expect(screen.getByText("oz")).toBeInTheDocument();
@@ -188,9 +210,8 @@ describe("CareLogForm Pre-Selection", () => {
     expect(screen.getByText("cups")).toBeInTheDocument();
   });
 
-  // Skipping because validation is off when having a custom name option
-  it.skip("handles plant without custom name correctly", async () => {
-    await plantService.addPlant({
+  it("handles plant without custom name correctly", async () => {
+    const plantId = await plantService.addPlant({
       varietyId: "test-variety",
       varietyName: "Roma Tomato",
       plantedDate: new Date(),
@@ -199,7 +220,13 @@ describe("CareLogForm Pre-Selection", () => {
       isActive: true,
     });
 
-    const mockOnSuccess = jest.fn();
+    const createdPlant = await plantService.getPlant(plantId);
+
+    mockUseFirebasePlants.mockReturnValue({
+      plants: [createdPlant],
+      loading: false,
+      error: null,
+    });
 
     renderWithRouter(<CareLogForm onSuccess={mockOnSuccess} />);
 

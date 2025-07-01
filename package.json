@@ -12,7 +12,7 @@
     "build": "tsc -b && vite build",
     "lint": "eslint . --ext ts,tsx",
     "preview": "vite preview",
-    "test": "jest --passWithNoTests",
+    "test": "NODE_ENV=test jest --passWithNoTests",
     "test:watch": "jest --watchAll --passWithNoTests",
     "test:coverage": "jest --coverage --passWithNoTests",
     "test:ci": "jest --ci --coverage --watchAll=false --passWithNoTests",

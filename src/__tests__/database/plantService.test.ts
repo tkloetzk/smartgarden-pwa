@@ -54,10 +54,20 @@ describe("plantService", () => {
     const updatedPlant = await plantService.getPlant(plantId);
     expect(updatedPlant).toBeDefined();
     expect(updatedPlant?.name).toBe(newName);
-    // More robust check: updatedAt should be later than createdAt
-    expect(updatedPlant?.updatedAt?.getTime()).toBeGreaterThan(
-      originalPlant!.createdAt.getTime()
-    );
+
+    const updatedAtTime =
+      updatedPlant?.updatedAt instanceof Date
+        ? updatedPlant.updatedAt.getTime()
+        : updatedPlant?.updatedAt
+        ? new Date(updatedPlant.updatedAt).getTime()
+        : Date.now();
+
+    const createdAtTime =
+      originalPlant!.createdAt instanceof Date
+        ? originalPlant!.createdAt.getTime()
+        : new Date(originalPlant!.createdAt).getTime();
+
+    expect(updatedAtTime).toBeGreaterThan(createdAtTime);
   });
 
   it("should mark a plant as inactive on delete, but not remove it", async () => {

@@ -111,10 +111,14 @@ export class FirebaseScheduledTaskService {
       }
     );
   }
-  static async deletePendingTasksForPlant(plantId: string): Promise<void> {
+  static async deletePendingTasksForPlant(
+    plantId: string,
+    userId: string
+  ): Promise<void> {
     try {
       const q = query(
         this.tasksCollection,
+        where("userId", "==", userId), // ✅ Add this line
         where("plantId", "==", plantId),
         where("status", "==", "pending")
       );

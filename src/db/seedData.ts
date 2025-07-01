@@ -8,6 +8,7 @@ import {
   StageSpecificLightingProtocol,
 } from "@/types/protocols";
 import { GrowthStage } from "@/types/core";
+import { generateUUID } from "@/utils/cn";
 
 export let isDatabaseInitialized = false;
 export const resetDatabaseInitializationFlag = () => {
@@ -150,7 +151,6 @@ export const initializeDatabase = async (): Promise<void> => {
     }
 
     console.log("🌱 Initializing database with seed data...");
-    isDatabaseInitialized = true;
 
     const uniqueVarieties = new Map<string, SeedVariety>();
     for (const variety of seedVarieties) {
@@ -159,30 +159,39 @@ export const initializeDatabase = async (): Promise<void> => {
       }
     }
 
-    for (const variety of uniqueVarieties.values()) {
-      const convertedVariety = convertSeedVarietyToVarietyRecord(variety);
-      await db.varieties.add({
-        id: crypto.randomUUID(),
-        ...convertedVariety,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      });
-    }
+    // --- MODIFICATION START ---
+    // Use Dexie's bulkAdd to handle potential constraint errors gracefully.
+    // It can be configured to ignore duplicates.
+    const varietyRecords = Array.from(uniqueVarieties.values()).map(
+      (variety) => {
+        const converted = convertSeedVarietyToVarietyRecord(variety);
+        return {
+          id: generateUUID(),
+          ...converted,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        };
+      }
+    );
 
+    await db.varieties.bulkAdd(varietyRecords);
+    // --- MODIFICATION END ---
+
+    isDatabaseInitialized = true; // Set flag after successful seeding
     console.log(
       `✅ Successfully seeded ${uniqueVarieties.size} unique varieties`
     );
   } catch (error) {
-    isDatabaseInitialized = false;
-    console.error("❌ Error initializing database:", error);
-
-    // --- START: Type Correction for Catch Block ---
-    if (error instanceof Error && error.name === "ConstraintError") {
+    if (error instanceof Error && error.name === "BulkError") {
+      // This error type is thrown by bulkAdd if there are issues.
+      // We can log it but continue, as some data may have been added.
       console.warn(
-        "Seeding aborted, likely due to a race condition. The database should be correctly seeded by another process."
+        "Seeding encountered a bulk error, likely due to duplicate keys already existing. This is safe to ignore in most development scenarios."
       );
-      isDatabaseInitialized = true; // We can safely assume the other process will succeed or has succeeded.
+      isDatabaseInitialized = true; // Mark as initialized even if there was a recoverable error.
     } else {
+      isDatabaseInitialized = false;
+      console.error("❌ Error initializing database:", error);
       throw error;
     }
   }

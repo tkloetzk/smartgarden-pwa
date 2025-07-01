@@ -1,23 +1,24 @@
 import { Routes, Route } from "react-router-dom";
 import { useFirebaseAuth } from "./hooks/useFirebaseAuth";
 import { useAppInitialization } from "./hooks/useAppInitialization";
-import { useDarkMode } from "./hooks/useDarkMode"; // Add this import
+import { useDarkMode } from "./hooks/useDarkMode";
 import LogCare from "./pages/care/LogCare";
 import { Dashboard } from "./pages/dashboard";
 import Plants from "./pages/plants/Plants";
 import PlantDetail from "./pages/plants/PlantDetail";
 import { AuthForm } from "./components/AuthForm";
 import AddPlant from "./pages/plants/AddPlant";
+import Layout from "./components/Layout";
 
 const App = () => {
   const { user, loading } = useFirebaseAuth();
-  useDarkMode(); // Initialize dark mode globally
+  useDarkMode();
   useAppInitialization();
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div>Loading...</div>
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-foreground">Loading...</div>
       </div>
     );
   }
@@ -27,7 +28,7 @@ const App = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <Layout>
       <Routes>
         <Route path="/" element={<Dashboard />} />
         <Route path="/plants" element={<Plants />} />
@@ -36,7 +37,7 @@ const App = () => {
         <Route path="/log-care" element={<LogCare />} />
         <Route path="/log-care/:plantId" element={<LogCare />} />
       </Routes>
-    </div>
+    </Layout>
   );
 };
 

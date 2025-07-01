@@ -4,7 +4,7 @@ module.exports = {
   theme: {
     extend: {
       colors: {
-        // Semantic color system using CSS variables
+        // Your existing color system...
         background: "rgb(var(--background) / <alpha-value>)",
         foreground: "rgb(var(--foreground) / <alpha-value>)",
         card: {
@@ -29,8 +29,11 @@ module.exports = {
         },
         border: "rgb(var(--border) / <alpha-value>)",
         ring: "rgb(var(--ring) / <alpha-value>)",
-
-        // Keep your existing garden colors for specific use
+        input: {
+          DEFAULT: "rgb(var(--input) / <alpha-value>)",
+          foreground: "rgb(var(--input-foreground) / <alpha-value>)",
+        },
+        // Keep your garden colors...
         garden: {
           50: "#f0f9f4",
           100: "#dcf2e4",
@@ -43,21 +46,18 @@ module.exports = {
           800: "#1a4a31",
           900: "#163d29",
         },
-
-        // Keep specific colors for special use cases
         success: "#38A169",
         warning: "#DD6B20",
         error: "#E53E3E",
-
-        input: {
-          DEFAULT: "rgb(var(--input) / <alpha-value>)",
-          foreground: "rgb(var(--input-foreground) / <alpha-value>)",
-        },
       },
-      boxShadow: {
-        sm: "0 1px 2px 0 rgb(0 0 0 / 0.05)",
-        md: "0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1)",
-        lg: "0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1)",
+      spacing: {
+        "safe-bottom": "env(safe-area-inset-bottom)",
+      },
+      minWidth: {
+        touch: "44px", // Minimum touch target
+      },
+      minHeight: {
+        touch: "44px", // Minimum touch target
       },
     },
   },

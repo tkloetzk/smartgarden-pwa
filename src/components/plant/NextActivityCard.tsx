@@ -1,7 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { useNextPlantTask } from "@/hooks/useNextPlantTask";
-import { Clock, Calendar, AlertTriangle, CheckCircle2 } from "lucide-react";
+import { AlertTriangle, Calendar, CheckCircle2, Clock } from "lucide-react";
 import Badge from "../ui/Badge";
 
 interface NextActivityCardProps {
@@ -28,13 +28,22 @@ const NextActivityCard = ({
     return "📋";
   };
 
-  const getPriorityConfig = (priority: "low" | "medium" | "high") => {
+  // src/components/plant/NextActivityCard.tsx
+  const getPriorityConfig = (
+    priority: "low" | "medium" | "high" | "overdue"
+  ) => {
     switch (priority) {
       case "high":
         return {
           color: "bg-red-100 text-red-800 border-red-200",
           icon: <AlertTriangle className="h-3 w-3" />,
           buttonStyle: "bg-red-500 hover:bg-red-600 text-white",
+        };
+      case "overdue":
+        return {
+          color: "bg-red-200 text-red-900 border-red-300",
+          icon: <AlertTriangle className="h-3 w-3" />,
+          buttonStyle: "bg-red-600 hover:bg-red-700 text-white",
         };
       case "medium":
         return {

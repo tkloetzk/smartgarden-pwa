@@ -2,6 +2,7 @@
 import { db, TaskCompletionRecord } from "@/types/database";
 import { CareActivityType, GrowthStage } from "@/types/core";
 import { addDays, differenceInDays } from "date-fns";
+import { generateUUID } from "@/utils/cn";
 
 export interface SchedulingAdjustment {
   plantId: string;
@@ -28,7 +29,7 @@ export class DynamicSchedulingService {
       );
 
       await db.taskCompletions.add({
-        id: crypto.randomUUID(),
+        id: generateUUID(),
         plantId,
         taskType,
         scheduledDate,

@@ -15,9 +15,6 @@ const config: Config = {
     "^@/utils/(.*)$": "<rootDir>/src/utils/$1",
     "^@/data/(.*)$": "<rootDir>/src/data/$1",
     "^@/db/(.*)$": "<rootDir>/src/db/$1",
-    // Force Jest to use the mock for Firebase config
-    "^@/services/firebase/config$":
-      "<rootDir>/src/services/firebase/__mocks__/config.ts",
   },
   collectCoverageFrom: [
     "src/**/*.{ts,tsx}",
@@ -25,6 +22,7 @@ const config: Config = {
     "!src/main.tsx",
     "!src/vite-env.d.ts",
     "!src/setupTests.ts",
+    "!src/jest.polyfills.ts",
   ],
   testMatch: [
     "<rootDir>/src/**/__tests__/**/*.{js,jsx,ts,tsx}",

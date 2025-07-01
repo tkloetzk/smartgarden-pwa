@@ -11,8 +11,16 @@ export function useFirebasePlants(includeInactive = false) {
   const { user } = useFirebaseAuth();
 
   useEffect(() => {
-    if (!user) {
+    if (!user?.uid) {
       setPlants([]);
+      setLoading(false);
+      return;
+    }
+
+    // Add type checking
+    if (typeof user.uid !== "string") {
+      console.error("❌ user.uid is not a string:", user.uid);
+      setError("Invalid user authentication");
       setLoading(false);
       return;
     }
@@ -28,7 +36,7 @@ export function useFirebasePlants(includeInactive = false) {
     );
 
     return unsubscribe;
-  }, [user, includeInactive]);
+  }, [user?.uid, includeInactive]);
 
   const createPlant = async (
     plant: Omit<PlantRecord, "id" | "createdAt" | "updatedAt">

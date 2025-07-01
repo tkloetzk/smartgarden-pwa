@@ -143,7 +143,7 @@ describe("Dashboard", () => {
 
       renderWithRouter(<Dashboard />);
 
-      expect(screen.getByText("Loading...")).toBeInTheDocument();
+      expect(screen.getByText(/Loading/i)).toBeInTheDocument();
     });
   });
 

@@ -5,6 +5,7 @@ import {
   ScheduledTask,
 } from "./ProtocolTranspilerService";
 import { plantService, varietyService } from ".";
+import { generateUUID } from "@/utils/cn";
 
 // We'll need to add this to the database later
 const scheduledTasksStore: ScheduledTask[] = []; // Temporary storage until database is updated
@@ -16,7 +17,7 @@ export class PlantRegistrationService {
   static async registerPlant(plantData: PlantRecord): Promise<void> {
     try {
       // Remove the generated fields before passing to addPlant
-      const { id, createdAt, updatedAt, ...plantDataForDb } = plantData;
+      const { ...plantDataForDb } = plantData;
       await plantService.addPlant(plantDataForDb);
 
       const variety = await varietyService.getVariety(plantData.varietyId);
@@ -70,7 +71,7 @@ export class PlantRegistrationService {
     }
 
     // Generate unique ID
-    const plantId = crypto.randomUUID();
+    const plantId = generateUUID(); // ✅ Use your custom function
 
     const plant: PlantRecord = {
       id: plantId,

@@ -7,12 +7,7 @@ import { LoadingSpinner } from "@/components/ui/LoadingSpinner";
 import { FirebasePlantService } from "@/services/firebase/plantService";
 import { useFirebaseAuth } from "@/hooks/useFirebaseAuth";
 import { useFirebaseCareActivities } from "@/hooks/useFirebaseCareActivities";
-import {
-  varietyService,
-  PlantRecord,
-  VarietyRecord,
-  GrowthStage,
-} from "@/types";
+import { PlantRecord, GrowthStage } from "@/types";
 import CareHistory from "@/components/plant/CareHistory";
 import PlantReminderSettings from "@/components/plant/PlantReminderSettings";
 import { getPlantDisplayName } from "@/utils/plantDisplay";
@@ -31,7 +26,6 @@ const PlantDetail: React.FC = () => {
   const { user } = useFirebaseAuth();
 
   const [plant, setPlant] = useState<PlantRecord | null>(null);
-  const [variety, setVariety] = useState<VarietyRecord | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showReminderSettings, setShowReminderSettings] = useState(false);
@@ -41,8 +35,35 @@ const PlantDetail: React.FC = () => {
   const plantStage = useDynamicStage(plant!);
 
   useEffect(() => {
-    if (!plantId || !user) {
-      setError(plantId ? "User not authenticated" : "No plant ID provided");
+    if (user) {
+      console.log("User UID type check:", {
+        uid: user.uid,
+        type: typeof user.uid,
+        isFunction: typeof user.uid === "function",
+      });
+    }
+  }, [user]);
+  useEffect(() => {
+    console.log("🐛 DEBUG - user object:", user);
+    console.log("🐛 DEBUG - user.uid:", user?.uid);
+    console.log("🐛 DEBUG - typeof user.uid:", typeof user?.uid);
+
+    if (!plantId) {
+      setError("No plant ID provided");
+      setIsLoading(false);
+      return;
+    }
+
+    if (!user?.uid) {
+      setError("User not authenticated");
+      setIsLoading(false);
+      return;
+    }
+
+    // Add validation to ensure uid is a string
+    if (typeof user.uid !== "string") {
+      console.error("❌ user.uid is not a string:", user.uid, typeof user.uid);
+      setError("Invalid user authentication");
       setIsLoading(false);
       return;
     }
@@ -51,17 +72,11 @@ const PlantDetail: React.FC = () => {
     setError(null);
 
     const unsubscribe = FirebasePlantService.subscribeToPlantsChanges(
-      user.uid,
+      user.uid, // Already passing userId
       (plants) => {
         const foundPlant = plants.find((p) => p.id === plantId);
         if (foundPlant) {
           setPlant(foundPlant);
-          if (foundPlant.varietyId) {
-            varietyService
-              .getVariety(foundPlant.varietyId)
-              .then((varietyData) => setVariety(varietyData || null))
-              .catch(console.error);
-          }
         } else {
           setError("Plant not found");
         }
@@ -71,7 +86,8 @@ const PlantDetail: React.FC = () => {
     );
 
     return () => unsubscribe();
-  }, [plantId, user]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [plantId, user?.uid]);
 
   const handleConfirmStageChange = async (newStage: GrowthStage) => {
     if (!plant || !user) return;
@@ -204,14 +220,13 @@ const PlantDetail: React.FC = () => {
         </div>
       </div>
 
-      {isStageModalOpen && (
-        <StageUpdateModal
-          plant={plant}
-          currentStage={plantStage}
-          onConfirm={handleConfirmStageChange}
-          onClose={() => setIsStageModalOpen(false)}
-        />
-      )}
+      <StageUpdateModal
+        isOpen={isStageModalOpen}
+        plant={plant}
+        currentStage={plantStage}
+        onConfirm={handleConfirmStageChange}
+        onClose={() => setIsStageModalOpen(false)}
+      />
     </>
   );
 };

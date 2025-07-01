@@ -1,5 +1,9 @@
+/* src/styles/globals.css */
+/* stylelint-disable-next-line at-rule-no-unknown */
 @tailwind base;
+/* stylelint-disable-next-line at-rule-no-unknown */
 @tailwind components;
+/* stylelint-disable-next-line at-rule-no-unknown */
 @tailwind utilities;
 
 @layer base {
@@ -29,7 +33,7 @@
     --foreground: 243 244 246; /* gray-100 */
     --card: 31 41 55; /* gray-800 */
     --card-foreground: 243 244 246; /* gray-100 */
-    --primary: 34 197 94; /* emerald-500 - darker in dark mode */
+    --primary: 34 197 94; /* emerald-500 */
     --primary-foreground: 243 244 246; /* gray-100 */
     --secondary: 75 85 99; /* gray-600 */
     --secondary-foreground: 243 244 246; /* gray-100 */
@@ -44,8 +48,9 @@
   }
 }
 
-/* Global styling */
+/* Reset and base styles */
 * {
+  box-sizing: border-box;
   -webkit-tap-highlight-color: transparent;
 }
 
@@ -54,12 +59,15 @@ html {
 }
 
 body {
+  margin: 0;
+  padding: 0;
   background-color: rgb(var(--background));
   color: rgb(var(--foreground));
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
     "Helvetica Neue", Arial, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  min-height: 100vh;
 }
 
 #root {
@@ -67,14 +75,18 @@ body {
   min-height: 100vh;
 }
 
-/* Ensure buttons look good on iOS */
+/* Button improvements */
 button {
   -webkit-appearance: none;
   appearance: none;
 }
 
-/* Better focus for accessibility */
 button:focus-visible {
-  outline: 2px solid #3b82f6;
+  outline: 2px solid rgb(var(--primary));
   outline-offset: 2px;
+}
+
+/* Safe area handling for mobile devices */
+.safe-area-padding-bottom {
+  padding-bottom: env(safe-area-inset-bottom);
 }

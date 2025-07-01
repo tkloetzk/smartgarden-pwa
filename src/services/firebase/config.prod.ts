@@ -1,7 +1,7 @@
-// src/services/firebase/config.ts
+// src/services/firebase/config.prod.ts (create this file)
 import { initializeApp } from "firebase/app";
-import { getAuth } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
+import { getAuth } from "firebase/auth";
 import { getStorage } from "firebase/storage";
 
 const firebaseConfig = {
@@ -13,23 +13,10 @@ const firebaseConfig = {
   appId: import.meta.env.VITE_FIREBASE_APP_ID,
 };
 
+// Initialize Firebase
 const app = initializeApp(firebaseConfig);
 
-export const auth = getAuth(app);
+// Export the services
 export const db = getFirestore(app);
+export const auth = getAuth(app);
 export const storage = getStorage(app);
-
-// ❌ COMMENT OUT EMULATOR CODE FOR NOW
-// if (import.meta.env.DEV) {
-//   try {
-//     console.log("🛠️ Connecting to Firebase Emulators");
-//     connectAuthEmulator(auth, "http://localhost:9099");
-//     connectFirestoreEmulator(db, "localhost", 8080);
-//     connectStorageEmulator(storage, "localhost", 9199);
-//   } catch (e) {
-//     console.error(
-//       "⚠️ Error connecting to Firebase emulators. Make sure they are running.",
-//       e
-//     );
-//   }
-// }

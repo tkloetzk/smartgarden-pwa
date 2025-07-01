@@ -11,6 +11,7 @@ import {
   WateringMethod,
 } from "./core";
 import { VarietyProtocols, GrowthTimeline } from "./protocols";
+import { generateUUID } from "@/utils/cn";
 
 export interface BaseRecord {
   id: string;
@@ -34,6 +35,7 @@ export interface PlantRecord extends BaseRecord {
   confirmedStage?: GrowthStage;
   /** The date the user confirmed the growth stage. */
   stageConfirmedDate?: Date;
+  growthRateModifier?: number;
   reminderPreferences?: {
     watering?: boolean;
     fertilizing?: boolean;
@@ -122,9 +124,9 @@ export interface TaskCompletionRecord extends BaseRecord {
   taskType: CareActivityType;
   scheduledDate: Date;
   actualCompletionDate: Date;
-  varianceDays: number;
-  careActivityId: string;
-  plantStage: GrowthStage;
+  varianceDays: number; // The key data point: negative if early, positive if late
+  careActivityId: string; // Link to the actual care log entry
+  plantStage: GrowthStage; // The stage when the task was completed
 }
 
 export interface ScheduledTask extends BaseRecord {
@@ -152,13 +154,37 @@ class SmartGardenDatabase extends Dexie {
   constructor() {
     super("SmartGardenDatabase");
 
-    this.version(5).stores({
-      plants: "++id, varietyId, isActive, plantedDate",
-      varieties: "++id, &normalizedName, name, category", // The '&' makes normalizedName a unique index
+    this.version(7).stores({
+      plants: "++id, varietyId, isActive, plantedDate, growthRateModifier", // Add new field to index for potential queries
+      varieties: "++id, &normalizedName, name, category",
       careActivities: "++id, plantId, type, date",
       taskBypasses: "++id, taskId, plantId, taskType, bypassDate",
+      scheduledTasks:
+        "++id, plantId, [plantId+status], [dueDate+status], taskType",
+      taskCompletions:
+        "++id, plantId, taskType, [scheduledDate+actualCompletionDate], scheduledDate, actualCompletionDate",
+    });
+    this.version(6).stores({
+      // --- (existing table definitions remain the same) ---
+      plants: "++id, varietyId, isActive, plantedDate",
+      varieties: "++id, &normalizedName, name, category",
+      careActivities: "++id, plantId, type, date",
+      taskBypasses: "++id, taskId, plantId, taskType, bypassDate",
+      scheduledTasks:
+        "++id, plantId, [plantId+status], [dueDate+status], taskType",
+      // --- START: New Table Definition ---
       taskCompletions:
         "++id, plantId, taskType, scheduledDate, actualCompletionDate",
+      // --- END: New Table Definition ---
+    });
+
+    // Handle migration from older versions if necessary
+    this.version(5).stores({
+      plants: "++id, varietyId, isActive, plantedDate",
+      varieties: "++id, &normalizedName, name, category",
+      careActivities: "++id, plantId, type, date",
+      taskBypasses: "++id, taskId, plantId, taskType, bypassDate",
+      taskCompletions: null, // Ensure old versions without this table can upgrade
       scheduledTasks:
         "++id, plantId, [plantId+status], [dueDate+status], taskType",
     });
@@ -172,7 +198,7 @@ export const plantService = {
   async addPlant(
     plant: Omit<PlantRecord, "id" | "createdAt" | "updatedAt">
   ): Promise<string> {
-    const id = uuidv4();
+    const id = generateUUID();
     const now = new Date();
     const fullPlant: PlantRecord = {
       ...plant,
@@ -295,7 +321,7 @@ export const careService = {
   async addCareActivity(
     activity: Omit<CareActivityRecord, "id" | "createdAt" | "updatedAt">
   ): Promise<string> {
-    const id = uuidv4();
+    const id = generateUUID();
     const now = new Date();
     const fullActivity: CareActivityRecord = {
       ...activity,

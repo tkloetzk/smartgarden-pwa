@@ -10,34 +10,40 @@ export function useDynamicStage(plant: PlantRecord): GrowthStage {
 
   useEffect(() => {
     const calculateStage = async () => {
+      // // If a stage has been manually confirmed, always use that.
+      // if (plant?.confirmedStage) {
+      //   setCalculatedStage(plant.confirmedStage);
+      //   return;
+      // }
+
+      // If no confirmed stage, proceed with calculation based on plantedDate.
       if (!plant?.varietyId) {
         setCalculatedStage("germination");
         return;
       }
+
       try {
         const variety = await varietyService.getVariety(plant.varietyId);
 
         if (!variety) {
-          // Fallback logic if variety is not found
           console.warn(
             `Variety with id ${plant.varietyId} not found. Defaulting stage.`
           );
-          setCalculatedStage("vegetative"); // A safe default
+          setCalculatedStage("vegetative");
           return;
         }
 
-        // --- NEW LOGIC ---
-        // Prioritize user-confirmed stage if it exists
+        // If a stage has been manually confirmed, use the confirmed date and stage as starting point
         if (plant.confirmedStage && plant.stageConfirmedDate) {
           const stage = calculateCurrentStageWithVariety(
-            plant.stageConfirmedDate, // Use confirmed date as the new anchor
+            plant.stageConfirmedDate, // Use confirmed date as reference
             variety,
-            new Date(),
-            plant.confirmedStage // Tell the function which stage we're starting from
+            new Date(), // Current date for calculation
+            plant.confirmedStage // Use confirmed stage as starting point
           );
           setCalculatedStage(stage);
         } else {
-          // Fallback to original calculation from planted date
+          // No confirmed stage, calculate from planting date
           const stage = calculateCurrentStageWithVariety(
             plant.plantedDate,
             variety
@@ -51,7 +57,7 @@ export function useDynamicStage(plant: PlantRecord): GrowthStage {
     };
 
     calculateStage();
-  }, [plant]); // Depend on the entire plant object to react to updates
+  }, [plant]);
 
   return calculatedStage;
 }

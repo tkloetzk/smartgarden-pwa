@@ -2,7 +2,7 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-
+    
     // Helper function to check ownership
     function isOwner(userId) {
       return request.auth != null && request.auth.uid == userId;
@@ -10,11 +10,9 @@ service cloud.firestore {
 
     // Plants - users can only access their own plants
     match /plants/{plantId} {
-      // Allow creation if the new document's userId matches the requester's UID.
-      allow create: if isOwner(request.resource.data.userId);
-
-      // Allow read, update, and delete if the user owns the existing document.
-      allow read, update, delete: if isOwner(resource.data.userId);
+      // ✅ CORRECTED: This single 'read' rule covers both 'get' and 'list'
+      allow read: if isOwner(resource.data.userId); 
+      allow write: if isOwner(request.resource.data.userId);
     }
     
     // Varieties - all authenticated users can read and write
@@ -24,14 +22,16 @@ service cloud.firestore {
     
     // Care Activities - users can only access their own activities
     match /careActivities/{activityId} {
-      allow create: if isOwner(request.resource.data.userId);
-      allow read, update, delete: if isOwner(resource.data.userId);
+      // ✅ CORRECTED: This single 'read' rule covers both 'get' and 'list'
+      allow read: if isOwner(resource.data.userId);
+      allow write: if isOwner(request.resource.data.userId);
     }
     
     // Scheduled Tasks - users can only access their own tasks
     match /scheduledTasks/{taskId} {
-      allow create: if isOwner(request.resource.data.userId);
-      allow read, update, delete: if isOwner(resource.data.userId);
+      // ✅ CORRECTED: This single 'read' rule covers both 'get' and 'list'
+      allow read: if isOwner(resource.data.userId);
+      allow write: if isOwner(request.resource.data.userId);
     }
   }
 }

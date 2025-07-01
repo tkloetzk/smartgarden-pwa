@@ -7,7 +7,6 @@ import {
   onSnapshot,
   query,
   where,
-  orderBy,
   Timestamp,
   writeBatch,
   serverTimestamp,
@@ -18,9 +17,7 @@ import {
   convertPlantToFirebase,
   convertPlantFromFirebase,
 } from "../../types/firebase";
-import { PlantRecord, varietyService } from "../../types/database";
-import { ProtocolTranspilerService } from "../ProtocolTranspilerService";
-import { FirebaseScheduledTaskService } from "./scheduledTaskService";
+import { PlantRecord } from "../../types/database";
 
 export class FirebasePlantService {
   private static plantsCollection = collection(db, "plants");
@@ -57,99 +54,108 @@ export class FirebasePlantService {
     await batch.commit();
   }
 
-  static subscribeToPlantsChanges(
+  public static subscribeToPlantsChanges(
     userId: string,
     callback: (plants: PlantRecord[]) => void,
-    options?: { includeInactive?: boolean }
+    options: { includeInactive: boolean } = { includeInactive: false }
   ): () => void {
-    const constraints = [
-      where("userId", "==", userId),
-      orderBy("createdAt", "desc"),
-    ];
+    console.log("🔍 Creating plants query for userId:", userId);
 
-    if (!options?.includeInactive) {
-      constraints.push(where("isActive", "==", true));
+    let q;
+    if (options.includeInactive) {
+      // Query for all plants belonging to the user
+      q = query(this.plantsCollection, where("userId", "==", userId));
+    } else {
+      // Query for only active plants belonging to the user
+      q = query(
+        this.plantsCollection,
+        where("userId", "==", userId),
+        where("isActive", "==", true)
+      );
     }
 
-    const plantsQuery = query(this.plantsCollection, ...constraints);
+    console.log("🔍 Plants query created:", q);
 
-    return onSnapshot(plantsQuery, (snapshot) => {
-      const plants = snapshot.docs.map((doc) => {
-        const data = doc.data() as FirebasePlantRecord;
-        return convertPlantFromFirebase({ ...data, id: doc.id });
-      });
-      callback(plants);
-    });
+    const unsubscribe = onSnapshot(
+      q,
+      (querySnapshot) => {
+        console.log(
+          "✅ Plants query successful, received:",
+          querySnapshot.size,
+          "documents"
+        );
+
+        const plants: PlantRecord[] = [];
+        querySnapshot.forEach((doc) => {
+          const data = doc.data();
+          plants.push({
+            id: doc.id,
+            ...data,
+            // Convert Firestore Timestamps to JS Dates
+            plantedDate: (data.plantedDate as Timestamp)?.toDate(),
+            createdAt: (data.createdAt as Timestamp)?.toDate(),
+            updatedAt: (data.updatedAt as Timestamp)?.toDate(),
+          } as PlantRecord);
+        });
+        callback(plants);
+      },
+      (error) => {
+        console.error("❌ Plants query failed:", error);
+        console.error("❌ Query details:", { userId, options });
+      }
+    );
+
+    return unsubscribe;
   }
 
-  static async getPlant(plantId: string): Promise<PlantRecord | null> {
+  // src/services/firebase/plantService.ts
+  static async getPlant(
+    plantId: string,
+    userId: string
+  ): Promise<PlantRecord | null> {
     return new Promise((resolve) => {
       const plantRef = doc(this.plantsCollection, plantId);
-      const unsubscribe = onSnapshot(plantRef, (doc) => {
-        if (doc.exists()) {
-          const data = doc.data() as FirebasePlantRecord;
-          resolve(convertPlantFromFirebase({ ...data, id: doc.id }));
-        } else {
+      const unsubscribe = onSnapshot(
+        plantRef,
+        (doc) => {
+          if (doc.exists()) {
+            const data = doc.data() as FirebasePlantRecord;
+
+            // ✅ Verify ownership before returning data
+            if (data.userId !== userId) {
+              console.error("❌ User does not own this plant");
+              resolve(null);
+              return;
+            }
+
+            resolve(convertPlantFromFirebase({ ...data, id: doc.id }));
+          } else {
+            resolve(null);
+          }
+          unsubscribe();
+        },
+        (error) => {
+          console.error("❌ Error fetching plant:", error);
           resolve(null);
+          unsubscribe();
         }
-        unsubscribe();
-      });
+      );
     });
   }
-  // In src/services/firebase/plantService.ts, add extensive logging to the createPlant method:
+  // src/services/firebase/plantService.ts - Fix the plant creation
   static async createPlant(
     plant: Omit<PlantRecord, "id" | "createdAt" | "updatedAt">,
     userId: string
   ): Promise<string> {
-    try {
-      // Create the plant with dates
-      const plantWithDates: PlantRecord = {
-        ...plant,
-        id: "",
-        userId,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      };
-      const firebasePlantData = convertPlantToFirebase(plantWithDates, userId);
-      const docRef = await addDoc(collection(db, "plants"), firebasePlantData);
+    const plantWithDates: PlantRecord = {
+      ...plant,
+      id: "", // Will be set by Firebase
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
 
-      const variety = await varietyService.getVariety(plant.varietyId);
-
-      if (!variety) {
-        console.error("❌ Variety not found:", plant.varietyId);
-        return docRef.id;
-      }
-
-      if (variety.protocols?.fertilization) {
-        const fullPlant: PlantRecord = {
-          ...plantWithDates,
-          id: docRef.id,
-        };
-
-        const scheduledTasks =
-          await ProtocolTranspilerService.transpilePlantProtocol(
-            fullPlant,
-            variety
-          );
-
-        // Save tasks to Firestore
-        if (scheduledTasks.length > 0) {
-          // TODO: We need to implement this!
-          await FirebaseScheduledTaskService.createMultipleTasks(
-            scheduledTasks,
-            userId
-          );
-        } else {
-          console.log("⚠️ No tasks generated");
-        }
-      } else {
-        console.log("⚠️ No fertilization protocols found for variety");
-      }
-
-      return docRef.id;
-    } catch (error) {
-      console.error("❌ Error creating plant:", error);
-      throw error;
-    }
+    const firebasePlant = convertPlantToFirebase(plantWithDates, userId);
+    const docRef = await addDoc(this.plantsCollection, firebasePlant);
+    return docRef.id;
   }
 }

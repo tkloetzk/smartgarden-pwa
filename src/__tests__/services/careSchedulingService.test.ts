@@ -2,22 +2,20 @@
 
 import { CareSchedulingService } from "@/services/careSchedulingService";
 import { plantService, varietyService, VarietyRecord } from "@/types/database";
-// --- MODIFIED LINE: Import the new reset function ---
 import {
   initializeDatabase,
   resetDatabaseInitializationFlag,
 } from "../../db/seedData";
 import { subDays } from "date-fns";
-import { restoreDate } from "../../setupTests";
 import { useFirebasePlants } from "@/hooks/useFirebasePlants";
 
 jest.mock("@/hooks/useFirebasePlants");
 
 describe("CareSchedulingService", () => {
-  let testVariety: VarietyRecord; // Variable to hold our reliable test variety
+  let testVariety: VarietyRecord;
 
   beforeEach(async () => {
-    // --- NEW LINE: Reset the flag before doing anything else ---
+    // ✅ Don't use fake timers during setup - it interferes with async operations
     resetDatabaseInitializationFlag();
 
     (useFirebasePlants as jest.Mock).mockClear();
@@ -27,7 +25,6 @@ describe("CareSchedulingService", () => {
     await db.varieties.clear();
     await initializeDatabase();
 
-    // Fetch a specific, known variety to use in all tests
     const variety = await varietyService.getVarietyByName("Astro Arugula");
     if (!variety) {
       throw new Error(
@@ -38,11 +35,14 @@ describe("CareSchedulingService", () => {
   });
 
   afterEach(() => {
-    restoreDate();
+    // ✅ Only restore timers if a test used them
+    jest.useRealTimers();
   });
 
   describe("Reminder Filtering", () => {
     it("filters tasks based on reminder preferences", async () => {
+      jest.useFakeTimers();
+      jest.setSystemTime(new Date("2024-01-01"));
       const plantWithSelectiveReminders = await plantService.addPlant({
         varietyId: testVariety.id,
         varietyName: testVariety.name,
@@ -72,6 +72,7 @@ describe("CareSchedulingService", () => {
 
       expect(wateringTasks).toHaveLength(0);
       expect(observationTasks.length).toBeGreaterThan(0);
+      jest.useRealTimers(); // Clean up at end of test
     });
 
     it("shows all tasks when no reminder preferences are set", async () => {

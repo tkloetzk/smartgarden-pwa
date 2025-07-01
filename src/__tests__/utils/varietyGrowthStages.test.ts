@@ -2,11 +2,16 @@ import {
   calculateCurrentStage,
   getStageProgress,
 } from "../../utils/growthStage";
-import { restoreDate } from "../../setupTests";
 
 describe("Variety-Specific Growth Stage Calculations", () => {
   beforeEach(() => {
-    restoreDate();
+    // ✅ Use Jest's fake timers instead of custom restoreDate()
+    jest.useFakeTimers();
+  });
+
+  afterEach(() => {
+    // ✅ Clean up fake timers after each test
+    jest.useRealTimers();
   });
 
   describe("Fast-Growing Crops (21-45 days)", () => {

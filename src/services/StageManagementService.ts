@@ -1,6 +1,7 @@
 // Create new file: src/services/StageManagementService.ts
 
-import { plantService, varietyService } from "@/types/database";
+import { FirebasePlantService } from "./firebase/plantService"; // Corrected import
+import { varietyService } from "@/types/database"; // Keep this for variety info
 import { GrowthStage } from "@/types/core";
 import { ProtocolTranspilerService } from "./ProtocolTranspilerService";
 import { FirebaseScheduledTaskService } from "./firebase/scheduledTaskService";
@@ -19,26 +20,27 @@ export class StageManagementService {
     newStage: GrowthStage,
     userId: string
   ): Promise<void> {
-    const plant = await plantService.getPlant(plantId);
+    const plant = await FirebasePlantService.getPlant(plantId, userId);
     if (!plant) throw new Error("Plant not found during stage update.");
 
     const variety = await varietyService.getVariety(plant.varietyId);
     if (!variety)
       throw new Error("Variety information could not be loaded for the plant.");
 
-    // 1. Update the plant record with the new confirmed stage and date.
-    await plantService.updatePlant(plantId, {
+    // 1. Update the plant record
+    await FirebasePlantService.updatePlant(plantId, {
       confirmedStage: newStage,
       stageConfirmedDate: new Date(),
       updatedAt: new Date(),
     });
 
     // 2. Delete all future pending tasks for this plant.
-    // NOTE: We will implement 'deletePendingTasksForPlant' in a later step.
-    await FirebaseScheduledTaskService.deletePendingTasksForPlant(plantId);
+    await FirebaseScheduledTaskService.deletePendingTasksForPlant(
+      plantId,
+      userId
+    ); // ✅ Pass userId
 
     // 3. Recalculate and create new tasks from this new anchor date.
-    // NOTE: We will implement 'transpileProtocolFromStage' in a later step.
     const updatedPlant = {
       ...plant,
       confirmedStage: newStage,

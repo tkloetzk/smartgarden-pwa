@@ -90,7 +90,7 @@ const FertilizationDashboardSection: React.FC<
                   Overdue ({overdueTasks.length})
                 </h4>
               </div>
-              <div className="space-y-3">
+              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                 {overdueTasks.map((task) => (
                   <FertilizationTaskCard
                     key={task.id}
@@ -113,7 +113,7 @@ const FertilizationDashboardSection: React.FC<
                   Due Today ({todayTasks.length})
                 </h4>
               </div>
-              <div className="space-y-3">
+              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                 {todayTasks.map((task) => (
                   <FertilizationTaskCard
                     key={task.id}
@@ -137,7 +137,7 @@ const FertilizationDashboardSection: React.FC<
                   {upcomingTasks.length > 3 ? "+" : ""})
                 </h4>
               </div>
-              <div className="space-y-3">
+              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                 {upcomingTasks.slice(0, 3).map((task) => (
                   <FertilizationTaskCard
                     key={task.id}

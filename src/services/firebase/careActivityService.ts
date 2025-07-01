@@ -44,10 +44,13 @@ export class FirebaseCareActivityService {
   static subscribeToPlantActivities(
     plantId: string,
     callback: (activities: CareRecord[]) => void,
+    userId: string,
     limitCount = 50
   ): () => void {
     const activitiesQuery = query(
       this.careActivitiesCollection,
+      where("userId", "==", userId),
+
       where("plantId", "==", plantId),
       orderBy("date", "desc"),
       limit(limitCount)
