@@ -87,18 +87,25 @@ export class CareSchedulingService {
     plant: PlantRecord,
     currentStage: GrowthStage
   ): Promise<UpcomingTask | null> {
+    let nextDueDate: Date;
+
+    // In CareSchedulingService.createWateringTask
     const lastWatering = await careService.getLastActivityByType(
       plant.id,
       "water"
     );
 
-    let nextDueDate: Date;
-
     if (lastWatering) {
+      // Ensure date is a Date object
+      const lastWateringDate =
+        lastWatering.date instanceof Date
+          ? lastWatering.date
+          : new Date(lastWatering.date);
+
       nextDueDate = await DynamicSchedulingService.getNextDueDateForTask(
         plant.id,
         "water",
-        lastWatering.date
+        lastWateringDate
       );
     } else {
       const daysSincePlanting = differenceInDays(new Date(), plant.plantedDate);
