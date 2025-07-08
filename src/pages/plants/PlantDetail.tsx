@@ -19,7 +19,7 @@ import { StageManagementService } from "@/services/StageManagementService";
 import { useDynamicStage } from "@/hooks/useDynamicStage";
 import { Badge } from "@/components/ui/Badge";
 import { ArrowLeft } from "lucide-react";
-import CatchUpAssistant from "@/components/plant/CatchUpAssistant";
+import { CatchUpAssistant } from "@/components/plant/CatchUpAssistant";
 
 const PlantDetail: React.FC = () => {
   const { plantId } = useParams<{ plantId: string }>();

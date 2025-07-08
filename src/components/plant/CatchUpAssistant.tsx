@@ -15,6 +15,8 @@ import { Clock, CheckCircle, Calendar, X } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import toast from "react-hot-toast";
 import { useCatchUpSummary } from "@/hooks/useCatchUpSummary";
+import { Logger } from "@/utils/logger";
+import { PlantRecord } from "@/types/database";
 
 interface CatchUpAssistantProps {
   plantId?: string;
@@ -38,7 +40,6 @@ export const CatchUpAssistant = ({
   onOpportunityHandled,
   onDataLoaded,
 }: CatchUpAssistantProps) => {
-  console.log("inside");
   const [opportunities, setOpportunities] = useState<MissedOpportunity[]>([]);
   const [plantSummaries, setPlantSummaries] = useState<PlantCatchUpSummary[]>(
     []
@@ -56,15 +57,19 @@ export const CatchUpAssistant = ({
   const { plants, loading: plantsLoading } = useFirebasePlants();
 
   const loadOpportunities = useCallback(async () => {
+    console.log("loadOpportunities: Starting...");
     if (!user?.uid || plantsLoading) {
+      console.log("loadOpportunities: User not ready or plants loading.");
+      setLoading(false); // Clear initial loading state
       return;
     }
 
+    setLoading(false); // Clear initial loading state
     setAnalyzing(true);
     try {
       let allOpportunities: MissedOpportunity[] = [];
-      console.log("!", plantIds, plants);
       if (plantIds && plants) {
+        console.log("loadOpportunities: Fetching for specific plantIds.");
         const targetPlants = plants.filter((p) => plantIds.includes(p.id));
         allOpportunities =
           await CatchUpAnalysisService.findAllMissedOpportunitiesForUser(
@@ -72,6 +77,7 @@ export const CatchUpAssistant = ({
             user.uid
           );
       } else if (plantId && plants) {
+        console.log("loadOpportunities: Fetching for single plantId.");
         const plant = plants.find((p) => p.id === plantId);
         if (plant) {
           const singlePlantOpportunities =
@@ -87,6 +93,7 @@ export const CatchUpAssistant = ({
           }));
         }
       } else if (plants && plants.length > 0) {
+        console.log("loadOpportunities: Fetching for all plants.");
         allOpportunities =
           await CatchUpAnalysisService.findAllMissedOpportunitiesForUser(
             plants,
@@ -94,6 +101,7 @@ export const CatchUpAssistant = ({
           );
       }
 
+      console.log("loadOpportunities: Fetched opportunities:", allOpportunities.length);
       setOpportunities(allOpportunities);
 
       // Create plant summaries for summary mode
@@ -105,17 +113,17 @@ export const CatchUpAssistant = ({
       // Notify parent component of data load
       onDataLoaded?.(allOpportunities.length);
     } catch (error) {
-      console.error("Failed to load catch-up opportunities:", error);
+      Logger.error("Failed to load catch-up opportunities:", error);
       toast.error("Failed to load catch-up data");
     } finally {
+      console.log("loadOpportunities: Finished.");
       setAnalyzing(false);
-      setLoading(false);
     }
   }, [plantId, plantIds, user?.uid, plants, plantsLoading, mode, onDataLoaded]);
 
   useEffect(() => {
     loadOpportunities();
-  }, []);
+  }, [loadOpportunities]);
 
   useEffect(() => {
     if (!plantId && !plantIds && mode === "summary") {
@@ -131,7 +139,7 @@ export const CatchUpAssistant = ({
 
   const createPlantSummaries = (
     opportunities: MissedOpportunity[],
-    plants: any[]
+    plants: PlantRecord[]
   ): PlantCatchUpSummary[] => {
     const plantGroups: Record<string, MissedOpportunity[]> = {};
 
@@ -163,7 +171,7 @@ export const CatchUpAssistant = ({
       );
     } catch (error) {
       toast.error("Failed to open logging form");
-      console.error(error);
+      Logger.error("CatchUpAssistant error:", error);
     } finally {
       setHandlingOpportunity(null);
     }
@@ -178,23 +186,28 @@ export const CatchUpAssistant = ({
       );
     } catch (error) {
       toast.error("Failed to open logging form");
-      console.error(error);
+      Logger.error("CatchUpAssistant error:", error);
     } finally {
       setHandlingOpportunity(null);
     }
   };
 
   const handleSkip = async (opportunity: MissedOpportunity) => {
+    console.log("handleSkip: Starting for opportunity:", opportunity.id);
     setHandlingOpportunity(opportunity.id);
     try {
+      console.log("handleSkip: Calling skipOpportunity...");
       await CatchUpAnalysisService.skipOpportunity(opportunity.id);
-      toast.success("Task skipped");
-      loadOpportunities(); // Refresh the list
+      console.log("handleSkip: skipOpportunity finished. Calling loadOpportunities...");
+      await loadOpportunities(); // Refresh the list
+      console.log("handleSkip: loadOpportunities finished. Calling onOpportunityHandled...");
       onOpportunityHandled?.();
+      toast.success("Task skipped");
     } catch (error) {
       toast.error("Failed to skip task");
-      console.error(error);
+      Logger.error("CatchUpAssistant error:", error);
     } finally {
+      console.log("handleSkip: Finished.");
       setHandlingOpportunity(null);
     }
   };
@@ -294,10 +307,10 @@ export const CatchUpAssistant = ({
 
   // Summary mode - show overview like the original MultiPlantCatchUpAssistant
   if (mode === "summary") {
-    const displayedPlants = showAllPlants
-      ? plantSummaries
-      : plantSummaries.slice(0, 3);
-    const hasMorePlants = plantSummaries.length > 3;
+    const displayedPlants = plantSummaries
+      ? plantSummaries.slice(0, 3)
+      : [];
+    const hasMorePlants = plantSummaries && plantSummaries.length > 3;
 
     return (
       <div className="space-y-4">
@@ -450,5 +463,3 @@ export const CatchUpAssistant = ({
     </Card>
   );
 };
-
-export default CatchUpAssistant;

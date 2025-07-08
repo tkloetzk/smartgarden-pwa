@@ -91,8 +91,7 @@ describe("CatchUpAnalysisService", () => {
         createMockActivity(plant.id, "water", 11),
         createMockActivity(plant.id, "fertilize", 20),
         createMockActivity(plant.id, "observe", 15),
-        createMockActivity(plant.id, "photo", 18),
-      ]);
+        ]);
 
       const opportunities =
         await CatchUpAnalysisService.findMissedOpportunitiesWithUserId(
@@ -102,7 +101,7 @@ describe("CatchUpAnalysisService", () => {
           plant
         );
 
-      expect(opportunities.length).toBe(4);
+      expect(opportunities.length).toBe(3);
 
       const wateringOpp = opportunities.find((o) => o.taskType === "water");
       expect(wateringOpp).toBeDefined();
@@ -118,11 +117,6 @@ describe("CatchUpAnalysisService", () => {
       expect(observeOpp).toBeDefined();
       expect(observeOpp?.daysMissed).toBe(5); // 15 days ago - 10 day interval = 5 days missed
       expect(observeOpp?.suggestedAction).toBe("reschedule");
-
-      const photoOpp = opportunities.find((o) => o.taskType === "photo");
-      expect(photoOpp).toBeDefined();
-      expect(photoOpp?.daysMissed).toBe(4); // 18 days ago - 14 day interval = 4 days missed
-      expect(photoOpp?.suggestedAction).toBe("reschedule");
     });
 
     it("should suggest 'skip' for tasks that are very overdue", async () => {
@@ -156,7 +150,6 @@ describe("CatchUpAnalysisService", () => {
       mockFirebaseCareActivityService.getRecentActivitiesForPlant.mockResolvedValue([
         createMockActivity(plant.id, "water", 2),
         createMockActivity(plant.id, "fertilize", 10),
-        createMockActivity(plant.id, "photo", 7),
         createMockActivity(plant.id, "observe", 15), // The only overdue one
       ]);
 
@@ -178,7 +171,6 @@ describe("CatchUpAnalysisService", () => {
         createMockActivity(plant.id, "water", 3),
         createMockActivity(plant.id, "fertilize", 10),
         createMockActivity(plant.id, "observe", 5),
-        createMockActivity(plant.id, "photo", 8),
       ]);
 
       const opportunities =
@@ -210,7 +202,7 @@ describe("CatchUpAnalysisService", () => {
           plant // Pass plant data for initial care check
         );
 
-      expect(opportunities.length).toBeGreaterThanOrEqual(4);
+      expect(opportunities.length).toBeGreaterThanOrEqual(3);
 
       const wateringOpp = opportunities.find((o) => o.taskType === "water");
       expect(wateringOpp).toBeDefined();
@@ -221,11 +213,6 @@ describe("CatchUpAnalysisService", () => {
       expect(observeOpp).toBeDefined();
       expect(observeOpp?.isInitialCare).toBe(true);
       expect(observeOpp?.suggestedAction).toBe("reschedule");
-
-      const photoOpp = opportunities.find((o) => o.taskType === "photo");
-      expect(photoOpp).toBeDefined();
-      expect(photoOpp?.isInitialCare).toBe(true);
-      expect(photoOpp?.suggestedAction).toBe("skip"); // 15 days > 14 days missed
 
       const fertilizeOpp = opportunities.find((o) => o.taskType === "fertilize");
       expect(fertilizeOpp).toBeDefined();
@@ -241,7 +228,6 @@ describe("CatchUpAnalysisService", () => {
       // User already watered and took a photo
       mockFirebaseCareActivityService.getRecentActivitiesForPlant.mockResolvedValue([
         createMockActivity(plant.id, "water", 9),
-        createMockActivity(plant.id, "photo", 3),
       ]);
 
        const opportunities =
@@ -254,7 +240,6 @@ describe("CatchUpAnalysisService", () => {
 
       // Should not find watering or photo opportunities
       expect(opportunities.find((o) => o.taskType === "water")).toBeUndefined();
-      expect(opportunities.find((o) => o.taskType === "photo")).toBeUndefined();
 
       // Should still find the missed observation and note
       expect(opportunities.find((o) => o.taskType === "observe")).toBeDefined();

@@ -46,6 +46,7 @@ export class CatchUpAnalysisService {
   }
 
   private static addSkippedOpportunity(opportunityId: string): void {
+    console.log("addSkippedOpportunity: Adding", opportunityId);
     try {
       const skipped = this.getSkippedOpportunities();
       skipped.add(opportunityId);
@@ -53,6 +54,7 @@ export class CatchUpAnalysisService {
         this.SKIPPED_OPPORTUNITIES_KEY,
         JSON.stringify(Array.from(skipped))
       );
+      console.log("addSkippedOpportunity: Added", opportunityId, ". Current skipped:", skipped);
     } catch (error) {
       console.error("Failed to save skipped opportunity:", error);
     }
@@ -83,8 +85,9 @@ export class CatchUpAnalysisService {
     plantData?: PlantRecord
   ): Promise<MissedOpportunity[]> {
     this.cleanupOldSkippedOpportunities();
-    const skippedOpportunities = this.getSkippedOpportunities();
+    const skippedOpportunities = this.getSkippedOpportunities(); // Moved declaration outside try block
 
+    console.log(`findMissedOpportunitiesWithUserId: Starting for ${plantId}. Skipped: ${skippedOpportunities.size}`);
     try {
       const recentActivities =
         await FirebaseCareActivityService.getRecentActivitiesForPlant(
@@ -92,70 +95,35 @@ export class CatchUpAnalysisService {
           userId,
           lookbackDays
         );
+      console.log(`findMissedOpportunitiesWithUserId: Found ${recentActivities.length} recent activities.`);
 
       const opportunities: MissedOpportunity[] = [];
 
       // If we have plant data, we can check its age and decide which logic to run.
       if (plantData) {
         const plantAge = differenceInDays(new Date(), plantData.plantedDate);
+        console.log(`[CatchUpAnalysisService] Plant ${plantId} is ${plantAge} days old.`);
 
-        // If the plant is young (e.g., within the first 30 days), check for initial setup tasks.
         if (plantAge <= 30) {
+          console.log(`[CatchUpAnalysisService] Checking initial care opportunities for ${plantId}.`);
           const initialOpportunities = await this.findInitialCareOpportunities(
             plantId,
             recentActivities,
             skippedOpportunities,
             plantData
           );
+          console.log(`[CatchUpAnalysisService] Found ${initialOpportunities.length} initial opportunities.`);
           opportunities.push(...initialOpportunities);
-        }
-
-        // For all plants (including young ones), check for regular missed care.
-        // But filter out tasks that are already handled by initial care.
-        const missedOpportunities = await this.findMissedCareOpportunities(
-          plantId,
-          recentActivities,
-          skippedOpportunities
-        );
-
-        // If we have initial care opportunities, filter out duplicates from missed care
-        if (plantAge <= 30) {
-          const initialCareTypes = new Set(
-            opportunities.map((o) => o.taskType)
-          );
-          // For young plants, also check if recent activities make the missed care irrelevant
-          const filteredMissed = missedOpportunities.filter((o) => {
-            // If initial care already covers this task type, skip it
-            if (initialCareTypes.has(o.taskType)) return false;
-
-            // Check if the activity was performed recently enough for young plants
-            const recentActivity = recentActivities
-              .filter((a) => a.type === o.taskType)
-              .sort((a, b) => b.date.getTime() - a.date.getTime())[0];
-
-            if (recentActivity) {
-              const daysSinceActivity = differenceInDays(
-                new Date(),
-                recentActivity.date
-              );
-              // For young plants, if the activity was performed within the plant's lifetime, don't consider it missed
-              if (daysSinceActivity <= plantAge) return false;
-            }
-
-            return true;
-          });
-          opportunities.push(...filteredMissed);
         } else {
+          console.log(`[CatchUpAnalysisService] Checking regular missed care opportunities for ${plantId}.`);
+          const missedOpportunities = await this.findMissedCareOpportunities(
+            plantId,
+            recentActivities,
+            skippedOpportunities
+          );
+          console.log(`[CatchUpAnalysisService] Found ${missedOpportunities.length} regular missed opportunities.`);
           opportunities.push(...missedOpportunities);
         }
-      } else {
-        // If we don't have plant data, we can only check for regular missed care.
-        const missedOpportunities = await this.findMissedCareOpportunities(
-          plantId,
-          recentActivities,
-          skippedOpportunities
-        );
-        opportunities.push(...missedOpportunities);
       }
 
       return opportunities.sort((a, b) => {
@@ -222,6 +190,7 @@ export class CatchUpAnalysisService {
 
         if (!hasPerformedCare) {
           const opportunityId = `${plantId}-initial-${careItem.type}-${careItem.shouldStartAtDay}`;
+          console.log(`  Initial Opportunity: ${careItem.taskName} (ID: ${opportunityId}). Skipped? ${skippedOpportunities.has(opportunityId)}`);
 
           if (!skippedOpportunities.has(opportunityId)) {
             opportunities.push({
@@ -251,47 +220,40 @@ export class CatchUpAnalysisService {
 
   // Define the initial care schedule for new plants
   private static getInitialCareSchedule(): InitialCareItem[] {
-    const schedule: InitialCareItem[] = [];
+    const schedule: InitialCareItem[] = [
 
     // Water: Should start within first 3 days
-    schedule.push({
+    {
       type: "water",
       taskName: "Initial Watering",
       shouldStartAtDay: 1,
       reason: "Newly planted seedlings need immediate moisture",
-    });
+    },
 
     // First observation: Day 3-5
-    schedule.push({
+    {
       type: "observe",
       taskName: "Initial Health Check",
       shouldStartAtDay: 3,
       reason: "Check for transplant shock and establishment",
-    });
+    },
 
     // First fertilization: Day 14 (after establishment)
-    schedule.push({
+    {
       type: "fertilize",
       taskName: "First Feeding",
       shouldStartAtDay: 14,
       reason: "Begin feeding routine after plant establishes",
-    });
+    },
 
     // Setup documentation: Day 1
-    schedule.push({
+    {
       type: "note",
       taskName: "Setup Documentation",
       shouldStartAtDay: 1,
       reason: "Document initial growing conditions and setup",
-    });
-
-    // Initial photo: Day 1
-    schedule.push({
-      type: "photo",
-      taskName: "Initial Photo",
-      shouldStartAtDay: 1,
-      reason: "Document initial plant appearance and setup",
-    });
+    },
+    ];
 
     return schedule;
   }
@@ -349,6 +311,7 @@ export class CatchUpAnalysisService {
       if (daysSinceWatering > expectedInterval) {
         const daysMissed = daysSinceWatering - expectedInterval;
         const id = `${plantId}-water-${lastWatering.date.toISOString()}`;
+        console.log(`  Regular Watering Opportunity: ${id}. Skipped? ${skippedOpportunities.has(id)}`);
 
         if (!skippedOpportunities.has(id)) {
           opportunities.push({
@@ -389,6 +352,7 @@ export class CatchUpAnalysisService {
       if (daysSinceFertilization > expectedInterval) {
         const daysMissed = daysSinceFertilization - expectedInterval;
         const id = `${plantId}-fertilize-${lastFertilization.date.toISOString()}`;
+        console.log(`  Regular Fertilization Opportunity: ${id}. Skipped? ${skippedOpportunities.has(id)}`);
 
         if (!skippedOpportunities.has(id)) {
           opportunities.push({
@@ -421,6 +385,7 @@ export class CatchUpAnalysisService {
       if (daysSinceObservation > expectedInterval) {
         const daysMissed = daysSinceObservation - expectedInterval;
         const id = `${plantId}-observe-${lastObservation.date.toISOString()}`;
+        console.log(`  Regular Observation Opportunity: ${id}. Skipped? ${skippedOpportunities.has(id)}`);
 
         if (!skippedOpportunities.has(id)) {
           opportunities.push({
@@ -450,6 +415,7 @@ export class CatchUpAnalysisService {
       if (daysSincePhoto > expectedInterval) {
         const daysMissed = daysSincePhoto - expectedInterval;
         const id = `${plantId}-photo-${lastPhoto.date.toISOString()}`;
+        console.log(`  Regular Photo Opportunity: ${id}. Skipped? ${skippedOpportunities.has(id)}`);
 
         if (!skippedOpportunities.has(id)) {
           opportunities.push({
@@ -479,6 +445,7 @@ export class CatchUpAnalysisService {
       if (daysSinceNote > expectedInterval) {
         const daysMissed = daysSinceNote - expectedInterval;
         const id = `${plantId}-note-${lastNote.date.toISOString()}`;
+        console.log(`  Regular Note Opportunity: ${id}. Skipped? ${skippedOpportunities.has(id)}`);
 
         if (!skippedOpportunities.has(id)) {
           opportunities.push({
@@ -554,8 +521,10 @@ export class CatchUpAnalysisService {
 
   // Skip an opportunity (mark as handled)
   static async skipOpportunity(opportunityId: string): Promise<void> {
+    console.log("skipOpportunity: Starting for", opportunityId);
     try {
       this.addSkippedOpportunity(opportunityId);
+      console.log("skipOpportunity: addSkippedOpportunity finished.");
     } catch (error) {
       console.error("Failed to skip opportunity:", error);
       throw error;

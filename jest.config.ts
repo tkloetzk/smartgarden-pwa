@@ -45,6 +45,9 @@ const config: Config = {
   ],
   transform: {
     "^.+\\.tsx?$": ["ts-jest", { tsconfig: "tsconfig.json" }],
+    "^.+\\.(css|scss|sass|less)$": "jest-preview/transforms/css",
+    "^(?!.*\\.(js|jsx|mjs|cjs|ts|tsx|css|json)$)":
+      "jest-preview/transforms/file",
   },
   moduleFileExtensions: ["ts", "tsx", "js", "jsx", "json"],
   transformIgnorePatterns: ["node_modules/(?!(uuid)/)"],
