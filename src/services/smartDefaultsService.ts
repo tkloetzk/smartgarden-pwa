@@ -9,6 +9,7 @@ import {
 import { GrowthStage, PlantCategory, CareActivityType } from "@/types/core";
 import { calculateCurrentStage } from "@/utils/growthStage";
 import { WateringResolver } from "@/utils/wateringResolver";
+import { Logger } from "@/utils/logger";
 
 export interface QuickCompleteOption {
   label: string;
@@ -72,7 +73,7 @@ export class SmartDefaultsService {
         fertilizer,
       };
     } catch (error) {
-      console.error("Failed to get defaults for plant:", error);
+      Logger.error("Failed to get defaults for plant:", error);
       return null;
     }
   }
@@ -245,7 +246,7 @@ export class SmartDefaultsService {
           return null;
       }
     } catch (error) {
-      console.error("Failed to get quick completion options:", error);
+      Logger.error("Failed to get quick completion options:", error);
       return null;
     }
   }
@@ -285,7 +286,7 @@ export class SmartDefaultsService {
         }
       }
     } catch (error) {
-      console.error("Error getting watering history:", error);
+      Logger.error("Error getting watering history:", error);
     }
   }
 

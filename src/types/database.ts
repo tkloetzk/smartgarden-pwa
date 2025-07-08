@@ -13,6 +13,7 @@ import {
 } from "./core";
 import { VarietyProtocols, GrowthTimeline } from "./protocols";
 import { generateUUID } from "@/utils/cn";
+import { Logger } from "@/utils/logger";
 
 export interface BaseRecord {
   id: string;
@@ -247,7 +248,7 @@ export const plantService = {
       await db.plants.add(fullPlant);
       return id;
     } catch (error) {
-      console.error("Failed to add plant:", error);
+      Logger.error("Failed to add plant:", error);
       throw error;
     }
   },
@@ -293,7 +294,7 @@ export const varietyService = {
       .first();
 
     if (existingVariety) {
-      console.warn(
+      Logger.warn(
         `Variety "${variety.name}" already exists. Returning existing ID.`
       );
       return existingVariety.id;
@@ -313,7 +314,7 @@ export const varietyService = {
       await db.varieties.add(fullVariety);
       return id;
     } catch (error) {
-      console.error("Failed to add variety:", error);
+      Logger.error("Failed to add variety:", error);
       throw error;
     }
   },
@@ -370,7 +371,7 @@ export const careService = {
       await db.careActivities.add(fullActivity);
       return id;
     } catch (error) {
-      console.error("Failed to add care activity:", error);
+      Logger.error("Failed to add care activity:", error);
       throw error;
     }
   },

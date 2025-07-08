@@ -14,6 +14,7 @@ import { Switch } from "@/components/ui/Switch";
 import ReminderPreferencesSection from "@/components/plant/ReminderPreferencesSection";
 import { useFirebasePlants } from "@/hooks/useFirebasePlants";
 import { LoadingSpinner } from "../ui/LoadingSpinner";
+import { Logger } from "@/utils/logger";
 
 type ContainerOption = {
   label: string;
@@ -281,7 +282,7 @@ export function PlantRegistrationForm({
       reset();
       onSuccess?.();
     } catch (error) {
-      console.error("Failed to register plant:", error);
+      Logger.error("Failed to register plant:", error);
       const errorMessage =
         error instanceof Error ? error.message : "Failed to register plant";
       setSubmitError(errorMessage);

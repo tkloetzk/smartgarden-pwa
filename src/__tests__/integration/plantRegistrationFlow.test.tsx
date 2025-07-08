@@ -4,6 +4,7 @@ import userEvent from "@testing-library/user-event";
 import { BrowserRouter } from "react-router-dom";
 import { PlantRegistrationForm } from "@/components/plant/PlantRegistrationForm";
 import { useFirebaseAuth } from "@/hooks/useFirebaseAuth";
+import { useFirebasePlants } from "@/hooks/useFirebasePlants";
 import { FirebasePlantService } from "@/services/firebase/plantService";
 import { varietyService } from "@/types/database";
 import { varieties } from "@/data";
@@ -31,6 +32,21 @@ jest.mock("@/hooks/useFirebaseAuth");
 jest.mock("@/services/firebase/plantService");
 jest.mock("@/types/database");
 
+// Mock the new Firebase hook factory and Logger
+jest.mock("@/hooks/useFirebaseResource");
+jest.mock("@/hooks/useFirebasePlants");
+jest.mock("@/utils/logger", () => ({
+  Logger: {
+    error: jest.fn(),
+    warn: jest.fn(),
+    info: jest.fn(),
+    debug: jest.fn(),
+    service: jest.fn(),
+    database: jest.fn(),
+    growthStage: jest.fn(),
+  },
+}));
+
 const mockUser = {
   uid: "test-user-id",
   email: "test@example.com",
@@ -42,11 +58,23 @@ const mockVarieties = varieties;
 describe("Plant Registration Integration Flow", () => {
   const user = userEvent.setup();
 
+  const mockCreatePlant = jest.fn().mockResolvedValue("new-plant-id");
+
   beforeEach(() => {
     jest.clearAllMocks();
+    mockCreatePlant.mockClear();
 
     (useFirebaseAuth as jest.Mock).mockReturnValue({
       user: mockUser,
+    });
+
+    (useFirebasePlants as jest.Mock).mockReturnValue({
+      plants: [],
+      loading: false,
+      error: null,
+      createPlant: mockCreatePlant,
+      updatePlant: jest.fn(),
+      deletePlant: jest.fn(),
     });
 
     (varietyService.getAllVarieties as jest.Mock).mockResolvedValue(
@@ -100,9 +128,9 @@ describe("Plant Registration Integration Flow", () => {
     });
     await user.click(submitButton);
 
-    // Verify Firebase service was called
+    // Verify hook's createPlant method was called
     await waitFor(() => {
-      expect(FirebasePlantService.createPlant).toHaveBeenCalledWith(
+      expect(mockCreatePlant).toHaveBeenCalledWith(
         expect.objectContaining({
           container: "1 Gallon Grow Bag",
           isActive: true,
@@ -123,17 +151,15 @@ describe("Plant Registration Integration Flow", () => {
             "Leafy Greens Mix: 40% Coco Coir, 25% Perlite, 25% Vermiculite, 10% Worm Castings",
           varietyId: "astro-arugula",
           varietyName: "Astro Arugula",
-        }),
-        mockUser.uid
+        })
       );
     });
   });
 
   it("handles offline scenario gracefully", async () => {
-    // Mock network failure
-    (FirebasePlantService.createPlant as jest.Mock).mockRejectedValue(
-      new Error("Network error")
-    );
+    // Mock network failure for hook
+    const networkError = new Error("Network error");
+    mockCreatePlant.mockRejectedValue(networkError);
 
     renderWithRouter(<PlantRegistrationForm />);
 

@@ -16,6 +16,7 @@ import {
   calculatePriority,
   ensureDateObject,
 } from "@/utils/dateUtils";
+import { Logger } from "@/utils/logger";
 
 interface TaskConfig {
   type: CareActivityType;
@@ -69,7 +70,7 @@ export class CareSchedulingService {
 
       return allTasks.sort((a, b) => a.dueDate.getTime() - b.dueDate.getTime());
     } catch (error) {
-      console.error("Error getting upcoming tasks:", error);
+      Logger.error("Error getting upcoming tasks:", error);
       return [];
     }
   }
@@ -104,7 +105,7 @@ export class CareSchedulingService {
 
       return tasks;
     } catch (error) {
-      console.error(`Error processing tasks for plant ${plant.id}:`, error);
+      Logger.error(`Error processing tasks for plant ${plant.id}:`, error);
       return [];
     }
   }

@@ -4,6 +4,7 @@ import { addDays, differenceInDays } from "date-fns";
 import { VarietyRecord } from "@/types/database";
 import { seedVarieties } from "@/data/seedVarieties";
 import { GrowthTimeline } from "@/types/protocols";
+import { Logger } from "./logger";
 
 export interface GrowthStageInfo {
   stage: GrowthStage;
@@ -27,7 +28,7 @@ export function calculateStageFromSeedVarieties(
   const variety = seedVarieties.find((v) => v.name === varietyName);
 
   if (!variety?.growthTimeline) {
-    console.warn(`Variety ${varietyName} not found in seedVarieties`);
+    Logger.warn(`Variety ${varietyName} not found in seedVarieties`);
     return "germination";
   }
 
@@ -73,7 +74,7 @@ export function calculateCurrentStageWithVariety(
   startingStage: GrowthStage = "germination"
 ): GrowthStage {
   if (!variety || !variety.growthTimeline) {
-    console.warn("❌ Invalid variety data, defaulting to vegetative.");
+    Logger.warn("Invalid variety data, defaulting to vegetative");
     return "vegetative";
   }
 
@@ -88,9 +89,9 @@ export function calculateCurrentStageWithVariety(
     number
   ][];
 
-  console.log(
-    `🔍 Actual stages for ${variety.name}:`,
-    timelineEntries.map(([stage]) => stage)
+  Logger.growthStage(
+    variety.name,
+    `Available stages: ${timelineEntries.map(([stage]) => stage).join(', ')}`
   );
 
   let cumulativeDays = 0;
@@ -99,14 +100,13 @@ export function calculateCurrentStageWithVariety(
   for (const [stage, stageDuration] of timelineEntries) {
     if (stageDuration === undefined) continue;
 
-    console.log(
-      `📅 Stage "${stage}": days ${cumulativeDays}-${
-        cumulativeDays + stageDuration
-      } (duration: ${stageDuration})`
+    Logger.growthStage(
+      variety.name,
+      `Stage "${stage}": days ${cumulativeDays}-${cumulativeDays + stageDuration} (duration: ${stageDuration})`
     );
 
     if (daysSinceAnchor < cumulativeDays + stageDuration) {
-      console.log(`✅ Plant is in "${stage}" stage (day ${daysSinceAnchor})`);
+      Logger.growthStage(variety.name, `Plant is in "${stage}" stage (day ${daysSinceAnchor})`);
       return stage as GrowthStage;
     }
     cumulativeDays += stageDuration;

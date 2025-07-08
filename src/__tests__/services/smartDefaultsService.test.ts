@@ -31,14 +31,29 @@ jest.mock("@/utils/wateringResolver", () => ({
   },
 }));
 
+// Mock the Logger utility
+jest.mock("@/utils/logger", () => ({
+  Logger: {
+    error: jest.fn(),
+    warn: jest.fn(),
+    info: jest.fn(),
+    debug: jest.fn(),
+    service: jest.fn(),
+    database: jest.fn(),
+    growthStage: jest.fn(),
+  },
+}));
+
 const mockVarietyService = varietyService as jest.Mocked<typeof varietyService>;
 const mockCalculateCurrentStage = calculateCurrentStage as jest.Mock;
 
-// Import the mocked WateringResolver
+// Import the mocked WateringResolver and Logger
 import { WateringResolver } from "@/utils/wateringResolver";
+import { Logger } from "@/utils/logger";
 const mockWateringResolver = WateringResolver as jest.Mocked<
   typeof WateringResolver
 >;
+const mockLogger = Logger as jest.Mocked<typeof Logger>;
 
 describe("SmartDefaultsService", () => {
   beforeEach(() => {
@@ -207,17 +222,13 @@ describe("SmartDefaultsService", () => {
         new Error("Database error")
       );
 
-      const consoleSpy = jest.spyOn(console, "error").mockImplementation();
-
       const result = await SmartDefaultsService.getDefaultsForPlant(plant);
 
       expect(result).toBeNull();
-      expect(consoleSpy).toHaveBeenCalledWith(
+      expect(mockLogger.error).toHaveBeenCalledWith(
         "Failed to get defaults for plant:",
         expect.any(Error)
       );
-
-      consoleSpy.mockRestore();
     });
   });
 

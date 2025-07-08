@@ -1,7 +1,6 @@
 import { PlantRecord } from "../types/database";
 import { FirebasePlantService } from "../services/firebase/plantService";
-import { useFirebaseSubscription } from "./useFirebaseSubscription";
-import { useFirebaseAuth } from "./useFirebaseAuth";
+import { useFirebaseResource } from "./useFirebaseResource";
 
 interface PlantsParams {
   includeInactive: boolean;
@@ -9,76 +8,43 @@ interface PlantsParams {
 }
 
 export function useFirebasePlants(includeInactive = false) {
-  const { user } = useFirebaseAuth();
-
-  const {
-    data: plants,
-    loading,
-    error,
-    handleError,
-  } = useFirebaseSubscription<PlantRecord, PlantsParams>({
+  const result = useFirebaseResource<PlantRecord, PlantsParams, typeof FirebasePlantService>({
     serviceName: "plants",
-    subscribeFunction: ({ userUid, includeInactive }, callback) =>
-      FirebasePlantService.subscribeToPlantsChanges(userUid, callback, {
-        includeInactive,
-      }),
+    service: FirebasePlantService,
+    subscriptionMethod: "subscribeToPlantsChanges",
+    subscriptionParams: (user, includeInactive) => ({
+      includeInactive,
+      userUid: user?.uid || "",
+    }),
     validateParams: ({ userUid }) => {
       if (!userUid || typeof userUid !== "string") {
-        if (userUid && typeof userUid !== "string") {
-          console.error("❌ user.uid is not a string:", userUid);
-        }
         return false;
       }
       return true;
     },
-    getDependencies: ({ userUid, includeInactive }) => [
-      userUid,
-      includeInactive,
-    ],
-    params: {
-      includeInactive,
-      userUid: user?.uid || "",
+    getDependencies: ({ userUid, includeInactive }) => [userUid, includeInactive],
+    crudOperations: {
+      create: {
+        method: "createPlant",
+        transform: (plant, user) => [plant, user.uid],
+      },
+      update: {
+        method: "updatePlant",
+        transform: (id, updates) => [id, updates],
+      },
+      delete: {
+        method: "deletePlant",
+        transform: (id) => [id],
+      },
     },
-  });
-
-  const createPlant = async (
-    plant: Omit<PlantRecord, "id" | "createdAt" | "updatedAt">
-  ) => {
-    try {
-      if (!user) {
-        throw new Error("User not authenticated");
-      }
-      return await FirebasePlantService.createPlant(plant, user.uid);
-    } catch (err) {
-      handleError(err, "create plant");
-    }
-  };
-
-  const updatePlant = async (
-    plantId: string,
-    updates: Partial<PlantRecord>
-  ) => {
-    try {
-      await FirebasePlantService.updatePlant(plantId, updates);
-    } catch (err) {
-      handleError(err, "update plant");
-    }
-  };
-
-  const deletePlant = async (plantId: string) => {
-    try {
-      await FirebasePlantService.deletePlant(plantId);
-    } catch (err) {
-      handleError(err, "delete plant");
-    }
-  };
+  }, includeInactive);
 
   return {
-    plants,
-    loading,
-    error,
-    createPlant,
-    updatePlant,
-    deletePlant,
+    plants: result.data,
+    loading: result.loading,
+    error: result.error,
+    createPlant: result.create!,
+    updatePlant: result.update!,
+    deletePlant: result.delete!,
   };
 }

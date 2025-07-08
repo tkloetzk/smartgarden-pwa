@@ -3,6 +3,7 @@ import { db, TaskCompletionRecord } from "@/types/database";
 import { CareActivityType, GrowthStage } from "@/types/core";
 import { addDays, differenceInDays } from "date-fns";
 import { generateUUID } from "@/utils/cn";
+import { Logger } from "@/utils/logger";
 
 export interface SchedulingAdjustment {
   plantId: string;
@@ -41,7 +42,7 @@ export class DynamicSchedulingService {
         updatedAt: new Date(),
       });
     } catch (error) {
-      console.error("Failed to record task completion:", error);
+      Logger.error("Failed to record task completion:", error);
       throw error;
     }
   }
@@ -63,7 +64,7 @@ export class DynamicSchedulingService {
 
       return addDays(lastCompletionDate, intervalDays);
     } catch (error) {
-      console.error("Failed to get next due date for task:", error);
+      Logger.error("Failed to get next due date for task:", error);
       // Fallback to default 7-day interval
       return addDays(lastCompletionDate, 7);
     }
@@ -127,7 +128,7 @@ export class DynamicSchedulingService {
         recommendedAdjustment,
       };
     } catch (error) {
-      console.error("Failed to get completion patterns:", error);
+      Logger.error("Failed to get completion patterns:", error);
       return {
         averageVariance: 0,
         consistency: 0,
@@ -200,7 +201,7 @@ export class DynamicSchedulingService {
 
       return adjustments.sort((a, b) => b.confidence - a.confidence);
     } catch (error) {
-      console.error("Failed to get scheduling adjustments:", error);
+      Logger.error("Failed to get scheduling adjustments:", error);
       return [];
     }
   }

@@ -1,7 +1,6 @@
 import { CareActivityRecord } from "@/types/database";
 import { FirebaseCareActivityService } from "../services/firebase/careActivityService";
-import { useFirebaseSubscription } from "./useFirebaseSubscription";
-import { useFirebaseAuth } from "./useFirebaseAuth";
+import { useFirebaseResource } from "./useFirebaseResource";
 
 interface CareActivitiesParams {
   plantId: string;
@@ -9,21 +8,14 @@ interface CareActivitiesParams {
 }
 
 export function useFirebaseCareActivities(plantId?: string) {
-  const { user } = useFirebaseAuth();
-
-  const {
-    data: activities,
-    loading,
-    error,
-    handleError,
-  } = useFirebaseSubscription<CareActivityRecord, CareActivitiesParams>({
+  const result = useFirebaseResource<CareActivityRecord, CareActivitiesParams, typeof FirebaseCareActivityService>({
     serviceName: "care activities",
-    subscribeFunction: ({ plantId, userUid }, callback) =>
-      FirebaseCareActivityService.subscribeToPlantActivities(
-        plantId,
-        userUid,
-        callback
-      ),
+    service: FirebaseCareActivityService,
+    subscriptionMethod: "subscribeToPlantActivities",
+    subscriptionParams: (user, plantId) => ({
+      plantId: plantId || "",
+      userUid: user?.uid || "",
+    }),
     validateParams: ({ plantId, userUid }) => {
       if (
         !plantId ||
@@ -36,32 +28,18 @@ export function useFirebaseCareActivities(plantId?: string) {
       return true;
     },
     getDependencies: ({ plantId, userUid }) => [plantId, userUid],
-    params: {
-      plantId: plantId || "",
-      userUid: user?.uid || "",
+    crudOperations: {
+      create: {
+        method: "createCareActivity",
+        transform: (activity, user) => [activity, user.uid],
+      },
     },
-  });
-
-  const logActivity = async (
-    activity: Omit<CareActivityRecord, "id" | "createdAt" | "updatedAt">
-  ) => {
-    try {
-      if (!user) {
-        throw new Error("User not authenticated");
-      }
-      return await FirebaseCareActivityService.createCareActivity(
-        activity,
-        user.uid
-      );
-    } catch (err) {
-      handleError(err, "log activity");
-    }
-  };
+  }, plantId);
 
   return {
-    activities,
-    loading,
-    error,
-    logActivity,
+    activities: result.data,
+    loading: result.loading,
+    error: result.error,
+    logActivity: result.create!,
   };
 }

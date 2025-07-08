@@ -18,6 +18,7 @@ import {
   convertPlantFromFirebase,
 } from "../../types/firebase";
 import { PlantRecord } from "../../types/database";
+import { Logger } from "@/utils/logger";
 
 export class FirebasePlantService {
   private static plantsCollection = collection(db, "plants");
@@ -59,7 +60,7 @@ export class FirebasePlantService {
     callback: (plants: PlantRecord[]) => void,
     options: { includeInactive: boolean } = { includeInactive: false }
   ): () => void {
-    console.log("🔍 Creating plants query for userId:", userId);
+    Logger.database("plants", "Creating plants query for userId:", userId);
 
     let q;
     if (options.includeInactive) {
@@ -74,16 +75,12 @@ export class FirebasePlantService {
       );
     }
 
-    console.log("🔍 Plants query created:", q);
+    Logger.database("plants", "Plants query created");
 
     const unsubscribe = onSnapshot(
       q,
       (querySnapshot) => {
-        console.log(
-          "✅ Plants query successful, received:",
-          querySnapshot.size,
-          "documents"
-        );
+        Logger.database("plants", "Query successful, received:", querySnapshot.size, "documents");
 
         const plants: PlantRecord[] = [];
         querySnapshot.forEach((doc) => {
@@ -100,8 +97,8 @@ export class FirebasePlantService {
         callback(plants);
       },
       (error) => {
-        console.error("❌ Plants query failed:", error);
-        console.error("❌ Query details:", { userId, options });
+        Logger.error("Plants query failed:", error);
+        Logger.error("Query details:", { userId, options });
       }
     );
 
