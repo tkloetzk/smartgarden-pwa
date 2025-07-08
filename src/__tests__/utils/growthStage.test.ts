@@ -28,7 +28,7 @@ describe("Growth Stage Utilities", () => {
       flowering: 56,
       fruiting: 91,
       ongoingProduction: 98,
-    },
+    } as any, // Allow additional stages beyond base GrowthTimeline
     isEverbearing: true,
     productiveLifespan: 730, // 2 years
     createdAt: new Date(),
@@ -155,11 +155,11 @@ describe("Growth Stage Utilities", () => {
       // Updated test cases based on actual Albion strawberry timeline
       const testCases = [
         { days: 10, expected: "germination" }, // 0-14 days
-        { days: 20, expected: "seedling" }, // 14-28 days (establishment maps to seedling)
+        { days: 20, expected: "seedling" }, // 14-28 days 
         { days: 50, expected: "vegetative" }, // 28-56 days
-        { days: 87, expected: "flowering" }, // 56-147 days (56+91)
-        { days: 200, expected: "fruiting" }, // 147-238 days (56+91+91)
-        { days: 350, expected: "ongoing-production" }, // Past all stages, but within productive lifespan
+        { days: 87, expected: "flowering" }, // 56-112 days
+        { days: 200, expected: "fruiting" }, // 112-203 days
+        { days: 350, expected: "ongoing-production" }, // 203-301 days, within productive lifespan
       ];
 
       testCases.forEach(({ days, expected }) => {

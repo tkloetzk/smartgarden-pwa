@@ -353,8 +353,33 @@ export const createCompleteWateringProtocol = (
       target: { moistureLevel: 7 },
       volume: { amount: 16, unit: "oz" },
     },
+    flowering: {
+      trigger: { moistureLevel: 3 },
+      target: { moistureLevel: 6 },
+      volume: { amount: 20, unit: "oz" },
+    },
+    fruiting: {
+      trigger: { moistureLevel: 3 },
+      target: { moistureLevel: 6 },
+      volume: { amount: 24, unit: "oz" },
+    },
     maturation: {
       trigger: { moistureLevel: 4 },
+      target: { moistureLevel: 6 },
+      volume: { amount: 20, unit: "oz" },
+    },
+    rootDevelopment: {
+      trigger: { moistureLevel: 4 },
+      target: { moistureLevel: 7 },
+      volume: { amount: 18, unit: "oz" },
+    },
+    harvest: {
+      trigger: { moistureLevel: 4 },
+      target: { moistureLevel: 6 },
+      volume: { amount: 16, unit: "oz" },
+    },
+    "ongoing-production": {
+      trigger: { moistureLevel: 3 },
       target: { moistureLevel: 6 },
       volume: { amount: 20, unit: "oz" },
     },
@@ -380,12 +405,16 @@ export const createCompleteFertilizationProtocol = (
     seedling: {
       schedule: [
         {
-          fertilizer: { product: "Gentle starter fertilizer" },
-          application: {
+          taskName: "Gentle starter feeding",
+          details: {
+            product: "Gentle starter fertilizer",
             dilution: "Quarter strength",
             amount: "Light application",
             method: "soil-drench",
           },
+          startDays: 14,
+          frequencyDays: 14,
+          repeatCount: 2,
         },
       ],
       notes: ["Light feeding only"],
@@ -393,28 +422,108 @@ export const createCompleteFertilizationProtocol = (
     vegetative: {
       schedule: [
         {
-          fertilizer: { product: "Balanced liquid fertilizer" },
-          application: {
+          taskName: "Balanced feeding",
+          details: {
+            product: "Balanced liquid fertilizer",
             dilution: "Half strength",
             amount: "Apply to runoff",
             method: "soil-drench",
           },
+          startDays: 28,
+          frequencyDays: 7,
+          repeatCount: 4,
         },
       ],
       notes: ["Regular feeding schedule"],
     },
+    flowering: {
+      schedule: [
+        {
+          taskName: "Bloom boost feeding",
+          details: {
+            product: "Bloom booster fertilizer",
+            dilution: "Full strength",
+            amount: "Apply weekly",
+            method: "soil-drench",
+          },
+          startDays: 56,
+          frequencyDays: 7,
+          repeatCount: 6,
+        },
+      ],
+      notes: ["High phosphorus for flowering"],
+    },
+    fruiting: {
+      schedule: [
+        {
+          taskName: "Fruiting support feeding",
+          details: {
+            product: "Potassium-rich fertilizer",
+            dilution: "Full strength",
+            amount: "Apply bi-weekly",
+            method: "soil-drench",
+          },
+          startDays: 91,
+          frequencyDays: 14,
+          repeatCount: 4,
+        },
+      ],
+      notes: ["Support fruit development"],
+    },
     maturation: {
       schedule: [
         {
-          fertilizer: { product: "Low nitrogen fertilizer" },
-          application: {
+          taskName: "Maturation feeding",
+          details: {
+            product: "Low nitrogen fertilizer",
             dilution: "Half strength",
             amount: "Apply bi-weekly",
             method: "soil-drench",
           },
+          startDays: 120,
+          frequencyDays: 14,
+          repeatCount: 3,
         },
       ],
       notes: ["Reduce nitrogen for maturation"],
+    },
+    rootDevelopment: {
+      schedule: [
+        {
+          taskName: "Root development feeding",
+          details: {
+            product: "Root development fertilizer",
+            dilution: "Half strength",
+            amount: "Apply weekly",
+            method: "soil-drench",
+          },
+          startDays: 45,
+          frequencyDays: 7,
+          repeatCount: 6,
+        },
+      ],
+      notes: ["Focus on root growth"],
+    },
+    harvest: {
+      schedule: [],
+      notes: ["Minimal fertilization during harvest"],
+    },
+    "ongoing-production": {
+      schedule: [
+        {
+          taskName: "Production maintenance feeding",
+          details: {
+            product: "Continuous production fertilizer",
+            dilution: "Half strength",
+            amount: "Apply weekly",
+            method: "soil-drench",
+          },
+          startDays: 180,
+          frequencyDays: 7,
+          repeatCount: 20,
+        },
+      ],
+      notes: ["Maintain production levels"],
     },
   };
 
