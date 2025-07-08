@@ -91,7 +91,7 @@ export function calculateCurrentStageWithVariety(
 
   Logger.growthStage(
     variety.name,
-    `Available stages: ${timelineEntries.map(([stage]) => stage).join(', ')}`
+    `Available stages: ${timelineEntries.map(([stage]) => stage).join(", ")}`
   );
 
   let cumulativeDays = 0;
@@ -102,11 +102,16 @@ export function calculateCurrentStageWithVariety(
 
     Logger.growthStage(
       variety.name,
-      `Stage "${stage}": days ${cumulativeDays}-${cumulativeDays + stageDuration} (duration: ${stageDuration})`
+      `Stage "${stage}": days ${cumulativeDays}-${
+        cumulativeDays + stageDuration
+      } (duration: ${stageDuration})`
     );
 
     if (daysSinceAnchor < cumulativeDays + stageDuration) {
-      Logger.growthStage(variety.name, `Plant is in "${stage}" stage (day ${daysSinceAnchor})`);
+      Logger.growthStage(
+        variety.name,
+        `Plant is in "${stage}" stage (day ${daysSinceAnchor})`
+      );
       return stage as GrowthStage;
     }
     cumulativeDays += stageDuration;

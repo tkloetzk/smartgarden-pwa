@@ -209,6 +209,7 @@ export function CareLogForm({
             plant.plantedDate,
             variety
           );
+          console.log(stage);
           setCurrentStage(stage);
           if (
             activityType === "fertilize" &&

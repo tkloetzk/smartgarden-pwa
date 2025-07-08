@@ -38,6 +38,7 @@ export const CatchUpAssistant = ({
   onOpportunityHandled,
   onDataLoaded,
 }: CatchUpAssistantProps) => {
+  console.log("inside");
   const [opportunities, setOpportunities] = useState<MissedOpportunity[]>([]);
   const [plantSummaries, setPlantSummaries] = useState<PlantCatchUpSummary[]>(
     []
@@ -62,7 +63,7 @@ export const CatchUpAssistant = ({
     setAnalyzing(true);
     try {
       let allOpportunities: MissedOpportunity[] = [];
-
+      console.log("!", plantIds, plants);
       if (plantIds && plants) {
         const targetPlants = plants.filter((p) => plantIds.includes(p.id));
         allOpportunities =
@@ -114,7 +115,8 @@ export const CatchUpAssistant = ({
 
   useEffect(() => {
     loadOpportunities();
-  }, [loadOpportunities]);
+  }, []);
+
   useEffect(() => {
     if (!plantId && !plantIds && mode === "summary") {
       onDataLoaded?.(catchUpSummary.totalOpportunities);

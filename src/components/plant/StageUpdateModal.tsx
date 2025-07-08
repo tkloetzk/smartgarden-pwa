@@ -42,7 +42,6 @@ export const StageUpdateModal: React.FC<StageUpdateModalProps> = ({
     }
   };
 
-  console.log("is", isOpen);
   return (
     <Dialog isOpen={isOpen} onClose={onClose}>
       <DialogContent className="max-w-lg">

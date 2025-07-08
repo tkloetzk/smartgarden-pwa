@@ -26,6 +26,7 @@ const FertilizationDashboardSection: React.FC<
 > = ({ tasks, onTaskComplete, onTaskBypass, onTaskLogActivity }) => {
   const [isExpanded, setIsExpanded] = useState(true);
 
+  console.log(tasks);
   if (tasks.length === 0) return null;
 
   const overdueTasks = tasks.filter((task) => task.dueDate < new Date());

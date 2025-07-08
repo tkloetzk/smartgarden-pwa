@@ -41,7 +41,7 @@ export const Dashboard = () => {
   // const upcomingFertilization = getUpcomingFertilizationTasks(7);
   const upcomingFertilization =
     typeof getUpcomingFertilizationTasks === "function"
-      ? getUpcomingFertilizationTasks(7) || []
+      ? getUpcomingFertilizationTasks(37) || []
       : [];
   // Load catch-up data count for summary card
   useEffect(() => {

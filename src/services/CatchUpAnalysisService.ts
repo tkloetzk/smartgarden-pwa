@@ -117,26 +117,31 @@ export class CatchUpAnalysisService {
           recentActivities,
           skippedOpportunities
         );
-        
+
         // If we have initial care opportunities, filter out duplicates from missed care
         if (plantAge <= 30) {
-          const initialCareTypes = new Set(opportunities.map(o => o.taskType));
+          const initialCareTypes = new Set(
+            opportunities.map((o) => o.taskType)
+          );
           // For young plants, also check if recent activities make the missed care irrelevant
-          const filteredMissed = missedOpportunities.filter(o => {
+          const filteredMissed = missedOpportunities.filter((o) => {
             // If initial care already covers this task type, skip it
             if (initialCareTypes.has(o.taskType)) return false;
-            
+
             // Check if the activity was performed recently enough for young plants
             const recentActivity = recentActivities
-              .filter(a => a.type === o.taskType)
+              .filter((a) => a.type === o.taskType)
               .sort((a, b) => b.date.getTime() - a.date.getTime())[0];
-            
+
             if (recentActivity) {
-              const daysSinceActivity = differenceInDays(new Date(), recentActivity.date);
+              const daysSinceActivity = differenceInDays(
+                new Date(),
+                recentActivity.date
+              );
               // For young plants, if the activity was performed within the plant's lifetime, don't consider it missed
               if (daysSinceActivity <= plantAge) return false;
             }
-            
+
             return true;
           });
           opportunities.push(...filteredMissed);
@@ -210,8 +215,9 @@ export class CatchUpAnalysisService {
       if (daysSinceExpected > 0) {
         // Check if this care type has been performed recently (within plant's lifetime)
         const hasPerformedCare = recentActivities.some(
-          (activity) => activity.type === careItem.type &&
-          differenceInDays(now, activity.date) <= plantAge
+          (activity) =>
+            activity.type === careItem.type &&
+            differenceInDays(now, activity.date) <= plantAge
         );
 
         if (!hasPerformedCare) {

@@ -26,7 +26,6 @@ SmartGarden is a Progressive Web Application for managing indoor gardening with 
 
 ### Development Tools
 - `npm run dev:watch` - Run dev server with test watcher
-- `npm run storybook` - Start Storybook for component development
 - `npm run test:preview` - Start Jest preview for visual test debugging
 
 ## Architecture Overview
