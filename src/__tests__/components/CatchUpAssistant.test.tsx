@@ -4,7 +4,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { CatchUpAssistant } from "@/components/plant/CatchUpAssistant";
 import { FirebaseCareActivityService } from "@/services/firebase/careActivityService";
 import { FirebasePlantService } from "@/services/firebase/plantService";
-import { varietyService } from "@/types/database";
+import { PlantRecord, VarietyRecord, varietyService } from "@/types/database";
 import { FirebaseAuthService } from "@/services/firebase/authService";
 import {
   createMockPlantWithVariety,
@@ -59,17 +59,12 @@ const renderWithProviders = (ui: React.ReactElement) => {
 };
 
 describe("CatchUpAssistant (Integration-like)", () => {
-  let mockPlant: any;
-  let mockVariety: any;
+  let mockPlant: PlantRecord;
+  let mockVariety: VarietyRecord;
 
   beforeAll(() => {
     // Ensure the real variety data is available for the mock
-    mockVariety = getRealVariety("Little Finger Carrots");
-    if (!mockVariety) {
-      throw new Error(
-        "Test setup failed: Little Finger Carrots variety not found."
-      );
-    }
+    mockVariety = getRealVariety("Little Finger Carrots")!;
   });
 
   beforeEach(() => {
@@ -82,7 +77,10 @@ describe("CatchUpAssistant (Integration-like)", () => {
 
     // 1. Mock Auth State
     spyOnFirebaseAuthService.mockImplementation((callback) => {
-      callback({ uid: "test-user-id", displayName: "Test User" } as any);
+      callback({
+        uid: "test-user-id",
+        displayName: "Test User",
+      } as import("firebase/auth").User);
       return jest.fn(); // Unsubscribe
     });
 
@@ -91,7 +89,7 @@ describe("CatchUpAssistant (Integration-like)", () => {
       id: "test-plant-1",
       plantedDate: subWeeks(new Date("2025-01-15T12:00:00Z"), 7), // 7 weeks old
     });
-    spyOnFirebasePlantService.mockImplementation((userId, callback) => {
+    spyOnFirebasePlantService.mockImplementation((_, callback) => {
       callback([mockPlant]);
       return jest.fn(); // Unsubscribe
     });
@@ -152,7 +150,7 @@ describe("CatchUpAssistant (Integration-like)", () => {
     });
 
     // Mock plant service to return the new plant
-    spyOnFirebasePlantService.mockImplementation((userId, callback) => {
+    spyOnFirebasePlantService.mockImplementation((_, callback) => {
       callback([newPlant]);
       return jest.fn();
     });
@@ -392,7 +390,7 @@ describe("CatchUpAssistant (Integration-like)", () => {
     });
 
     // Mock plant service to return the arugula plant
-    spyOnFirebasePlantService.mockImplementation((userId, callback) => {
+    spyOnFirebasePlantService.mockImplementation((_, callback) => {
       callback([newArugulaPlant]);
       return jest.fn();
     });
@@ -435,7 +433,7 @@ describe("CatchUpAssistant (Integration-like)", () => {
     );
 
     // Mock plant service to return the cucumber plant
-    spyOnFirebasePlantService.mockImplementation((userId, callback) => {
+    spyOnFirebasePlantService.mockImplementation((_, callback) => {
       callback([cucumberPlant]);
       return jest.fn();
     });
@@ -485,7 +483,7 @@ describe("CatchUpAssistant (Integration-like)", () => {
     });
 
     // Mock plant service to return the peas plant
-    spyOnFirebasePlantService.mockImplementation((userId, callback) => {
+    spyOnFirebasePlantService.mockImplementation((_, callback) => {
       callback([peasPlant]);
       return jest.fn();
     });
