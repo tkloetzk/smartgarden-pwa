@@ -8,7 +8,9 @@ import {
   orderBy,
   Timestamp,
   writeBatch, // <-- Import writeBatch
-  getDocs, // <-- Import getDocs for one-time fetch
+  getDocs,
+  updateDoc,
+  doc, // <-- Import getDocs for one-time fetch
 } from "firebase/firestore";
 import { db } from "./config";
 import { ScheduledTask } from "../ProtocolTranspilerService";
@@ -69,6 +71,41 @@ export class FirebaseScheduledTaskService {
     const taskIds = await Promise.all(promises);
 
     return taskIds;
+  }
+
+  static async getTasksForPlant(plantId: string): Promise<ScheduledTask[]> {
+    try {
+      const q = query(
+        this.tasksCollection,
+        where("plantId", "==", plantId),
+        orderBy("dueDate", "asc")
+      );
+
+      const querySnapshot = await getDocs(q);
+      const tasks: ScheduledTask[] = [];
+
+      querySnapshot.forEach((doc) => {
+        const data = doc.data() as FirebaseScheduledTask;
+        tasks.push({
+          id: doc.id,
+          plantId: data.plantId,
+          taskName: data.taskName,
+          taskType: data.taskType as ScheduledTask["taskType"],
+          details: data.details as ScheduledTask["details"],
+          dueDate: data.dueDate.toDate(),
+          status: data.status as ScheduledTask["status"],
+          sourceProtocol:
+            data.sourceProtocol as ScheduledTask["sourceProtocol"],
+          createdAt: data.createdAt.toDate(),
+          updatedAt: data.updatedAt.toDate(),
+        });
+      });
+
+      return tasks;
+    } catch (error) {
+      console.error("Failed to get tasks for plant:", error);
+      return [];
+    }
   }
 
   static subscribeToUserTasks(
@@ -144,6 +181,67 @@ export class FirebaseScheduledTaskService {
       );
       // Depending on requirements, you might want to re-throw the error
       // or handle it gracefully (e.g., with a toast notification).
+      throw error;
+    }
+  }
+  // NEW: Get overdue tasks for a plant
+  static async getOverdueTasksForPlant(
+    plantId: string,
+    lookbackDays: number = 14
+  ): Promise<ScheduledTask[]> {
+    try {
+      const cutoffDate = new Date();
+      cutoffDate.setDate(cutoffDate.getDate() - lookbackDays);
+
+      const q = query(
+        this.tasksCollection,
+        where("plantId", "==", plantId),
+        where("status", "==", "pending"),
+        where("dueDate", "<", new Date()),
+        where("dueDate", ">", cutoffDate),
+        orderBy("dueDate", "desc")
+      );
+
+      const querySnapshot = await getDocs(q);
+      const tasks: ScheduledTask[] = [];
+
+      querySnapshot.forEach((doc) => {
+        const data = doc.data() as FirebaseScheduledTask;
+        tasks.push({
+          id: doc.id,
+          plantId: data.plantId,
+          taskName: data.taskName,
+          taskType: data.taskType as ScheduledTask["taskType"],
+          details: data.details as ScheduledTask["details"],
+          dueDate: data.dueDate.toDate(),
+          status: data.status as ScheduledTask["status"],
+          sourceProtocol:
+            data.sourceProtocol as ScheduledTask["sourceProtocol"],
+          createdAt: data.createdAt.toDate(),
+          updatedAt: data.updatedAt.toDate(),
+        });
+      });
+
+      return tasks;
+    } catch (error) {
+      console.error("Failed to get overdue tasks for plant:", error);
+      return [];
+    }
+  }
+
+  // NEW: Update task status
+  static async updateTaskStatus(
+    taskId: string,
+    status: "completed" | "pending" | "skipped"
+  ): Promise<void> {
+    try {
+      const taskDoc = doc(this.tasksCollection, taskId);
+      await updateDoc(taskDoc, {
+        status,
+        updatedAt: Timestamp.now(),
+      });
+    } catch (error) {
+      console.error("Failed to update task status:", error);
       throw error;
     }
   }

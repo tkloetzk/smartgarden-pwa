@@ -1,43 +1,25 @@
-import React from "react";
-import { CareLogForm } from "@/pages/care/CareLogForm";
-import { useNavigate, useSearchParams } from "react-router-dom";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
-import { BookOpen } from "lucide-react";
+// src/pages/care/LogCare.tsx
+import { useSearchParams } from "react-router-dom";
+import { CareLogForm } from "./CareLogForm";
 
-const LogCare: React.FC = () => {
-  const navigate = useNavigate();
+const LogCare = () => {
   const [searchParams] = useSearchParams();
-  const preSelectedPlantId = searchParams.get("plantId");
-
-  const handleSuccess = () => {
-    navigate(-1);
-  };
-
-  const handleCancel = () => {
-    navigate(-1);
-  };
+  const plantId = searchParams.get("plantId");
 
   return (
-    <div className="min-h-screen bg-background p-4 space-y-4">
-      <Card className="border-border shadow-sm">
-        <CardHeader className="pb-3">
-          <CardTitle className="flex items-center gap-2 text-base">
-            <BookOpen className="h-4 w-4" />
-            Log Care Activity
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="pt-0">
-          <p className="text-sm text-muted-foreground">
-            Record care activities for your plants to track their health and
-            growth progress.
-          </p>
-        </CardContent>
-      </Card>
+    <div className="container mx-auto px-4 py-6 max-w-4xl">
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold text-center">Log Care Activity</h1>
+        <p className="text-center text-muted-foreground mt-2">
+          Record care activities for your plants
+        </p>
+      </div>
 
       <CareLogForm
-        onSuccess={handleSuccess}
-        onCancel={handleCancel}
-        preselectedPlantId={preSelectedPlantId || undefined}
+        preselectedPlantId={plantId || undefined}
+        onSuccess={() => {
+          console.log("Care activity logged successfully");
+        }}
       />
     </div>
   );

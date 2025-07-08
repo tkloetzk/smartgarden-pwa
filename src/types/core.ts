@@ -1,13 +1,22 @@
 // Core domain types - fundamental enums and basic types
-export type GrowthStage =
-  | "germination"
-  | "seedling"
-  | "vegetative"
+
+// Base growth stages common to all plants
+type BaseGrowthStage = "germination" | "seedling" | "vegetative" | "maturation";
+
+// Category-specific additional stages
+type RootVegetableStage = BaseGrowthStage | "rootDevelopment";
+type FruitingPlantStage =
+  | BaseGrowthStage
   | "flowering"
   | "fruiting"
-  | "maturation"
-  | "harvest"
-  | "ongoing-production";
+  | "harvest";
+type LeafyGreenStage = BaseGrowthStage | "harvest" | "ongoing-production";
+
+// Union type for flexibility
+export type GrowthStage =
+  | RootVegetableStage
+  | FruitingPlantStage
+  | LeafyGreenStage;
 
 export type PlantCategory =
   | "root-vegetables"
@@ -23,7 +32,20 @@ export type CareActivityType =
   | "harvest"
   | "transplant"
   | "photo"
-  | "note";
+  | "note"
+  | "lighting"
+  | "pruning"
+  | "thin"; // For reducing plant count
+
+// NEW: Define the thinning reason type
+export type ThinningReason =
+  | "overcrowding"
+  | "weak-seedlings"
+  | "succession-planning"
+  | "other";
+
+// Note: These interface extensions should go in database.ts since that's where CareActivityDetails is defined
+// I'll show those updates below
 
 export type QualityRating =
   | "excellent"

@@ -23,37 +23,36 @@ import {
   FileText,
   Calendar,
   Info,
+  Clock,
 } from "lucide-react";
 import { getMethodDisplay } from "@/utils/fertilizationUtils";
 import { ApplicationMethod } from "@/types/core";
 import { FertilizationScheduleItem } from "@/types";
+import { format, subDays } from "date-fns";
+import toast from "react-hot-toast";
 
-const careFormSchema = z
-  .object({
-    plantId: z.string().min(1, "Please select a plant"),
-    type: z.enum(["water", "fertilize", "observe", "photo", "note"]),
-    date: z.string().min(1, "Date is required"),
-    waterValue: z.number().optional(),
-    waterUnit: z.enum(["oz", "ml", "cups", "L"]).optional(),
-    moistureBefore: z.number().min(1).max(10).optional(),
-    moistureAfter: z.number().min(1).max(10).optional(),
-    fertilizeAmount: z.string().optional(),
-    fertilizeType: z.string().optional(),
-    fertilizeDilution: z.string().optional(),
-    notes: z.string().optional(),
-  })
-  .refine(
-    (data) => {
-      if (data.type === "water") {
-        return data.waterValue !== undefined && data.waterValue !== null;
-      }
-      return true;
-    },
-    {
-      message: "Water amount is required for watering activities.",
-      path: ["waterValue"],
-    }
-  );
+const careFormSchema = z.object({
+  plantId: z.string().min(1, "Please select a plant"),
+  type: z.enum(["water", "fertilize", "observe", "photo", "note"]),
+  date: z
+    .string()
+    .min(1, "Date is required")
+    .refine((date) => new Date(date) <= new Date(), {
+      message: "Date cannot be in the future.",
+    }),
+  notes: z.string().optional(),
+  // Change this line to make waterValue conditionally required
+  waterValue: z
+    .number()
+    .min(0.1, "Water amount is required for watering activities.")
+    .optional(),
+  waterUnit: z.enum(["oz", "ml", "cups", "L"]).optional(),
+  fertilizeType: z.string().optional(),
+  fertilizeDilution: z.string().optional(),
+  fertilizeAmount: z.string().optional(),
+  moistureBefore: z.number().min(1).max(10).optional(),
+  moistureAfter: z.number().min(1).max(10).optional(),
+});
 
 type CareFormData = z.infer<typeof careFormSchema>;
 
@@ -72,17 +71,36 @@ interface FertilizerProduct {
   method?: ApplicationMethod;
 }
 
-// Helper function to get protocol for current stage
+// Fixed TypeScript types for getProtocolForStage function
+interface ProtocolStageData {
+  // Common properties that might exist across different protocol types
+  trigger?: {
+    moistureLevel?: string | number;
+    description?: string;
+  };
+  target?: {
+    moistureLevel?: string | number;
+    description?: string;
+  };
+  volume?: {
+    amount?: string | number;
+    frequency?: string;
+    perPlant?: boolean;
+  };
+  schedule?: FertilizationScheduleItem[];
+  notes?: string[];
+  timing?: string;
+  [key: string]: unknown; // Allow for additional properties
+}
+
+type ProtocolCollection = Record<string, ProtocolStageData> | undefined | null;
+
 const getProtocolForStage = (
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  protocols: any,
+  protocols: ProtocolCollection,
   stage: GrowthStage
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-): any | null => {
+): ProtocolStageData | null => {
   if (!protocols) return null;
-
   if (protocols[stage]) return protocols[stage];
-
   const stageMappings: { [key in GrowthStage]?: string[] } = {
     vegetative: ["vegetativeGrowth", "vegetativeVining"],
     flowering: ["flowerBudFormation"],
@@ -91,14 +109,12 @@ const getProtocolForStage = (
     germination: ["germinationEmergence", "slipProduction"],
     seedling: ["establishment"],
   };
-
   const possibleKeys = stageMappings[stage] || [];
   for (const key of possibleKeys) {
     if (protocols[key]) {
       return protocols[key];
     }
   }
-
   return null;
 };
 
@@ -129,6 +145,8 @@ export function CareLogForm({
   >([]);
   const [selectedFertilizer, setSelectedFertilizer] =
     useState<FertilizerProduct | null>(null);
+  const [isBackfillMode, setIsBackfillMode] = useState(false);
+  const [backfillReason, setBackfillReason] = useState("");
   const [searchParams] = useSearchParams();
 
   const plantIdFromParams =
@@ -142,11 +160,13 @@ export function CareLogForm({
     register,
     handleSubmit,
     watch,
-    formState: { errors },
+    formState: { errors, isValid, isSubmitting },
     reset,
     setValue,
+    setError,
   } = useForm<CareFormData>({
     resolver: zodResolver(careFormSchema),
+    mode: "onTouched",
     defaultValues: {
       plantId: "",
       type: activityTypeFromParams,
@@ -166,7 +186,7 @@ export function CareLogForm({
         (plant) => plant.id === plantIdFromParams
       );
       if (plantExists) {
-        setValue("plantId", plantIdFromParams);
+        setValue("plantId", plantIdFromParams, { shouldValidate: true });
       }
     }
   }, [plantsLoading, plants, plantIdFromParams, setValue]);
@@ -179,21 +199,17 @@ export function CareLogForm({
         setAvailableFertilizers([]);
         return;
       }
-
       const plant = plants.find((p) => p.id === selectedPlantId);
       if (!plant) return;
-
       try {
         const variety = await varietyService.getVariety(plant.varietyId);
         setPlantVariety(variety || null);
-
         if (variety) {
           const stage = calculateCurrentStageWithVariety(
             plant.plantedDate,
             variety
           );
           setCurrentStage(stage);
-
           if (
             activityType === "fertilize" &&
             variety.protocols?.fertilization
@@ -216,7 +232,6 @@ export function CareLogForm({
                   })
                 );
               setAvailableFertilizers(products);
-
               if (products.length === 1) {
                 const firstProduct = products[0];
                 setValue("fertilizeType", firstProduct.name);
@@ -232,7 +247,6 @@ export function CareLogForm({
         setPlantVariety(null);
       }
     };
-
     loadPlantData();
   }, [selectedPlantId, plants, activityType, setValue]);
 
@@ -242,7 +256,6 @@ export function CareLogForm({
         (f) => f.name === selectedFertilizerType
       );
       setSelectedFertilizer(fertilizer || null);
-
       if (fertilizer) {
         if (fertilizer.dilution) {
           setValue("fertilizeDilution", fertilizer.dilution);
@@ -256,70 +269,74 @@ export function CareLogForm({
     }
   }, [selectedFertilizerType, availableFertilizers, setValue]);
 
-  const onSubmit = async (data: CareFormData) => {
-    try {
-      setIsLoading(true);
-      setSubmitError(null);
+  useEffect(() => {
+    const backfillParam = searchParams.get("backfill");
+    const dateParam = searchParams.get("date");
 
-      let activityDetails: Partial<CareActivityDetails> = {
+    if (backfillParam === "true" && dateParam) {
+      setIsBackfillMode(true);
+      setValue("date", dateParam);
+      setBackfillReason("Catching up on missed care activity");
+    }
+  }, [searchParams, setValue]);
+  // src/pages/care/CareLogForm.tsx
+
+  const onSubmit = async (data: CareFormData) => {
+    // This validation is now more precise.
+    if (
+      data.type === "water" &&
+      (data.waterValue === undefined || data.waterValue <= 0)
+    ) {
+      setError("waterValue", {
+        type: "manual",
+        message: "A positive water amount is required.",
+      });
+      return;
+    }
+
+    setIsLoading(true);
+    setSubmitError(null);
+    try {
+      const details: Partial<CareActivityDetails> = {
         type: data.type,
+        notes: data.notes,
       };
 
-      switch (data.type) {
-        case "water":
-          activityDetails = {
-            type: "water",
-            amount: {
-              value: data.waterValue!,
-              unit: data.waterUnit!,
-            },
-
-            ...(showDetailedTracking &&
-            data.moistureBefore &&
-            data.moistureAfter
-              ? {
-                  moistureReading: {
-                    before: data.moistureBefore,
-                    after: data.moistureAfter,
-                  },
-                }
-              : {}),
+      if (data.type === "water") {
+        details.amount = {
+          value: data.waterValue!,
+          unit: data.waterUnit!,
+        };
+        if (showDetailedTracking && data.moistureBefore && data.moistureAfter) {
+          details.moistureLevel = {
+            before: data.moistureBefore,
+            after: data.moistureAfter,
+            scale: "1-10",
           };
-          break;
-        case "fertilize":
-          activityDetails = {
-            type: "fertilize",
-            product: data.fertilizeType,
-            dilution: data.fertilizeDilution,
-            amount: data.fertilizeAmount,
-            applicationMethod: selectedFertilizer?.method,
-          };
-          break;
-        case "observe":
-        case "photo":
-        case "note":
-          activityDetails = {
-            type: data.type,
-          };
-          break;
-      }
-
-      if (data.notes) {
-        activityDetails.notes = data.notes;
+        }
+      } else if (data.type === "fertilize") {
+        details.product = data.fertilizeType;
+        details.dilution = data.fertilizeDilution;
+        details.amount = data.fertilizeAmount;
+        details.applicationMethod = selectedFertilizer?.method;
       }
 
       await logActivity({
         plantId: data.plantId,
         type: data.type,
         date: new Date(data.date),
-        details: activityDetails as CareActivityDetails,
+        details: details as CareActivityDetails,
       });
 
+      toast.success("Care activity logged!");
       reset();
       onSuccess?.();
     } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : "An unknown error occurred.";
       console.error("Failed to log care activity:", error);
-      setSubmitError("Failed to log care activity. Please try again.");
+      setSubmitError(`Failed to log care activity: ${errorMessage}`);
+      toast.error("Failed to log activity.");
     } finally {
       setIsLoading(false);
     }
@@ -361,13 +378,11 @@ export function CareLogForm({
 
   const renderWateringProtocol = () => {
     if (!plantVariety?.protocols?.watering) return null;
-
     const wateringProtocol = getProtocolForStage(
       plantVariety.protocols.watering,
       currentStage
     );
     if (!wateringProtocol) return null;
-
     return (
       <div className="mt-4 p-3 bg-muted/50 dark:bg-muted/30 border border-border rounded-lg">
         <div className="flex items-center gap-2 mb-2">
@@ -396,7 +411,7 @@ export function CareLogForm({
           {wateringProtocol.volume && (
             <div>
               <span className="font-medium text-foreground">Amount:</span>{" "}
-              {formatAmountText(wateringProtocol.volume.amount)}
+              {formatAmountText(wateringProtocol.volume.amount as string)}
               {wateringProtocol.volume.frequency && (
                 <span className="block mt-1">
                   <span className="font-medium text-foreground">
@@ -433,7 +448,6 @@ export function CareLogForm({
         </CardHeader>
         <CardContent className="pt-0 space-y-4">
           {renderWateringProtocol()}
-
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label
@@ -471,7 +485,6 @@ export function CareLogForm({
               </select>
             </div>
           </div>
-
           {showDetailedTracking && (
             <div className="grid grid-cols-2 gap-3 pt-4 border-t border-border">
               <div>
@@ -502,7 +515,6 @@ export function CareLogForm({
               </div>
             </div>
           )}
-
           <div className="flex items-center gap-2">
             <input
               type="checkbox"
@@ -525,13 +537,11 @@ export function CareLogForm({
 
   const renderFertilizationProtocol = () => {
     if (!plantVariety?.protocols?.fertilization) return null;
-
     const fertilizingProtocol = getProtocolForStage(
       plantVariety.protocols.fertilization,
       currentStage
     );
     if (!fertilizingProtocol) return null;
-
     return (
       <div className="mt-4 p-3 bg-muted/50 dark:bg-muted/30 border border-border rounded-lg">
         <div className="flex items-center gap-2 mb-2">
@@ -594,7 +604,6 @@ export function CareLogForm({
         </CardHeader>
         <CardContent className="pt-0 space-y-4">
           {renderFertilizationProtocol()}
-
           <div>
             <label
               htmlFor="fertilizeType"
@@ -623,7 +632,6 @@ export function CareLogForm({
               </p>
             )}
           </div>
-
           {selectedFertilizerType === "custom" && (
             <div>
               <label className="block text-sm font-medium text-foreground mb-2">
@@ -637,7 +645,6 @@ export function CareLogForm({
               />
             </div>
           )}
-
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label
@@ -675,7 +682,6 @@ export function CareLogForm({
               )}
             </div>
           </div>
-
           {selectedFertilizer && (
             <div className="p-3 bg-muted/50 dark:bg-muted/30 border border-border rounded-lg">
               <div className="flex items-center gap-2 mb-2">
@@ -716,7 +722,6 @@ export function CareLogForm({
               </div>
             </div>
           )}
-
           {selectedFertilizer?.method === "soil-drench" && (
             <div className="p-3 bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-lg">
               <div className="flex items-start gap-2">
@@ -777,10 +782,11 @@ export function CareLogForm({
       <CardContent className="pt-0">
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
           {submitError && (
-            <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
-              <p className="text-sm text-red-600" role="alert">
-                {submitError}
-              </p>
+            <div
+              className="p-3 bg-red-50 border border-red-200 rounded-lg"
+              role="alert"
+            >
+              <p className="text-sm text-red-600 font-medium">{submitError}</p>
             </div>
           )}
 
@@ -821,7 +827,6 @@ export function CareLogForm({
                     </p>
                   )}
                 </div>
-
                 <div>
                   <label
                     htmlFor="type"
@@ -829,7 +834,11 @@ export function CareLogForm({
                   >
                     Activity Type *
                   </label>
-                  <select {...register("type")} id="type" className="...">
+                  <select
+                    {...register("type")}
+                    id="type"
+                    className="w-full p-3 border border-border rounded-lg bg-background text-foreground focus:ring-2 focus:ring-ring focus:border-ring"
+                  >
                     <option value="water">💧 Watering</option>
                     <option value="fertilize">🌱 Fertilizing</option>
                     <option value="observe">👁️ Health Check</option>
@@ -842,19 +851,19 @@ export function CareLogForm({
                     </p>
                   )}
                 </div>
-
-                <div>
-                  <label
-                    htmlFor="date" // Add the htmlFor attribute
-                    className="block text-sm font-medium text-foreground mb-2"
-                  >
+                <div className="space-y-2">
+                  <label className="text-sm font-medium" htmlFor="date">
                     Date *
+                    <span className="text-muted-foreground ml-1">
+                      (can select past dates for catch-up logging)
+                    </span>
                   </label>
                   <input
-                    id="date" // Add the id attribute
+                    id="date"
                     type="date"
                     {...register("date")}
                     className="w-full p-3 border border-border rounded-lg bg-background text-foreground focus:ring-2 focus:ring-ring focus:border-ring"
+                    max={format(new Date(), "yyyy-MM-dd")}
                   />
                   {errors.date && (
                     <p className="mt-1 text-sm text-red-600" role="alert">
@@ -862,9 +871,61 @@ export function CareLogForm({
                     </p>
                   )}
                 </div>
+
+                <div className="flex gap-2 mt-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() =>
+                      setValue(
+                        "date",
+                        format(subDays(new Date(), 1), "yyyy-MM-dd")
+                      )
+                    }
+                  >
+                    Yesterday
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() =>
+                      setValue(
+                        "date",
+                        format(subDays(new Date(), 7), "yyyy-MM-dd")
+                      )
+                    }
+                  >
+                    Last Week
+                  </Button>
+                </div>
               </div>
             </CardContent>
           </Card>
+          {isBackfillMode && (
+            <div className="mt-3 p-3 bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-lg">
+              <div className="flex items-start gap-2">
+                <Clock className="h-4 w-4 text-blue-600 mt-0.5" />
+                <div className="flex-1">
+                  <p className="text-sm font-medium text-blue-900 dark:text-blue-100">
+                    Backfill Mode
+                  </p>
+                  <p className="text-xs text-blue-700 dark:text-blue-300 mt-1">
+                    You're logging a past activity. Please add a note about why
+                    you're logging this retroactively.
+                  </p>
+                  <textarea
+                    value={backfillReason}
+                    onChange={(e) => setBackfillReason(e.target.value)}
+                    placeholder="e.g., 'I fertilized on this date but forgot to log it'"
+                    className="mt-2 w-full p-2 text-xs border border-blue-200 rounded bg-white dark:bg-gray-800"
+                    rows={2}
+                  />
+                </div>
+              </div>
+            </div>
+          )}
 
           {renderActivitySpecificFields()}
 
@@ -901,18 +962,18 @@ export function CareLogForm({
                 variant="outline"
                 onClick={onCancel}
                 className="flex-1"
-                disabled={isLoading}
+                disabled={isLoading || isSubmitting}
               >
                 Cancel
               </Button>
             )}
             <Button
               type="submit"
-              disabled={isLoading}
+              disabled={!isValid || isLoading || isSubmitting}
               className="flex-1"
               size="lg"
             >
-              {isLoading ? (
+              {isLoading || isSubmitting ? (
                 <div className="flex items-center gap-2">
                   <LoadingSpinner size="sm" />
                   <span>Logging...</span>

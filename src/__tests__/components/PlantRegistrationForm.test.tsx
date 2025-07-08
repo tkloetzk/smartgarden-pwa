@@ -6,6 +6,7 @@ import { PlantRegistrationForm } from "@/components/plant/PlantRegistrationForm"
 import { useFirebasePlants } from "@/hooks/useFirebasePlants";
 import { varietyService } from "@/types/database";
 import toast from "react-hot-toast";
+import { varieties } from "@/data";
 
 // Mock other dependencies
 jest.mock("@/hooks/useFirebasePlants");
@@ -90,34 +91,7 @@ jest.mock("react-router-dom", () => ({
 }));
 
 const mockCreatePlant = jest.fn();
-const mockVarieties = [
-  {
-    id: "tomato-1",
-    name: "Cherry Tomato",
-    category: "fruiting-plants" as const,
-    growthTimeline: {
-      germination: 7,
-      seedling: 14,
-      vegetative: 28,
-      maturation: 60,
-    },
-    isCustom: false,
-    createdAt: new Date(),
-  },
-  {
-    id: "basil-1",
-    name: "Sweet Basil",
-    category: "herbs" as const,
-    growthTimeline: {
-      germination: 5,
-      seedling: 10,
-      vegetative: 21,
-      maturation: 45,
-    },
-    isCustom: false,
-    createdAt: new Date(),
-  },
-];
+const mockVarieties = varieties;
 
 describe("PlantRegistrationForm", () => {
   const user = userEvent.setup();
@@ -269,7 +243,7 @@ describe("PlantRegistrationForm", () => {
     it("enables form submission when all required fields are filled", async () => {
       // Select variety
       const varietySelect = screen.getByLabelText(/plant variety/i);
-      await user.selectOptions(varietySelect, "tomato-1");
+      await user.selectOptions(varietySelect, varieties[0].name);
 
       // Select container type
       const growBagButton = screen.getByTestId("container-type-grow-bag");
@@ -302,7 +276,7 @@ describe("PlantRegistrationForm", () => {
     const fillForm = async () => {
       await user.selectOptions(
         screen.getByLabelText(/plant variety/i),
-        "tomato-1"
+        varieties[1].name
       );
       await user.click(screen.getByTestId("container-type-grow-bag"));
       await waitFor(() => {

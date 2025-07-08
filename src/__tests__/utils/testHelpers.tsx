@@ -1,6 +1,10 @@
+// src/__tests__/utils/testHelpers.tsx
+
 import { render } from "@testing-library/react";
 import { BrowserRouter } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { db } from "@/types/database";
+import { createMockGarden } from "./testDataFactories";
 
 interface RenderOptions {
   initialEntries?: string[];
@@ -41,40 +45,52 @@ export const renderWithProviders = (
   return render(ui, { wrapper: Wrapper });
 };
 
-// Export mock data for reuse in tests
-export const mockPlantData = [
-  {
-    id: "plant-1",
-    varietyId: "tomato-1",
-    varietyName: "Cherry Tomato",
-    name: "My Cherry Tomato",
-    plantedDate: new Date("2024-01-01"),
-    currentStage: "vegetative" as const,
-    location: "Indoor",
-    container: "5 gallon pot",
-    isActive: true,
-    notes: [],
-    createdAt: new Date(),
-    updatedAt: new Date(),
-  },
-  {
-    id: "plant-2",
-    varietyId: "basil-1",
-    varietyName: "Sweet Basil",
-    name: "My Basil",
-    plantedDate: new Date("2024-01-15"),
-    currentStage: "seedling" as const,
-    location: "Indoor",
-    container: "3 gallon pot",
-    isActive: true,
-    notes: [],
-    createdAt: new Date(),
-    updatedAt: new Date(),
-  },
-];
-
-export const mockUser = {
-  uid: "test-user-id",
-  email: "test@example.com",
-  displayName: "Test User",
+/**
+ * Clear all test database tables
+ */
+export const clearTestDatabase = async () => {
+  await db.plants.clear();
+  await db.varieties.clear();
+  await db.careActivities.clear();
+  await db.taskBypasses.clear();
+  await db.taskCompletions.clear();
+  await db.scheduledTasks.clear();
 };
+
+/**
+ * Seed the test database with a basic garden setup
+ */
+export const seedTestDatabase = async () => {
+  const garden = createMockGarden();
+
+  // Add varieties first
+  await db.varieties.bulkAdd(garden.varieties);
+
+  // Add plants
+  await db.plants.bulkAdd(garden.plants);
+
+  // Add care activities
+  await db.careActivities.bulkAdd(garden.careActivities);
+
+  // Add tasks
+  await db.scheduledTasks.bulkAdd(garden.tasks);
+
+  return garden;
+};
+
+/**
+ * Set up a clean test environment with fresh data
+ */
+export const setupTestEnvironment = async () => {
+  await clearTestDatabase();
+  return await seedTestDatabase();
+};
+
+// Re-export factory functions for convenience
+export {
+  createMockVariety,
+  createMockPlant,
+  createMockCareActivity,
+  createMockGarden,
+  createMockUser,
+} from "./testDataFactories";

@@ -9,6 +9,7 @@ import {
   VolumeUnit,
   ApplicationMethod,
   WateringMethod,
+  ThinningReason,
 } from "./core";
 import { VarietyProtocols, GrowthTimeline } from "./protocols";
 import { generateUUID } from "@/utils/cn";
@@ -43,6 +44,10 @@ export interface PlantRecord extends BaseRecord {
     lighting?: boolean;
     pruning?: boolean;
   };
+  // NEW: Plant count tracking for thinning
+  currentPlantCount?: number; // Track current count after thinning
+  originalPlantCount?: number; // Track initial planting count
+  lastThinningDate?: Date;
 }
 
 export interface VarietyRecord extends BaseRecord {
@@ -56,7 +61,25 @@ export interface VarietyRecord extends BaseRecord {
   productiveLifespan?: number;
   isCustom?: boolean;
 }
+export interface ThinningActivityDetails extends CareActivityDetails {
+  type: "thin";
+  originalCount: number;
+  finalCount: number;
+  reason: ThinningReason;
+  removedPlants?: {
+    condition: "healthy" | "weak" | "diseased";
+    action: "compost" | "transplant" | "discard";
+  }[];
+}
 
+export interface PruningActivityDetails extends CareActivityDetails {
+  type: "pruning";
+  partsRemoved: "leaves" | "stems" | "flowers" | "runners" | "multiple";
+  amountRemoved: string; // "25% of leaves", "all runners", etc.
+  purpose: "maintenance" | "disease-control" | "shape" | "harvest" | "other";
+}
+
+// Update your existing CareActivityDetails interface to include the new fields:
 export interface CareActivityDetails {
   type: CareActivityType;
   waterAmount?: number;
@@ -88,6 +111,19 @@ export interface CareActivityDetails {
   fromContainer?: string;
   toContainer?: string;
   reason?: string;
+
+  // NEW: Thinning details
+  originalCount?: number;
+  finalCount?: number;
+  removedPlants?: {
+    condition: "healthy" | "weak" | "diseased";
+    action: "compost" | "transplant" | "discard";
+  }[];
+
+  // NEW: Pruning details
+  partsRemoved?: "leaves" | "stems" | "flowers" | "runners" | "multiple";
+  amountRemoved?: string;
+  purpose?: "maintenance" | "disease-control" | "shape" | "harvest" | "other";
 
   // Environmental details
   temperature?: number;

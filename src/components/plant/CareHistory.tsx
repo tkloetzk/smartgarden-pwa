@@ -4,12 +4,16 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { CareRecord } from "@/types/database";
 import CareActivityItem from "./CareActivityItem";
+import { useNavigate } from "react-router-dom";
 
 interface CareHistoryProps {
   careHistory: CareRecord[];
+  plantId: string;
 }
 
-const CareHistory: React.FC<CareHistoryProps> = ({ careHistory }) => {
+const CareHistory: React.FC<CareHistoryProps> = ({ plantId, careHistory }) => {
+  const navigate = useNavigate();
+
   const [showAll, setShowAll] = useState(false);
   const [filter, setFilter] = useState<string>("all");
 
@@ -33,6 +37,13 @@ const CareHistory: React.FC<CareHistoryProps> = ({ careHistory }) => {
     { value: "transplant", label: "Transplant", icon: "🏺" },
   ];
 
+  const handleLogCare = () => {
+    const params = new URLSearchParams();
+    if (plantId) params.set("plantId", plantId);
+    // if (activityType) params.set("type", activityType);
+    navigate(`/log-care?${params.toString()}`);
+  };
+
   return (
     <Card>
       <CardHeader>
@@ -54,7 +65,9 @@ const CareHistory: React.FC<CareHistoryProps> = ({ careHistory }) => {
             <p className="text-muted-foreground mb-4">
               Start logging care activities to track your plant's progress
             </p>
-            <Button variant="primary">Log First Activity</Button>
+            <Button variant="primary" onClick={handleLogCare}>
+              Log First Activity
+            </Button>
           </div>
         ) : (
           <div className="space-y-4">

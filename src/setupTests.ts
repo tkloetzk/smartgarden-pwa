@@ -1,5 +1,6 @@
 // src/setupTests.ts
 import "@testing-library/jest-dom";
+import { jestPreviewConfigure } from "jest-preview";
 
 // Mock Firebase modules BEFORE they get imported
 jest.mock("@/services/firebase/config", () => ({
@@ -81,3 +82,9 @@ Object.defineProperty(window, "matchMedia", {
 if (!global.structuredClone) {
   global.structuredClone = <T>(obj: T): T => JSON.parse(JSON.stringify(obj));
 }
+
+jestPreviewConfigure({
+  // Optional configuration
+  publicFolder: "public", // Default
+  autoPreview: false, // Set to true to auto-preview on test failures
+});

@@ -3,6 +3,7 @@ import { useState, useEffect } from "react";
 import { FirebaseScheduledTaskService } from "../services/firebase/scheduledTaskService";
 import { ScheduledTask } from "../services/ProtocolTranspilerService";
 import { useFirebaseAuth } from "./useFirebaseAuth";
+import { addDays } from "date-fns";
 
 export function useScheduledTasks() {
   const [tasks, setTasks] = useState<ScheduledTask[]>([]);
@@ -34,6 +35,28 @@ export function useScheduledTasks() {
     return unsubscribe;
   }, [user]);
 
+  const getFertilizationTasksBeforeNextWatering = async (plantId?: string) => {
+    const allTasks = tasks.filter((t) =>
+      plantId ? t.plantId === plantId : true
+    );
+
+    const fertilizeTasks = allTasks.filter((t) => t.taskType === "fertilize");
+    const waterTasks = allTasks.filter((t) => t.taskType === "water");
+
+    return fertilizeTasks.filter((fertTask) => {
+      const nextWatering = waterTasks
+        .filter(
+          (w) => w.plantId === fertTask.plantId && w.dueDate > fertTask.dueDate
+        )
+        .sort((a, b) => a.dueDate.getTime() - b.dueDate.getTime())[0];
+
+      // Show fertilizer tasks that are due before the next watering + 1 day buffer
+      return (
+        !nextWatering || fertTask.dueDate <= addDays(nextWatering.dueDate, 1)
+      );
+    });
+  };
+
   // Get fertilization tasks due soon
   const getUpcomingFertilizationTasks = (daysAhead = 7) => {
     const cutoffDate = new Date();
@@ -49,5 +72,6 @@ export function useScheduledTasks() {
     loading,
     error,
     getUpcomingFertilizationTasks,
+    getFertilizationTasksBeforeNextWatering,
   };
 }

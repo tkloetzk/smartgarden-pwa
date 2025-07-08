@@ -2,6 +2,8 @@
 import { GrowthStage } from "../types";
 import { addDays, differenceInDays } from "date-fns";
 import { VarietyRecord } from "@/types/database";
+import { seedVarieties } from "@/data/seedVarieties";
+import { GrowthTimeline } from "@/types/protocols";
 
 export interface GrowthStageInfo {
   stage: GrowthStage;
@@ -17,67 +19,102 @@ export interface VarietyTimeline {
   maturation: number;
 }
 
+export function calculateStageFromSeedVarieties(
+  plantedDate: Date,
+  varietyName: string,
+  currentDate: Date = new Date()
+): GrowthStage {
+  const variety = seedVarieties.find((v) => v.name === varietyName);
+
+  if (!variety?.growthTimeline) {
+    console.warn(`Variety ${varietyName} not found in seedVarieties`);
+    return "germination";
+  }
+
+  const daysSincePlanted = Math.floor(
+    (currentDate.getTime() - plantedDate.getTime()) / (1000 * 60 * 60 * 24)
+  );
+
+  if (daysSincePlanted < 0) return "germination";
+
+  let cumulativeDays = 0;
+
+  // Use Object.entries to get both stage and duration at once
+  for (const [stage, duration] of Object.entries(variety.growthTimeline)) {
+    if (daysSincePlanted < cumulativeDays + duration) {
+      return stage as GrowthStage;
+    }
+    cumulativeDays += duration;
+  }
+
+  // Past all defined stages
+  if (variety.isEverbearing) {
+    const effectiveLifespan = variety.productiveLifespan ?? 730;
+    if (daysSincePlanted < effectiveLifespan) {
+      return "ongoing-production";
+    }
+  }
+
+  return "harvest";
+}
+
 /**
  * Calculates the current growth stage of a plant based on its variety's timeline.
  * This is the primary function to use for stage calculation as it handles everbearing logic.
- * @param plantedDate - The date the plant was planted.
+ * @param anchorDate - The date the plant was planted.
  * @param variety - The VarietyRecord for the plant, containing growth timeline and everbearing info.
  * @param currentDate - The current date to calculate from (defaults to now).
  * @returns The calculated GrowthStage.
  */
 export function calculateCurrentStageWithVariety(
-  anchorDate: Date, // Renamed from plantedDate for clarity
+  anchorDate: Date,
   variety: VarietyRecord | undefined | null,
   currentDate: Date = new Date(),
-  startingStage: GrowthStage = "germination" // New parameter
+  startingStage: GrowthStage = "germination"
 ): GrowthStage {
   if (!variety || !variety.growthTimeline) {
-    console.warn(
-      "❌ calculateCurrentStageWithVariety: Invalid variety data, defaulting to vegetative."
-    );
+    console.warn("❌ Invalid variety data, defaulting to vegetative.");
     return "vegetative";
   }
 
   const daysSinceAnchor = differenceInDays(currentDate, anchorDate);
-  if (daysSinceAnchor < 0) return startingStage; // Return starting stage if anchor is in the future
+  if (daysSinceAnchor < 0) return startingStage;
 
   const timeline = variety.growthTimeline;
-  const stageOrder: GrowthStage[] = [
-    "germination",
-    "seedling",
-    "vegetative",
-    "flowering",
-    "maturation",
-    "ongoing-production",
-    "harvest",
-  ];
 
-  const stageDurations: Record<string, number> = {
-    germination: timeline.germination,
-    seedling: timeline.seedling,
-    vegetative: timeline.vegetative,
-    // The time from vegetative end to full maturation is the flowering period.
-    flowering:
-      timeline.maturation -
-      (timeline.germination + timeline.seedling + timeline.vegetative),
-    maturation: 0, // Maturation is a point in time, not a duration in this context
-  };
+  // ✅ FIXED: Use Object.entries to avoid TypeScript indexing issues
+  const timelineEntries = Object.entries(timeline) as [
+    keyof GrowthTimeline,
+    number
+  ][];
+
+  console.log(
+    `🔍 Actual stages for ${variety.name}:`,
+    timelineEntries.map(([stage]) => stage)
+  );
 
   let cumulativeDays = 0;
-  const currentStageIndex = stageOrder.indexOf(startingStage);
 
-  for (let i = currentStageIndex; i < stageOrder.length; i++) {
-    const stage = stageOrder[i];
-    const duration = stageDurations[stage];
+  // ✅ FIXED: Iterate through the timeline entries directly
+  for (const [stage, stageDuration] of timelineEntries) {
+    if (stageDuration === undefined) continue;
 
-    if (daysSinceAnchor < cumulativeDays + duration) {
-      return stage;
+    console.log(
+      `📅 Stage "${stage}": days ${cumulativeDays}-${
+        cumulativeDays + stageDuration
+      } (duration: ${stageDuration})`
+    );
+
+    if (daysSinceAnchor < cumulativeDays + stageDuration) {
+      console.log(`✅ Plant is in "${stage}" stage (day ${daysSinceAnchor})`);
+      return stage as GrowthStage;
     }
-    cumulativeDays += duration;
+    cumulativeDays += stageDuration;
   }
 
+  // If we've gone past all defined stages
   if (variety.isEverbearing) {
-    const effectiveLifespan = variety.productiveLifespan ?? 730; // Default to 2 years
+    const effectiveLifespan = variety.productiveLifespan ?? 730;
     if (daysSinceAnchor < effectiveLifespan) {
       return "ongoing-production";
     }
@@ -115,7 +152,6 @@ export function calculateCurrentStage(
   return "harvest";
 }
 
-// --- NEW FUNCTION ---
 /**
  * Determines the next logical growth stage.
  * @param currentStage The current stage of the plant.
@@ -139,9 +175,6 @@ export function getNextStage(currentStage: GrowthStage): GrowthStage | null {
 
   return stages[currentIndex + 1];
 }
-
-// --- Other existing functions (getStageProgress, estimateStageTransition) can remain for now ---
-// They may need updating later if you want progress bars to respect the new confirmed stage.
 
 export function getStageProgress(
   plantedDate: Date,

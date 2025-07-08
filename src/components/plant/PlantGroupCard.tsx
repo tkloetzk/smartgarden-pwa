@@ -1,14 +1,21 @@
+// src/components/plant/PlantGroupCard.tsx
+
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { PlantGroup } from "@/utils/plantGrouping";
 import { Button } from "@/components/ui/Button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import { StatusBadge } from "@/components/ui/StatusBadge";
-import { useDynamicStage } from "@/hooks/useDynamicStage"; // Add this import
+import { useDynamicStage } from "@/hooks/useDynamicStage";
+import { differenceInDays } from "date-fns";
 
 interface PlantGroupCardProps {
   group: PlantGroup;
-  onBulkLogActivity: (plantIds: string[], activityType: string) => void;
+  onBulkLogActivity: (
+    plantIds: string[],
+    activityType: "water" | "fertilize" | "observe", // ✅ Changed from string to specific union type
+    group: PlantGroup
+  ) => void;
 }
 
 const PlantGroupCard = ({ group, onBulkLogActivity }: PlantGroupCardProps) => {
@@ -37,14 +44,20 @@ const PlantGroupCard = ({ group, onBulkLogActivity }: PlantGroupCardProps) => {
     navigate(`/plants/${currentPlant.id}`);
   };
 
-  const handleBulkAction = (activityType: string) => {
+  const handleBulkAction = (
+    activityType: "water" | "fertilize" | "observe"
+  ) => {
+    // ✅ Updated parameter type
     const plantIds = group.plants.map((p) => p.id);
-    onBulkLogActivity(plantIds, activityType);
+    onBulkLogActivity(plantIds, activityType, group);
     setShowBulkActions(false);
   };
 
-  const handleIndividualAction = (activityType: string) => {
-    onBulkLogActivity([currentPlant.id], activityType);
+  const handleIndividualAction = (
+    activityType: "water" | "fertilize" | "observe"
+  ) => {
+    // ✅ Updated parameter type
+    onBulkLogActivity([currentPlant.id], activityType, group);
     setShowIndividualActions(false);
   };
 
@@ -71,7 +84,7 @@ const PlantGroupCard = ({ group, onBulkLogActivity }: PlantGroupCardProps) => {
                 >
                   ←
                 </Button>
-                <span className="text-sm text-muted-foreground min-w-fit">
+                <span className="text-sm text-muted-foreground">
                   {currentIndex + 1} of {group.plants.length}
                 </span>
                 <Button
@@ -91,43 +104,29 @@ const PlantGroupCard = ({ group, onBulkLogActivity }: PlantGroupCardProps) => {
         </div>
       </CardHeader>
 
-      <CardContent className="space-y-4">
-        <div className="cursor-pointer space-y-2" onClick={handlePlantClick}>
-          <div className="flex items-center gap-2">
-            <span className="text-xs font-medium bg-primary/10 text-primary px-2 py-1 rounded-full">
-              {currentPlant.varietyName}
-            </span>
-            {hasMultiplePlants && (
-              <span className="text-xs font-medium bg-secondary/50 text-secondary-foreground px-2 py-1 rounded-full">
-                {group.plants.length} plants
-              </span>
-            )}
-          </div>
-
-          <div className="grid grid-cols-2 gap-2 text-sm">
-            <div>
-              <span className="text-muted-foreground">Stage:</span>
-              <div className="font-medium text-foreground capitalize">
-                {calculatedStage.replace("-", " ")}
+      <CardContent>
+        <div className="space-y-4">
+          {/* Plant Info */}
+          <div onClick={handlePlantClick} className="cursor-pointer">
+            <div className="space-y-2">
+              <div className="flex justify-between items-center">
+                <span className="text-sm font-medium">{group.varietyName}</span>
+                <span className="text-xs text-muted-foreground capitalize">
+                  {calculatedStage}
+                </span>
               </div>
-            </div>
-            <div>
-              <span className="text-muted-foreground">Planted:</span>
-              <div className="font-medium text-foreground">
-                {currentPlant.plantedDate.toLocaleDateString()}
+
+              <div className="text-xs text-muted-foreground">
+                {differenceInDays(new Date(), currentPlant.plantedDate)} days
+                old
+                {hasMultiplePlants && (
+                  <span className="ml-2">• {group.plants.length} plants</span>
+                )}
               </div>
             </div>
           </div>
 
-          <div className="text-sm">
-            <span className="text-muted-foreground">Location:</span>
-            <span className="font-medium text-foreground ml-1">
-              {currentPlant.location || "Not specified"}
-            </span>
-          </div>
-        </div>
-
-        <div className="border-t pt-3 space-y-3">
+          {/* Quick Actions */}
           <div className="space-y-3">
             <div className="flex items-center justify-between">
               <div>
@@ -263,11 +262,11 @@ const PlantGroupCard = ({ group, onBulkLogActivity }: PlantGroupCardProps) => {
                     size="sm"
                     onClick={(e) => {
                       e.stopPropagation();
-                      handleBulkAction("note");
+                      navigate(`/plants`); // Navigate to more options
                     }}
                     className="bg-purple-500 hover:bg-purple-600 text-white"
                   >
-                    📝 Note All
+                    📝 More
                   </Button>
                 </div>
               )}

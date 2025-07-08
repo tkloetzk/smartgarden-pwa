@@ -39,14 +39,14 @@ const Plants: React.FC = () => {
 
   const plantGroups = groupPlantsByConditions(plants);
 
-  const handleBulkLogActivity = (plantIds: string[], activityType: string) => {
-    const group = plantGroups.find((g) =>
-      g.plants.some((plant) => plantIds.includes(plant.id))
-    );
-
+  const handleBulkLogActivity = (
+    plantIds: string[],
+    activityType: string,
+    group: PlantGroup // ✅ Updated to match the interface
+  ) => {
     setSelectedPlantIds(plantIds);
     setSelectedActivityType(activityType);
-    setSelectedGroup(group || null);
+    setSelectedGroup(group); // ✅ Now we can properly set the group
     setBulkModalOpen(true);
   };
 

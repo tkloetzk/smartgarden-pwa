@@ -19,6 +19,7 @@ import { StageManagementService } from "@/services/StageManagementService";
 import { useDynamicStage } from "@/hooks/useDynamicStage";
 import { Badge } from "@/components/ui/Badge";
 import { ArrowLeft } from "lucide-react";
+import CatchUpAssistant from "@/components/plant/CatchUpAssistant";
 
 const PlantDetail: React.FC = () => {
   const { plantId } = useParams<{ plantId: string }>();
@@ -31,7 +32,26 @@ const PlantDetail: React.FC = () => {
   const [showReminderSettings, setShowReminderSettings] = useState(false);
   const [isStageModalOpen, setIsStageModalOpen] = useState(false);
 
-  const { activities: careHistory } = useFirebaseCareActivities(plantId);
+  useEffect(() => {
+    if (!plantId) {
+      console.error("❌ No plantId provided in URL params");
+      setError("No plant ID provided");
+      setIsLoading(false);
+      return;
+    }
+
+    if (typeof plantId !== "string") {
+      console.error("❌ plantId is not a string:", plantId, typeof plantId);
+      setError("Invalid plant ID");
+      setIsLoading(false);
+      return;
+    }
+  }, [plantId]);
+
+  // Only call the hook when we have a valid plantId
+  const { activities: careHistory } = useFirebaseCareActivities(
+    plantId && typeof plantId === "string" ? plantId : undefined
+  );
   const plantStage = useDynamicStage(plant!);
 
   useEffect(() => {
@@ -43,6 +63,7 @@ const PlantDetail: React.FC = () => {
       });
     }
   }, [user]);
+
   useEffect(() => {
     console.log("🐛 DEBUG - user object:", user);
     console.log("🐛 DEBUG - user.uid:", user?.uid);
@@ -120,10 +141,9 @@ const PlantDetail: React.FC = () => {
     }
   };
 
-  const handleLogCare = (activityType?: string) => {
+  const handleLogCare = () => {
     const params = new URLSearchParams();
     if (plantId) params.set("plantId", plantId);
-    if (activityType) params.set("type", activityType);
     navigate(`/log-care?${params.toString()}`);
   };
 
@@ -147,7 +167,7 @@ const PlantDetail: React.FC = () => {
             We couldn't load the details for this plant.
           </p>
           <Button
-            onClick={() => navigate("/")}
+            onClick={handleLogCare}
             className="bg-primary hover:bg-primary/90"
           >
             <span className="mr-2">🏠</span>
@@ -215,8 +235,15 @@ const PlantDetail: React.FC = () => {
           {showReminderSettings && (
             <PlantReminderSettings plant={plant} onUpdate={handlePlantUpdate} />
           )}
+          <CatchUpAssistant
+            plantId={plantId!}
+            onOpportunityHandled={() => {
+              // Optionally refresh the page or update state
+              toast.success("Opportunity handled!");
+            }}
+          />
 
-          <CareHistory careHistory={careHistory} />
+          <CareHistory plantId={plant.id} careHistory={careHistory} />
         </div>
       </div>
 

@@ -9,6 +9,7 @@ import PlantDetail from "./pages/plants/PlantDetail";
 import { AuthForm } from "./components/AuthForm";
 import AddPlant from "./pages/plants/AddPlant";
 import Layout from "./components/Layout";
+import CatchUpPage from "./pages/catch-up";
 
 const App = () => {
   const { user, loading } = useFirebaseAuth();
@@ -36,6 +37,7 @@ const App = () => {
         <Route path="/add-plant" element={<AddPlant />} />
         <Route path="/log-care" element={<LogCare />} />
         <Route path="/log-care/:plantId" element={<LogCare />} />
+        <Route path="/catch-up" element={<CatchUpPage />} />
       </Routes>
     </Layout>
   );

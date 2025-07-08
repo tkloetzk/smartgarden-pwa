@@ -1516,10 +1516,10 @@ export const seedVarieties: SeedVariety[] = [
     category: "root-vegetables",
     isEverbearing: false,
     growthTimeline: {
-      germination: 14,
-      seedling: 14,
-      vegetative: 28,
-      rootDevelopment: 42,
+      germination: 14, // 0-2 weeks (0-14 days)
+      seedling: 14, // 2-4 weeks (15-28 days)
+      vegetative: 14, // 4-6 weeks (29-42 days) ← CHANGED from 28 to 14
+      rootDevelopment: 28, // 6-10+ weeks (43-70 days) ← CHANGED from 42 to 28
     },
     protocols: {
       lighting: {
@@ -1673,9 +1673,19 @@ export const seedVarieties: SeedVariety[] = [
                 product: "Worm Casting Tea",
                 dilution: "1 part castings:10 parts water",
               },
-              startDays: 21,
-              frequencyDays: 10,
+              startDays: 21, // Week 3
+              frequencyDays: 10, // Every 1-2 weeks
               repeatCount: 2,
+            },
+            {
+              taskName: "Apply Diluted Fish Emulsion",
+              details: {
+                product: "Fish Emulsion",
+                dilution: "0.5-1 Tbsp/gal",
+              },
+              startDays: 21, // Week 3
+              frequencyDays: 18, // Every 2-3 weeks
+              repeatCount: 1,
             },
           ],
         },
@@ -1687,14 +1697,65 @@ export const seedVarieties: SeedVariety[] = [
                 product: "Lower-N Fish Emulsion",
                 dilution: "1 Tbsp/gal",
               },
-              startDays: 35,
-              frequencyDays: 21,
+              startDays: 35, // Week 5/6
+              frequencyDays: 18, // Every 2-3 weeks
+              repeatCount: 3,
+            },
+            {
+              taskName: "Apply Worm Casting Tea",
+              details: {
+                product: "Worm Casting Tea",
+                dilution: "1 part castings:10 parts water",
+              },
+              startDays: 35, // Week 5/6
+              frequencyDays: 10, // Every 1-2 weeks
+              repeatCount: 4,
+            },
+            {
+              taskName: "Apply Liquid Kelp/Seaweed Extract",
+              details: {
+                product: "Liquid Kelp/Seaweed Extract",
+                dilution: "1-2 Tbsp/gal",
+              },
+              startDays: 42, // Week 6
+              frequencyDays: 18, // Every 2-3 weeks
               repeatCount: 2,
             },
           ],
         },
         rootDevelopment: {
-          schedule: [],
+          schedule: [
+            {
+              taskName: "Continue Lower-N Fish Emulsion",
+              details: {
+                product: "Lower-N Fish Emulsion",
+                dilution: "1 Tbsp/gal",
+              },
+              startDays: 56, // Week 8
+              frequencyDays: 18,
+              repeatCount: 2,
+            },
+            {
+              taskName: "Continue Worm Casting Tea",
+              details: {
+                product: "Worm Casting Tea",
+                dilution: "1 part castings:10 parts water",
+              },
+              startDays: 56,
+              frequencyDays: 10,
+              repeatCount: 2,
+            },
+            {
+              taskName: "Continue Liquid Kelp/Seaweed Extract",
+              details: {
+                product: "Liquid Kelp/Seaweed Extract",
+                dilution: "1-2 Tbsp/gal",
+              },
+              startDays: 56,
+              frequencyDays: 18,
+              repeatCount: 2,
+            },
+          ],
         },
       },
       environment: {

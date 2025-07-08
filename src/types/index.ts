@@ -5,6 +5,7 @@ export * from "./database";
 export * from "./scheduling";
 export * from "./firebase";
 export * from "./user";
+export * from "./plantStages";
 
 // Re-export services explicitly to ensure they're available
 export { plantService, varietyService, careService, db } from "./database";

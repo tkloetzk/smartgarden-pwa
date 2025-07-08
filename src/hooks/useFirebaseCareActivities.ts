@@ -1,50 +1,60 @@
-// src/hooks/useFirebaseCareActivities.ts
-import { useState, useEffect } from "react";
-import { FirebaseCareActivityService } from "../services/firebase/careActivityService";
-import { useFirebaseAuth } from "./useFirebaseAuth";
 import { CareActivityRecord } from "@/types/database";
+import { FirebaseCareActivityService } from "../services/firebase/careActivityService";
+import { useFirebaseSubscription } from "./useFirebaseSubscription";
+import { useFirebaseAuth } from "./useFirebaseAuth";
+
+interface CareActivitiesParams {
+  plantId: string;
+  userUid: string;
+}
 
 export function useFirebaseCareActivities(plantId?: string) {
-  const [activities, setActivities] = useState<CareActivityRecord[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const { user } = useFirebaseAuth();
 
-  useEffect(() => {
-    if (!plantId || !user?.uid) {
-      setActivities([]);
-      setLoading(false);
-      return;
-    }
-
-    const unsubscribe = FirebaseCareActivityService.subscribeToPlantActivities(
-      plantId,
-      (updatedActivities: CareActivityRecord[]) => {
-        setActivities(updatedActivities);
-        setLoading(false);
-        setError(null);
-      },
-      user.uid // Fixed parameter order
-    );
-
-    return unsubscribe;
-  }, [plantId, user?.uid]);
+  const {
+    data: activities,
+    loading,
+    error,
+    handleError,
+  } = useFirebaseSubscription<CareActivityRecord, CareActivitiesParams>({
+    serviceName: "care activities",
+    subscribeFunction: ({ plantId, userUid }, callback) =>
+      FirebaseCareActivityService.subscribeToPlantActivities(
+        plantId,
+        userUid,
+        callback
+      ),
+    validateParams: ({ plantId, userUid }) => {
+      if (
+        !plantId ||
+        typeof plantId !== "string" ||
+        !userUid ||
+        typeof userUid !== "string"
+      ) {
+        return false;
+      }
+      return true;
+    },
+    getDependencies: ({ plantId, userUid }) => [plantId, userUid],
+    params: {
+      plantId: plantId || "",
+      userUid: user?.uid || "",
+    },
+  });
 
   const logActivity = async (
     activity: Omit<CareActivityRecord, "id" | "createdAt" | "updatedAt">
   ) => {
     try {
-      if (!user) throw new Error("User not authenticated");
-      setError(null);
+      if (!user) {
+        throw new Error("User not authenticated");
+      }
       return await FirebaseCareActivityService.createCareActivity(
         activity,
         user.uid
       );
     } catch (err) {
-      const errorMessage =
-        err instanceof Error ? err.message : "Failed to log activity";
-      setError(errorMessage);
-      throw new Error(errorMessage);
+      handleError(err, "log activity");
     }
   };
 

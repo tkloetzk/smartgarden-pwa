@@ -6,6 +6,7 @@ import { PlantRegistrationForm } from "@/components/plant/PlantRegistrationForm"
 import { useFirebaseAuth } from "@/hooks/useFirebaseAuth";
 import { FirebasePlantService } from "@/services/firebase/plantService";
 import { varietyService } from "@/types/database";
+import { varieties } from "@/data";
 
 // ADD THIS MOCK BLOCK
 jest.mock("firebase/firestore", () => ({
@@ -36,20 +37,7 @@ const mockUser = {
   displayName: "Test User",
 };
 
-const mockVarieties = [
-  {
-    id: "variety-1",
-    name: "Test Variety",
-    category: "herbs" as const,
-    growthTimeline: {
-      germination: 7,
-      seedling: 14,
-      vegetative: 21,
-      maturation: 45,
-    },
-    createdAt: new Date(),
-  },
-];
+const mockVarieties = varieties;
 
 describe("Plant Registration Integration Flow", () => {
   const user = userEvent.setup();
@@ -83,7 +71,7 @@ describe("Plant Registration Integration Flow", () => {
 
     // Fill in variety
     const varietySelect = screen.getByLabelText(/plant variety/i);
-    await user.selectOptions(varietySelect, "variety-1");
+    await user.selectOptions(varietySelect, varieties[0].name);
 
     // Fill in planting date
     const dateInput = screen.getByLabelText(/planting date/i);
@@ -116,11 +104,25 @@ describe("Plant Registration Integration Flow", () => {
     await waitFor(() => {
       expect(FirebasePlantService.createPlant).toHaveBeenCalledWith(
         expect.objectContaining({
-          varietyId: "variety-1",
-          varietyName: "Test Variety",
-          location: "Indoor",
           container: "1 Gallon Grow Bag",
           isActive: true,
+          location: "Indoor",
+          name: "Astro Arugula",
+          notes: [""],
+          plantedDate: expect.any(Date),
+          quantity: 1,
+          reminderPreferences: {
+            fertilizing: true,
+            lighting: false,
+            observation: true,
+            pruning: false,
+            watering: true,
+          },
+          setupType: "multiple-containers",
+          soilMix:
+            "Leafy Greens Mix: 40% Coco Coir, 25% Perlite, 25% Vermiculite, 10% Worm Castings",
+          varietyId: "astro-arugula",
+          varietyName: "Astro Arugula",
         }),
         mockUser.uid
       );
@@ -141,7 +143,7 @@ describe("Plant Registration Integration Flow", () => {
 
     // Fill form with minimal required data
     const varietySelect = screen.getByLabelText(/plant variety/i);
-    await user.selectOptions(varietySelect, "variety-1");
+    await user.selectOptions(varietySelect, varieties[0].name);
 
     const growBagButton = screen.getByText("Grow Bag");
     await user.click(growBagButton);
@@ -162,6 +164,6 @@ describe("Plant Registration Integration Flow", () => {
     });
 
     // Form should remain intact for retry
-    expect(screen.getByDisplayValue("Test Variety")).toBeInTheDocument();
+    expect(screen.getByDisplayValue(varieties[0].name)).toBeInTheDocument();
   });
 });

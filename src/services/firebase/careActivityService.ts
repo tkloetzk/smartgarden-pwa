@@ -7,6 +7,7 @@ import {
   where,
   orderBy,
   limit,
+  getDocs, // ✅ Add this import
 } from "firebase/firestore";
 import { db } from "./config";
 import {
@@ -43,14 +44,13 @@ export class FirebaseCareActivityService {
 
   static subscribeToPlantActivities(
     plantId: string,
-    callback: (activities: CareRecord[]) => void,
     userId: string,
+    callback: (activities: CareRecord[]) => void,
     limitCount = 50
   ): () => void {
     const activitiesQuery = query(
       this.careActivitiesCollection,
       where("userId", "==", userId),
-
       where("plantId", "==", plantId),
       orderBy("date", "desc"),
       limit(limitCount)
@@ -84,5 +84,40 @@ export class FirebaseCareActivityService {
       });
       callback(activities);
     });
+  }
+
+  // ✅ ADD THIS NEW METHOD
+  static async getRecentActivitiesForPlant(
+    plantId: string,
+    userId: string,
+    lookbackDays: number = 14
+  ): Promise<CareRecord[]> {
+    try {
+      const cutoffDate = new Date();
+      cutoffDate.setDate(cutoffDate.getDate() - lookbackDays);
+
+      const q = query(
+        this.careActivitiesCollection,
+        where("userId", "==", userId),
+        where("plantId", "==", plantId),
+        where("date", ">=", cutoffDate),
+        orderBy("date", "desc")
+      );
+
+      const querySnapshot = await getDocs(q);
+      const activities: CareRecord[] = [];
+
+      querySnapshot.forEach((doc) => {
+        const data = doc.data() as FirebaseCareRecord;
+        activities.push(
+          convertCareActivityFromFirebase({ ...data, id: doc.id })
+        );
+      });
+
+      return activities;
+    } catch (error) {
+      console.error("Failed to get recent activities for plant:", error);
+      return [];
+    }
   }
 }

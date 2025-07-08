@@ -84,6 +84,7 @@ export function CustomVarietyForm({
             germination: wateringRanges,
             seedling: wateringRanges,
             vegetative: wateringRanges,
+            rootDevelopment: wateringRanges, // Fix: Add missing stage
             flowering: wateringRanges,
             fruiting: wateringRanges,
             maturation: wateringRanges,

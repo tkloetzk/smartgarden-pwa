@@ -15,6 +15,10 @@ const config: Config = {
     "^@/utils/(.*)$": "<rootDir>/src/utils/$1",
     "^@/data/(.*)$": "<rootDir>/src/data/$1",
     "^@/db/(.*)$": "<rootDir>/src/db/$1",
+    // CSS handling for jest-preview
+    "\\.(css|less|scss|sass)$": "identity-obj-proxy",
+    "^@/services/firebase/config$":
+      "<rootDir>/src/services/firebase/__mocks__/config.ts",
   },
   collectCoverageFrom: [
     "src/**/*.{ts,tsx}",
@@ -30,11 +34,14 @@ const config: Config = {
   ],
   testPathIgnorePatterns: [
     "/__tests__/utils/testHelpers.tsx",
+    "/__tests__/utils/testDataFactories.ts",
     "/__tests__/utils/plantFactory.ts",
+    "/__tests__/utils/testSetup.ts",
     "/__tests__/e2e/",
     "/node_modules/",
     "/.*\\.spec\\.ts$",
     "/__tests__/e2e/plant-registration.spec.ts",
+    "/__tests__/utils/careActivityHelpers.ts",
   ],
   transform: {
     "^.+\\.tsx?$": ["ts-jest", { tsconfig: "tsconfig.json" }],

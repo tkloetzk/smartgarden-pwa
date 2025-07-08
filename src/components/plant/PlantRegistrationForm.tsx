@@ -182,7 +182,6 @@ export function PlantRegistrationForm({
     try {
       setIsLoadingVarieties(true);
       const varietyList = await varietyService.getAllVarieties();
-      console.log(varietyList);
       setVarieties(varietyList);
     } catch (error) {
       console.error("Failed to load varieties:", error);
