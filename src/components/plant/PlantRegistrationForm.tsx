@@ -37,6 +37,7 @@ const plantSchema = z.object({
     return selectedDate <= today && selectedDate >= oneYearAgo;
   }, "Planting date must be within the past year and not in the future"),
   location: z.boolean(),
+  section: z.string().optional(),
   containerType: z.string().min(1, "Please select a container type"),
   containerSize: z.string().min(1, "Please specify container size"),
   quantity: z
@@ -269,6 +270,7 @@ export function PlantRegistrationForm({
             isActive: true,
             notes: data.notes ? [data.notes] : [""],
             reminderPreferences,
+            section: data.section || undefined,
             quantity: data.quantity,
             setupType: data.setupType,
           })
@@ -722,6 +724,25 @@ export function PlantRegistrationForm({
                   </label>
                 </div>
               </div>
+            </div>
+
+            {/* Section Field */}
+            <div className="space-y-2">
+              <label htmlFor="section" className="text-sm font-medium text-foreground">
+                Section/Area (Optional)
+              </label>
+              <Input
+                id="section"
+                {...register("section")}
+                placeholder="e.g., Row 1 - 6&quot; section at 0&quot;, Section A, North End"
+                className="w-full"
+              />
+              <p className="text-xs text-muted-foreground">
+                Specify a section within your location for succession planting or organization
+              </p>
+              {errors.section && (
+                <p className="text-sm text-red-600">{errors.section.message}</p>
+              )}
             </div>
 
             {/* Container Section */}

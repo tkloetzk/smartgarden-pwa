@@ -143,6 +143,13 @@ const PlantInfoCard = ({
                 <span>{plant.container}</span>
               </div>
             )}
+
+            {plant.section && (
+              <div className="flex items-center gap-2 text-muted-foreground">
+                <span className="text-sm">🏷️</span>
+                <span className="font-medium">{plant.section}</span>
+              </div>
+            )}
             {lightingProtocol && (
               <div className="flex items-center gap-2 text-muted-foreground">
                 <Sun size={14} />

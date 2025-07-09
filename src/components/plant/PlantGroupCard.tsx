@@ -123,6 +123,23 @@ const PlantGroupCard = ({ group, onBulkLogActivity }: PlantGroupCardProps) => {
                   <span className="ml-2">• {group.plants.length} plants</span>
                 )}
               </div>
+
+              {/* Location and Section Info */}
+              <div className="text-xs text-muted-foreground space-y-1">
+                <div className="flex items-center gap-1">
+                  <span>📍</span>
+                  <span>{currentPlant.location}</span>
+                  {currentPlant.container && currentPlant.container !== currentPlant.location && (
+                    <span> • {currentPlant.container}</span>
+                  )}
+                </div>
+                {currentPlant.section && (
+                  <div className="flex items-center gap-1">
+                    <span>🏷️</span>
+                    <span className="font-medium">{currentPlant.section}</span>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
 

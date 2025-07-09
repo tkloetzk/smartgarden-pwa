@@ -49,6 +49,8 @@ export interface PlantRecord extends BaseRecord {
   currentPlantCount?: number; // Track current count after thinning
   originalPlantCount?: number; // Track initial planting count
   lastThinningDate?: Date;
+  // NEW: Section support for succession planting
+  section?: string; // "Row 1 - 6\" section at 0\"" or "Section A"
 }
 
 export interface VarietyRecord extends BaseRecord {
