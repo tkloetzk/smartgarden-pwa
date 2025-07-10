@@ -12,6 +12,7 @@ import {
   ThinningReason,
 } from "./core";
 import { VarietyProtocols, GrowthTimeline } from "./protocols";
+import { PlantSection, BedReference } from "./spacing";
 import { generateUUID } from "@/utils/cn";
 import { Logger } from "@/utils/logger";
 
@@ -50,7 +51,8 @@ export interface PlantRecord extends BaseRecord {
   originalPlantCount?: number; // Track initial planting count
   lastThinningDate?: Date;
   // NEW: Section support for succession planting
-  section?: string; // "Row 1 - 6\" section at 0\"" or "Section A"
+  section?: string; // "Row 1 - 6\" section at 0\"" or "Section A" (backward compatibility)
+  structuredSection?: PlantSection; // New structured section data
 }
 
 export interface VarietyRecord extends BaseRecord {
@@ -63,6 +65,10 @@ export interface VarietyRecord extends BaseRecord {
   isEverbearing?: boolean;
   productiveLifespan?: number;
   isCustom?: boolean;
+}
+
+export interface BedRecord extends BaseRecord, BedReference {
+  isActive: boolean;
 }
 export interface ThinningActivityDetails extends CareActivityDetails {
   type: "thin";
@@ -185,6 +191,7 @@ export type BypassLogRecord = TaskBypassRecord;
 class SmartGardenDatabase extends Dexie {
   plants!: Table<PlantRecord>;
   varieties!: Table<VarietyRecord>;
+  beds!: Table<BedRecord>;
   careActivities!: Table<CareActivityRecord>;
   taskBypasses!: Table<TaskBypassRecord>;
   taskCompletions!: Table<TaskCompletionRecord>;
@@ -193,6 +200,18 @@ class SmartGardenDatabase extends Dexie {
   constructor() {
     super("SmartGardenDatabase");
 
+    this.version(8).stores({
+      plants: "++id, varietyId, isActive, plantedDate, growthRateModifier", // Add new field to index for potential queries
+      varieties: "++id, &normalizedName, name, category",
+      beds: "++id, name, type, isActive",
+      careActivities: "++id, plantId, type, date",
+      taskBypasses: "++id, taskId, plantId, taskType, bypassDate",
+      scheduledTasks:
+        "++id, plantId, [plantId+status], [dueDate+status], taskType",
+      taskCompletions:
+        "++id, plantId, taskType, [scheduledDate+actualCompletionDate], scheduledDate, actualCompletionDate",
+    });
+    
     this.version(7).stores({
       plants: "++id, varietyId, isActive, plantedDate, growthRateModifier", // Add new field to index for potential queries
       varieties: "++id, &normalizedName, name, category",
@@ -402,5 +421,53 @@ export const careService = {
 
   async getRecentActivities(limit: number = 10): Promise<CareActivityRecord[]> {
     return db.careActivities.orderBy("date").reverse().limit(limit).toArray();
+  },
+};
+
+export const bedService = {
+  async addBed(
+    bed: Omit<BedRecord, "id" | "createdAt" | "updatedAt">
+  ): Promise<string> {
+    const id = generateUUID();
+    const now = new Date();
+    const fullBed: BedRecord = {
+      ...bed,
+      id,
+      createdAt: now,
+      updatedAt: now,
+    };
+
+    try {
+      await db.beds.add(fullBed);
+      return id;
+    } catch (error) {
+      Logger.error("Failed to add bed:", error);
+      throw error;
+    }
+  },
+
+  async getActiveBeds(): Promise<BedRecord[]> {
+    const allBeds = await db.beds.toArray();
+    return allBeds.filter((bed) => bed.isActive === true);
+  },
+
+  async getBed(id: string): Promise<BedRecord | undefined> {
+    return db.beds.get(id);
+  },
+
+  async updateBed(
+    id: string,
+    updates: Partial<Omit<BedRecord, "id" | "createdAt">>
+  ): Promise<void> {
+    const updateData = {
+      ...updates,
+      updatedAt: new Date(),
+    };
+    await db.beds.update(id, updateData);
+  },
+
+  async deleteBed(id: string): Promise<void> {
+    const updateData = { isActive: false, updatedAt: new Date() };
+    await db.beds.update(id, updateData);
   },
 };

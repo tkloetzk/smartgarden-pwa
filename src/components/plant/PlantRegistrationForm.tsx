@@ -8,12 +8,14 @@ import { Card, CardContent } from "../ui/Card";
 import { Input } from "../ui/Input";
 import { varietyService, VarietyRecord } from "@/types/database";
 import { CustomVarietyForm } from "./CustomVarietyForm";
+import { EnhancedSectionSelector } from "./EnhancedSectionSelector";
 import toast from "react-hot-toast";
 import SoilMixtureSelector from "./SoilMixtureSelector";
 import { Switch } from "@/components/ui/Switch";
 import ReminderPreferencesSection from "@/components/plant/ReminderPreferencesSection";
 import { useFirebasePlants } from "@/hooks/useFirebasePlants";
 import { LoadingSpinner } from "../ui/LoadingSpinner";
+import { PlantSection } from "@/types/spacing";
 import { Logger } from "@/utils/logger";
 
 type ContainerOption = {
@@ -38,6 +40,7 @@ const plantSchema = z.object({
   }, "Planting date must be within the past year and not in the future"),
   location: z.boolean(),
   section: z.string().optional(),
+  sectionMode: z.enum(["simple", "structured"]).default("simple"),
   containerType: z.string().min(1, "Please select a container type"),
   containerSize: z.string().min(1, "Please specify container size"),
   quantity: z
@@ -136,6 +139,7 @@ export function PlantRegistrationForm({
     lighting: false,
     pruning: false,
   });
+  const [structuredSection, setStructuredSection] = useState<PlantSection | null>(null);
 
   const {
     register,
@@ -153,6 +157,7 @@ export function PlantRegistrationForm({
       setupType: "multiple-containers",
       plantedDate: new Date().toISOString().split("T")[0],
       notes: "",
+      sectionMode: "simple",
     },
   });
 
@@ -271,6 +276,7 @@ export function PlantRegistrationForm({
             notes: data.notes ? [data.notes] : [""],
             reminderPreferences,
             section: data.section || undefined,
+            structuredSection: data.sectionMode === "structured" ? structuredSection || undefined : undefined,
             quantity: data.quantity,
             setupType: data.setupType,
           })
@@ -726,24 +732,15 @@ export function PlantRegistrationForm({
               </div>
             </div>
 
-            {/* Section Field */}
-            <div className="space-y-2">
-              <label htmlFor="section" className="text-sm font-medium text-foreground">
-                Section/Area (Optional)
-              </label>
-              <Input
-                id="section"
-                {...register("section")}
-                placeholder="e.g., Row 1 - 6&quot; section at 0&quot;, Section A, North End"
-                className="w-full"
-              />
-              <p className="text-xs text-muted-foreground">
-                Specify a section within your location for succession planting or organization
-              </p>
-              {errors.section && (
-                <p className="text-sm text-red-600">{errors.section.message}</p>
-              )}
-            </div>
+            {/* Enhanced Section Field */}
+            <EnhancedSectionSelector
+              section={watch("section")}
+              onSectionChange={(section) => setValue("section", section)}
+              structuredSection={structuredSection || undefined}
+              onStructuredSectionChange={(section) => setStructuredSection(section)}
+              sectionMode={watch("sectionMode")}
+              onSectionModeChange={(mode) => setValue("sectionMode", mode)}
+            />
 
             {/* Container Section */}
             <div className="space-y-4 p-4 bg-gradient-to-br from-emerald-500/5 to-emerald-500/10 rounded-lg border border-emerald-500/20">
