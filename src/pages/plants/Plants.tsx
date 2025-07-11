@@ -8,6 +8,7 @@ import { LoadingSpinner } from "@/components/ui/LoadingSpinner";
 import PlantGroupCard from "@/components/plant/PlantGroupCard";
 import BulkActivityModal from "@/components/plant/BulkActivityModal";
 import { groupPlantsByConditions, PlantGroup } from "@/utils/plantGrouping";
+import { QuickActionType } from "@/components/shared/QuickActionButtons";
 
 const Plants: React.FC = () => {
   const navigate = useNavigate();
@@ -15,7 +16,7 @@ const Plants: React.FC = () => {
 
   const [bulkModalOpen, setBulkModalOpen] = useState(false);
   const [selectedPlantIds, setSelectedPlantIds] = useState<string[]>([]);
-  const [selectedActivityType, setSelectedActivityType] = useState<string>("");
+  const [selectedActivityType, setSelectedActivityType] = useState<QuickActionType>("water");
   const [selectedGroup, setSelectedGroup] = useState<PlantGroup | null>(null);
 
   if (loading) {
@@ -41,8 +42,8 @@ const Plants: React.FC = () => {
 
   const handleBulkLogActivity = (
     plantIds: string[],
-    activityType: string,
-    group: PlantGroup // ✅ Updated to match the interface
+    activityType: QuickActionType,
+    group: PlantGroup
   ) => {
     setSelectedPlantIds(plantIds);
     setSelectedActivityType(activityType);
@@ -53,7 +54,7 @@ const Plants: React.FC = () => {
   const closeBulkModal = () => {
     setBulkModalOpen(false);
     setSelectedPlantIds([]);
-    setSelectedActivityType("");
+    setSelectedActivityType("water");
     setSelectedGroup(null);
   };
 

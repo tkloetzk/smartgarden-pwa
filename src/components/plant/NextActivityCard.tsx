@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/Button";
 import { useNextPlantTask } from "@/hooks/useNextPlantTask";
 import { AlertTriangle, Calendar, CheckCircle2, Clock } from "lucide-react";
 import Badge from "../ui/Badge";
+import { getActivityIcon } from "@/components/shared/QuickActionButtons";
 
 interface NextActivityCardProps {
   plantId: string;
@@ -17,16 +18,6 @@ const NextActivityCard = ({
 }: NextActivityCardProps) => {
   const { nextTask, isLoading } = useNextPlantTask(plantId);
 
-  const getTaskIcon = (task: string): string => {
-    const taskLower = task.toLowerCase();
-    if (taskLower.includes("water")) return "💧";
-    if (taskLower.includes("fertiliz")) return "🌱";
-    if (taskLower.includes("observe") || taskLower.includes("check"))
-      return "👁️";
-    if (taskLower.includes("harvest")) return "🌾";
-    if (taskLower.includes("prune")) return "✂️";
-    return "📋";
-  };
 
   // src/components/plant/NextActivityCard.tsx
   const getPriorityConfig = (
@@ -149,7 +140,7 @@ const NextActivityCard = ({
           {/* Task Info */}
           <div className="flex items-start gap-3">
             <div className="h-8 w-8 bg-background border border-border rounded-full flex items-center justify-center text-lg">
-              {getTaskIcon(nextTask.task)}
+              {getActivityIcon(nextTask.task)}
             </div>
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 mb-1">
@@ -176,7 +167,7 @@ const NextActivityCard = ({
               className={`w-full ${priorityConfig.buttonStyle} text-sm py-2`}
               size="sm"
             >
-              <span className="mr-2">{getTaskIcon(nextTask.task)}</span>
+              <span className="mr-2">{getActivityIcon(nextTask.task)}</span>
               Log {nextTask.task}
             </Button>
           )}

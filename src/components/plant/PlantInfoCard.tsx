@@ -10,10 +10,11 @@ import { useNavigate } from "react-router-dom";
 import { Calendar, MapPin, Package, Sun, Droplet } from "lucide-react";
 import { GrowthStage } from "@/types";
 import { varietyService } from "@/services";
+import { QuickActionButtons, QuickActionType } from "@/components/shared/QuickActionButtons";
 
 interface PlantInfoCardProps {
   plant: PlantRecord;
-  onLogCare?: (plantId: string, activityType: string) => void;
+  onLogCare?: (plantId: string, activityType: QuickActionType) => void;
   className?: string;
   showQuickActions?: boolean;
 }
@@ -87,8 +88,12 @@ const PlantInfoCard = ({
     stage
   );
 
-  const handleQuickAction = (activityType: string) => {
-    if (onLogCare) {
+  const handleQuickAction = (activityType: QuickActionType | "more") => {
+    if (activityType === "more") {
+      const params = new URLSearchParams();
+      params.set("plantId", plant.id);
+      navigate(`/log-care?${params.toString()}`);
+    } else if (onLogCare) {
       onLogCare(plant.id, activityType);
     } else {
       const params = new URLSearchParams();
@@ -221,48 +226,13 @@ const PlantInfoCard = ({
             </div>
 
             {showActions && (
-              <div className="grid grid-cols-2 gap-2 mt-3">
-                <Button
-                  size="sm"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleQuickAction("water");
-                  }}
-                  className="bg-blue-500 hover:bg-blue-600 text-white"
-                >
-                  💧 Water
-                </Button>
-                <Button
-                  size="sm"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleQuickAction("fertilize");
-                  }}
-                  className="bg-green-500 hover:bg-green-600 text-white"
-                >
-                  🌱 Fertilize
-                </Button>
-                <Button
-                  size="sm"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleQuickAction("observe");
-                  }}
-                  className="bg-orange-500 hover:bg-orange-600 text-white"
-                >
-                  👁️ Inspect
-                </Button>
-                <Button
-                  size="sm"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleQuickAction("photo");
-                  }}
-                  className="bg-purple-500 hover:bg-purple-600 text-white"
-                >
-                  📸 Photo
-                </Button>
-              </div>
+              <QuickActionButtons
+                onAction={handleQuickAction}
+                actions={["water", "fertilize", "observe", "photo"]}
+                layout="grid"
+                preventPropagation={true}
+                className="mt-3"
+              />
             )}
           </div>
         )}

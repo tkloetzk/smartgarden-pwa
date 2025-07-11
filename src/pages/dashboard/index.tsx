@@ -10,6 +10,7 @@ import { useNavigate } from "react-router-dom";
 import { groupPlantsByConditions, PlantGroup } from "@/utils/plantGrouping";
 import PlantGroupCard from "@/components/plant/PlantGroupCard";
 import BulkActivityModal from "@/components/plant/BulkActivityModal";
+import { QuickActionType } from "@/components/shared/QuickActionButtons";
 import { useScheduledTasks } from "@/hooks/useScheduledTasks";
 import FertilizationDashboardSection from "@/components/fertilization/FertilizationDashboardSection";
 import toast from "react-hot-toast";
@@ -172,14 +173,12 @@ export const Dashboard = () => {
   // Bulk Activity Modal state
   const [bulkModalOpen, setBulkModalOpen] = useState(false);
   const [selectedPlantIds, setSelectedPlantIds] = useState<string[]>([]);
-  const [selectedActivityType, setSelectedActivityType] = useState<
-    "water" | "fertilize" | "observe"
-  >("water");
+  const [selectedActivityType, setSelectedActivityType] = useState<QuickActionType>("water");
   const [selectedGroup, setSelectedGroup] = useState<PlantGroup | null>(null);
 
   const handleBulkLogActivity = (
     plantIds: string[],
-    activityType: "water" | "fertilize" | "observe",
+    activityType: QuickActionType,
     group: PlantGroup
   ) => {
     setSelectedPlantIds(plantIds);

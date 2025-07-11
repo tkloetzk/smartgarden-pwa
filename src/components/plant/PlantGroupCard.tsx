@@ -8,12 +8,13 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { useDynamicStage } from "@/hooks/useDynamicStage";
 import { differenceInDays } from "date-fns";
+import { QuickActionButtons, QuickActionType } from "@/components/shared/QuickActionButtons";
 
 interface PlantGroupCardProps {
   group: PlantGroup;
   onBulkLogActivity: (
     plantIds: string[],
-    activityType: "water" | "fertilize" | "observe", // ✅ Changed from string to specific union type
+    activityType: QuickActionType,
     group: PlantGroup
   ) => void;
 }
@@ -54,10 +55,13 @@ const PlantGroupCard = ({ group, onBulkLogActivity }: PlantGroupCardProps) => {
   };
 
   const handleIndividualAction = (
-    activityType: "water" | "fertilize" | "observe"
+    activityType: QuickActionType | "more"
   ) => {
-    // ✅ Updated parameter type
-    onBulkLogActivity([currentPlant.id], activityType, group);
+    if (activityType === "more") {
+      navigate(`/log-care/${currentPlant.id}`);
+    } else {
+      onBulkLogActivity([currentPlant.id], activityType, group);
+    }
     setShowIndividualActions(false);
   };
 
@@ -174,48 +178,12 @@ const PlantGroupCard = ({ group, onBulkLogActivity }: PlantGroupCardProps) => {
             </div>
 
             {showIndividualActions && (
-              <div className="grid grid-cols-2 gap-2">
-                <Button
-                  size="sm"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleIndividualAction("water");
-                  }}
-                  className="bg-blue-500 hover:bg-blue-600 text-white"
-                >
-                  💧 Water
-                </Button>
-                <Button
-                  size="sm"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleIndividualAction("fertilize");
-                  }}
-                  className="bg-green-500 hover:bg-green-600 text-white"
-                >
-                  🌱 Fertilize
-                </Button>
-                <Button
-                  size="sm"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleIndividualAction("observe");
-                  }}
-                  className="bg-orange-500 hover:bg-orange-600 text-white"
-                >
-                  👁️ Inspect
-                </Button>
-                <Button
-                  size="sm"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    navigate(`/log-care/${currentPlant.id}`);
-                  }}
-                  variant="outline"
-                >
-                  📝 More
-                </Button>
-              </div>
+              <QuickActionButtons
+                onAction={handleIndividualAction}
+                actions={["water", "fertilize", "observe", "more"]}
+                layout="grid"
+                preventPropagation={true}
+              />
             )}
           </div>
 
