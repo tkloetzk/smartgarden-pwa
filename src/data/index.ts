@@ -7,8 +7,8 @@ import {
   StageSpecificWateringProtocol,
   StageSpecificFertilizationProtocol,
   StageSpecificLightingProtocol,
-} from "@/types/protocols";
-import { GrowthStage } from "@/types/core";
+  GrowthStage
+} from "@/types";
 import { generateUUID } from "@/utils/cn";
 
 // Stage name mapping (moved from seedData.ts)

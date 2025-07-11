@@ -14,7 +14,7 @@ import SoilMixtureSelector from "./SoilMixtureSelector";
 import ReminderPreferencesSection from "@/components/plant/ReminderPreferencesSection";
 import { useFirebasePlants } from "@/hooks/useFirebasePlants";
 import { LoadingSpinner } from "../ui/LoadingSpinner";
-import { PlantSection } from "@/types/spacing";
+import { PlantSection } from "@/types";
 import { Logger } from "@/utils/logger";
 
 

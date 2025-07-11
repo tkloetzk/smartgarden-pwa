@@ -4,7 +4,7 @@ import {
   SuccessionSpacing, 
   SuccessionPlanting, 
   PositionUnit 
-} from "@/types/spacing";
+} from "@/types";
 
 /**
  * Service for calculating succession planting spacing and scheduling

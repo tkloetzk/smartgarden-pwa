@@ -3,7 +3,7 @@
 import React, { useState } from "react";
 import { Card, CardContent, CardHeader } from "@/components/ui/Card";
 import TaskItem from "./TaskItem";
-import { TaskGroup as TaskGroupType } from "@/types/scheduling";
+import { TaskGroup as TaskGroupType } from "@/types";
 import { QuickCompletionValues } from "@/services/smartDefaultsService";
 
 interface TaskGroupProps {

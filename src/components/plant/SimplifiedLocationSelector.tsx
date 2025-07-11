@@ -4,7 +4,7 @@ import { Card, CardContent } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Switch } from "@/components/ui/Switch";
 import { BedRecord, bedService } from "@/types/database";
-import { PlantSection, Position } from "@/types/spacing";
+import { PlantSection, Position } from "@/types";
 import { BedLayoutVisualizer } from "./BedLayoutVisualizer";
 import { useFirebasePlants } from "@/hooks/useFirebasePlants";
 import toast from "react-hot-toast";

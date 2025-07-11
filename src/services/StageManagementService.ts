@@ -2,7 +2,7 @@
 
 import { FirebasePlantService } from "./firebase/plantService"; // Corrected import
 import { varietyService } from "@/types/database"; // Keep this for variety info
-import { GrowthStage } from "@/types/core";
+import { GrowthStage } from "@/types";
 import { ProtocolTranspilerService } from "./ProtocolTranspilerService";
 import { FirebaseScheduledTaskService } from "./firebase/scheduledTaskService";
 import { toast } from "react-hot-toast";

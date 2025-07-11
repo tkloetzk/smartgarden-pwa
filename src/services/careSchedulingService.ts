@@ -5,10 +5,9 @@ import {
   varietyService,
   PlantRecord,
 } from "@/types/database";
-import { GrowthStage, CareActivityType } from "@/types/core";
+import { GrowthStage, CareActivityType, UpcomingTask } from "@/types";
 import { calculateCurrentStageWithVariety } from "@/utils/growthStage";
 import { getPlantDisplayName } from "@/utils/plantDisplay";
-import { UpcomingTask } from "@/types/scheduling";
 import { addDays, differenceInDays } from "date-fns";
 import { DynamicSchedulingService } from "./dynamicSchedulingService";
 import {

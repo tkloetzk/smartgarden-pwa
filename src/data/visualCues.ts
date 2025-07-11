@@ -1,6 +1,6 @@
 // In: src/data/visualCues.ts
 
-import { GrowthStage } from "@/types/core";
+import { GrowthStage } from "@/types";
 
 /**
  * A knowledge base of visual cues for identifying plant growth stages.

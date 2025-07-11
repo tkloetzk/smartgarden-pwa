@@ -16,8 +16,8 @@ import {
   FirebasePlantRecord,
   convertPlantToFirebase,
   convertPlantFromFirebase,
-} from "../../types/firebase";
-import { PlantRecord } from "../../types/database";
+} from "../../types";
+import { PlantRecord } from "../../types";
 import { Logger } from "@/utils/logger";
 
 export class FirebasePlantService {

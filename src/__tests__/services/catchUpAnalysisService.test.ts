@@ -10,7 +10,7 @@ import {
   CareActivityRecord,
 } from "@/types/database";
 import { subDays, subWeeks } from "date-fns";
-import { CareActivityType } from "@/types/core";
+import { CareActivityType } from "@/types";
 import { getRealVariety, createMockPlantWithVariety } from "../utils/testDataFactories";
 
 // Mock dependencies

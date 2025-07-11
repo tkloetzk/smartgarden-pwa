@@ -14,8 +14,8 @@ import {
   FirebaseCareRecord,
   convertCareActivityToFirebase,
   convertCareActivityFromFirebase,
-} from "../../types/firebase";
-import { CareRecord } from "../../types/database";
+} from "../../types";
+import { CareRecord } from "../../types";
 
 export class FirebaseCareActivityService {
   private static careActivitiesCollection = collection(db, "careActivities");

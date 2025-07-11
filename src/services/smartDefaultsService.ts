@@ -6,7 +6,7 @@ import {
   PlantRecord,
   VarietyRecord,
 } from "@/types/database";
-import { GrowthStage, PlantCategory, CareActivityType } from "@/types/core";
+import { GrowthStage, PlantCategory, CareActivityType } from "@/types";
 import { calculateCurrentStage } from "@/utils/growthStage";
 import { WateringResolver } from "@/utils/wateringResolver";
 import { Logger } from "@/utils/logger";

@@ -6,6 +6,7 @@ import {
   CareActivityType,
   FertilizationScheduleItem,
   GrowthTimeline,
+  ApplicationMethod,
 } from "@/types";
 
 export interface ScheduledTask {
@@ -18,7 +19,7 @@ export interface ScheduledTask {
     product: string;
     dilution: string;
     amount: string;
-    method: "soil-drench" | "foliar-spray" | "top-dress" | "mix-in-soil";
+    method: ApplicationMethod;
   };
   dueDate: Date;
   status: "pending" | "completed" | "skipped" | "bypassed";

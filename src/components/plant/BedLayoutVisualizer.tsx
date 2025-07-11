@@ -3,7 +3,7 @@ import { Card, CardContent } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { BedRecord } from "@/types/database";
-import { Position, PlantSection } from "@/types/spacing";
+import { Position, PlantSection } from "@/types";
 
 interface BedLayoutVisualizerProps {
   bed: BedRecord;

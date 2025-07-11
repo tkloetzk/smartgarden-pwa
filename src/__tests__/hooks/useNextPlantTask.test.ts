@@ -1,7 +1,7 @@
 import { renderHook, waitFor } from "@testing-library/react";
 import { useNextPlantTask } from "@/hooks/useNextPlantTask";
 import { CareSchedulingService } from "@/services/careSchedulingService";
-import { UpcomingTask } from "@/types/scheduling";
+import { UpcomingTask } from "@/types";
 
 jest.mock("@/services/careSchedulingService");
 

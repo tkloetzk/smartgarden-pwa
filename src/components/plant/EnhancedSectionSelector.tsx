@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { Input } from "@/components/ui/Input";
 import { Card, CardContent } from "@/components/ui/Card";
 import { BedRecord } from "@/types/database";
-import { PlantSection, Position } from "@/types/spacing";
+import { PlantSection, Position } from "@/types";
 import { BedSelector } from "./BedSelector";
 import { StructuredPositioning } from "./StructuredPositioning";
 

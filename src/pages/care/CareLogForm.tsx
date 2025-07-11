@@ -26,7 +26,7 @@ import {
   Clock,
 } from "lucide-react";
 import { getMethodDisplay } from "@/utils/fertilizationUtils";
-import { ApplicationMethod } from "@/types/core";
+import { ApplicationMethod } from "@/types";
 import { FertilizationScheduleItem } from "@/types";
 import { format, subDays } from "date-fns";
 import toast from "react-hot-toast";

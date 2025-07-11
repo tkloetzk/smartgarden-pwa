@@ -1,191 +1,17 @@
 import Dexie, { Table } from "dexie";
 import { v4 as uuidv4 } from "uuid";
 import {
-  GrowthStage,
-  PlantCategory,
   CareActivityType,
-  QualityRating,
-  HealthAssessment,
-  VolumeUnit,
-  ApplicationMethod,
-  WateringMethod,
-  ThinningReason,
-} from "./core";
-import { VarietyProtocols, GrowthTimeline } from "./protocols";
-import { PlantSection, BedReference } from "./spacing";
+  PlantRecord,
+  VarietyRecord,
+  BedRecord,
+  CareActivityRecord,
+  TaskBypassRecord,
+  TaskCompletionRecord,
+  ScheduledTask,
+} from "./consolidated";
 import { generateUUID } from "@/utils/cn";
 import { Logger } from "@/utils/logger";
-
-export interface BaseRecord {
-  id: string;
-  createdAt: Date;
-  updatedAt?: Date;
-}
-
-export interface PlantRecord extends BaseRecord {
-  varietyId: string;
-  varietyName: string;
-  name?: string;
-  plantedDate: Date;
-  location: string;
-  container: string;
-  soilMix?: string;
-  isActive: boolean;
-  notes?: string[];
-  quantity?: number;
-  setupType?: "multiple-containers" | "same-container";
-  /** The growth stage manually confirmed by the user. */
-  confirmedStage?: GrowthStage;
-  /** The date the user confirmed the growth stage. */
-  stageConfirmedDate?: Date;
-  growthRateModifier?: number;
-  reminderPreferences?: {
-    watering?: boolean;
-    fertilizing?: boolean;
-    observation?: boolean;
-    lighting?: boolean;
-    pruning?: boolean;
-  };
-  // NEW: Plant count tracking for thinning
-  currentPlantCount?: number; // Track current count after thinning
-  originalPlantCount?: number; // Track initial planting count
-  lastThinningDate?: Date;
-  // NEW: Section support for succession planting
-  section?: string; // "Row 1 - 6\" section at 0\"" or "Section A" (backward compatibility)
-  structuredSection?: PlantSection; // New structured section data
-}
-
-export interface VarietyRecord extends BaseRecord {
-  name: string;
-  normalizedName: string; // Add this field for case-insensitive unique index
-  category: PlantCategory;
-  description?: string;
-  growthTimeline: GrowthTimeline;
-  protocols?: VarietyProtocols;
-  isEverbearing?: boolean;
-  productiveLifespan?: number;
-  isCustom?: boolean;
-}
-
-export interface BedRecord extends BaseRecord, BedReference {
-  isActive: boolean;
-}
-export interface ThinningActivityDetails extends CareActivityDetails {
-  type: "thin";
-  originalCount: number;
-  finalCount: number;
-  reason: ThinningReason;
-  removedPlants?: {
-    condition: "healthy" | "weak" | "diseased";
-    action: "compost" | "transplant" | "discard";
-  }[];
-}
-
-export interface PruningActivityDetails extends CareActivityDetails {
-  type: "pruning";
-  partsRemoved: "leaves" | "stems" | "flowers" | "runners" | "multiple";
-  amountRemoved: string; // "25% of leaves", "all runners", etc.
-  purpose: "maintenance" | "disease-control" | "shape" | "harvest" | "other";
-}
-
-// Update your existing CareActivityDetails interface to include the new fields:
-export interface CareActivityDetails {
-  type: CareActivityType;
-  waterAmount?: number;
-  waterUnit?: VolumeUnit;
-  moistureLevel?: {
-    before: number;
-    after: number;
-    scale: "1-10" | "visual";
-  };
-  method?: WateringMethod;
-  runoffObserved?: boolean;
-
-  // Fertilizer details
-  product?: string;
-  dilution?: string;
-  amount?: string | { value: number; unit: VolumeUnit };
-  applicationMethod?: ApplicationMethod;
-
-  // Observation details
-  healthAssessment?: HealthAssessment;
-  observations?: string;
-  photos?: string[];
-
-  // Harvest details
-  quality?: QualityRating;
-  harvestMethod?: string;
-
-  // Transplant details
-  fromContainer?: string;
-  toContainer?: string;
-  reason?: string;
-
-  // NEW: Thinning details
-  originalCount?: number;
-  finalCount?: number;
-  removedPlants?: {
-    condition: "healthy" | "weak" | "diseased";
-    action: "compost" | "transplant" | "discard";
-  }[];
-
-  // NEW: Pruning details
-  partsRemoved?: "leaves" | "stems" | "flowers" | "runners" | "multiple";
-  amountRemoved?: string;
-  purpose?: "maintenance" | "disease-control" | "shape" | "harvest" | "other";
-
-  // Environmental details
-  temperature?: number;
-  humidity?: number;
-  lightLevel?: number;
-  weatherConditions?: string;
-
-  // General
-  notes?: string;
-}
-
-// Single care activity record type (removing CareRecord vs CareActivityRecord duplication)
-export interface CareActivityRecord extends BaseRecord {
-  plantId: string;
-  type: CareActivityType;
-  date: Date;
-  details: CareActivityDetails;
-}
-
-// Task and scheduling records
-export interface TaskBypassRecord extends BaseRecord {
-  taskId: string;
-  plantId: string;
-  taskType: CareActivityType;
-  reason: string;
-  scheduledDate: Date;
-  bypassDate: Date;
-  plantStage: GrowthStage;
-  userId?: string;
-}
-
-export interface TaskCompletionRecord extends BaseRecord {
-  plantId: string;
-  taskType: CareActivityType;
-  scheduledDate: Date;
-  actualCompletionDate: Date;
-  varianceDays: number; // The key data point: negative if early, positive if late
-  careActivityId: string; // Link to the actual care log entry
-  plantStage: GrowthStage; // The stage when the task was completed
-}
-
-export interface ScheduledTask extends BaseRecord {
-  plantId: string;
-  taskType: CareActivityType;
-  dueDate: Date;
-  status: "pending" | "completed" | "bypassed";
-  priority?: "low" | "medium" | "high";
-  description?: string;
-}
-
-// Legacy type aliases for backward compatibility - remove these gradually
-export type CareRecord = CareActivityRecord;
-export type BypassLogRecord = TaskBypassRecord;
 
 // Database class
 class SmartGardenDatabase extends Dexie {
@@ -201,7 +27,7 @@ class SmartGardenDatabase extends Dexie {
     super("SmartGardenDatabase");
 
     this.version(8).stores({
-      plants: "++id, varietyId, isActive, plantedDate, growthRateModifier", // Add new field to index for potential queries
+      plants: "++id, varietyId, isActive, plantedDate, growthRateModifier",
       varieties: "++id, &normalizedName, name, category",
       beds: "++id, name, type, isActive",
       careActivities: "++id, plantId, type, date",
@@ -213,7 +39,7 @@ class SmartGardenDatabase extends Dexie {
     });
     
     this.version(7).stores({
-      plants: "++id, varietyId, isActive, plantedDate, growthRateModifier", // Add new field to index for potential queries
+      plants: "++id, varietyId, isActive, plantedDate, growthRateModifier",
       varieties: "++id, &normalizedName, name, category",
       careActivities: "++id, plantId, type, date",
       taskBypasses: "++id, taskId, plantId, taskType, bypassDate",
@@ -222,27 +48,24 @@ class SmartGardenDatabase extends Dexie {
       taskCompletions:
         "++id, plantId, taskType, [scheduledDate+actualCompletionDate], scheduledDate, actualCompletionDate",
     });
+    
     this.version(6).stores({
-      // --- (existing table definitions remain the same) ---
       plants: "++id, varietyId, isActive, plantedDate",
       varieties: "++id, &normalizedName, name, category",
       careActivities: "++id, plantId, type, date",
       taskBypasses: "++id, taskId, plantId, taskType, bypassDate",
       scheduledTasks:
         "++id, plantId, [plantId+status], [dueDate+status], taskType",
-      // --- START: New Table Definition ---
       taskCompletions:
         "++id, plantId, taskType, scheduledDate, actualCompletionDate",
-      // --- END: New Table Definition ---
     });
 
-    // Handle migration from older versions if necessary
     this.version(5).stores({
       plants: "++id, varietyId, isActive, plantedDate",
       varieties: "++id, &normalizedName, name, category",
       careActivities: "++id, plantId, type, date",
       taskBypasses: "++id, taskId, plantId, taskType, bypassDate",
-      taskCompletions: null, // Ensure old versions without this table can upgrade
+      taskCompletions: null,
       scheduledTasks:
         "++id, plantId, [plantId+status], [dueDate+status], taskType",
     });
@@ -301,7 +124,6 @@ export const plantService = {
 };
 
 export const varietyService = {
-  // [addVariety method remains the same]...
   async addVariety(
     variety: Omit<
       VarietyRecord,
@@ -349,7 +171,6 @@ export const varietyService = {
     const uniqueVarieties = new Map<string, VarietyRecord>();
 
     for (const variety of allVarieties) {
-      // Use the normalizedName field for case-insensitive checking
       const normalizedName =
         variety.normalizedName || variety.name.toLowerCase();
       if (!uniqueVarieties.has(normalizedName)) {
@@ -364,7 +185,7 @@ export const varietyService = {
   },
 
   async getVarietiesByCategory(
-    category: PlantCategory
+    category: string
   ): Promise<VarietyRecord[]> {
     return db.varieties.where("category").equals(category).toArray();
   },
@@ -471,3 +292,20 @@ export const bedService = {
     await db.beds.update(id, updateData);
   },
 };
+
+// Re-export types for backward compatibility
+export type {
+  GrowthStage,
+  CareActivityType,
+  VolumeUnit,
+  BaseRecord,
+  PlantRecord,
+  VarietyRecord,
+  BedRecord,
+  CareActivityRecord,
+  CareActivityDetails,
+  TaskBypassRecord,
+  TaskCompletionRecord,
+  ScheduledTask,
+  CareRecord,
+} from "./consolidated";

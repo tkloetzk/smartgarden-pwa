@@ -1,5 +1,5 @@
 // Add to utils/fertilizationUtils.ts
-import { ApplicationMethod } from "@/types/core";
+import { ApplicationMethod } from "@/types";
 
 export const getMethodIcon = (method: ApplicationMethod | string) => {
   switch (method) {

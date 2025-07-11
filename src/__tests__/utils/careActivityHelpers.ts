@@ -1,5 +1,5 @@
 // src/utils/careActivityHelpers.ts - NEW FILE
-import { CareActivityType } from "@/types/core";
+import { CareActivityType } from "@/types";
 
 export const getTaskTypeIcon = (taskType: CareActivityType): string => {
   switch (taskType) {

@@ -1,6 +1,6 @@
 // src/utils/__tests__/fertilizationUtils.test.ts
 import { describe, it, expect } from "@jest/globals";
-import { ApplicationMethod } from "@/types/core";
+import { ApplicationMethod } from "@/types";
 import {
   getMethodDescription,
   getMethodDisplay,

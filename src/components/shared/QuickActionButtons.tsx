@@ -1,7 +1,7 @@
 // src/components/shared/QuickActionButtons.tsx
 import React from "react";
 import { Button } from "@/components/ui/Button";
-import { CareActivityType } from "@/types/core";
+import { CareActivityType } from "@/types";
 
 // Define the subset of care activities that are commonly used as quick actions
 export type QuickActionType = Extract<CareActivityType, "water" | "fertilize" | "observe" | "photo">;

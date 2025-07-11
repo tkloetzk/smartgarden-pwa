@@ -2,7 +2,7 @@
 import { SmartDefaultsService } from "@/services/smartDefaultsService";
 import { varietyService } from "@/types/database";
 import { calculateCurrentStage } from "@/utils/growthStage";
-import { GrowthStage } from "@/types/core";
+import { GrowthStage } from "@/types";
 import { VarietyRecord } from "@/types/database";
 
 // Import the centralized factories

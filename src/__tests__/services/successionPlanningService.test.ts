@@ -1,6 +1,6 @@
 import { successionPlanningService } from "@/services/successionPlanningService";
 import { bedService, plantService } from "@/types/database";
-import { PlantSection } from "@/types/spacing";
+import { PlantSection } from "@/types";
 
 // Mock the database services
 jest.mock("@/types/database", () => ({

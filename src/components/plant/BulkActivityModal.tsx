@@ -8,7 +8,7 @@ import { useFirebasePlants } from "@/hooks/useFirebasePlants";
 import { toast } from "react-hot-toast";
 import { seedVarieties } from "@/data/seedVarieties";
 import { CareActivityDetails } from "@/types";
-import { CareActivityType, ApplicationMethod } from "@/types/core";
+import { CareActivityType, ApplicationMethod } from "@/types";
 
 interface BulkActivityModalProps {
   isOpen: boolean;

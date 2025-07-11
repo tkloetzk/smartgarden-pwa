@@ -1,9 +1,9 @@
 import { VarietyRecord } from "@/types/database";
-import { GrowthStage } from "@/types/core";
 import {
+  GrowthStage,
   CategoryWateringConfig,
   isValidStageForCategory,
-} from "@/types/plantStages";
+} from "@/types";
 
 interface WateringAmount {
   amount: number;

@@ -8,8 +8,7 @@ import {
   VarietyRecord,
   varietyService,
 } from "@/types/database";
-import { CareActivityType, PlantCategory } from "@/types/core";
-import { GrowthTimeline } from "@/types/protocols";
+import { CareActivityType, PlantCategory, GrowthTimeline } from "@/types";
 import { generateUUID } from "@/utils/cn";
 import { subDays, addDays } from "date-fns";
 import { User } from "firebase/auth";

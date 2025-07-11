@@ -10,7 +10,7 @@ import {
   DialogTitle,
 } from "@/components/ui/Dialog";
 import { PlantRecord } from "@/types/database";
-import { GrowthStage } from "@/types/core";
+import { GrowthStage } from "@/types";
 import { visualCues } from "@/data/visualCues";
 import { getNextStage } from "@/utils/growthStage";
 

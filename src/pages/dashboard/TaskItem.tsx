@@ -3,7 +3,7 @@ import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/Button";
 import { StatusBadge } from "@/components/ui/StatusBadge";
-import { UpcomingTask } from "@/types/scheduling";
+import { UpcomingTask } from "@/types";
 import { CheckCircle2, Clock } from "lucide-react";
 import {
   QuickCompleteOption,

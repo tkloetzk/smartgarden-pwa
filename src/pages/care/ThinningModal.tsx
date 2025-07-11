@@ -3,7 +3,7 @@ import { useState } from "react";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/Card";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
-import { ThinningReason } from "@/types/core";
+import { ThinningReason } from "@/types";
 import { PlantRecord } from "@/types/database";
 
 interface ThinningModalProps {

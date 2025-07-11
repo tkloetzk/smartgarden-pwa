@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { CareSchedulingService } from "@/services/careSchedulingService";
-import { UpcomingTask } from "@/types/scheduling";
+import { UpcomingTask } from "@/types";
 
 export const useNextPlantTask = (plantId: string) => {
   const [nextTask, setNextTask] = useState<UpcomingTask | null>(null);

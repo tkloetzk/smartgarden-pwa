@@ -1,6 +1,6 @@
 // src/services/dynamicSchedulingService.ts
 import { db, TaskCompletionRecord } from "@/types/database";
-import { CareActivityType, GrowthStage } from "@/types/core";
+import { CareActivityType, GrowthStage } from "@/types";
 import { addDays, differenceInDays } from "date-fns";
 import { generateUUID } from "@/utils/cn";
 import { Logger } from "@/utils/logger";

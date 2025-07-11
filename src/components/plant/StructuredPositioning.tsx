@@ -3,7 +3,7 @@ import { Input } from "@/components/ui/Input";
 import { Card, CardContent } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { BedRecord } from "@/types/database";
-import { Position } from "@/types/spacing";
+import { Position } from "@/types";
 import { successionPlanningService } from "@/services/successionPlanningService";
 import { Button } from "../ui/Button";
 import { BedLayoutVisualizer } from "./BedLayoutVisualizer";

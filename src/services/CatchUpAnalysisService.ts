@@ -2,7 +2,7 @@
 import { differenceInDays, addDays } from "date-fns";
 import { FirebaseCareActivityService } from "./firebase/careActivityService";
 import { PlantRecord } from "@/types/database";
-import { CareActivityType } from "@/types/core";
+import { CareActivityType } from "@/types";
 import { CareActivity } from "@/types";
 
 export interface MissedOpportunity {

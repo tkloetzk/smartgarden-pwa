@@ -16,7 +16,7 @@ import {
 import { addDays, subDays } from "date-fns";
 import { useFirebasePlants } from "@/hooks/useFirebasePlants";
 import { DynamicSchedulingService } from "@/services/dynamicSchedulingService";
-import { CareActivityType, GrowthStage } from "@/types/core";
+import { CareActivityType, GrowthStage } from "@/types";
 
 jest.mock("@/hooks/useFirebasePlants");
 jest.mock("@/services/dynamicSchedulingService");
