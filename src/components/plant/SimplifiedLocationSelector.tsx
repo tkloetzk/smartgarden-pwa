@@ -98,6 +98,10 @@ export function SimplifiedLocationSelector({
   const [isLoading, setIsLoading] = useState(true);
   const [showSectionInput, setShowSectionInput] = useState(false);
   const [showAdvancedPositioning, setShowAdvancedPositioning] = useState(false);
+  const [advancedMode, setAdvancedMode] = useState<"visual" | "custom">("visual");
+  const [customGridRows, setCustomGridRows] = useState<number>(3);
+  const [customGridCols, setCustomGridCols] = useState<number>(4);
+  const [selectedCustomPosition, setSelectedCustomPosition] = useState<{row: number, col: number} | null>(null);
   const [showCreateContainer, setShowCreateContainer] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
 
@@ -228,6 +232,78 @@ export function SimplifiedLocationSelector({
       position,
     };
     onStructuredSectionChange(newSection);
+  };
+
+  const handleCustomGridPositionSelect = (row: number, col: number) => {
+    setSelectedCustomPosition({ row, col });
+    
+    // Convert to section description
+    const sectionDescription = `Row ${row + 1}, Column ${col + 1}`;
+    onSectionChange(sectionDescription);
+    
+    // Also create a structured section for this custom grid position
+    if (selectedBed) {
+      const bedWidth = selectedBed.dimensions.width;
+      const bedLength = selectedBed.dimensions.length;
+      
+      // Calculate position within the bed based on custom grid
+      const sectionWidth = bedWidth / customGridCols;
+      const sectionLength = bedLength / customGridRows;
+      const startPosition = (row * sectionLength) + (col * sectionWidth);
+      
+      const newSection: PlantSection = {
+        bedId: selectedBed.id,
+        position: { 
+          start: startPosition, 
+          length: sectionLength, 
+          width: sectionWidth,
+          unit: selectedBed.dimensions.unit 
+        },
+        row: row + 1,
+        column: col + 1,
+        description: sectionDescription,
+      };
+      onStructuredSectionChange(newSection);
+    }
+  };
+
+  const renderCustomGrid = () => {
+    const grid = [];
+    for (let row = 0; row < customGridRows; row++) {
+      const rowCells = [];
+      for (let col = 0; col < customGridCols; col++) {
+        const isSelected = selectedCustomPosition?.row === row && selectedCustomPosition?.col === col;
+        const isOccupied = currentBedPlants.some(plant => 
+          plant.section?.row === row + 1 && plant.section?.column === col + 1
+        );
+        
+        rowCells.push(
+          <button
+            key={`${row}-${col}`}
+            type="button"
+            onClick={() => handleCustomGridPositionSelect(row, col)}
+            className={`
+              aspect-square border-2 rounded-lg transition-all text-xs font-medium
+              ${isSelected 
+                ? "border-accent bg-accent/20 text-accent" 
+                : isOccupied
+                  ? "border-orange-400 bg-orange-50 text-orange-600"
+                  : "border-border hover:border-accent/50 hover:bg-accent/5"
+              }
+            `}
+            title={isOccupied ? "Occupied" : `Row ${row + 1}, Col ${col + 1}`}
+          >
+            {isOccupied ? "🌱" : `${row + 1},${col + 1}`}
+          </button>
+        );
+      }
+      grid.push(
+        <div key={row} className="grid gap-2" style={{ gridTemplateColumns: `repeat(${customGridCols}, 1fr)` }}>
+          {rowCells}
+        </div>
+      );
+    }
+    return grid;
   };
 
   const getBedDisplayName = (bed: BedRecord) => {
@@ -528,22 +604,115 @@ export function SimplifiedLocationSelector({
 
                 {showAdvancedPositioning && (
                   <div className="mt-3 space-y-3">
-                    <p className="text-xs text-muted-foreground">
-                      Use advanced positioning for precise succession planting and visual layout
-                    </p>
-                    
-                    <BedLayoutVisualizer
-                      bed={selectedBed}
-                      currentPlants={currentBedPlants}
-                      selectedPosition={structuredSection?.position || null}
-                      onPositionSelect={handlePositionSelect}
-                      suggestedPositions={[]}
-                      spacing={{
-                        minSpacing: 4,
-                        optimalSpacing: 6,
-                        unit: selectedBed.dimensions.unit,
-                      }}
-                    />
+                    <div className="flex items-center justify-between">
+                      <p className="text-xs text-muted-foreground">
+                        Choose your positioning method
+                      </p>
+                      <div className="flex bg-muted rounded-lg p-1">
+                        <button
+                          type="button"
+                          onClick={() => setAdvancedMode("visual")}
+                          className={`px-3 py-1 text-xs rounded-md transition-all ${
+                            advancedMode === "visual"
+                              ? "bg-background text-foreground shadow-sm"
+                              : "text-muted-foreground hover:text-foreground"
+                          }`}
+                        >
+                          Visual Grid
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setAdvancedMode("custom")}
+                          className={`px-3 py-1 text-xs rounded-md transition-all ${
+                            advancedMode === "custom"
+                              ? "bg-background text-foreground shadow-sm"
+                              : "text-muted-foreground hover:text-foreground"
+                          }`}
+                        >
+                          Custom Grid
+                        </button>
+                      </div>
+                    </div>
+
+                    {advancedMode === "visual" ? (
+                      <div className="space-y-2">
+                        <p className="text-xs text-muted-foreground">
+                          Click on the grid to place your plant precisely
+                        </p>
+                        <BedLayoutVisualizer
+                          bed={selectedBed}
+                          currentPlants={currentBedPlants}
+                          selectedPosition={structuredSection?.position || null}
+                          onPositionSelect={handlePositionSelect}
+                          suggestedPositions={[]}
+                          spacing={{
+                            minSpacing: 4,
+                            optimalSpacing: 6,
+                            unit: selectedBed.dimensions.unit,
+                          }}
+                        />
+                      </div>
+                    ) : (
+                      <div className="space-y-3">
+                        <p className="text-xs text-muted-foreground">
+                          Create your own grid layout for organized planting
+                        </p>
+                        
+                        {/* Grid Size Controls */}
+                        <div className="flex gap-4 items-center p-3 bg-background/50 rounded-lg">
+                          <div className="flex items-center gap-2">
+                            <label className="text-xs font-medium">Rows:</label>
+                            <Input
+                              type="number"
+                              min="1"
+                              max="10"
+                              value={customGridRows}
+                              onChange={(e) => setCustomGridRows(Math.max(1, Math.min(10, parseInt(e.target.value) || 1)))}
+                              className="w-16 h-8 text-xs"
+                            />
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <label className="text-xs font-medium">Columns:</label>
+                            <Input
+                              type="number"
+                              min="1"
+                              max="10"
+                              value={customGridCols}
+                              onChange={(e) => setCustomGridCols(Math.max(1, Math.min(10, parseInt(e.target.value) || 1)))}
+                              className="w-16 h-8 text-xs"
+                            />
+                          </div>
+                          <div className="text-xs text-muted-foreground">
+                            {customGridRows} × {customGridCols} = {customGridRows * customGridCols} sections
+                          </div>
+                        </div>
+
+                        {/* Custom Grid */}
+                        <div className="space-y-2">
+                          <p className="text-xs font-medium text-foreground">Click a section to select:</p>
+                          <div className="p-3 bg-background/30 rounded-lg border">
+                            <div className="space-y-2">
+                              {renderCustomGrid()}
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Selected Position Display */}
+                        {selectedCustomPosition && (
+                          <div className="p-2 bg-accent/10 rounded-lg border border-accent/20">
+                            <p className="text-xs font-medium text-accent">
+                              Selected: Row {selectedCustomPosition.row + 1}, Column {selectedCustomPosition.col + 1}
+                            </p>
+                          </div>
+                        )}
+
+                        <div className="text-xs text-muted-foreground space-y-1">
+                          <p>• Numbers show row,column positions</p>
+                          <p>• 🌱 indicates occupied sections</p>
+                          <p>• Click any section to plant there</p>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
