@@ -6,7 +6,7 @@ import { PlantRegistrationForm } from "@/components/plant/PlantRegistrationForm"
 import { useFirebaseAuth } from "@/hooks/useFirebaseAuth";
 import { useFirebasePlants } from "@/hooks/useFirebasePlants";
 import { FirebasePlantService } from "@/services/firebase/plantService";
-import { varietyService } from "@/types/database";
+import { bedService, varietyService } from "@/types/database";
 import { varieties } from "@/data";
 
 // ADD THIS MOCK BLOCK
@@ -31,10 +31,8 @@ jest.mock("firebase/firestore", () => ({
 jest.mock("@/components/plant/SimplifiedLocationSelector", () => ({
   SimplifiedLocationSelector: ({
     onBedSelect,
-    onLocationChange,
   }: {
     onBedSelect: (bedId: string) => void;
-    onLocationChange: (isOutdoor: boolean) => void;
   }) => (
     <div data-testid="simplified-location-selector">
       <select
@@ -106,7 +104,6 @@ describe("Plant Registration Integration Flow", () => {
     );
 
     // Mock bedService
-    const { bedService } = require("@/types/database");
     bedService.getBed = jest.fn().mockResolvedValue({
       id: "test-bed-1",
       name: "Test Bed 1",
