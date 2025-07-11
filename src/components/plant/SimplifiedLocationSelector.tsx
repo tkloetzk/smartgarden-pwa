@@ -290,7 +290,18 @@ export function SimplifiedLocationSelector({
           return value % 1 === 0 ? value.toString() : value.toFixed(1);
         };
 
-        const dimensionText = `${formatDimension(sectionLength)}×${formatDimension(sectionWidth)} ${unit}`;
+        // Use abbreviated units for mobile display
+        const getUnitSymbol = (unit: string) => {
+          switch (unit) {
+            case "inches": return '"';
+            case "feet": return "'";
+            case "cm": return "cm";
+            case "mm": return "mm";
+            default: return unit;
+          }
+        };
+
+        const dimensionText = `${formatDimension(sectionLength)}×${formatDimension(sectionWidth)}${getUnitSymbol(unit)}`;
         
         rowCells.push(
           <button
@@ -710,18 +721,38 @@ export function SimplifiedLocationSelector({
                         </div>
 
                         {/* Grid Dimensions Summary */}
-                        {selectedBed && (
-                          <div className="p-2 bg-muted/30 rounded-lg text-xs">
-                            <div className="grid grid-cols-2 gap-2 text-muted-foreground">
-                              <div>
-                                <span className="font-medium">Bed Size:</span> {selectedBed.dimensions.length}×{selectedBed.dimensions.width} {selectedBed.dimensions.unit}
-                              </div>
-                              <div>
-                                <span className="font-medium">Section Size:</span> {((selectedBed.dimensions.length / customGridRows) % 1 === 0 ? (selectedBed.dimensions.length / customGridRows) : (selectedBed.dimensions.length / customGridRows).toFixed(1))}×{((selectedBed.dimensions.width / customGridCols) % 1 === 0 ? (selectedBed.dimensions.width / customGridCols) : (selectedBed.dimensions.width / customGridCols).toFixed(1))} {selectedBed.dimensions.unit}
+                        {selectedBed && (() => {
+                          const getUnitSymbol = (unit: string) => {
+                            switch (unit) {
+                              case "inches": return '"';
+                              case "feet": return "'";
+                              case "cm": return "cm";
+                              case "mm": return "mm";
+                              default: return unit;
+                            }
+                          };
+                          
+                          const formatDimension = (value: number) => {
+                            return value % 1 === 0 ? value.toString() : value.toFixed(1);
+                          };
+                          
+                          const sectionLength = selectedBed.dimensions.length / customGridRows;
+                          const sectionWidth = selectedBed.dimensions.width / customGridCols;
+                          const unitSymbol = getUnitSymbol(selectedBed.dimensions.unit);
+                          
+                          return (
+                            <div className="p-2 bg-muted/30 rounded-lg text-xs">
+                              <div className="grid grid-cols-2 gap-2 text-muted-foreground">
+                                <div>
+                                  <span className="font-medium">Bed Size:</span> {selectedBed.dimensions.length}×{selectedBed.dimensions.width}{unitSymbol}
+                                </div>
+                                <div>
+                                  <span className="font-medium">Section Size:</span> {formatDimension(sectionLength)}×{formatDimension(sectionWidth)}{unitSymbol}
+                                </div>
                               </div>
                             </div>
-                          </div>
-                        )}
+                          );
+                        })()}
 
                         {/* Custom Grid */}
                         <div className="space-y-2">
