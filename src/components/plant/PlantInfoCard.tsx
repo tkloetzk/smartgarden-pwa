@@ -162,7 +162,7 @@ const PlantInfoCard = ({
                   {lightingProtocol.photoperiod.hours}h light | PPFD:{" "}
                   {lightingProtocol.ppfd.min}-{lightingProtocol.ppfd.max}{" "}
                   {lightingProtocol.ppfd.optimal &&
-                    `"| Optimal " ${lightingProtocol.ppfd.optimal}`}{" "}
+                    `| Optimal ${lightingProtocol.ppfd.optimal}`}{" "}
                   {lightingProtocol.ppfd.unit}
                 </span>
               </div>
