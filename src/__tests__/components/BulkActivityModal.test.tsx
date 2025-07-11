@@ -63,8 +63,7 @@ describe("BulkActivityModal", () => {
     ).toBeInTheDocument();
   });
 
-  // Outdated
-  it.skip("renders the correct title and inputs for fertilizing a single plant", () => {
+  it("renders the correct title and inputs for fertilizing a single plant", () => {
     render(
       <BulkActivityModal
         {...defaultProps}
@@ -73,7 +72,7 @@ describe("BulkActivityModal", () => {
       />
     );
     expect(screen.getByText("🌱 Fertilize Plant")).toBeInTheDocument();
-    expect(screen.getByLabelText("Amount")).toBeInTheDocument();
+    expect(screen.getByLabelText("Fertilizer Product")).toBeInTheDocument();
   });
 
   it("calls logActivity for each plant ID on submit", async () => {
@@ -299,39 +298,45 @@ describe("BulkActivityModal", () => {
       expect(mockOnClose).toHaveBeenCalledTimes(1);
     });
 
-    it.skip("shows and submits a custom amount when 'Custom' dilution is selected", async () => {
+    it("shows and submits a custom amount when 'Custom' dilution is selected", async () => {
       render(<BulkActivityModal {...fertilizerProps} />);
 
-      // 1. Select the 'Custom amount' option to reveal the new input
+      // 1. First select fish-emulsion product and soil-drench method
+      await user.selectOptions(
+        screen.getByLabelText(/Fertilizer Product/i),
+        "fish-emulsion"
+      );
+      await user.selectOptions(
+        screen.getByLabelText(/Application Method/i),
+        "soil-drench"
+      );
+      
+      // 2. Select the 'Custom amount' option to reveal the new input
       await user.selectOptions(
         screen.getByLabelText(/Dilution\/Application Rate/i),
         "custom"
       );
 
-      // 2. Wait for the custom input to appear
+      // 3. Wait for the custom input to appear
       const customAmountInput = await screen.findByLabelText(
         /Custom Amount\/Dilution/i
       );
       expect(customAmountInput).toBeInTheDocument();
 
-      // 3. FIX: Clear the input before typing the new value
+      // 4. FIX: Clear the input before typing the new value
       await user.clear(customAmountInput);
       await user.type(customAmountInput, "One small scoop");
 
-      // 4. Select other options and submit
-      await user.selectOptions(
-        screen.getByLabelText(/Application Method/i),
-        "top-dress"
-      );
+      // 5. Submit the form (application method already set)
       await user.click(screen.getByRole("button", { name: "Log Fertilizing" }));
 
-      // 5. Assert that the correct custom amount was submitted
+      // 6. Assert that the correct custom amount was submitted
       await waitFor(() => {
         expect(mockLogActivity).toHaveBeenCalledWith(
           expect.objectContaining({
             details: expect.objectContaining({
-              applicationMethod: "top-dress",
-              amount: "One small scoop", // This will now match
+              applicationMethod: "soil-drench",
+              dilution: "One small scoop", // This will now match
             }),
           })
         );
