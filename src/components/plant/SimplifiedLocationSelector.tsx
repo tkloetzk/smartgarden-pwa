@@ -268,6 +268,14 @@ export function SimplifiedLocationSelector({
   };
 
   const renderCustomGrid = () => {
+    if (!selectedBed) return null;
+
+    const bedWidth = selectedBed.dimensions.width;
+    const bedLength = selectedBed.dimensions.length;
+    const sectionWidth = bedWidth / customGridCols;
+    const sectionLength = bedLength / customGridRows;
+    const unit = selectedBed.dimensions.unit;
+
     const grid = [];
     for (let row = 0; row < customGridRows; row++) {
       const rowCells = [];
@@ -277,13 +285,20 @@ export function SimplifiedLocationSelector({
           plant.section?.row === row + 1 && plant.section?.column === col + 1
         );
         
+        // Format dimensions for display
+        const formatDimension = (value: number) => {
+          return value % 1 === 0 ? value.toString() : value.toFixed(1);
+        };
+
+        const dimensionText = `${formatDimension(sectionLength)}×${formatDimension(sectionWidth)} ${unit}`;
+        
         rowCells.push(
           <button
             key={`${row}-${col}`}
             type="button"
             onClick={() => handleCustomGridPositionSelect(row, col)}
             className={`
-              aspect-square border-2 rounded-lg transition-all text-xs font-medium
+              border-2 rounded-lg transition-all text-xs font-medium p-2 min-h-[60px] flex flex-col items-center justify-center
               ${isSelected 
                 ? "border-accent bg-accent/20 text-accent" 
                 : isOccupied
@@ -291,9 +306,16 @@ export function SimplifiedLocationSelector({
                   : "border-border hover:border-accent/50 hover:bg-accent/5"
               }
             `}
-            title={isOccupied ? "Occupied" : `Row ${row + 1}, Col ${col + 1}`}
+            title={isOccupied ? `Occupied - ${dimensionText}` : `Row ${row + 1}, Col ${col + 1} - ${dimensionText}`}
           >
-            {isOccupied ? "🌱" : `${row + 1},${col + 1}`}
+            <div className="text-center">
+              <div className="font-semibold">
+                {isOccupied ? "🌱" : `${row + 1},${col + 1}`}
+              </div>
+              <div className={`text-[10px] mt-1 ${isOccupied ? "text-orange-500" : "text-muted-foreground"}`}>
+                {dimensionText}
+              </div>
+            </div>
           </button>
         );
       }
@@ -687,6 +709,20 @@ export function SimplifiedLocationSelector({
                           </div>
                         </div>
 
+                        {/* Grid Dimensions Summary */}
+                        {selectedBed && (
+                          <div className="p-2 bg-muted/30 rounded-lg text-xs">
+                            <div className="grid grid-cols-2 gap-2 text-muted-foreground">
+                              <div>
+                                <span className="font-medium">Bed Size:</span> {selectedBed.dimensions.length}×{selectedBed.dimensions.width} {selectedBed.dimensions.unit}
+                              </div>
+                              <div>
+                                <span className="font-medium">Section Size:</span> {((selectedBed.dimensions.length / customGridRows) % 1 === 0 ? (selectedBed.dimensions.length / customGridRows) : (selectedBed.dimensions.length / customGridRows).toFixed(1))}×{((selectedBed.dimensions.width / customGridCols) % 1 === 0 ? (selectedBed.dimensions.width / customGridCols) : (selectedBed.dimensions.width / customGridCols).toFixed(1))} {selectedBed.dimensions.unit}
+                              </div>
+                            </div>
+                          </div>
+                        )}
+
                         {/* Custom Grid */}
                         <div className="space-y-2">
                           <p className="text-xs font-medium text-foreground">Click a section to select:</p>
@@ -708,6 +744,7 @@ export function SimplifiedLocationSelector({
 
                         <div className="text-xs text-muted-foreground space-y-1">
                           <p>• Numbers show row,column positions</p>
+                          <p>• Dimensions show length×width for each section</p>
                           <p>• 🌱 indicates occupied sections</p>
                           <p>• Click any section to plant there</p>
                         </div>
