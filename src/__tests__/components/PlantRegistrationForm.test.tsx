@@ -389,9 +389,5 @@ describe("PlantRegistrationForm", () => {
       expect(screen.getByLabelText(/planting date/i)).toBeInTheDocument();
     });
 
-    it.skip("has proper ARIA attributes for buttons", () => {
-      const locationToggle = screen.getByTestId("location-toggle");
-      expect(locationToggle).toHaveAttribute("type", "button");
-    });
   });
 });
