@@ -551,7 +551,7 @@ export function SimplifiedLocationSelector({
           <option value="">
             {isLoading ? "Loading..." : "Select where you're planting"}
           </option>
-          {beds.map((bed) => (
+          {(beds || []).map((bed) => (
             <option key={bed.id} value={bed.id}>
               {getBedDisplayName(bed)}
             </option>

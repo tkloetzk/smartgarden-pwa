@@ -8,6 +8,27 @@ import { renderWithProviders } from "../utils/testHelpers";
 import { createMockUser } from "../utils/testDataFactories";
 import { varieties } from "@/data";
 
+// Mock SimplifiedLocationSelector
+jest.mock("@/components/plant/SimplifiedLocationSelector", () => ({
+  SimplifiedLocationSelector: ({
+    onBedSelect,
+    onLocationChange,
+  }: {
+    onBedSelect: (bedId: string) => void;
+    onLocationChange: (isOutdoor: boolean) => void;
+  }) => (
+    <div data-testid="simplified-location-selector">
+      <select
+        data-testid="bed-selector"
+        onChange={(e) => onBedSelect(e.target.value)}
+      >
+        <option value="">Select bed</option>
+        <option value="test-bed-1">Test Bed 1</option>
+      </select>
+    </div>
+  ),
+}));
+
 // Mock hooks and services
 jest.mock("@/hooks/useFirebaseAuth");
 jest.mock("@/hooks/useFirebasePlants");
@@ -54,6 +75,25 @@ describe("AddPlant Page", () => {
     });
 
     mockVarietyService.getAllVarieties.mockResolvedValue(mockVarieties);
+
+    // Mock bedService
+    const { bedService } = require("@/types/database");
+    bedService.getBed = jest.fn().mockResolvedValue({
+      id: "test-bed-1",
+      name: "Test Bed 1",
+      type: "raised-bed",
+      dimensions: { length: 48, width: 24, unit: "inches" },
+      isActive: true,
+    });
+    bedService.getActiveBeds = jest.fn().mockResolvedValue([
+      {
+        id: "test-bed-1",
+        name: "Test Bed 1",
+        type: "raised-bed",
+        dimensions: { length: 48, width: 24, unit: "inches" },
+        isActive: true,
+      },
+    ]);
   });
 
   afterAll(() => {
@@ -116,8 +156,9 @@ describe("AddPlant Page", () => {
       const varietySelect = screen.getByLabelText(/plant variety/i);
       await user.selectOptions(varietySelect, "astro-arugula");
 
-      const growBagButton = screen.getByTestId("container-type-grow-bag");
-      await user.click(growBagButton);
+      // Select bed/container using the new simplified selector
+      const bedSelector = screen.getByTestId("bed-selector");
+      await user.selectOptions(bedSelector, "test-bed-1");
 
       const selectSoilButton = screen.getByTestId(
         "mixture-card-leafy-greens-standard"
@@ -162,7 +203,9 @@ describe("AddPlant Page", () => {
         screen.getByLabelText(/plant variety/i),
         "astro-arugula"
       );
-      await user.click(screen.getByTestId("container-type-grow-bag"));
+      // Select bed/container using the new simplified selector
+      const bedSelector = screen.getByTestId("bed-selector");
+      await user.selectOptions(bedSelector, "test-bed-1");
 
       const selectSoilButton = screen.getByTestId(
         "mixture-card-leafy-greens-standard"
