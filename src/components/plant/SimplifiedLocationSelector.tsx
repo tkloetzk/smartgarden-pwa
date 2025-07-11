@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Input } from "@/components/ui/Input";
 import { Card, CardContent } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
@@ -122,17 +122,17 @@ export function SimplifiedLocationSelector({
   const watchedContainerType = watch("containerType");
   const watchedSize = watch("size");
 
-  const selectedBed = beds.find(bed => bed.id === selectedBedId);
+  const selectedBed = beds?.find(bed => bed.id === selectedBedId);
 
   // Filter plants for the current bed and format for visualizer
-  const currentBedPlants = plants
-    ?.filter(plant => plant.structuredSection?.bedId === selectedBedId)
+  const currentBedPlants = (plants || [])
+    .filter(plant => plant.structuredSection?.bedId === selectedBedId)
     .map(plant => ({
       id: plant.id,
       name: plant.name || plant.varietyName,
       varietyName: plant.varietyName,
       section: plant.structuredSection,
-    })) || [];
+    }));
 
   useEffect(() => {
     loadBeds();
@@ -140,15 +140,16 @@ export function SimplifiedLocationSelector({
 
   // Auto-show section input if section has content and bed type supports sections
   useEffect(() => {
-    if ((section || structuredSection) && shouldShowSectionInput()) {
+    const shouldShow = selectedBed?.type === "raised-bed";
+    if ((section || structuredSection) && shouldShow) {
       setShowSectionInput(true);
-    } else if (!shouldShowSectionInput()) {
+    } else if (!shouldShow) {
       // Clear section data and hide input for container types that don't support sections
       setShowSectionInput(false);
       if (section) onSectionChange("");
       if (structuredSection) onStructuredSectionChange(null);
     }
-  }, [section, structuredSection, selectedBed]);
+  }, [section, structuredSection, selectedBed, onSectionChange, onStructuredSectionChange]);
 
   const loadBeds = async () => {
     try {
@@ -351,11 +352,11 @@ export function SimplifiedLocationSelector({
     return `${typeEmoji} ${bed.name} (${bed.dimensions.length}×${bed.dimensions.width} ${bed.dimensions.unit})`;
   };
 
-  const shouldShowSectionInput = () => {
+  const shouldShowSectionInput = useCallback(() => {
     if (!selectedBed) return false;
     // Only show section input for raised beds (containers like pots and grow bags are single units)
     return selectedBed.type === "raised-bed";
-  };
+  }, [selectedBed]);
 
   const getSectionPlaceholder = () => {
     if (!selectedBed) return "e.g., Row 1, Section A, North End";
@@ -430,7 +431,7 @@ export function SimplifiedLocationSelector({
                         key={key}
                         type="button"
                         onClick={() => {
-                          setValue("containerType", key as any, { shouldValidate: true });
+                          setValue("containerType", key as "grow-bag" | "pot" | "raised-bed", { shouldValidate: true });
                           // Auto-select "custom" for raised beds since it's the only option
                           if (key === "raised-bed") {
                             setValue("size", "custom", { shouldValidate: true });
