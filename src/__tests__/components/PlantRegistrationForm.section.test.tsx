@@ -29,7 +29,7 @@ jest.mock("@/hooks/useFirebasePlants", () => ({
 // Mock varietyService to return empty for simplicity
 jest.mock("@/types/database", () => ({
   varietyService: {
-    getAll: jest.fn().mockResolvedValue([]),
+    getAllVarieties: jest.fn().mockResolvedValue([]),
   },
 }));
 
@@ -91,7 +91,7 @@ describe("PlantRegistrationForm - Section Support", () => {
       expect(sectionLabel).toBeInTheDocument();
     }, { timeout: 3000 });
 
-    const helpText = screen.getByText(/Specify a section within your location for succession planting/i);
+    const helpText = screen.getByText(/Specify a section within your location for organization/i);
     expect(helpText).toBeInTheDocument();
   });
 

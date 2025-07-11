@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Input } from "@/components/ui/Input";
 import { Card, CardContent } from "@/components/ui/Card";
 import { BedRecord } from "@/types/database";
@@ -18,6 +18,10 @@ interface EnhancedSectionSelectorProps {
   // Current mode
   sectionMode: "simple" | "structured";
   onSectionModeChange: (mode: "simple" | "structured") => void;
+  
+  // Container context for dynamic field adjustment
+  containerType?: string;
+  containerSize?: string;
 }
 
 export function EnhancedSectionSelector({
@@ -27,8 +31,24 @@ export function EnhancedSectionSelector({
   onStructuredSectionChange,
   sectionMode,
   onSectionModeChange,
+  containerType,
+  containerSize,
 }: EnhancedSectionSelectorProps) {
   const [selectedBed, setSelectedBed] = useState<BedRecord | null>(null);
+
+  const shouldShowStructuredMode = () => {
+    // Structured mode is most beneficial for raised beds and large containers
+    return containerType === "raised-bed" || 
+           (containerType === "grow-bag" && containerSize?.includes("gallon") && 
+            (containerSize.includes("15") || containerSize.includes("30")));
+  };
+
+  // Auto-switch to simple mode if structured mode becomes unavailable
+  useEffect(() => {
+    if (sectionMode === "structured" && !shouldShowStructuredMode()) {
+      onSectionModeChange("simple");
+    }
+  }, [containerType, containerSize, sectionMode, onSectionModeChange]);
 
   const handleBedSelect = (bedId: string) => {
     if (selectedBed?.id !== bedId) {
@@ -94,6 +114,48 @@ export function EnhancedSectionSelector({
     onStructuredSectionChange(newSection);
   };
 
+  // Dynamic content based on container type
+  const getPlaceholderText = () => {
+    if (!containerType) return "e.g., Row 1 - 6\" section at 0\", Section A, North End";
+    
+    switch (containerType) {
+      case "raised-bed":
+        return "e.g., North Section, Row 1 (0-24\"), West End";
+      case "grow-bag":
+        return "e.g., Bag #1, Left Side, Center Position";
+      case "pot":
+        return "e.g., Pot A, Front Section, East Side";
+      case "cell-tray":
+        return "e.g., Cells A1-A6, Row 1, Left Section";
+      default:
+        return "e.g., Section A, North End, Row 1";
+    }
+  };
+
+  const getHelpText = () => {
+    if (!containerType) return "Specify a section within your location for organization";
+    
+    switch (containerType) {
+      case "raised-bed":
+        return "Define sections within your raised bed for succession planting";
+      case "grow-bag":
+        return "Specify location or grouping for this grow bag";
+      case "pot":
+        return "Identify this pot's position or section for organization";
+      case "cell-tray":
+        return "Specify which cells or sections of the tray are used";
+      default:
+        return "Specify a section within your container for organization";
+    }
+  };
+
+  const getStructuredModeDescription = () => {
+    if (containerType === "raised-bed") {
+      return "Structured positioning (recommended for succession planting in raised beds)";
+    }
+    return "Structured positioning (recommended for large containers and succession planting)";
+  };
+
   return (
     <div className="space-y-4">
       <div>
@@ -114,19 +176,21 @@ export function EnhancedSectionSelector({
               Simple text description
             </label>
           </div>
-          <div className="flex items-center space-x-2">
-            <input
-              type="radio"
-              value="structured"
-              id="structured"
-              checked={sectionMode === "structured"}
-              onChange={() => onSectionModeChange("structured")}
-              className="w-4 h-4"
-            />
-            <label htmlFor="structured" className="text-sm cursor-pointer">
-              Structured positioning (recommended for succession planting)
-            </label>
-          </div>
+          {shouldShowStructuredMode() && (
+            <div className="flex items-center space-x-2">
+              <input
+                type="radio"
+                value="structured"
+                id="structured"
+                checked={sectionMode === "structured"}
+                onChange={() => onSectionModeChange("structured")}
+                className="w-4 h-4"
+              />
+              <label htmlFor="structured" className="text-sm cursor-pointer">
+                {getStructuredModeDescription()}
+              </label>
+            </div>
+          )}
         </div>
       </div>
 
@@ -139,11 +203,11 @@ export function EnhancedSectionSelector({
             id="section"
             value={section || ""}
             onChange={(e) => onSectionChange(e.target.value)}
-            placeholder="e.g., Row 1 - 6&quot; section at 0&quot;, Section A, North End"
+            placeholder={getPlaceholderText()}
             className="w-full"
           />
           <p className="text-xs text-muted-foreground">
-            Specify a section within your location for organization
+            {getHelpText()}
           </p>
         </div>
       )}

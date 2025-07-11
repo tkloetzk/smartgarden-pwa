@@ -163,7 +163,7 @@ export function BedSelector({ selectedBedId, onBedSelect, onBedChange }: BedSele
                 <label className="text-sm font-medium">Bed Type</label>
                 <select
                   {...register("type")}
-                  className="w-full p-2 border rounded"
+                  className="w-full p-2 border border-border rounded bg-background text-foreground focus:ring-2 focus:ring-accent focus:border-accent"
                 >
                   {bedTypeOptions.map((option) => (
                     <option key={option.value} value={option.value}>
@@ -209,7 +209,7 @@ export function BedSelector({ selectedBedId, onBedSelect, onBedChange }: BedSele
                 <label className="text-sm font-medium">Unit</label>
                 <select
                   {...register("unit")}
-                  className="w-full p-2 border rounded"
+                  className="w-full p-2 border border-border rounded bg-background text-foreground focus:ring-2 focus:ring-accent focus:border-accent"
                 >
                   {unitOptions.map((option) => (
                     <option key={option.value} value={option.value}>
@@ -263,7 +263,7 @@ export function BedSelector({ selectedBedId, onBedSelect, onBedChange }: BedSele
         <select
           value={selectedBedId || ""}
           onChange={(e) => onBedSelect(e.target.value)}
-          className="w-full p-2 border rounded"
+          className="w-full p-2 border border-border rounded bg-background text-foreground focus:ring-2 focus:ring-accent focus:border-accent"
         >
           <option value="">
             {isLoading ? "Loading beds..." : "Select a bed"}
@@ -277,33 +277,33 @@ export function BedSelector({ selectedBedId, onBedSelect, onBedChange }: BedSele
       </div>
 
       {selectedBedId && (
-        <div className="p-3 bg-gray-50 rounded-lg">
+        <div className="p-3 bg-muted/50 rounded-lg border border-border">
           {(() => {
             const bed = beds.find(b => b.id === selectedBedId);
             if (!bed) return null;
             
             const totalArea = bed.dimensions.length * bed.dimensions.width;
             return (
-              <div className="text-sm space-y-1">
+              <div className="text-sm space-y-1 text-foreground">
                 <div className="flex justify-between">
-                  <span>Dimensions:</span>
+                  <span className="text-muted-foreground">Dimensions:</span>
                   <span className="font-medium">
                     {bed.dimensions.length} × {bed.dimensions.width} {bed.dimensions.unit}
                   </span>
                 </div>
                 <div className="flex justify-between">
-                  <span>Total Area:</span>
+                  <span className="text-muted-foreground">Total Area:</span>
                   <span className="font-medium">{totalArea} {bed.dimensions.unit}²</span>
                 </div>
                 {bed.orientation && (
                   <div className="flex justify-between">
-                    <span>Orientation:</span>
+                    <span className="text-muted-foreground">Orientation:</span>
                     <span className="font-medium">{bed.orientation}</span>
                   </div>
                 )}
                 {bed.referencePoint && (
                   <div className="flex justify-between">
-                    <span>Reference:</span>
+                    <span className="text-muted-foreground">Reference:</span>
                     <span className="font-medium">{bed.referencePoint}</span>
                   </div>
                 )}

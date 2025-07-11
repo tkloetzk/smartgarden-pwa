@@ -6,6 +6,8 @@ import { BedRecord } from "@/types/database";
 import { Position } from "@/types/spacing";
 import { successionPlanningService } from "@/services/successionPlanningService";
 import { Button } from "../ui/Button";
+import { BedLayoutVisualizer } from "./BedLayoutVisualizer";
+import { useFirebasePlants } from "@/hooks/useFirebasePlants";
 
 interface StructuredPositioningProps {
   selectedBed: BedRecord | null;
@@ -30,6 +32,7 @@ export function StructuredPositioning({
   column,
   onColumnChange,
 }: StructuredPositioningProps) {
+  const { plants } = useFirebasePlants();
   const [validationResult, setValidationResult] = useState<{
     isValid: boolean;
     conflicts: string[];
@@ -40,6 +43,17 @@ export function StructuredPositioning({
   } | null>(null);
   const [suggestedPositions, setSuggestedPositions] = useState<Position[]>([]);
   const [isValidating, setIsValidating] = useState(false);
+  const [showManualInputs, setShowManualInputs] = useState(false);
+
+  // Filter plants for the current bed and format for visualizer
+  const currentBedPlants = plants
+    ?.filter(plant => plant.structuredSection?.bedId === selectedBed?.id)
+    .map(plant => ({
+      id: plant.id,
+      name: plant.name || plant.varietyName,
+      varietyName: plant.varietyName,
+      section: plant.structuredSection,
+    })) || [];
 
   const loadSuggestedPositions = useCallback(async () => {
     if (!selectedBed) return;
@@ -123,8 +137,8 @@ export function StructuredPositioning({
 
   if (!selectedBed) {
     return (
-      <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
-        <p className="text-sm text-yellow-800">
+      <div className="p-4 bg-yellow-50 dark:bg-yellow-950/20 border border-yellow-200 dark:border-yellow-800 rounded-lg">
+        <p className="text-sm text-yellow-800 dark:text-yellow-200">
           Please select a bed first to configure positioning.
         </p>
       </div>
@@ -133,156 +147,213 @@ export function StructuredPositioning({
 
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {/* Position Inputs */}
-        <Card>
-          <CardContent className="pt-4">
-            <h3 className="text-sm font-semibold mb-4">Position & Dimensions</h3>
-            <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label htmlFor="start-position" className="text-xs font-medium">
-                  Start Position
-                </label>
-                <Input
-                  id="start-position"
-                  type="number"
-                  step="0.1"
-                  value={position?.start || ""}
-                  onChange={(e) =>
-                    handlePositionChange(
-                      "start",
-                      parseFloat(e.target.value) || 0
-                    )
-                  }
-                  placeholder="0"
-                  className="h-8"
-                />
-                <p className="text-xs text-muted-foreground mt-1">
-                  Distance from reference point
-                </p>
-              </div>
-              <div>
-                <label htmlFor="length" className="text-xs font-medium">
-                  Length
-                </label>
-                <Input
-                  id="length"
-                  type="number"
-                  step="0.1"
-                  value={position?.length || ""}
-                  onChange={(e) =>
-                    handlePositionChange(
-                      "length",
-                      parseFloat(e.target.value) || 0
-                    )
-                  }
-                  placeholder={
-                    spacingRecommendation?.optimalSpacing.toString() || "6"
-                  }
-                  className="h-8"
-                />
-                <p className="text-xs text-muted-foreground mt-1">
-                  Section length
-                </p>
-              </div>
-            </div>
+      {/* Visual Bed Layout */}
+      <BedLayoutVisualizer
+        bed={selectedBed}
+        currentPlants={currentBedPlants}
+        selectedPosition={position}
+        onPositionSelect={onPositionChange}
+        suggestedPositions={suggestedPositions}
+        spacing={spacingRecommendation ? {
+          minSpacing: spacingRecommendation.minSpacing,
+          optimalSpacing: spacingRecommendation.optimalSpacing,
+          unit: selectedBed.dimensions.unit,
+        } : undefined}
+      />
 
-            <div>
-              <label htmlFor="width" className="text-xs font-medium">
-                Width (Optional)
-              </label>
-              <Input
-                id="width"
-                type="number"
-                step="0.1"
-                value={position?.width || ""}
-                onChange={(e) =>
-                  handlePositionChange("width", parseFloat(e.target.value) || 0)
-                }
-                placeholder="Same as length"
-                className="h-8"
-              />
-              <p className="text-xs text-muted-foreground mt-1">
-                Leave blank for square section
-              </p>
-            </div>
-
-            {position && (
-              <div className="p-3 bg-muted/30 rounded-lg space-y-2">
-                <div className="flex justify-between text-xs">
-                  <span>End Position:</span>
-                  <span className="font-medium">
-                    {calculateEndPosition()} {selectedBed.dimensions.unit}
-                  </span>
-                </div>
-                <div className="flex justify-between text-xs">
-                  <span>Area:</span>
-                  <span className="font-medium">
-                    {calculateArea()} {selectedBed.dimensions.unit}²
-                  </span>
-                </div>
-                <div className="flex justify-between text-xs">
-                  <span>Dimensions:</span>
-                  <span className="font-medium">
-                    {position.length} × {position.width || position.length}{" "}
-                    {selectedBed.dimensions.unit}
-                  </span>
-                </div>
-              </div>
-            )}
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Grid Reference (Optional) */}
-        <Card>
-          <CardContent className="pt-4">
-            <h3 className="text-sm font-semibold mb-4">Grid Reference (Optional)</h3>
-            <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label htmlFor="row" className="text-xs font-medium">
-                  Row
-                </label>
-                <Input
-                  id="row"
-                  value={row || ""}
-                  onChange={(e) => onRowChange?.(e.target.value)}
-                  placeholder="A, 1, North"
-                  className="h-8"
-                />
-              </div>
-              <div>
-                <label htmlFor="column" className="text-xs font-medium">
-                  Column
-                </label>
-                <Input
-                  id="column"
-                  value={column || ""}
-                  onChange={(e) => onColumnChange?.(e.target.value)}
-                  placeholder="1, A, East"
-                  className="h-8"
-                />
-              </div>
-            </div>
-
-            <div>
-              <label htmlFor="description" className="text-xs font-medium">
-                Description
-              </label>
-              <Input
-                id="description"
-                value={description || ""}
-                onChange={(e) => onDescriptionChange?.(e.target.value)}
-                placeholder="e.g., First lettuce section, Near water source"
-                className="h-8"
-              />
-            </div>
-            </div>
-          </CardContent>
-        </Card>
+      {/* Toggle for Manual Inputs */}
+      <div className="flex items-center justify-between">
+        <h3 className="text-sm font-semibold">Position Details</h3>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={() => setShowManualInputs(!showManualInputs)}
+        >
+          {showManualInputs ? "Hide" : "Show"} Manual Inputs
+        </Button>
       </div>
+
+      {/* Manual Input Fields (Collapsible) */}
+      {showManualInputs && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* Position Inputs */}
+          <Card>
+            <CardContent className="pt-4">
+              <h3 className="text-sm font-semibold mb-4">Position & Dimensions</h3>
+              <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label htmlFor="start-position" className="text-xs font-medium">
+                    Start Position
+                  </label>
+                  <Input
+                    id="start-position"
+                    type="number"
+                    step="0.1"
+                    value={position?.start || ""}
+                    onChange={(e) =>
+                      handlePositionChange(
+                        "start",
+                        parseFloat(e.target.value) || 0
+                      )
+                    }
+                    placeholder="0"
+                    className="h-8"
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Distance from reference point
+                  </p>
+                </div>
+                <div>
+                  <label htmlFor="length" className="text-xs font-medium">
+                    Length
+                  </label>
+                  <Input
+                    id="length"
+                    type="number"
+                    step="0.1"
+                    value={position?.length || ""}
+                    onChange={(e) =>
+                      handlePositionChange(
+                        "length",
+                        parseFloat(e.target.value) || 0
+                      )
+                    }
+                    placeholder={
+                      spacingRecommendation?.optimalSpacing.toString() || "6"
+                    }
+                    className="h-8"
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Section length
+                  </p>
+                </div>
+              </div>
+
+              <div>
+                <label htmlFor="width" className="text-xs font-medium">
+                  Width (Optional)
+                </label>
+                <Input
+                  id="width"
+                  type="number"
+                  step="0.1"
+                  value={position?.width || ""}
+                  onChange={(e) =>
+                    handlePositionChange("width", parseFloat(e.target.value) || 0)
+                  }
+                  placeholder="Same as length"
+                  className="h-8"
+                />
+                <p className="text-xs text-muted-foreground mt-1">
+                  Leave blank for square section
+                </p>
+              </div>
+
+              {position && (
+                <div className="p-3 bg-muted/30 rounded-lg space-y-2">
+                  <div className="flex justify-between text-xs">
+                    <span>End Position:</span>
+                    <span className="font-medium">
+                      {calculateEndPosition()} {selectedBed.dimensions.unit}
+                    </span>
+                  </div>
+                  <div className="flex justify-between text-xs">
+                    <span>Area:</span>
+                    <span className="font-medium">
+                      {calculateArea()} {selectedBed.dimensions.unit}²
+                    </span>
+                  </div>
+                  <div className="flex justify-between text-xs">
+                    <span>Dimensions:</span>
+                    <span className="font-medium">
+                      {position.length} × {position.width || position.length}{" "}
+                      {selectedBed.dimensions.unit}
+                    </span>
+                  </div>
+                </div>
+              )}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Grid Reference (Optional) */}
+          <Card>
+            <CardContent className="pt-4">
+              <h3 className="text-sm font-semibold mb-4">Grid Reference (Optional)</h3>
+              <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label htmlFor="row" className="text-xs font-medium">
+                    Row
+                  </label>
+                  <Input
+                    id="row"
+                    value={row || ""}
+                    onChange={(e) => onRowChange?.(e.target.value)}
+                    placeholder="A, 1, North"
+                    className="h-8"
+                  />
+                </div>
+                <div>
+                  <label htmlFor="column" className="text-xs font-medium">
+                    Column
+                  </label>
+                  <Input
+                    id="column"
+                    value={column || ""}
+                    onChange={(e) => onColumnChange?.(e.target.value)}
+                    placeholder="1, A, East"
+                    className="h-8"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label htmlFor="description" className="text-xs font-medium">
+                  Description
+                </label>
+                <Input
+                  id="description"
+                  value={description || ""}
+                  onChange={(e) => onDescriptionChange?.(e.target.value)}
+                  placeholder="e.g., First lettuce section, Near water source"
+                  className="h-8"
+                />
+              </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* Current Position Summary */}
+      {position && (
+        <Card>
+          <CardContent className="pt-4">
+            <h3 className="text-sm font-semibold mb-2">Selected Position</h3>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+              <div>
+                <span className="text-muted-foreground">Start:</span>
+                <span className="ml-2 font-medium">{position.start} {selectedBed.dimensions.unit}</span>
+              </div>
+              <div>
+                <span className="text-muted-foreground">Length:</span>
+                <span className="ml-2 font-medium">{position.length} {selectedBed.dimensions.unit}</span>
+              </div>
+              <div>
+                <span className="text-muted-foreground">End:</span>
+                <span className="ml-2 font-medium">{calculateEndPosition()} {selectedBed.dimensions.unit}</span>
+              </div>
+              <div>
+                <span className="text-muted-foreground">Area:</span>
+                <span className="ml-2 font-medium">{calculateArea()} {selectedBed.dimensions.unit}²</span>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Spacing Recommendations */}
       {spacingRecommendation && (
@@ -312,7 +383,7 @@ export function StructuredPositioning({
         <Card>
           <CardContent className="pt-4">
             <h3 className="text-sm font-semibold mb-2">Suggested Positions</h3>
-            <p className="text-sm text-gray-600 mb-4">
+            <p className="text-sm text-muted-foreground mb-4">
               Available positions calculated from current bed usage
             </p>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
@@ -342,13 +413,13 @@ export function StructuredPositioning({
 
       {/* Validation Results */}
       {validationResult && (
-        <div className={`p-4 rounded-lg ${validationResult.isValid ? 'bg-green-50 border border-green-200' : 'bg-red-50 border border-red-200'}`}>
+        <div className={`p-4 rounded-lg ${validationResult.isValid ? 'bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800' : 'bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-800'}`}>
           {validationResult.isValid ? (
-            <p className="text-sm text-green-800">
+            <p className="text-sm text-green-800 dark:text-green-200">
               Position is valid and doesn't conflict with existing plantings.
             </p>
           ) : (
-            <div className="text-sm text-red-800">
+            <div className="text-sm text-red-800 dark:text-red-200">
               <p className="font-medium">Position conflicts detected:</p>
               <ul className="list-disc list-inside mt-1">
                 {validationResult.conflicts.map((conflict, index) => (

@@ -6,27 +6,17 @@ import { z } from "zod";
 import { Button } from "../ui/Button";
 import { Card, CardContent } from "../ui/Card";
 import { Input } from "../ui/Input";
-import { varietyService, VarietyRecord } from "@/types/database";
+import { varietyService, VarietyRecord, bedService } from "@/types/database";
 import { CustomVarietyForm } from "./CustomVarietyForm";
-import { EnhancedSectionSelector } from "./EnhancedSectionSelector";
+import { SimplifiedLocationSelector } from "./SimplifiedLocationSelector";
 import toast from "react-hot-toast";
 import SoilMixtureSelector from "./SoilMixtureSelector";
-import { Switch } from "@/components/ui/Switch";
 import ReminderPreferencesSection from "@/components/plant/ReminderPreferencesSection";
 import { useFirebasePlants } from "@/hooks/useFirebasePlants";
 import { LoadingSpinner } from "../ui/LoadingSpinner";
 import { PlantSection } from "@/types/spacing";
 import { Logger } from "@/utils/logger";
 
-type ContainerOption = {
-  label: string;
-  icon: string;
-  defaultSetup: string;
-  sizes: ReadonlyArray<{
-    value: string;
-    label: string;
-  }>;
-};
 
 const plantSchema = z.object({
   varietyId: z.string().min(1, "Please select a variety"),
@@ -39,23 +29,14 @@ const plantSchema = z.object({
     return selectedDate <= today && selectedDate >= oneYearAgo;
   }, "Planting date must be within the past year and not in the future"),
   location: z.boolean(),
+  selectedBedId: z.string().min(1, "Please select where you're planting"),
   section: z.string().optional(),
-  sectionMode: z.enum(["simple", "structured"]).default("simple"),
-  containerType: z.string().min(1, "Please select a container type"),
-  containerSize: z.string().min(1, "Please specify container size"),
+  sectionMode: z.enum(["simple", "structured"]),
   quantity: z
     .number()
     .min(1, "Quantity must be at least 1")
     .max(999, "Quantity cannot exceed 999"),
   setupType: z.enum(["multiple-containers", "same-container"]),
-  customBagShape: z.string().optional(),
-  customDiameter: z.string().optional(),
-  customBagHeight: z.string().optional(),
-  customBagWidth: z.string().optional(),
-  customBagLength: z.string().optional(),
-  customWidth: z.string().optional(),
-  customLength: z.string().optional(),
-  customDepth: z.string().optional(),
   soilMix: z.string().min(1, "Please select a soil mixture"),
   notes: z.string().optional(),
 });
@@ -71,55 +52,6 @@ interface FormErrors {
   [key: string]: { message?: string } | undefined;
 }
 
-const containerOptions = {
-  "grow-bag": {
-    label: "Grow Bag",
-    icon: "🎒",
-    defaultSetup: "multiple-containers",
-    sizes: [
-      { value: "1-gallon", label: "1 Gallon" },
-      { value: "2-gallon", label: "2 Gallon" },
-      { value: "3-gallon", label: "3 Gallon" },
-      { value: "5-gallon", label: "5 Gallon" },
-      { value: "7-gallon", label: "7 Gallon" },
-      { value: "10-gallon", label: "10 Gallon" },
-      { value: "15-gallon", label: "15 Gallon" },
-      { value: "30-gallon", label: "30 Gallon" },
-      { value: "custom", label: "Custom Size" },
-    ],
-  },
-  pot: {
-    label: "Pot",
-    icon: "🪴",
-    defaultSetup: "multiple-containers",
-    sizes: [
-      { value: "4-inch", label: "4 inch" },
-      { value: "5-inch", label: "5 inch" },
-      { value: "6-inch", label: "6 inch" },
-      { value: "8-inch", label: "8 inch" },
-      { value: "10-inch", label: "10 inch" },
-      { value: "12-inch", label: "12 inch" },
-      { value: "custom", label: "Custom Size" },
-    ],
-  },
-  "cell-tray": {
-    label: "Seed Starting Cell Tray",
-    icon: "📱",
-    defaultSetup: "same-container",
-    sizes: [
-      { value: "72-cell", label: "72 Cell Tray" },
-      { value: "50-cell", label: "50 Cell Tray" },
-      { value: "32-cell", label: "32 Cell Tray" },
-      { value: "custom", label: "Custom Cell Count" },
-    ],
-  },
-  "raised-bed": {
-    label: "Raised Bed",
-    icon: "🏗️",
-    defaultSetup: "same-container",
-    sizes: [{ value: "custom-dimensions", label: "Custom Dimensions" }],
-  },
-} as const;
 
 export function PlantRegistrationForm({
   onSuccess,
@@ -153,6 +85,7 @@ export function PlantRegistrationForm({
     mode: "onChange",
     defaultValues: {
       location: false,
+      selectedBedId: "",
       quantity: 1,
       setupType: "multiple-containers",
       plantedDate: new Date().toISOString().split("T")[0],
@@ -162,28 +95,12 @@ export function PlantRegistrationForm({
   });
 
   const selectedVarietyId = watch("varietyId");
-  const containerType = watch("containerType");
-  // const containerSize = watch("containerSize");
-  const setupType = watch("setupType");
   const quantity = watch("quantity");
 
   useEffect(() => {
     loadVarieties();
   }, []);
 
-  useEffect(() => {
-    if (containerType) {
-      const option =
-        containerOptions[containerType as keyof typeof containerOptions];
-      if (option) {
-        setValue("setupType", option.defaultSetup, { shouldValidate: true });
-        // Always set the first size when container type changes
-        setValue("containerSize", option.sizes[0].value, {
-          shouldValidate: true,
-        });
-      }
-    }
-  }, [containerType, setValue]);
 
   const loadVarieties = async () => {
     try {
@@ -215,36 +132,29 @@ export function PlantRegistrationForm({
         throw new Error("Selected variety not found");
       }
 
+      // Get the selected bed information
+      const selectedBed = await bedService.getBed(data.selectedBedId);
+      if (!selectedBed) {
+        throw new Error("Selected bed/container not found");
+      }
+
       const varietyName = variety.name;
       const locationString = data.location ? "Outdoor" : "Indoor";
 
-      // Build container description
-      let containerDescription = "";
-      const containerOption =
-        containerOptions[data.containerType as keyof typeof containerOptions];
-
-      if (
-        data.containerSize === "custom" ||
-        data.containerSize === "custom-dimensions"
-      ) {
-        containerDescription = buildCustomContainerDescription(
-          data,
-          containerOption
-        );
-      } else {
-        const sizeOption = containerOption?.sizes.find(
-          (s) => s.value === data.containerSize
-        );
-        const singleDescription = `${sizeOption?.label || data.containerSize} ${
-          containerOption?.label || data.containerType
-        }`;
-
-        const isMultipleContainers = data.setupType === "multiple-containers";
-        if (data.quantity > 1 && !isMultipleContainers) {
-          containerDescription = `${singleDescription} (${data.quantity} plants)`;
-        } else {
-          containerDescription = singleDescription;
-        }
+      // Build container description from bed data
+      const typeEmoji = {
+        "raised-bed": "🏗️",
+        "container": "🪣", 
+        "greenhouse-bench": "🏠",
+        "ground-bed": "🌱",
+        "other": "📦",
+      }[selectedBed.type] || "📦";
+      
+      let containerDescription = `${typeEmoji} ${selectedBed.name}`;
+      
+      // Add section info if provided
+      if (data.section) {
+        containerDescription += ` - ${data.section}`;
       }
 
       const baseName = varietyName;
@@ -300,27 +210,6 @@ export function PlantRegistrationForm({
     }
   };
 
-  const buildCustomContainerDescription = (
-    data: PlantFormData,
-    containerOption: ContainerOption | undefined
-  ) => {
-    if (data.containerType === "grow-bag" && data.customBagShape) {
-      if (data.customBagShape === "round") {
-        return `${data.customDiameter}"D x ${data.customBagHeight}"H ${
-          containerOption?.label || "Grow Bag"
-        }`;
-      } else {
-        return `${data.customBagWidth}"W x ${data.customBagLength}"L x ${
-          data.customBagHeight
-        }"H ${containerOption?.label || "Grow Bag"}`;
-      }
-    } else if (data.containerType === "raised-bed") {
-      return `${data.customWidth}"W x ${data.customLength}"L x ${data.customDepth}"D Raised Bed`;
-    } else if (data.containerType === "pot") {
-      return `${data.customDiameter}" ${containerOption?.label || "Pot"}`;
-    }
-    return "Custom Container";
-  };
 
   const renderFormField = (
     id: keyof PlantFormData,
@@ -371,31 +260,6 @@ export function PlantRegistrationForm({
               + Add Custom Variety
             </Button>
           </div>
-        ) : type === "select" && id === "containerType" ? (
-          <div className="grid grid-cols-2 gap-3">
-            {Object.entries(containerOptions).map(([key, option]) => (
-              <button
-                key={key}
-                type="button"
-                onClick={() =>
-                  setValue("containerType", key, { shouldValidate: true })
-                }
-                className={`p-4 border-2 rounded-lg text-left transition-all ${
-                  watch("containerType") === key
-                    ? "border-accent bg-accent/10"
-                    : "border-border hover:border-accent/50"
-                }`}
-                data-testid={`container-type-${key}`}
-              >
-                <div className="flex items-center space-x-2">
-                  <span className="text-xl">{option.icon}</span>
-                  <span className="font-medium">{option.label}</span>
-                </div>
-              </button>
-            ))}
-          </div>
-        ) : type === "select" && id === "containerSize" ? (
-          renderContainerSizeSelect(error)
         ) : type === "textarea" ? (
           <textarea
             {...register(id)}
@@ -435,188 +299,8 @@ export function PlantRegistrationForm({
     );
   };
 
-  const renderContainerSizeSelect = (
-    error: FormErrors[keyof PlantFormData]
-  ) => {
-    const selectedContainerType =
-      containerType as keyof typeof containerOptions;
-    if (!selectedContainerType || !containerOptions[selectedContainerType]) {
-      return (
-        <p className="text-sm text-muted-foreground">
-          Please select a container type first
-        </p>
-      );
-    }
 
-    const options = containerOptions[selectedContainerType];
 
-    return (
-      <div className="space-y-3">
-        <select
-          {...register("containerSize")}
-          className={`w-full p-3 border rounded-lg bg-background text-foreground focus:ring-2 focus:ring-accent focus:border-accent ${
-            error ? "border-red-500" : "border-border"
-          }`}
-        >
-          <option value="">Select size</option>
-          {options.sizes.map((size) => (
-            <option key={size.value} value={size.value}>
-              {size.label}
-            </option>
-          ))}
-        </select>
-
-        {renderCustomSizeFields()}
-      </div>
-    );
-  };
-
-  const renderCustomSizeFields = () => {
-    const size = watch("containerSize");
-    if (size !== "custom" && size !== "custom-dimensions") return null;
-
-    if (containerType === "grow-bag") {
-      return (
-        <div className="space-y-3 p-3 bg-muted/50 rounded-lg">
-          <div>
-            <label className="block text-sm font-medium mb-1">Bag Shape</label>
-            <select
-              {...register("customBagShape")}
-              className="w-full p-2 border rounded bg-background"
-            >
-              <option value="">Select shape</option>
-              <option value="round">Round</option>
-              <option value="rectangular">Rectangular</option>
-            </select>
-          </div>
-
-          {watch("customBagShape") === "round" ? (
-            <>
-              <div>
-                <label className="block text-sm font-medium mb-1">
-                  Diameter (inches)
-                </label>
-                <Input
-                  {...register("customDiameter")}
-                  type="number"
-                  placeholder="e.g., 12"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1">
-                  Height (inches)
-                </label>
-                <Input
-                  {...register("customBagHeight")}
-                  type="number"
-                  placeholder="e.g., 8"
-                />
-              </div>
-            </>
-          ) : watch("customBagShape") === "rectangular" ? (
-            <>
-              <div>
-                <label className="block text-sm font-medium mb-1">
-                  Width (inches)
-                </label>
-                <Input
-                  {...register("customBagWidth")}
-                  type="number"
-                  placeholder="e.g., 24"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1">
-                  Length (inches)
-                </label>
-                <Input
-                  {...register("customBagLength")}
-                  type="number"
-                  placeholder="e.g., 36"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1">
-                  Height (inches)
-                </label>
-                <Input
-                  {...register("customBagHeight")}
-                  type="number"
-                  placeholder="e.g., 12"
-                />
-              </div>
-            </>
-          ) : null}
-        </div>
-      );
-    }
-
-    if (containerType === "raised-bed") {
-      return (
-        <div className="space-y-3 p-3 bg-muted/50 rounded-lg">
-          <div>
-            <label className="block text-sm font-medium mb-1">
-              Width (inches)
-            </label>
-            <Input
-              {...register("customWidth")}
-              type="number"
-              placeholder="e.g., 48"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium mb-1">
-              Length (inches)
-            </label>
-            <Input
-              {...register("customLength")}
-              type="number"
-              placeholder="e.g., 96"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium mb-1">
-              Depth (inches)
-            </label>
-            <Input
-              {...register("customDepth")}
-              type="number"
-              placeholder="e.g., 12"
-            />
-          </div>
-        </div>
-      );
-    }
-
-    if (containerType === "pot") {
-      return (
-        <div className="p-3 bg-muted/50 rounded-lg">
-          <label className="block text-sm font-medium mb-1">
-            Diameter (inches)
-          </label>
-          <Input
-            {...register("customDiameter")}
-            type="number"
-            placeholder="e.g., 14"
-          />
-        </div>
-      );
-    }
-
-    return null;
-  };
-
-  const getQuantityHelperText = () => {
-    const isMultipleContainers = setupType === "multiple-containers";
-    const isSameContainer = setupType === "same-container";
-
-    if (isMultipleContainers) {
-      return "Number of separate containers (1 plant each)";
-    } else if (isSameContainer) {
-      return "Number of plants in the same container";
-    }
-    return "Number of containers/plants";
-  };
 
   if (showCustomVarietyForm) {
     return (
@@ -702,167 +386,89 @@ export function PlantRegistrationForm({
               )}
             </div>
 
-            {/* Location Section */}
-            <div className="space-y-4 p-4 bg-gradient-to-br from-accent/5 to-accent/10 rounded-lg border border-accent/20">
-              <h3 className="font-semibold text-foreground flex items-center gap-2">
-                <span className="text-lg">📍</span>
-                Growing Location
-              </h3>
-              <div>
-                <label className="block text-sm font-medium text-foreground mb-3">
-                  Location
-                </label>
-                <div className="flex items-center justify-center space-x-4 p-4 bg-background/50 rounded-lg">
-                  <label className="flex items-center space-x-3 cursor-pointer">
-                    <span className="text-sm font-medium text-foreground">
-                      Indoor
-                    </span>
-                    <Switch
-                      checked={watch("location")}
-                      onCheckedChange={(checked) =>
-                        setValue("location", checked, { shouldValidate: true })
-                      }
-                      aria-label="Location toggle between indoor and outdoor"
-                    />
-                    <span className="text-sm font-medium text-foreground">
-                      Outdoor
-                    </span>
-                  </label>
-                </div>
-              </div>
-            </div>
-
-            {/* Enhanced Section Field */}
-            <EnhancedSectionSelector
+            {/* Simplified Location & Container Selection */}
+            <SimplifiedLocationSelector
+              selectedBedId={watch("selectedBedId")}
               section={watch("section")}
-              onSectionChange={(section) => setValue("section", section)}
               structuredSection={structuredSection || undefined}
+              location={watch("location")}
+              onBedSelect={(bedId) => setValue("selectedBedId", bedId, { shouldValidate: true })}
+              onSectionChange={(section) => setValue("section", section)}
               onStructuredSectionChange={(section) => setStructuredSection(section)}
-              sectionMode={watch("sectionMode")}
-              onSectionModeChange={(mode) => setValue("sectionMode", mode)}
+              onLocationChange={(isOutdoor) => setValue("location", isOutdoor, { shouldValidate: true })}
             />
 
-            {/* Container Section */}
+            {/* Quantity Selection */}
             <div className="space-y-4 p-4 bg-gradient-to-br from-emerald-500/5 to-emerald-500/10 rounded-lg border border-emerald-500/20">
               <h3 className="font-semibold text-foreground flex items-center gap-2">
-                <span className="text-lg">🪴</span>
-                Container Setup
+                <span className="text-lg">🌱</span>
+                How many plants?
               </h3>
-
               <div>
-                <label className="block text-sm font-medium text-foreground mb-3">
-                  Container Type *
+                <label
+                  htmlFor="quantity"
+                  className="block text-sm font-medium text-foreground mb-3"
+                >
+                  Quantity *
                 </label>
-                {renderFormField("containerType", "", "select")}
-              </div>
-
-              {containerType && (
-                <div>
-                  <label className="block text-sm font-medium text-foreground mb-3">
-                    Container Size *
-                  </label>
-                  {renderFormField("containerSize", "", "select")}
-                </div>
-              )}
-
-              <div className="space-y-3">
-                <div>
-                  <label className="block text-sm font-medium text-foreground mb-3">
-                    Setup Type
-                  </label>
-                  <div className="grid grid-cols-1 gap-3">
-                    <label className="flex items-center space-x-3 p-3 border rounded-lg cursor-pointer hover:bg-background/50 transition-colors">
-                      <input
-                        type="radio"
-                        value="multiple-containers"
-                        {...register("setupType")}
-                        className="w-4 h-4 text-accent border-gray-300 focus:ring-accent"
-                      />
-                      <div>
-                        <div className="font-medium">Multiple Containers</div>
-                        <div className="text-sm text-muted-foreground">
-                          Each plant gets its own container
-                        </div>
-                      </div>
-                    </label>
-                    <label className="flex items-center space-x-3 p-3 border rounded-lg cursor-pointer hover:bg-background/50 transition-colors">
-                      <input
-                        type="radio"
-                        value="same-container"
-                        {...register("setupType")}
-                        className="w-4 h-4 text-accent border-gray-300 focus:ring-accent"
-                      />
-                      <div>
-                        <div className="font-medium">Same Container</div>
-                        <div className="text-sm text-muted-foreground">
-                          Multiple plants share one container
-                        </div>
-                      </div>
-                    </label>
-                  </div>
-                </div>
-
-                <div>
-                  <label
-                    htmlFor="quantity"
-                    className="block text-sm font-medium text-foreground mb-3"
+                <div className="flex items-center space-x-3">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() =>
+                      setValue("quantity", Math.max(1, quantity - 1), {
+                        shouldValidate: true,
+                      })
+                    }
+                    disabled={quantity <= 1}
+                    className="w-10 h-10 p-0"
+                    aria-label="Decrease quantity"
                   >
-                    Quantity *
-                  </label>
-                  <div className="flex items-center space-x-3">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() =>
-                        setValue("quantity", Math.max(1, quantity - 1), {
-                          shouldValidate: true,
-                        })
-                      }
-                      disabled={quantity <= 1}
-                      className="w-10 h-10 p-0"
-                      aria-label="Decrease quantity"
-                    >
-                      -
-                    </Button>
-                    <div className="flex-1">
-                      <Input
-                        {...register("quantity", { valueAsNumber: true })}
-                        id="quantity"
-                        type="number"
-                        placeholder="1"
-                        min={1}
-                        max={999}
-                        className={errors.quantity ? "border-red-500" : ""}
-                        aria-label="Plant quantity"
-                        data-testid="quantity-input"
-                      />
-                    </div>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() =>
-                        setValue("quantity", Math.min(999, quantity + 1), {
-                          shouldValidate: true,
-                        })
-                      }
-                      disabled={quantity >= 999}
-                      className="w-10 h-10 p-0"
-                      aria-label="Increase quantity"
-                    >
-                      +
-                    </Button>
+                    -
+                  </Button>
+                  <div className="flex-1">
+                    <Input
+                      {...register("quantity", { valueAsNumber: true })}
+                      id="quantity"
+                      type="number"
+                      placeholder="1"
+                      min={1}
+                      max={999}
+                      className={errors.quantity ? "border-red-500" : ""}
+                      aria-label="Plant quantity"
+                      data-testid="quantity-input"
+                    />
                   </div>
-                  {errors.quantity && (
-                    <p className="mt-1 text-sm text-red-600" role="alert">
-                      {errors.quantity.message}
-                    </p>
-                  )}
-                  <p className="text-xs text-muted-foreground mt-1 bg-background/50 p-2 rounded">
-                    {getQuantityHelperText()}
-                  </p>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() =>
+                      setValue("quantity", Math.min(999, quantity + 1), {
+                        shouldValidate: true,
+                      })
+                    }
+                    disabled={quantity >= 999}
+                    className="w-10 h-10 p-0"
+                    aria-label="Increase quantity"
+                  >
+                    +
+                  </Button>
                 </div>
+                {errors.quantity && (
+                  <p className="mt-1 text-sm text-red-600" role="alert">
+                    {errors.quantity.message}
+                  </p>
+                )}
+                {errors.selectedBedId && (
+                  <p className="mt-1 text-sm text-red-600" role="alert">
+                    {errors.selectedBedId.message}
+                  </p>
+                )}
+                <p className="text-xs text-muted-foreground mt-1 bg-background/50 p-2 rounded">
+                  Number of plants to register from this planting
+                </p>
               </div>
             </div>
 
