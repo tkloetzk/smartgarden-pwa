@@ -1,3 +1,4 @@
+import React from "react";
 import { Routes, Route } from "react-router-dom";
 import { useFirebaseAuth } from "./hooks/useFirebaseAuth";
 import { useAppInitialization } from "./hooks/useAppInitialization";
@@ -10,11 +11,18 @@ import { AuthForm } from "./components/AuthForm";
 import AddPlant from "./pages/plants/AddPlant";
 import Layout from "./components/Layout";
 import CatchUpPage from "./pages/catch-up";
+import { ServiceRegistry } from "./services/serviceRegistry";
 
 const App = () => {
   const { user, loading } = useFirebaseAuth();
   useDarkMode();
   useAppInitialization();
+
+  // Initialize service registry early in app lifecycle
+  // This ensures all services are properly configured before any components use them
+  React.useEffect(() => {
+    ServiceRegistry.bootstrap();
+  }, []);
 
   if (loading) {
     return (

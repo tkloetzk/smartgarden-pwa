@@ -1,7 +1,7 @@
 // src/__tests__/integration/careLogging.integration.test.ts
 import { describe, it, expect, beforeEach, jest } from "@jest/globals";
-import { CareSchedulingService } from "@/services/careSchedulingService";
-import { DynamicSchedulingService } from "@/services/dynamicSchedulingService";
+import { CareSchedulingServiceAdapter, DynamicSchedulingServiceAdapter } from "@/services/serviceMigration";
+import { ServiceRegistry } from "@/services/serviceRegistry";
 import { careService, plantService, varietyService } from "@/types/database";
 import { FirebaseCareActivityService } from "@/services/firebase/careActivityService";
 import { generateUUID } from "@/utils/cn";
@@ -41,21 +41,28 @@ jest.mock("@/types/database", () => ({
   },
 }));
 
-// Mock the scheduling services
-jest.mock("@/services/careSchedulingService", () => ({
-  CareSchedulingService: {
+// Mock the scheduling services using the new adapter pattern
+jest.mock("@/services/serviceMigration", () => ({
+  CareSchedulingServiceAdapter: {
     calculateNextDueDate: jest.fn(),
     getUpcomingTasks: jest.fn(),
     getTasksForPlant: jest.fn(),
     filterTasksByPreferences: jest.fn(),
   },
-}));
-
-jest.mock("@/services/dynamicSchedulingService", () => ({
-  DynamicSchedulingService: {
+  DynamicSchedulingServiceAdapter: {
     recordTaskCompletion: jest.fn(),
     getNextDueDateForTask: jest.fn(),
     getCompletionPatterns: jest.fn(),
+  },
+}));
+
+// Mock the service registry for tests
+jest.mock("@/services/serviceRegistry", () => ({
+  ServiceRegistry: {
+    bootstrap: jest.fn(),
+    reset: jest.fn(),
+    getService: jest.fn(),
+    getSingleton: jest.fn(),
   },
 }));
 
@@ -90,10 +97,13 @@ class CareLoggingWorkflow {
     await FirebaseCareActivityService.createCareActivity(activityData);
     
     // 3. Record completion for dynamic scheduling
-    await DynamicSchedulingService.recordTaskCompletion(
+    await DynamicSchedulingServiceAdapter.recordTaskCompletion(
       activityData.plantId,
       activityData.type,
-      activityData.date
+      activityData.date,
+      activityData.date,
+      activityId,
+      "vegetative"
     );
     
     // 4. Get plant and variety data for scheduling
@@ -102,7 +112,7 @@ class CareLoggingWorkflow {
     
     // 5. Calculate next due date
     if (plant && variety) {
-      const nextDueDate = CareSchedulingService.calculateNextDueDate(
+      const nextDueDate = CareSchedulingServiceAdapter.calculateNextDueDate(
         activityData.type,
         activityData.date,
         plant,
@@ -212,8 +222,8 @@ describe("Care Activity Logging Integration Tests", () => {
     (plantService.getPlant as jest.Mock).mockResolvedValue(mockPlant);
     (careService.addCareActivity as jest.Mock).mockResolvedValue(mockActivityId);
     (FirebaseCareActivityService.createCareActivity as jest.Mock).mockResolvedValue(undefined);
-    (DynamicSchedulingService.recordTaskCompletion as jest.Mock).mockResolvedValue(undefined);
-    (CareSchedulingService.calculateNextDueDate as jest.Mock).mockReturnValue(new Date(Date.now() + 3 * 24 * 60 * 60 * 1000)); // 3 days from now
+    (DynamicSchedulingServiceAdapter.recordTaskCompletion as jest.Mock).mockResolvedValue(undefined);
+    (CareSchedulingServiceAdapter.calculateNextDueDate as jest.Mock).mockReturnValue(new Date(Date.now() + 3 * 24 * 60 * 60 * 1000)); // 3 days from now
   });
 
   describe("Individual Activity Logging", () => {
@@ -243,14 +253,17 @@ describe("Care Activity Logging Integration Tests", () => {
       // Verify the workflow components were called
       expect(careService.addCareActivity).toHaveBeenCalledWith(activityData);
       expect(FirebaseCareActivityService.createCareActivity).toHaveBeenCalledWith(activityData);
-      expect(DynamicSchedulingService.recordTaskCompletion).toHaveBeenCalledWith(
+      expect(DynamicSchedulingServiceAdapter.recordTaskCompletion).toHaveBeenCalledWith(
         mockPlantId,
         "water",
-        activityData.date
+        activityData.date,
+        activityData.date,
+        mockActivityId,
+        "vegetative"
       );
       expect(plantService.getPlant).toHaveBeenCalledWith(mockPlantId);
       expect(varietyService.getVariety).toHaveBeenCalledWith(mockVarietyId);
-      expect(CareSchedulingService.calculateNextDueDate).toHaveBeenCalledWith(
+      expect(CareSchedulingServiceAdapter.calculateNextDueDate).toHaveBeenCalledWith(
         "water",
         activityData.date,
         mockPlant,
@@ -285,10 +298,13 @@ describe("Care Activity Logging Integration Tests", () => {
       expect(careService.addCareActivity).toHaveBeenCalledWith(fertilizationData);
 
       // Verify scheduling integration for fertilization
-      expect(DynamicSchedulingService.recordTaskCompletion).toHaveBeenCalledWith(
+      expect(DynamicSchedulingServiceAdapter.recordTaskCompletion).toHaveBeenCalledWith(
         mockPlantId,
         "fertilize",
-        fertilizationData.date
+        fertilizationData.date,
+        fertilizationData.date,
+        mockActivityId,
+        "vegetative"
       );
 
       // Verify workflow completed successfully
@@ -311,10 +327,13 @@ describe("Care Activity Logging Integration Tests", () => {
       expect(careService.addCareActivity).toHaveBeenCalledWith(observationData);
 
       // Observations should still trigger scheduling updates
-      expect(DynamicSchedulingService.recordTaskCompletion).toHaveBeenCalledWith(
+      expect(DynamicSchedulingServiceAdapter.recordTaskCompletion).toHaveBeenCalledWith(
         mockPlantId,
         "observe",
-        observationData.date
+        observationData.date,
+        observationData.date,
+        mockActivityId,
+        "vegetative"
       );
 
       expect(result.activityId).toBe(mockActivityId);
@@ -335,7 +354,7 @@ describe("Care Activity Logging Integration Tests", () => {
         date: lastWateringDate,
       });
 
-      (CareSchedulingService.calculateNextDueDate as jest.Mock).mockReturnValue(nextWateringDate);
+      (CareSchedulingServiceAdapter.calculateNextDueDate as jest.Mock).mockReturnValue(nextWateringDate);
 
       // Log a new watering activity through the workflow
       const newWateringActivity = {
@@ -351,7 +370,7 @@ describe("Care Activity Logging Integration Tests", () => {
       const result = await CareLoggingWorkflow.logActivity(newWateringActivity);
 
       // Verify that scheduling service was called to update reminders
-      expect(CareSchedulingService.calculateNextDueDate).toHaveBeenCalledWith(
+      expect(CareSchedulingServiceAdapter.calculateNextDueDate).toHaveBeenCalledWith(
         "water",
         currentDate, // Latest activity date
         mockPlant,
@@ -359,10 +378,13 @@ describe("Care Activity Logging Integration Tests", () => {
       );
 
       // Verify dynamic scheduling learned from this completion
-      expect(DynamicSchedulingService.recordTaskCompletion).toHaveBeenCalledWith(
+      expect(DynamicSchedulingServiceAdapter.recordTaskCompletion).toHaveBeenCalledWith(
         mockPlantId,
         "water",
-        currentDate
+        currentDate,
+        currentDate,
+        mockActivityId,
+        "vegetative"
       );
 
       // Verify the next due date was calculated and returned
@@ -389,18 +411,18 @@ describe("Care Activity Logging Integration Tests", () => {
 
       const filteredTasks = [mockUpcomingTasks[0]]; // Only water task (if fertilizing was disabled)
 
-      (CareSchedulingService.getUpcomingTasks as jest.Mock).mockResolvedValue(mockUpcomingTasks);
-      (CareSchedulingService.filterTasksByPreferences as jest.Mock).mockReturnValue(filteredTasks);
+      (CareSchedulingServiceAdapter.getUpcomingTasks as jest.Mock).mockResolvedValue(mockUpcomingTasks);
+      (CareSchedulingServiceAdapter.filterTasksByPreferences as jest.Mock).mockReturnValue(filteredTasks);
 
       // Get upcoming tasks after recent activity logging
-      const upcomingTasks = await CareSchedulingService.getUpcomingTasks(mockPlantId);
-      const filtered = CareSchedulingService.filterTasksByPreferences(upcomingTasks, mockPlant.reminderPreferences);
+      const upcomingTasks = await CareSchedulingServiceAdapter.getUpcomingTasks();
+      const filtered = CareSchedulingServiceAdapter.filterTasksByPreferences(upcomingTasks, mockPlant.reminderPreferences);
 
       expect(upcomingTasks).toEqual(mockUpcomingTasks);
-      expect(CareSchedulingService.getUpcomingTasks).toHaveBeenCalledWith(mockPlantId);
+      expect(CareSchedulingServiceAdapter.getUpcomingTasks).toHaveBeenCalled();
 
       // Verify tasks are filtered by user preferences
-      expect(CareSchedulingService.filterTasksByPreferences).toHaveBeenCalledWith(
+      expect(CareSchedulingServiceAdapter.filterTasksByPreferences).toHaveBeenCalledWith(
         mockUpcomingTasks,
         mockPlant.reminderPreferences
       );
@@ -432,9 +454,9 @@ describe("Care Activity Logging Integration Tests", () => {
         { id: "observe-task", type: "observe", priority: "low" },
       ];
 
-      (CareSchedulingService.filterTasksByPreferences as jest.Mock).mockReturnValue(filteredTasks);
+      (CareSchedulingServiceAdapter.filterTasksByPreferences as jest.Mock).mockReturnValue(filteredTasks);
 
-      const result = await CareSchedulingService.filterTasksByPreferences(
+      const result = await CareSchedulingServiceAdapter.filterTasksByPreferences(
         allTasks,
         plantWithLimitedReminders.reminderPreferences
       );
@@ -477,7 +499,7 @@ describe("Care Activity Logging Integration Tests", () => {
       // Verify each plant got its own activity logged
       expect(careService.addCareActivity).toHaveBeenCalledTimes(3);
       expect(FirebaseCareActivityService.createCareActivity).toHaveBeenCalledTimes(3);
-      expect(DynamicSchedulingService.recordTaskCompletion).toHaveBeenCalledTimes(3);
+      expect(DynamicSchedulingServiceAdapter.recordTaskCompletion).toHaveBeenCalledTimes(3);
 
       // Verify the structure of returned activities
       result.forEach((activity, index) => {
@@ -571,7 +593,7 @@ describe("Care Activity Logging Integration Tests", () => {
       // Verify both plants had their activities logged
       expect(careService.addCareActivity).toHaveBeenCalledTimes(2);
       expect(FirebaseCareActivityService.createCareActivity).toHaveBeenCalledTimes(2);
-      expect(DynamicSchedulingService.recordTaskCompletion).toHaveBeenCalledTimes(2);
+      expect(DynamicSchedulingServiceAdapter.recordTaskCompletion).toHaveBeenCalledTimes(2);
     });
 
     it("handles bulk activity errors gracefully", async () => {
@@ -616,29 +638,35 @@ describe("Care Activity Logging Integration Tests", () => {
         lastCompletion: new Date("2024-01-05"),
       };
 
-      (DynamicSchedulingService.getCompletionPatterns as jest.Mock).mockResolvedValue(mockCompletionPattern);
+      (DynamicSchedulingServiceAdapter.getCompletionPatterns as jest.Mock).mockResolvedValue(mockCompletionPattern);
 
       const nextDueDate = new Date("2024-01-07"); // 2 days after last completion
-      (DynamicSchedulingService.getNextDueDateForTask as jest.Mock).mockResolvedValue(nextDueDate);
+      (DynamicSchedulingServiceAdapter.getNextDueDateForTask as jest.Mock).mockResolvedValue(nextDueDate);
 
       // Record a new completion
-      await DynamicSchedulingService.recordTaskCompletion(
+      await DynamicSchedulingServiceAdapter.recordTaskCompletion(
         mockPlantId,
         "water",
-        new Date("2024-01-07")
+        new Date("2024-01-07"),
+        new Date("2024-01-07"),
+        "test-activity-id",
+        "vegetative"
       );
 
       // Get the updated next due date
-      const calculatedNextDate = await DynamicSchedulingService.getNextDueDateForTask(
+      const calculatedNextDate = await DynamicSchedulingServiceAdapter.getNextDueDateForTask(
         mockPlantId,
         "water"
       );
 
       expect(calculatedNextDate).toEqual(nextDueDate);
-      expect(DynamicSchedulingService.recordTaskCompletion).toHaveBeenCalledWith(
+      expect(DynamicSchedulingServiceAdapter.recordTaskCompletion).toHaveBeenCalledWith(
         mockPlantId,
         "water",
-        new Date("2024-01-07")
+        new Date("2024-01-07"),
+        new Date("2024-01-07"),
+        "test-activity-id",
+        "vegetative"
       );
     });
 
@@ -649,13 +677,13 @@ describe("Care Activity Logging Integration Tests", () => {
         lastCompletion: new Date("2024-01-10"),
       };
 
-      (DynamicSchedulingService.getCompletionPatterns as jest.Mock).mockResolvedValue(inconsistentPattern);
+      (DynamicSchedulingServiceAdapter.getCompletionPatterns as jest.Mock).mockResolvedValue(inconsistentPattern);
 
       // Should fall back to protocol defaults when patterns are inconsistent
       const fallbackDate = new Date("2024-01-13"); // 3 days (default interval)
-      (CareSchedulingService.calculateNextDueDate as jest.Mock).mockReturnValue(fallbackDate);
+      (CareSchedulingServiceAdapter.calculateNextDueDate as jest.Mock).mockReturnValue(fallbackDate);
 
-      const nextDate = await CareSchedulingService.calculateNextDueDate(
+      const nextDate = await CareSchedulingServiceAdapter.calculateNextDueDate(
         "water",
         new Date("2024-01-10"),
         mockPlant,
@@ -664,7 +692,7 @@ describe("Care Activity Logging Integration Tests", () => {
 
       expect(nextDate).toEqual(fallbackDate);
       // Should use protocol-based scheduling when patterns are inconsistent
-      expect(CareSchedulingService.calculateNextDueDate).toHaveBeenCalledWith(
+      expect(CareSchedulingServiceAdapter.calculateNextDueDate).toHaveBeenCalledWith(
         "water",
         new Date("2024-01-10"),
         mockPlant,
@@ -764,7 +792,7 @@ describe("Care Activity Logging Integration Tests", () => {
       
       // Should not proceed with Firebase sync or scheduling if local validation fails
       expect(FirebaseCareActivityService.createCareActivity).not.toHaveBeenCalled();
-      expect(DynamicSchedulingService.recordTaskCompletion).not.toHaveBeenCalled();
+      expect(DynamicSchedulingServiceAdapter.recordTaskCompletion).not.toHaveBeenCalled();
     });
   });
 });

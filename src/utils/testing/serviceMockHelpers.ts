@@ -1,4 +1,5 @@
-// Comprehensive test utilities for service layer testing
+// Service mocking helpers for testing - not a test suite
+// This file provides utilities for mocking services in tests
 import { jest } from '@jest/globals';
 import { PlantRecord, VarietyRecord, CareActivityRecord } from '@/types';
 import { careService, plantService, varietyService } from '@/types/database';
