@@ -1,6 +1,11 @@
 // src/utils/plantGrouping.ts
 import { PlantRecord } from "@/types/database";
 
+// Memoization cache for plant grouping
+const groupingCache = new Map<string, PlantGroup[]>();
+const cacheTimestamps = new Map<string, number>();
+const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
+
 export interface PlantGroup {
   id: string;
   varietyId: string;
@@ -13,9 +18,32 @@ export interface PlantGroup {
   setupType: "multiple-containers" | "same-container";
 }
 
+// Generate cache key based on plant data
+const generateCacheKey = (plants: PlantRecord[]): string => {
+  return plants
+    .map(p => `${p.id}-${p.varietyId}-${p.plantedDate.getTime()}-${p.container}-${p.location}`)
+    .sort()
+    .join('|');
+};
+
+// Check if cache is valid
+const isCacheValid = (key: string): boolean => {
+  const timestamp = cacheTimestamps.get(key);
+  return timestamp !== undefined && (Date.now() - timestamp) < CACHE_DURATION;
+};
+
 export const groupPlantsByConditions = (
   plants: PlantRecord[]
 ): PlantGroup[] => {
+  // Check cache first
+  const cacheKey = generateCacheKey(plants);
+  if (isCacheValid(cacheKey)) {
+    const cached = groupingCache.get(cacheKey);
+    if (cached) {
+      return cached;
+    }
+  }
+
   const groupMap = new Map<string, PlantRecord[]>();
 
   plants.forEach((plant) => {
@@ -55,5 +83,11 @@ export const groupPlantsByConditions = (
     });
   });
 
-  return groups.sort((a, b) => a.varietyName.localeCompare(b.varietyName));
+  const result = groups.sort((a, b) => a.varietyName.localeCompare(b.varietyName));
+  
+  // Cache the result
+  groupingCache.set(cacheKey, result);
+  cacheTimestamps.set(cacheKey, Date.now());
+  
+  return result;
 };

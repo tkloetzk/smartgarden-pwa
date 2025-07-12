@@ -1,5 +1,5 @@
 // src/pages/plants/Plants.tsx - Simple version without search/filters
-import React, { useState } from "react";
+import React, { useState, useMemo, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { useFirebasePlants } from "@/hooks/useFirebasePlants";
 import { Card, CardContent } from "@/components/ui/Card";
@@ -18,6 +18,31 @@ const Plants: React.FC = () => {
   const [selectedPlantIds, setSelectedPlantIds] = useState<string[]>([]);
   const [selectedActivityType, setSelectedActivityType] = useState<QuickActionType>("water");
   const [selectedGroup, setSelectedGroup] = useState<PlantGroup | null>(null);
+
+  // Memoize expensive plant grouping calculation
+  const plantGroups = useMemo(() => groupPlantsByConditions(plants), [plants]);
+
+  const handleBulkLogActivity = useCallback((
+    plantIds: string[],
+    activityType: QuickActionType,
+    group: PlantGroup
+  ) => {
+    setSelectedPlantIds(plantIds);
+    setSelectedActivityType(activityType);
+    setSelectedGroup(group);
+    setBulkModalOpen(true);
+  }, []);
+
+  const closeBulkModal = useCallback(() => {
+    setBulkModalOpen(false);
+    setSelectedPlantIds([]);
+    setSelectedActivityType("water");
+    setSelectedGroup(null);
+  }, []);
+
+  const navigateToAddPlant = useCallback(() => {
+    navigate("/add-plant");
+  }, [navigate]);
 
   if (loading) {
     return (
@@ -38,33 +63,13 @@ const Plants: React.FC = () => {
     );
   }
 
-  const plantGroups = groupPlantsByConditions(plants);
-
-  const handleBulkLogActivity = (
-    plantIds: string[],
-    activityType: QuickActionType,
-    group: PlantGroup
-  ) => {
-    setSelectedPlantIds(plantIds);
-    setSelectedActivityType(activityType);
-    setSelectedGroup(group); // ✅ Now we can properly set the group
-    setBulkModalOpen(true);
-  };
-
-  const closeBulkModal = () => {
-    setBulkModalOpen(false);
-    setSelectedPlantIds([]);
-    setSelectedActivityType("water");
-    setSelectedGroup(null);
-  };
-
   return (
     <div className="min-h-screen bg-background">
       <div className="space-y-6">
         {/* Header */}
         <div className="flex justify-between items-center pt-6">
           <h1 className="text-2xl font-bold">My Plants</h1>
-          <Button onClick={() => navigate("/add-plant")}>Add Plant</Button>
+          <Button onClick={navigateToAddPlant}>Add Plant</Button>
         </div>
 
         {/* Plants Grid - No search, no filters, just the plants */}
@@ -75,7 +80,7 @@ const Plants: React.FC = () => {
               <p className="text-muted-foreground mb-4">
                 Add your first plant to get started!
               </p>
-              <Button onClick={() => navigate("/add-plant")}>Add Plant</Button>
+              <Button onClick={navigateToAddPlant}>Add Plant</Button>
             </CardContent>
           </Card>
         ) : (

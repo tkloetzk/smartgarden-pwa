@@ -1,6 +1,6 @@
 // src/components/plant/PlantGroupCard.tsx
 
-import { useState } from "react";
+import React, { useState, useCallback, useMemo, memo } from "react";
 import { useNavigate } from "react-router-dom";
 import { PlantGroup } from "@/utils/plantGrouping";
 import { Button } from "@/components/ui/Button";
@@ -19,42 +19,45 @@ interface PlantGroupCardProps {
   ) => void;
 }
 
-const PlantGroupCard = ({ group, onBulkLogActivity }: PlantGroupCardProps) => {
+const PlantGroupCard = memo(({ group, onBulkLogActivity }: PlantGroupCardProps) => {
   const navigate = useNavigate();
   const [currentIndex, setCurrentIndex] = useState(0);
   const [showBulkActions, setShowBulkActions] = useState(false);
   const [showIndividualActions, setShowIndividualActions] = useState(false);
 
-  const currentPlant = group.plants[currentIndex];
-  const hasMultiplePlants = group.plants.length > 1;
+  // Memoize expensive calculations
+  const currentPlant = useMemo(() => group.plants[currentIndex], [group.plants, currentIndex]);
+  const hasMultiplePlants = useMemo(() => group.plants.length > 1, [group.plants.length]);
+  const plantIds = useMemo(() => group.plants.map((p) => p.id), [group.plants]);
+  const plantAge = useMemo(() => differenceInDays(new Date(), currentPlant.plantedDate), [currentPlant.plantedDate]);
+  
   const calculatedStage = useDynamicStage(currentPlant);
 
-  const goToPrevious = () => {
+  // Memoize navigation callbacks
+  const goToPrevious = useCallback(() => {
     setCurrentIndex((prev) =>
       prev === 0 ? group.plants.length - 1 : prev - 1
     );
-  };
+  }, [group.plants.length]);
 
-  const goToNext = () => {
+  const goToNext = useCallback(() => {
     setCurrentIndex((prev) =>
       prev === group.plants.length - 1 ? 0 : prev + 1
     );
-  };
+  }, [group.plants.length]);
 
-  const handlePlantClick = () => {
+  const handlePlantClick = useCallback(() => {
     navigate(`/plants/${currentPlant.id}`);
-  };
+  }, [navigate, currentPlant.id]);
 
-  const handleBulkAction = (
+  const handleBulkAction = useCallback((
     activityType: "water" | "fertilize" | "observe"
   ) => {
-    // ✅ Updated parameter type
-    const plantIds = group.plants.map((p) => p.id);
     onBulkLogActivity(plantIds, activityType, group);
     setShowBulkActions(false);
-  };
+  }, [onBulkLogActivity, plantIds, group]);
 
-  const handleIndividualAction = (
+  const handleIndividualAction = useCallback((
     activityType: QuickActionType | "more"
   ) => {
     if (activityType === "more") {
@@ -63,7 +66,33 @@ const PlantGroupCard = ({ group, onBulkLogActivity }: PlantGroupCardProps) => {
       onBulkLogActivity([currentPlant.id], activityType, group);
     }
     setShowIndividualActions(false);
-  };
+  }, [navigate, currentPlant.id, onBulkLogActivity, group]);
+
+  // Memoize event handlers to prevent inline function creation
+  const handlePreviousClick = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
+    goToPrevious();
+  }, [goToPrevious]);
+
+  const handleNextClick = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
+    goToNext();
+  }, [goToNext]);
+
+  const toggleIndividualActions = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
+    setShowIndividualActions(!showIndividualActions);
+  }, [showIndividualActions]);
+
+  const toggleBulkActions = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
+    setShowBulkActions(!showBulkActions);
+  }, [showBulkActions]);
+
+  const navigateToPlants = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
+    navigate('/plants');
+  }, [navigate]);
 
   return (
     <Card className="hover:shadow-lg transition-shadow">
@@ -80,10 +109,7 @@ const PlantGroupCard = ({ group, onBulkLogActivity }: PlantGroupCardProps) => {
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    goToPrevious();
-                  }}
+                  onClick={handlePreviousClick}
                   className="h-8 w-8 p-0"
                 >
                   ←
@@ -94,10 +120,7 @@ const PlantGroupCard = ({ group, onBulkLogActivity }: PlantGroupCardProps) => {
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    goToNext();
-                  }}
+                  onClick={handleNextClick}
                   className="h-8 w-8 p-0"
                 >
                   →
@@ -121,8 +144,7 @@ const PlantGroupCard = ({ group, onBulkLogActivity }: PlantGroupCardProps) => {
               </div>
 
               <div className="text-xs text-muted-foreground">
-                {differenceInDays(new Date(), currentPlant.plantedDate)} days
-                old
+                {plantAge} days old
                 {hasMultiplePlants && (
                   <span className="ml-2">• {group.plants.length} plants</span>
                 )}
@@ -163,10 +185,7 @@ const PlantGroupCard = ({ group, onBulkLogActivity }: PlantGroupCardProps) => {
               <Button
                 variant="outline"
                 size="sm"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setShowIndividualActions(!showIndividualActions);
-                }}
+                onClick={toggleIndividualActions}
                 className="text-primary border-primary/50 hover:bg-primary/10"
               >
                 {showIndividualActions
@@ -201,10 +220,7 @@ const PlantGroupCard = ({ group, onBulkLogActivity }: PlantGroupCardProps) => {
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setShowBulkActions(!showBulkActions);
-                  }}
+                  onClick={toggleBulkActions}
                   className="text-primary border-primary/50 hover:bg-primary/10"
                 >
                   {showBulkActions ? "Cancel" : "Log All"}
@@ -215,40 +231,28 @@ const PlantGroupCard = ({ group, onBulkLogActivity }: PlantGroupCardProps) => {
                 <div className="grid grid-cols-2 gap-2">
                   <Button
                     size="sm"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleBulkAction("water");
-                    }}
+                    onClick={() => handleBulkAction("water")}
                     className="bg-blue-500 hover:bg-blue-600 text-white"
                   >
                     💧 Water All
                   </Button>
                   <Button
                     size="sm"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleBulkAction("fertilize");
-                    }}
+                    onClick={() => handleBulkAction("fertilize")}
                     className="bg-green-500 hover:bg-green-600 text-white"
                   >
                     🌱 Fertilize All
                   </Button>
                   <Button
                     size="sm"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleBulkAction("observe");
-                    }}
+                    onClick={() => handleBulkAction("observe")}
                     className="bg-orange-500 hover:bg-orange-600 text-white"
                   >
                     👁️ Inspect All
                   </Button>
                   <Button
                     size="sm"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      navigate(`/plants`); // Navigate to more options
-                    }}
+                    onClick={navigateToPlants}
                     className="bg-purple-500 hover:bg-purple-600 text-white"
                   >
                     📝 More
@@ -261,6 +265,6 @@ const PlantGroupCard = ({ group, onBulkLogActivity }: PlantGroupCardProps) => {
       </CardContent>
     </Card>
   );
-};
+});
 
 export default PlantGroupCard;

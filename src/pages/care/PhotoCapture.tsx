@@ -1,5 +1,5 @@
 // src/components/care/PhotoCapture.tsx
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useCallback, useMemo, memo } from "react";
 import { Button } from "@/components/ui/Button";
 
 interface PhotoCaptureProps {
@@ -8,7 +8,7 @@ interface PhotoCaptureProps {
   maxPhotos?: number;
 }
 
-export function PhotoCapture({
+export const PhotoCapture = memo(function PhotoCapture({
   photos,
   onPhotosChange,
   maxPhotos = 5,
@@ -19,8 +19,11 @@ export function PhotoCapture({
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
 
+  // Memoize expensive calculations
+  const canAddMore = useMemo(() => photos.length < maxPhotos, [photos.length, maxPhotos]);
+
   // Start camera stream for live preview
-  async function startCamera() {
+  const startCamera = useCallback(async () => {
     setError(null);
     setIsCapturing(true);
 
@@ -43,19 +46,19 @@ export function PhotoCapture({
       setError("Unable to access camera. Please check permissions.");
       setIsCapturing(false);
     }
-  }
+  }, []);
 
   // Stop camera stream and clean up
-  function stopCamera() {
+  const stopCamera = useCallback(() => {
     if (streamRef.current) {
       streamRef.current.getTracks().forEach((track) => track.stop());
       streamRef.current = null;
     }
     setIsCapturing(false);
-  }
+  }, []);
 
   // Capture photo from video stream
-  function capturePhoto() {
+  const capturePhoto = useCallback(() => {
     if (!videoRef.current || !canvasRef.current) return;
 
     const video = videoRef.current;
@@ -84,16 +87,16 @@ export function PhotoCapture({
     ); // 80% quality to balance file size and quality
 
     stopCamera();
-  }
+  }, [onPhotosChange, photos, stopCamera]);
 
   // Remove a photo from the list
-  function removePhoto(index: number) {
+  const removePhoto = useCallback((index: number) => {
     const newPhotos = photos.filter((_, i) => i !== index);
     onPhotosChange(newPhotos);
-  }
+  }, [photos, onPhotosChange]);
 
   // Handle file input as fallback for devices without camera API support
-  function handleFileInput(event: React.ChangeEvent<HTMLInputElement>) {
+  const handleFileInput = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files;
     if (!files) return;
 
@@ -106,9 +109,7 @@ export function PhotoCapture({
 
     // Reset input
     event.target.value = "";
-  }
-
-  const canAddMore = photos.length < maxPhotos;
+  }, [photos, onPhotosChange]);
 
   return (
     <div className="space-y-4">
@@ -216,4 +217,4 @@ export function PhotoCapture({
       )}
     </div>
   );
-}
+});
