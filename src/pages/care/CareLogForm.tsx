@@ -41,11 +41,7 @@ const careFormSchema = z.object({
       message: "Date cannot be in the future.",
     }),
   notes: z.string().optional(),
-  // Change this line to make waterValue conditionally required
-  waterValue: z
-    .number()
-    .min(0.1, "Water amount is required for watering activities.")
-    .optional(),
+  waterValue: z.number().optional(),
   waterUnit: z.enum(["oz", "ml", "cups", "L"]).optional(),
   fertilizeType: z.string().optional(),
   fertilizeDilution: z.string().optional(),
@@ -166,7 +162,7 @@ export function CareLogForm({
     setError,
   } = useForm<CareFormData>({
     resolver: zodResolver(careFormSchema),
-    mode: "onTouched",
+    mode: "onChange",
     defaultValues: {
       plantId: "",
       type: activityTypeFromParams,
@@ -209,7 +205,6 @@ export function CareLogForm({
             plant.plantedDate,
             variety
           );
-          console.log(stage);
           setCurrentStage(stage);
           if (
             activityType === "fertilize" &&
@@ -283,14 +278,11 @@ export function CareLogForm({
   // src/pages/care/CareLogForm.tsx
 
   const onSubmit = async (data: CareFormData) => {
-    // This validation is now more precise.
-    if (
-      data.type === "water" &&
-      (data.waterValue === undefined || data.waterValue <= 0)
-    ) {
+    // Manual validation for water activities
+    if (data.type === "water" && (!data.waterValue || data.waterValue <= 0)) {
       setError("waterValue", {
         type: "manual",
-        message: "A positive water amount is required.",
+        message: "Water amount is required for watering activities.",
       });
       return;
     }
