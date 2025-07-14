@@ -1,16 +1,25 @@
-import { render, screen } from "@testing-library/react";
+import { screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QuickActionButtons, QuickActionType } from "@/components/shared/QuickActionButtons";
 
+// Use unified test utilities
+import { renderComponent, useTestLifecycle } from "../utils/testSetup";
+
 describe("QuickActionButtons", () => {
   const mockOnAction = jest.fn();
+
+  // Use standardized lifecycle management
+  useTestLifecycle();
 
   beforeEach(() => {
     jest.clearAllMocks();
   });
 
   it("renders default actions correctly", () => {
-    render(<QuickActionButtons onAction={mockOnAction} />);
+    // Use unified rendering (this component doesn't need router)
+    renderComponent(<QuickActionButtons onAction={mockOnAction} />, {
+      withRouter: false,
+    });
 
     // Check for text content within buttons
     expect(screen.getByRole("button", { name: /water/i })).toBeInTheDocument();
@@ -26,11 +35,12 @@ describe("QuickActionButtons", () => {
   });
 
   it("renders custom actions correctly", () => {
-    render(
+    renderComponent(
       <QuickActionButtons 
         onAction={mockOnAction} 
         actions={["water", "photo"]} 
-      />
+      />,
+      { withRouter: false }
     );
 
     expect(screen.getByRole("button", { name: /water/i })).toBeInTheDocument();
@@ -41,7 +51,9 @@ describe("QuickActionButtons", () => {
 
   it("calls onAction with correct type when button is clicked", async () => {
     const user = userEvent.setup();
-    render(<QuickActionButtons onAction={mockOnAction} />);
+    renderComponent(<QuickActionButtons onAction={mockOnAction} />, {
+      withRouter: false,
+    });
 
     await user.click(screen.getByRole("button", { name: /water/i }));
     expect(mockOnAction).toHaveBeenCalledWith("water");
@@ -57,14 +69,18 @@ describe("QuickActionButtons", () => {
   });
 
   it("applies grid layout by default", () => {
-    render(<QuickActionButtons onAction={mockOnAction} />);
+    renderComponent(<QuickActionButtons onAction={mockOnAction} />, {
+      withRouter: false,
+    });
     
     const container = screen.getByRole("button", { name: /water/i }).closest("div");
     expect(container).toHaveClass("grid", "grid-cols-2", "gap-2");
   });
 
   it("applies horizontal layout when specified", () => {
-    render(<QuickActionButtons onAction={mockOnAction} layout="horizontal" />);
+    renderComponent(<QuickActionButtons onAction={mockOnAction} layout="horizontal" />, {
+      withRouter: false,
+    });
     
     const container = screen.getByRole("button", { name: /water/i }).closest("div");
     expect(container).toHaveClass("flex", "gap-2", "flex-wrap");
@@ -75,10 +91,11 @@ describe("QuickActionButtons", () => {
     const user = userEvent.setup();
     const parentClickHandler = jest.fn();
 
-    render(
+    renderComponent(
       <div onClick={parentClickHandler}>
         <QuickActionButtons onAction={mockOnAction} />
-      </div>
+      </div>,
+      { withRouter: false }
     );
 
     await user.click(screen.getByRole("button", { name: /water/i }));
@@ -91,13 +108,14 @@ describe("QuickActionButtons", () => {
     const user = userEvent.setup();
     const parentClickHandler = jest.fn();
 
-    render(
+    renderComponent(
       <div onClick={parentClickHandler}>
         <QuickActionButtons 
           onAction={mockOnAction} 
           preventPropagation={false} 
         />
-      </div>
+      </div>,
+      { withRouter: false }
     );
 
     await user.click(screen.getByRole("button", { name: /water/i }));
@@ -107,11 +125,12 @@ describe("QuickActionButtons", () => {
   });
 
   it("applies custom className", () => {
-    render(
+    renderComponent(
       <QuickActionButtons 
         onAction={mockOnAction} 
         className="custom-class" 
-      />
+      />,
+      { withRouter: false }
     );
     
     const container = screen.getByRole("button", { name: /water/i }).closest("div");
@@ -119,11 +138,12 @@ describe("QuickActionButtons", () => {
   });
 
   it("uses correct button size", () => {
-    render(
+    renderComponent(
       <QuickActionButtons 
         onAction={mockOnAction} 
         buttonSize="md"
-      />
+      />,
+      { withRouter: false }
     );
     
     const button = screen.getByRole("button", { name: /water/i });
@@ -136,11 +156,12 @@ describe("QuickActionButtons", () => {
     const user = userEvent.setup();
     const actions: (QuickActionType | "more")[] = ["water", "fertilize", "observe", "photo", "more"];
     
-    render(
+    renderComponent(
       <QuickActionButtons 
         onAction={mockOnAction} 
         actions={actions}
-      />
+      />,
+      { withRouter: false }
     );
 
     // Test each action

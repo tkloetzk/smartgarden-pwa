@@ -1,10 +1,16 @@
 // src/__tests__/utils/testHelpers.tsx
+// DEPRECATED: Use testSetup.ts for new tests
+// This file is maintained for backwards compatibility only
 
 import { render } from "@testing-library/react";
 import { BrowserRouter } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { db } from "@/types/database";
 import { createMockGarden } from "./testDataFactories";
+
+/**
+ * @deprecated Use renderComponent from testSetup.ts instead
+ */
 
 interface RenderOptions {
   initialEntries?: string[];

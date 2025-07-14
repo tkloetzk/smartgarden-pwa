@@ -1,5 +1,5 @@
 // src/components/plant/CareHistory.tsx
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { CareRecord } from "@/types/database";
@@ -28,14 +28,36 @@ const CareHistory: React.FC<CareHistoryProps> = ({ plantId, careHistory }) => {
     ? filteredHistory
     : filteredHistory.slice(0, 5);
 
-  const activityTypeFilters = [
-    { value: "all", label: "All Activities", icon: "📋" },
+  // Get unique activity types that actually exist in the care history
+  const existingActivityTypes = [...new Set(careHistory.map(activity => activity.type))];
+  
+  // All possible activity type filters
+  const allActivityTypeFilters = [
     { value: "water", label: "Watering", icon: "💧" },
     { value: "fertilize", label: "Fertilizing", icon: "🌱" },
     { value: "observe", label: "Observations", icon: "👁️" },
     { value: "harvest", label: "Harvest", icon: "🌾" },
     { value: "transplant", label: "Transplant", icon: "🏺" },
+    { value: "photo", label: "Photos", icon: "📸" },
+    { value: "note", label: "Notes", icon: "📝" },
+    { value: "prune", label: "Pruning", icon: "✂️" },
+    { value: "repot", label: "Repotting", icon: "🪴" },
   ];
+
+  // Filter to only show activity types that have data, plus "All Activities"
+  const activityTypeFilters = [
+    { value: "all", label: "All Activities", icon: "📋" },
+    ...allActivityTypeFilters.filter(filter => 
+      existingActivityTypes.includes(filter.value)
+    )
+  ];
+
+  // Reset filter to "all" if current filter is not available in the data
+  useEffect(() => {
+    if (filter !== "all" && !existingActivityTypes.includes(filter)) {
+      setFilter("all");
+    }
+  }, [filter, existingActivityTypes]);
 
   const handleLogCare = () => {
     const params = new URLSearchParams();
