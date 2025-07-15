@@ -24,6 +24,7 @@ const PlantGroupCard = memo(({ group, onBulkLogActivity }: PlantGroupCardProps) 
   const [currentIndex, setCurrentIndex] = useState(0);
   const [showBulkActions, setShowBulkActions] = useState(false);
   const [showIndividualActions, setShowIndividualActions] = useState(false);
+  const [showAllBulkActions, setShowAllBulkActions] = useState(false);
 
   // Memoize expensive calculations
   const currentPlant = useMemo(() => group.plants[currentIndex], [group.plants, currentIndex]);
@@ -51,11 +52,24 @@ const PlantGroupCard = memo(({ group, onBulkLogActivity }: PlantGroupCardProps) 
   }, [navigate, currentPlant.id]);
 
   const handleBulkAction = useCallback((
-    activityType: "water" | "fertilize" | "observe"
+    activityType: "water" | "fertilize" | "lighting"
   ) => {
     onBulkLogActivity(plantIds, activityType, group);
     setShowBulkActions(false);
   }, [onBulkLogActivity, plantIds, group]);
+
+  const handleBulkAllAction = useCallback((
+    activityType: QuickActionType | "more"
+  ) => {
+    if (activityType === "more") {
+      // Toggle the expanded view instead of navigating
+      setShowAllBulkActions(!showAllBulkActions);
+    } else {
+      onBulkLogActivity(plantIds, activityType, group);
+      setShowAllBulkActions(false);
+      setShowBulkActions(false);
+    }
+  }, [onBulkLogActivity, plantIds, group, showAllBulkActions]);
 
   const handleIndividualAction = useCallback((
     activityType: QuickActionType | "more"
@@ -89,12 +103,6 @@ const PlantGroupCard = memo(({ group, onBulkLogActivity }: PlantGroupCardProps) 
     setShowBulkActions(!showBulkActions);
   }, [showBulkActions]);
 
-  const handleBulkMoreAction = useCallback((e: React.MouseEvent) => {
-    e.stopPropagation();
-    // Navigate to care logging page for bulk operations
-    // For now, navigate to the first plant's care page as a starting point
-    navigate(`/log-care/${currentPlant.id}`);
-  }, [navigate, currentPlant.id]);
 
   return (
     <Card className="hover:shadow-lg transition-shadow">
@@ -230,35 +238,54 @@ const PlantGroupCard = memo(({ group, onBulkLogActivity }: PlantGroupCardProps) 
               </div>
 
               {showBulkActions && (
-                <div className="grid grid-cols-2 gap-2">
-                  <Button
-                    size="sm"
-                    onClick={() => handleBulkAction("water")}
-                    className="bg-blue-500 hover:bg-blue-600 text-white"
-                  >
-                    💧 Water All
-                  </Button>
-                  <Button
-                    size="sm"
-                    onClick={() => handleBulkAction("fertilize")}
-                    className="bg-green-500 hover:bg-green-600 text-white"
-                  >
-                    🌱 Fertilize All
-                  </Button>
-                  <Button
-                    size="sm"
-                    onClick={() => handleBulkAction("observe")}
-                    className="bg-orange-500 hover:bg-orange-600 text-white"
-                  >
-                    👁️ Inspect All
-                  </Button>
-                  <Button
-                    size="sm"
-                    onClick={handleBulkMoreAction}
-                    className="bg-purple-500 hover:bg-purple-600 text-white"
-                  >
-                    📝 More
-                  </Button>
+                <div className="space-y-3">
+                  {/* Primary bulk actions */}
+                  <div className="grid grid-cols-2 gap-2">
+                    <Button
+                      size="sm"
+                      onClick={() => handleBulkAction("water")}
+                      className="bg-blue-500 hover:bg-blue-600 text-white"
+                    >
+                      💧 Water All
+                    </Button>
+                    <Button
+                      size="sm"
+                      onClick={() => handleBulkAction("fertilize")}
+                      className="bg-green-500 hover:bg-green-600 text-white"
+                    >
+                      🌱 Fertilize All
+                    </Button>
+                    <Button
+                      size="sm"
+                      onClick={() => handleBulkAction("lighting")}
+                      className="bg-amber-500 hover:bg-amber-600 text-white"
+                    >
+                      💡 Lighting All
+                    </Button>
+                    <Button
+                      size="sm"
+                      onClick={() => handleBulkAllAction("more")}
+                      className="bg-purple-500 hover:bg-purple-600 text-white"
+                    >
+                      {showAllBulkActions ? "📝 Less" : "📝 More"}
+                    </Button>
+                  </div>
+
+                  {/* Expanded bulk actions */}
+                  {showAllBulkActions && (
+                    <div className="border-t pt-3">
+                      <p className="text-xs text-muted-foreground mb-2">
+                        Additional bulk care activities for {group.plants.length} plants:
+                      </p>
+                      <QuickActionButtons
+                        onAction={handleBulkAllAction}
+                        actions={["observe", "photo", "pruning", "harvest", "transplant", "thin", "note"]}
+                        layout="grid"
+                        preventPropagation={true}
+                        buttonSize="sm"
+                      />
+                    </div>
+                  )}
                 </div>
               )}
             </div>

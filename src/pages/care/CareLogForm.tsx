@@ -153,7 +153,12 @@ export function CareLogForm({
   const [showSectionApply, setShowSectionApply] = useState(false);
   const [sectionApplyOption, setSectionApplyOption] = useState<SectionApplyOption | null>(null);
   const [lastSubmittedData, setLastSubmittedData] = useState<CareFormData | null>(null);
+  const [selectedPlantIds, setSelectedPlantIds] = useState<string[]>([]);
+  const [isBulkMode, setIsBulkMode] = useState(false);
 
+  // Handle both single plant ID and bulk plant IDs from URL params
+  const plantIdsFromParams = searchParams.get("plantIds");
+  const isBulkFromParams = searchParams.get("bulk") === "true";
   const plantIdFromParams =
     preselectedPlantId || searchParams.get("plantId") || "";
   const activityTypeFromParams =
@@ -195,6 +200,23 @@ export function CareLogForm({
       }
     }
   }, [plantsLoading, plants, plantIdFromParams, setValue]);
+
+  // Initialize bulk mode from URL parameters
+  useEffect(() => {
+    if (isBulkFromParams && plantIdsFromParams) {
+      const plantIds = plantIdsFromParams.split(',').filter(id => id.trim());
+      const validPlantIds = plantIds.filter(id => 
+        plants.some(plant => plant.id === id)
+      );
+      
+      if (validPlantIds.length > 0) {
+        setIsBulkMode(true);
+        setSelectedPlantIds(validPlantIds);
+        // Set the first plant as the primary selection for form defaults
+        setValue("plantId", validPlantIds[0], { shouldValidate: true });
+      }
+    }
+  }, [isBulkFromParams, plantIdsFromParams, plants, setValue]);
 
   useEffect(() => {
     const loadPlantData = async () => {
@@ -428,22 +450,56 @@ export function CareLogForm({
         details.applicationMethod = selectedFertilizer?.method;
       }
 
-      await logActivity({
-        plantId: data.plantId,
-        type: data.type,
-        date: new Date(data.date),
-        details: details as CareActivityDetails,
-      });
-
-      toast.success("Care activity logged!");
-      
-      // Show section apply option if available
-      if (sectionApplyOption && sectionApplyOption.plantCount > 0) {
-        setLastSubmittedData(data);
-        setShowSectionApply(true);
-      } else {
+      if (isBulkMode && selectedPlantIds.length > 1) {
+        // Handle bulk submission
+        let successCount = 0;
+        let errorCount = 0;
+        
+        for (const plantId of selectedPlantIds) {
+          try {
+            await logActivity({
+              plantId,
+              type: data.type,
+              date: new Date(data.date),
+              details: details as CareActivityDetails,
+            });
+            successCount++;
+          } catch (error) {
+            console.error(`Failed to log activity for plant ${plantId}:`, error);
+            errorCount++;
+          }
+        }
+        
+        if (errorCount === 0) {
+          toast.success(`Care activity logged for ${successCount} plants!`);
+        } else if (successCount > 0) {
+          toast.success(`Care activity logged for ${successCount} plants (${errorCount} failed)`);
+        } else {
+          throw new Error("Failed to log activity for all plants");
+        }
+        
+        // For bulk mode, always reset and call onSuccess (no section apply)
         reset();
         onSuccess?.();
+      } else {
+        // Handle single plant submission
+        await logActivity({
+          plantId: data.plantId,
+          type: data.type,
+          date: new Date(data.date),
+          details: details as CareActivityDetails,
+        });
+
+        toast.success("Care activity logged!");
+        
+        // Show section apply option if available (only for single plant mode)
+        if (sectionApplyOption && sectionApplyOption.plantCount > 0) {
+          setLastSubmittedData(data);
+          setShowSectionApply(true);
+        } else {
+          reset();
+          onSuccess?.();
+        }
       }
     } catch (error) {
       const errorMessage =
@@ -918,31 +974,118 @@ export function CareLogForm({
             <CardContent className="pt-0 space-y-4">
               <div className="grid grid-cols-1 gap-4">
                 <div>
-                  <label
-                    htmlFor="plant-select"
-                    className="block text-sm font-medium text-foreground mb-2"
-                  >
-                    Plant *
-                  </label>
-                  <select
-                    id="plant-select"
-                    {...register("plantId")}
-                    className="w-full p-3 border border-border rounded-lg bg-background text-foreground focus:ring-2 focus:ring-ring focus:border-ring"
-                  >
-                    <option value="">Choose a plant...</option>
-                    {sortedPlants.map((plant) => (
-                      <option key={plant.id} value={plant.id}>
-                        {plant.name
-                          ? `${plant.name} (${plant.varietyName})`
-                          : plant.varietyName}
-                        {plant.location && ` - ${plant.location}`}
-                      </option>
-                    ))}
-                  </select>
-                  {errors.plantId && (
-                    <p className="mt-1 text-sm text-red-600" role="alert">
-                      {errors.plantId.message}
-                    </p>
+                  {isBulkMode ? (
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between">
+                        <label className="block text-sm font-medium text-foreground">
+                          Bulk Care for Multiple Plants *
+                        </label>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            setIsBulkMode(false);
+                            setSelectedPlantIds([]);
+                          }}
+                        >
+                          Switch to Single Plant
+                        </Button>
+                      </div>
+                      
+                      <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                        <div className="flex items-center gap-2 mb-2">
+                          <span className="text-blue-600 font-medium">
+                            {selectedPlantIds.length} plants selected
+                          </span>
+                        </div>
+                        <div className="grid gap-2 max-h-32 overflow-y-auto">
+                          {selectedPlantIds.map(plantId => {
+                            const plant = plants.find(p => p.id === plantId);
+                            if (!plant) return null;
+                            return (
+                              <div key={plantId} className="flex items-center justify-between bg-white p-2 rounded border">
+                                <span className="text-sm">
+                                  {plant.name ? `${plant.name} (${plant.varietyName})` : plant.varietyName}
+                                  {plant.location && ` - ${plant.location}`}
+                                </span>
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => {
+                                    const newIds = selectedPlantIds.filter(id => id !== plantId);
+                                    setSelectedPlantIds(newIds);
+                                    if (newIds.length === 0) {
+                                      setIsBulkMode(false);
+                                    } else if (selectedPlantId === plantId) {
+                                      setValue("plantId", newIds[0], { shouldValidate: true });
+                                    }
+                                  }}
+                                  className="h-6 w-6 p-0 text-red-500 hover:text-red-700"
+                                >
+                                  ×
+                                </Button>
+                              </div>
+                            );
+                          })}
+                        </div>
+                        {selectedPlantIds.length > 0 && (
+                          <p className="text-xs text-blue-600 mt-2">
+                            Primary plant: {plants.find(p => p.id === selectedPlantId)?.name || 'Unknown'}
+                            <br />
+                            Care activity will be applied to all selected plants
+                          </p>
+                        )}
+                      </div>
+                      
+                      {/* Hidden input to maintain form validation */}
+                      <input
+                        type="hidden"
+                        {...register("plantId")}
+                        value={selectedPlantIds.length > 0 ? selectedPlantId : ""}
+                      />
+                    </div>
+                  ) : (
+                    <div>
+                      <div className="flex items-center justify-between mb-2">
+                        <label
+                          htmlFor="plant-select"
+                          className="block text-sm font-medium text-foreground"
+                        >
+                          Plant *
+                        </label>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setIsBulkMode(true)}
+                          className="text-xs"
+                        >
+                          Select Multiple Plants
+                        </Button>
+                      </div>
+                      <select
+                        id="plant-select"
+                        {...register("plantId")}
+                        className="w-full p-3 border border-border rounded-lg bg-background text-foreground focus:ring-2 focus:ring-ring focus:border-ring"
+                      >
+                        <option value="">Choose a plant...</option>
+                        {sortedPlants.map((plant) => (
+                          <option key={plant.id} value={plant.id}>
+                            {plant.name
+                              ? `${plant.name} (${plant.varietyName})`
+                              : plant.varietyName}
+                            {plant.location && ` - ${plant.location}`}
+                          </option>
+                        ))}
+                      </select>
+                      {errors.plantId && (
+                        <p className="mt-1 text-sm text-red-600" role="alert">
+                          {errors.plantId.message}
+                        </p>
+                      )}
+                    </div>
                   )}
                 </div>
                 <div>

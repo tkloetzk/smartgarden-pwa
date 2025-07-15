@@ -23,9 +23,9 @@
         <div class='clearfix'>
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">0% </span>
+                <span class="strong">100% </span>
                 <span class="quiet">Statements</span>
-                <span class='fraction'>0/10</span>
+                <span class='fraction'>10/10</span>
             </div>
         
             
@@ -37,16 +37,16 @@
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">0% </span>
+                <span class="strong">100% </span>
                 <span class="quiet">Functions</span>
-                <span class='fraction'>0/4</span>
+                <span class='fraction'>4/4</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">0% </span>
+                <span class="strong">100% </span>
                 <span class="quiet">Lines</span>
-                <span class='fraction'>0/10</span>
+                <span class='fraction'>10/10</span>
             </div>
         
             
@@ -61,7 +61,7 @@
             </div>
         </template>
     </div>
-    <div class='status-line low'></div>
+    <div class='status-line high'></div>
     <pre><table class="coverage">
 <tr><td class="line-count quiet"><a name='L1'></a><a href='#L1'>1</a>
 <a name='L2'></a><a href='#L2'>2</a>
@@ -164,8 +164,8 @@
 <a name='L99'></a><a href='#L99'>99</a>
 <a name='L100'></a><a href='#L100'>100</a>
 <a name='L101'></a><a href='#L101'>101</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">4x</span>
+<span class="cline-any cline-yes">4x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -181,18 +181,18 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">4x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">36x</span>
+<span class="cline-any cline-yes">3x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">36x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -225,7 +225,7 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">36x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -239,7 +239,7 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">180x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -252,7 +252,7 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">3x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -262,10 +262,10 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">4x</span>
 <span class="cline-any cline-neutral">&nbsp;</span></td><td class="text"><pre class="prettyprint lang-js">// src/components/plant/ReminderPreferencesSection.tsx
-<span class="cstat-no" title="statement not covered" >import { Switch } from "@/components/ui/Switch";</span>
-<span class="cstat-no" title="statement not covered" >import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";</span>
+import { Switch } from "@/components/ui/Switch";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 &nbsp;
 // Define the type explicitly to avoid circular reference
 interface ReminderPreferences {
@@ -281,18 +281,18 @@ interface ReminderPreferencesProps {
   onChange: (preferences: ReminderPreferences) =&gt; void;
 }
 &nbsp;
-const ReminderPreferencesSection = <span class="cstat-no" title="statement not covered" ><span class="fstat-no" title="function not covered" >({</span></span>
+const ReminderPreferencesSection = ({
   preferences,
   onChange,
 }: ReminderPreferencesProps) =&gt; {
-  const handleToggle = <span class="cstat-no" title="statement not covered" ><span class="fstat-no" title="function not covered" >(k</span>ey: keyof ReminderPreferences) =&gt; {</span>
-<span class="cstat-no" title="statement not covered" >    onChange({</span>
+  const handleToggle = (key: keyof ReminderPreferences) =&gt; {
+    onChange({
       ...preferences,
       [key]: !preferences[key],
     });
   };
 &nbsp;
-  const reminderTypes = <span class="cstat-no" title="statement not covered" >[</span>
+  const reminderTypes = [
     {
       key: "watering" as const,
       label: "Watering",
@@ -325,7 +325,7 @@ const ReminderPreferencesSection = <span class="cstat-no" title="statement not c
     },
   ];
 &nbsp;
-<span class="cstat-no" title="statement not covered" >  return (</span>
+  return (
     &lt;Card className="border-emerald-200 bg-emerald-50/30"&gt;
       &lt;CardHeader className="pb-3"&gt;
         &lt;CardTitle className="text-lg flex items-center gap-2"&gt;
@@ -338,8 +338,8 @@ const ReminderPreferencesSection = <span class="cstat-no" title="statement not c
         &lt;/p&gt;
       &lt;/CardHeader&gt;
       &lt;CardContent className="space-y-3"&gt;
-        {reminderTypes.map(<span class="fstat-no" title="function not covered" >({</span> key, label, icon, description }) =&gt; (
-<span class="cstat-no" title="statement not covered" >          &lt;div</span>
+        {reminderTypes.map(({ key, label, icon, description }) =&gt; (
+          &lt;div
             key={key}
             className="flex items-center justify-between p-3 rounded-lg border border-emerald-100 bg-card/50 hover:bg-card/80 transition-colors"
           &gt;
@@ -352,7 +352,7 @@ const ReminderPreferencesSection = <span class="cstat-no" title="statement not c
             &lt;/div&gt;
             &lt;Switch
               checked={preferences[key]}
-              onCheckedChange={<span class="fstat-no" title="function not covered" >() =</span>&gt; <span class="cstat-no" title="statement not covered" >handleToggle(key)}</span>
+              onCheckedChange={() =&gt; handleToggle(key)}
               className="ml-4"
             /&gt;
           &lt;/div&gt;
@@ -362,7 +362,7 @@ const ReminderPreferencesSection = <span class="cstat-no" title="statement not c
   );
 };
 &nbsp;
-<span class="cstat-no" title="statement not covered" >export default ReminderPreferencesSection;</span>
+export default ReminderPreferencesSection;
 &nbsp;</pre></td></tr></table></pre>
 
                 <div class='push'></div><!-- for sticky footer -->
@@ -370,7 +370,7 @@ const ReminderPreferencesSection = <span class="cstat-no" title="statement not c
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2025-07-12T00:44:08.029Z
+                at 2025-07-15T18:41:54.746Z
             </div>
         <script src="../../../prettify.js"></script>
         <script>

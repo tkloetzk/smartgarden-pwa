@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/Button";
 import { CareActivityType } from "@/types";
 
 // Define the subset of care activities that are commonly used as quick actions
-export type QuickActionType = Extract<CareActivityType, "water" | "fertilize" | "observe" | "photo" | "pruning">;
+export type QuickActionType = Extract<CareActivityType, "water" | "fertilize" | "observe" | "photo" | "pruning" | "harvest" | "transplant" | "note" | "lighting" | "thin">;
 
 export interface QuickActionButtonsProps {
   onAction: (type: QuickActionType | "more") => void;
@@ -51,6 +51,36 @@ const ACTION_CONFIG: Record<QuickActionType | "more", ActionConfig> = {
     icon: "✂️",
     label: "Prune",
     className: "bg-indigo-500 hover:bg-indigo-600 text-white",
+    variant: "primary"
+  },
+  harvest: {
+    icon: "🌾",
+    label: "Harvest",
+    className: "bg-yellow-500 hover:bg-yellow-600 text-white",
+    variant: "primary"
+  },
+  transplant: {
+    icon: "🪴",
+    label: "Transplant", 
+    className: "bg-emerald-500 hover:bg-emerald-600 text-white",
+    variant: "primary"
+  },
+  note: {
+    icon: "📝",
+    label: "Note",
+    className: "bg-gray-500 hover:bg-gray-600 text-white",
+    variant: "primary"
+  },
+  lighting: {
+    icon: "💡",
+    label: "Lighting",
+    className: "bg-amber-500 hover:bg-amber-600 text-white",
+    variant: "primary"
+  },
+  thin: {
+    icon: "🌱",
+    label: "Thin",
+    className: "bg-lime-500 hover:bg-lime-600 text-white",
     variant: "primary"
   },
   more: {

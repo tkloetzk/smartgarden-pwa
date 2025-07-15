@@ -23,30 +23,30 @@
         <div class='clearfix'>
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">0% </span>
+                <span class="strong">100% </span>
                 <span class="quiet">Statements</span>
-                <span class='fraction'>0/8</span>
+                <span class='fraction'>8/8</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">0% </span>
+                <span class="strong">36.66% </span>
                 <span class="quiet">Branches</span>
-                <span class='fraction'>0/30</span>
+                <span class='fraction'>11/30</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">0% </span>
+                <span class="strong">100% </span>
                 <span class="quiet">Functions</span>
-                <span class='fraction'>0/2</span>
+                <span class='fraction'>2/2</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">0% </span>
+                <span class="strong">100% </span>
                 <span class="quiet">Lines</span>
-                <span class='fraction'>0/7</span>
+                <span class='fraction'>7/7</span>
             </div>
         
             
@@ -61,7 +61,7 @@
             </div>
         </template>
     </div>
-    <div class='status-line low'></div>
+    <div class='status-line high'></div>
     <pre><table class="coverage">
 <tr><td class="line-count quiet"><a name='L1'></a><a href='#L1'>1</a>
 <a name='L2'></a><a href='#L2'>2</a>
@@ -189,8 +189,8 @@
 <a name='L124'></a><a href='#L124'>124</a>
 <a name='L125'></a><a href='#L125'>125</a>
 <a name='L126'></a><a href='#L126'>126</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">4x</span>
+<span class="cline-any cline-yes">4x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -207,7 +207,7 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">4x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -221,7 +221,7 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">180x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -245,9 +245,9 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">180x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">180x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -275,7 +275,7 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">3x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -314,8 +314,8 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span></td><td class="text"><pre class="prettyprint lang-js">// src/components/ui/Switch.tsx
-<span class="cstat-no" title="statement not covered" >import React from "react";</span>
-<span class="cstat-no" title="statement not covered" >import { cn } from "@/utils/cn";</span>
+import React from "react";
+import { cn } from "@/utils/cn";
 &nbsp;
 interface SwitchProps {
   checked: boolean;
@@ -332,21 +332,21 @@ interface SwitchProps {
   "aria-labelledby"?: string;
 }
 &nbsp;
-export const <span class="cstat-no" title="statement not covered" >Switch: React.FC&lt;SwitchProps&gt; = <span class="cstat-no" title="statement not covered" ><span class="fstat-no" title="function not covered" >(</span>{</span></span>
+export const Switch: React.FC&lt;SwitchProps&gt; = ({
   checked,
   onCheckedChange,
-  disabled = <span class="branch-0 cbranch-no" title="branch not covered" >false,</span>
+  disabled = false,
   leftLabel,
   rightLabel,
   leftIcon,
   rightIcon,
-  size = <span class="branch-0 cbranch-no" title="branch not covered" >"md",</span>
+  size = "md",
   className,
   id,
   "aria-label": ariaLabel,
   "aria-labelledby": ariaLabelledBy,
 }) =&gt; {
-  const sizeClasses = <span class="cstat-no" title="statement not covered" >{</span>
+  const sizeClasses = {
     sm: {
       track: "w-10 h-5",
       thumb: "w-4 h-4",
@@ -370,13 +370,13 @@ export const <span class="cstat-no" title="statement not covered" >Switch: React
     },
   };
 &nbsp;
-  const sizes = <span class="cstat-no" title="statement not covered" >sizeClasses[size];</span>
+  const sizes = sizeClasses[size];
 &nbsp;
-<span class="cstat-no" title="statement not covered" >  return (</span>
+  return (
     &lt;div className={cn("flex items-center", sizes.gap, className)}&gt;
       {/* Left side (Indoor) */}
       {(leftLabel || leftIcon) &amp;&amp; (
-        &lt;div
+<span class="branch-2 cbranch-no" title="branch not covered" >        &lt;div</span>
           className={cn(
             "flex items-center gap-2 transition-colors duration-200",
             sizes.text,
@@ -400,14 +400,14 @@ export const <span class="cstat-no" title="statement not covered" >Switch: React
         aria-labelledby={ariaLabelledBy}
         id={id}
         disabled={disabled}
-        onClick={<span class="fstat-no" title="function not covered" >() =</span>&gt; <span class="cstat-no" title="statement not covered" >onCheckedChange(!checked)}</span>
+        onClick={() =&gt; onCheckedChange(!checked)}
         className={cn(
           "relative inline-flex flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2",
           sizes.track,
           checked
             ? "bg-emerald-600 hover:bg-emerald-700"
             : "bg-gray-300 hover:bg-gray-400",
-          disabled &amp;&amp; "cursor-not-allowed opacity-50 hover:bg-gray-300"
+          disabled &amp;&amp; <span class="branch-1 cbranch-no" title="branch not covered" >"cursor-not-allowed opacity-50 hover:bg-gray-300"</span>
         )}
       &gt;
         &lt;span
@@ -421,7 +421,7 @@ export const <span class="cstat-no" title="statement not covered" >Switch: React
 &nbsp;
       {/* Right side (Outdoor) */}
       {(rightLabel || rightIcon) &amp;&amp; (
-        &lt;div
+<span class="branch-2 cbranch-no" title="branch not covered" >        &lt;div</span>
           className={cn(
             "flex items-center gap-2 transition-colors duration-200",
             sizes.text,
@@ -445,7 +445,7 @@ export const <span class="cstat-no" title="statement not covered" >Switch: React
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2025-07-12T00:44:08.029Z
+                at 2025-07-15T18:41:54.746Z
             </div>
         <script src="../../../prettify.js"></script>
         <script>

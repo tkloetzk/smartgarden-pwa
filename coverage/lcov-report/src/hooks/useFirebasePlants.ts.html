@@ -23,30 +23,30 @@
         <div class='clearfix'>
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">0% </span>
+                <span class="strong">76.92% </span>
                 <span class="quiet">Statements</span>
-                <span class='fraction'>0/13</span>
+                <span class='fraction'>10/13</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">0% </span>
+                <span class="strong">100% </span>
                 <span class="quiet">Branches</span>
-                <span class='fraction'>0/6</span>
+                <span class='fraction'>6/6</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">0% </span>
+                <span class="strong">57.14% </span>
                 <span class="quiet">Functions</span>
-                <span class='fraction'>0/7</span>
+                <span class='fraction'>4/7</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">0% </span>
+                <span class="strong">76.92% </span>
                 <span class="quiet">Lines</span>
-                <span class='fraction'>0/13</span>
+                <span class='fraction'>10/13</span>
             </div>
         
             
@@ -61,7 +61,7 @@
             </div>
         </template>
     </div>
-    <div class='status-line low'></div>
+    <div class='status-line medium'></div>
     <pre><table class="coverage">
 <tr><td class="line-count quiet"><a name='L1'></a><a href='#L1'>1</a>
 <a name='L2'></a><a href='#L2'>2</a>
@@ -114,34 +114,30 @@
 <a name='L49'></a><a href='#L49'>49</a>
 <a name='L50'></a><a href='#L50'>50</a>
 <a name='L51'></a><a href='#L51'>51</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">11x</span>
+<span class="cline-any cline-yes">11x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">11x</span>
+<span class="cline-any cline-yes">87x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">87x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">87x</span>
+<span class="cline-any cline-yes">13x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">74x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">87x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -153,8 +149,12 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">87x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -164,30 +164,30 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span></td><td class="text"><pre class="prettyprint lang-js">import { PlantRecord } from "../types/database";
-<span class="cstat-no" title="statement not covered" >import { FirebasePlantService } from "../services/firebase/plantService";</span>
-<span class="cstat-no" title="statement not covered" >import { useFirebaseResource } from "./useFirebaseResource";</span>
+import { FirebasePlantService } from "../services/firebase/plantService";
+import { useFirebaseResource } from "./useFirebaseResource";
 &nbsp;
 interface PlantsParams {
   includeInactive: boolean;
   userUid: string;
 }
 &nbsp;
-<span class="cstat-no" title="statement not covered" >export function <span class="fstat-no" title="function not covered" >u</span>seFirebasePlants(</span>includeInactive = <span class="branch-0 cbranch-no" title="branch not covered" >false)</span> {
-  const result = <span class="cstat-no" title="statement not covered" >useFirebaseResource&lt;PlantRecord, PlantsParams, typeof FirebasePlantService&gt;({</span>
+export function useFirebasePlants(includeInactive = false) {
+  const result = useFirebaseResource&lt;PlantRecord, PlantsParams, typeof FirebasePlantService&gt;({
     serviceName: "plants",
     service: FirebasePlantService,
     subscriptionMethod: "subscribeToPlantsChanges",
-    subscriptionParams: <span class="fstat-no" title="function not covered" >(u</span>ser, includeInactive) =&gt; (<span class="cstat-no" title="statement not covered" >{</span>
+    subscriptionParams: (user, includeInactive) =&gt; ({
       includeInactive,
       userUid: user?.uid || "",
     }),
-    validateParams: <span class="fstat-no" title="function not covered" >({</span> userUid }) =&gt; {
-<span class="cstat-no" title="statement not covered" >      <span class="missing-if-branch" title="if path not taken" >I</span>if (!userUid || typeof userUid !== "string") {</span>
-<span class="cstat-no" title="statement not covered" >        return false;</span>
+    validateParams: ({ userUid }) =&gt; {
+      if (!userUid || typeof userUid !== "string") {
+        return false;
       }
-<span class="cstat-no" title="statement not covered" >      return true;</span>
+      return true;
     },
-    getDependencies: <span class="fstat-no" title="function not covered" >({</span> userUid, includeInactive }) =&gt; <span class="cstat-no" title="statement not covered" >[userUid, includeInactive],</span>
+    getDependencies: ({ userUid, includeInactive }) =&gt; [userUid, includeInactive],
     crudOperations: {
       create: {
         method: "createPlant",
@@ -204,7 +204,7 @@ interface PlantsParams {
     },
   }, includeInactive);
 &nbsp;
-<span class="cstat-no" title="statement not covered" >  return {</span>
+  return {
     plants: result.data,
     loading: result.loading,
     error: result.error,
@@ -220,7 +220,7 @@ interface PlantsParams {
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2025-07-12T00:44:08.029Z
+                at 2025-07-15T18:41:54.746Z
             </div>
         <script src="../../prettify.js"></script>
         <script>

@@ -588,7 +588,7 @@ describe("PlantGroupCard", () => {
       
       expect(screen.getByRole("button", { name: "💧 Water All" })).toBeInTheDocument();
       expect(screen.getByRole("button", { name: "🌱 Fertilize All" })).toBeInTheDocument();
-      expect(screen.getByRole("button", { name: "👁️ Inspect All" })).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "💡 Lighting All" })).toBeInTheDocument();
       expect(screen.getByRole("button", { name: "📝 More" })).toBeInTheDocument();
       expect(screen.getByRole("button", { name: "Cancel" })).toBeInTheDocument();
 
@@ -659,7 +659,7 @@ describe("PlantGroupCard", () => {
       await user.click(screen.getByRole("button", { name: "🌱 Fertilize All" }));
       expect(mockOnBulkLogActivity).toHaveBeenCalledWith(["plant-1", "plant-2"], "fertilize", group);
 
-      // Re-render and test observe action
+      // Re-render and test lighting action
       mockOnBulkLogActivity.mockClear();
       rerender(
         <TestWrapper>
@@ -668,11 +668,11 @@ describe("PlantGroupCard", () => {
       );
       
       await user.click(screen.getByRole("button", { name: "Log All" }));
-      await user.click(screen.getByRole("button", { name: "👁️ Inspect All" }));
-      expect(mockOnBulkLogActivity).toHaveBeenCalledWith(["plant-1", "plant-2"], "observe", group);
+      await user.click(screen.getByRole("button", { name: "💡 Lighting All" }));
+      expect(mockOnBulkLogActivity).toHaveBeenCalledWith(["plant-1", "plant-2"], "lighting", group);
     });
 
-    it("navigates to care logging page when 'More' bulk action is clicked", async () => {
+    it("expands all bulk actions when 'More' bulk action is clicked", async () => {
       const user = userEvent.setup();
       const group = createMockGroup({
         plants: [
@@ -690,10 +690,70 @@ describe("PlantGroupCard", () => {
       // Show bulk actions
       await user.click(screen.getByRole("button", { name: "Log All" }));
       
-      // Click more action
+      // Initially, expanded actions should not be visible
+      expect(screen.queryByText("Additional bulk care activities for 2 plants:")).not.toBeInTheDocument();
+      
+      // Click more action to expand
       await user.click(screen.getByRole("button", { name: "📝 More" }));
 
-      expect(mockNavigate).toHaveBeenCalledWith("/log-care/plant-1");
+      // Now expanded actions should be visible
+      expect(screen.getByText("Additional bulk care activities for 2 plants:")).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "📝 Less" })).toBeInTheDocument();
+      
+      // Should not navigate when clicking More
+      expect(mockNavigate).not.toHaveBeenCalled();
+    });
+
+    it("calls onBulkLogActivity when expanded bulk action is selected", async () => {
+      const user = userEvent.setup();
+      const group = createMockGroup({
+        plants: [
+          createMockPlant({ id: "plant-1" }),
+          createMockPlant({ id: "plant-2" }),
+        ],
+      });
+
+      render(
+        <TestWrapper>
+          <PlantGroupCard group={group} onBulkLogActivity={mockOnBulkLogActivity} />
+        </TestWrapper>
+      );
+
+      // Show bulk actions and expand
+      await user.click(screen.getByRole("button", { name: "Log All" }));
+      await user.click(screen.getByRole("button", { name: "📝 More" }));
+      
+      // Click observe action from expanded list (observe moved to expanded actions)
+      await user.click(screen.getByTestId("action-observe"));
+
+      expect(mockOnBulkLogActivity).toHaveBeenCalledWith(["plant-1", "plant-2"], "observe", group);
+      
+      // Expanded actions should be hidden after selection
+      expect(screen.queryByText("Additional bulk care activities for 2 plants:")).not.toBeInTheDocument();
+    });
+
+    it("supports all new maintenance activities in expanded bulk actions", async () => {
+      const user = userEvent.setup();
+      const group = createMockGroup({
+        plants: [
+          createMockPlant({ id: "plant-1" }),
+          createMockPlant({ id: "plant-2" }),
+        ],
+      });
+
+      render(
+        <TestWrapper>
+          <PlantGroupCard group={group} onBulkLogActivity={mockOnBulkLogActivity} />
+        </TestWrapper>
+      );
+
+      // Show bulk actions and expand
+      await user.click(screen.getByRole("button", { name: "Log All" }));
+      await user.click(screen.getByRole("button", { name: "📝 More" }));
+      
+      // Test harvest action
+      await user.click(screen.getByTestId("action-harvest"));
+      expect(mockOnBulkLogActivity).toHaveBeenCalledWith(["plant-1", "plant-2"], "harvest", group);
     });
 
     it("hides bulk actions after bulk action is selected", async () => {

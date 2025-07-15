@@ -23,9 +23,9 @@
         <div class='clearfix'>
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">0% </span>
+                <span class="strong">35.71% </span>
                 <span class="quiet">Statements</span>
-                <span class='fraction'>0/28</span>
+                <span class='fraction'>10/28</span>
             </div>
         
             
@@ -44,9 +44,9 @@
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">0% </span>
+                <span class="strong">35.71% </span>
                 <span class="quiet">Lines</span>
-                <span class='fraction'>0/28</span>
+                <span class='fraction'>10/28</span>
             </div>
         
             
@@ -468,18 +468,16 @@
 <a name='L403'></a><a href='#L403'>403</a>
 <a name='L404'></a><a href='#L404'>404</a>
 <a name='L405'></a><a href='#L405'>405</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">2x</span>
+<span class="cline-any cline-yes">2x</span>
+<span class="cline-any cline-yes">2x</span>
+<span class="cline-any cline-yes">2x</span>
+<span class="cline-any cline-yes">2x</span>
+<span class="cline-any cline-yes">2x</span>
+<span class="cline-any cline-yes">2x</span>
+<span class="cline-any cline-yes">2x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">2x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -507,7 +505,9 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">2x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -872,16 +872,16 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span></td><td class="text"><pre class="prettyprint lang-js">// src/components/plant/CustomVarietyForm.tsx
-<span class="cstat-no" title="statement not covered" >import { useState } from "react";</span>
-<span class="cstat-no" title="statement not covered" >import { useForm } from "react-hook-form";</span>
-<span class="cstat-no" title="statement not covered" >import { zodResolver } from "@hookform/resolvers/zod";</span>
-<span class="cstat-no" title="statement not covered" >import { z } from "zod";</span>
-<span class="cstat-no" title="statement not covered" >import { Button } from "@/components/ui/Button";</span>
-<span class="cstat-no" title="statement not covered" >import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";</span>
-<span class="cstat-no" title="statement not covered" >import { varietyService } from "@/types/database";</span>
-<span class="cstat-no" title="statement not covered" >import toast from "react-hot-toast";</span>
+import { useState } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
+import { Button } from "@/components/ui/Button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
+import { varietyService } from "@/types/database";
+import toast from "react-hot-toast";
 &nbsp;
-const customVarietySchema = <span class="cstat-no" title="statement not covered" >z.object({</span>
+const customVarietySchema = z.object({
   name: z.string().min(1, "Variety name is required"),
   category: z.enum([
     "root-vegetables",
@@ -911,7 +911,7 @@ interface CustomVarietyFormProps {
   onCancel?: () =&gt; void;
 }
 &nbsp;
-<span class="cstat-no" title="statement not covered" >export function <span class="fstat-no" title="function not covered" >C</span>ustomVarietyForm(</span>{
+export function <span class="fstat-no" title="function not covered" >CustomVarietyForm(</span>{
   onSuccess,
   onCancel,
 }: CustomVarietyFormProps) {
@@ -1282,7 +1282,7 @@ interface CustomVarietyFormProps {
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2025-07-12T00:44:08.029Z
+                at 2025-07-15T18:41:54.746Z
             </div>
         <script src="../../../prettify.js"></script>
         <script>

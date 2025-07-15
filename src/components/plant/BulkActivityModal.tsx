@@ -9,6 +9,7 @@ import { toast } from "react-hot-toast";
 import { seedVarieties } from "@/data/seedVarieties";
 import { CareActivityDetails } from "@/types";
 import { CareActivityType, ApplicationMethod } from "@/types";
+import { getActivityIcon } from "@/components/shared/QuickActionButtons";
 
 interface BulkActivityModalProps {
   isOpen: boolean;
@@ -24,6 +25,24 @@ interface FertilizerOption {
   defaultDilution: string;
   taskName: string;
 }
+
+// Helper function to get activity display info
+const getActivityInfo = (activityType: string) => {
+  const activityMap: Record<string, { icon: string; label: string; verb: string }> = {
+    water: { icon: "💧", label: "Water", verb: "Watering" },
+    fertilize: { icon: "🌱", label: "Fertilize", verb: "Fertilizing" },
+    observe: { icon: "👁️", label: "Inspect", verb: "Inspection" },
+    photo: { icon: "📸", label: "Photo", verb: "Photo Documentation" },
+    pruning: { icon: "✂️", label: "Prune", verb: "Pruning" },
+    harvest: { icon: "🌾", label: "Harvest", verb: "Harvesting" },
+    transplant: { icon: "🪴", label: "Transplant", verb: "Transplanting" },
+    note: { icon: "📝", label: "Note", verb: "Note Taking" },
+    lighting: { icon: "💡", label: "Lighting", verb: "Lighting Adjustment" },
+    thin: { icon: "🌱", label: "Thin", verb: "Thinning" },
+  };
+  
+  return activityMap[activityType] || { icon: "📝", label: "Activity", verb: "Activity" };
+};
 
 const BulkActivityModal = ({
   isOpen,
@@ -43,6 +62,23 @@ const BulkActivityModal = ({
   const [applicationMethod, setApplicationMethod] =
     useState<ApplicationMethod>("soil-drench");
 
+  // Harvest-specific fields
+  const [harvestAmount, setHarvestAmount] = useState("");
+  const [harvestQuality, setHarvestQuality] = useState<"excellent" | "good" | "fair" | "poor">("good");
+
+  // Transplant-specific fields  
+  const [fromContainer, setFromContainer] = useState("");
+  const [toContainer, setToContainer] = useState("");
+  const [transplantReason, setTransplantReason] = useState("");
+
+  // Thinning-specific fields
+  const [finalCount, setFinalCount] = useState("");
+
+  // Pruning-specific fields
+  const [partsRemoved, setPartsRemoved] = useState<"leaves" | "stems" | "flowers" | "runners" | "multiple">("leaves");
+  const [amountRemoved, setAmountRemoved] = useState("");
+  const [pruningPurpose, setPruningPurpose] = useState<"maintenance" | "disease-control" | "shape" | "harvest" | "other">("maintenance");
+
   // Dynamic fertilizer options
   const [availableFertilizers, setAvailableFertilizers] = useState<
     FertilizerOption[]
@@ -53,33 +89,17 @@ const BulkActivityModal = ({
   );
 
   const { logActivity } = useFirebaseCareActivities();
-  const { plants } = useFirebasePlants();
+  const { plants, deletePlant } = useFirebasePlants();
 
   const isIndividual = plantCount === 1;
+  const activityInfo = getActivityInfo(activityType);
+  
   const modalTitle = isIndividual
-    ? `${
-        activityType === "water"
-          ? "💧 Water Plant"
-          : activityType === "fertilize"
-          ? "🌱 Fertilize Plant"
-          : "👁️ Inspect Plant"
-      }`
-    : `${
-        activityType === "water"
-          ? "💧 Water All Plants"
-          : activityType === "fertilize"
-          ? "🌱 Fertilize All Plants"
-          : "👁️ Inspect All Plants"
-      }`;
+    ? `${activityInfo.icon} ${activityInfo.label} Plant`
+    : `${activityInfo.icon} ${activityInfo.label} All Plants`;
 
   const buttonText = isIndividual
-    ? `Log ${
-        activityType === "water"
-          ? "Watering"
-          : activityType === "fertilize"
-          ? "Fertilizing"
-          : "Inspection"
-      }`
+    ? `Log ${activityInfo.verb}`
     : `Log Activity for All ${plantCount} Plants`;
 
   // Load fertilizer options when modal opens for fertilizing
@@ -216,6 +236,28 @@ const BulkActivityModal = ({
           details.product = fertilizeProduct;
           details.dilution = dilution === "custom" ? amount : dilution;
           details.applicationMethod = applicationMethod;
+        } else if (activityType === "harvest") {
+          if (harvestAmount) details.amount = harvestAmount;
+          details.quality = harvestQuality;
+        } else if (activityType === "transplant") {
+          if (fromContainer) details.fromContainer = fromContainer;
+          if (toContainer) details.toContainer = toContainer;
+          if (transplantReason) details.reason = transplantReason;
+        } else if (activityType === "thin") {
+          details.originalCount = plantCount; // Use the known plant count
+          if (finalCount) {
+            const finalCountNum = parseInt(finalCount);
+            // Validate that final count is reasonable
+            if (finalCountNum > 0 && finalCountNum < plantCount) {
+              details.finalCount = finalCountNum;
+            } else {
+              details.finalCount = Math.max(1, Math.floor(plantCount / 2)); // Default to half
+            }
+          }
+        } else if (activityType === "pruning") {
+          details.partsRemoved = partsRemoved;
+          if (amountRemoved) details.amountRemoved = amountRemoved;
+          details.purpose = pruningPurpose;
         }
 
         // Create the full activity record structure
@@ -231,9 +273,37 @@ const BulkActivityModal = ({
 
       await Promise.all(promises);
 
-      toast.success(
-        `Activity logged for all ${plantCount} ${varietyName} plants! 🌱`
-      );
+      // Handle plant deactivation for thinning
+      if (activityType === "thin" && finalCount) {
+        const finalCountNum = parseInt(finalCount);
+        if (finalCountNum > 0 && finalCountNum < plantCount) {
+          const plantsToRemove = plantCount - finalCountNum;
+          
+          // Randomly select plants to deactivate
+          const shuffledIds = [...plantIds].sort(() => Math.random() - 0.5);
+          const idsToDeactivate = shuffledIds.slice(0, plantsToRemove);
+          
+          // Deactivate selected plants
+          const deactivationPromises = idsToDeactivate.map(plantId => 
+            deletePlant(plantId)
+          );
+          
+          await Promise.all(deactivationPromises);
+          
+          toast.success(
+            `Thinning completed! ${finalCountNum} plants remaining from ${plantCount} original plants 🌱`
+          );
+        } else {
+          toast.success(
+            `Thinning activity logged for ${plantCount} ${varietyName} plants! 🌱`
+          );
+        }
+      } else {
+        toast.success(
+          `Activity logged for all ${plantCount} ${varietyName} plants! 🌱`
+        );
+      }
+      
       onClose();
     } catch (error) {
       console.error("Failed to log bulk activity:", error);
@@ -454,6 +524,160 @@ const BulkActivityModal = ({
                 placeholder="Plant health, growth, issues noticed..."
               />
             </div>
+          )}
+
+          {/* Harvest-specific fields */}
+          {activityType === "harvest" && (
+            <>
+              <div>
+                <label htmlFor="harvest-amount" className="text-sm font-medium block mb-2">
+                  Amount Harvested
+                </label>
+                <Input
+                  id="harvest-amount"
+                  value={harvestAmount}
+                  onChange={(e) => setHarvestAmount(e.target.value)}
+                  placeholder="e.g., 2 lbs, 12 tomatoes, handful of herbs"
+                />
+              </div>
+              <div>
+                <label htmlFor="harvest-quality" className="text-sm font-medium block mb-2">
+                  Quality
+                </label>
+                <select
+                  id="harvest-quality"
+                  value={harvestQuality}
+                  onChange={(e) => setHarvestQuality(e.target.value as "excellent" | "good" | "fair" | "poor")}
+                  className="w-full p-3 border border-border rounded-lg bg-background text-foreground focus:ring-2 focus:ring-ring focus:border-ring"
+                >
+                  <option value="excellent">Excellent</option>
+                  <option value="good">Good</option>
+                  <option value="fair">Fair</option>
+                  <option value="poor">Poor</option>
+                </select>
+              </div>
+            </>
+          )}
+
+          {/* Transplant-specific fields */}
+          {activityType === "transplant" && (
+            <>
+              <div>
+                <label htmlFor="from-container" className="text-sm font-medium block mb-2">
+                  From Container
+                </label>
+                <Input
+                  id="from-container"
+                  value={fromContainer}
+                  onChange={(e) => setFromContainer(e.target.value)}
+                  placeholder="e.g., 4-inch pot, seed tray"
+                />
+              </div>
+              <div>
+                <label htmlFor="to-container" className="text-sm font-medium block mb-2">
+                  To Container
+                </label>
+                <Input
+                  id="to-container"
+                  value={toContainer}
+                  onChange={(e) => setToContainer(e.target.value)}
+                  placeholder="e.g., 8-inch pot, garden bed"
+                />
+              </div>
+              <div>
+                <label htmlFor="transplant-reason" className="text-sm font-medium block mb-2">
+                  Reason
+                </label>
+                <Input
+                  id="transplant-reason"
+                  value={transplantReason}
+                  onChange={(e) => setTransplantReason(e.target.value)}
+                  placeholder="e.g., outgrown pot, better location"
+                />
+              </div>
+            </>
+          )}
+
+          {/* Thinning-specific fields */}
+          {activityType === "thin" && (
+            <>
+              <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium text-blue-900">Current Plant Count:</span>
+                  <span className="text-lg font-bold text-blue-600">{plantCount}</span>
+                </div>
+                <p className="text-xs text-blue-700 mt-1">
+                  This is the number of plants you're thinning from
+                </p>
+              </div>
+              <div>
+                <label htmlFor="final-count" className="text-sm font-medium block mb-2">
+                  Final Plant Count (after thinning)
+                </label>
+                <Input
+                  id="final-count"
+                  type="number"
+                  value={finalCount}
+                  onChange={(e) => setFinalCount(e.target.value)}
+                  placeholder={`e.g., ${Math.floor(plantCount / 2)} (remove overcrowded plants)`}
+                  max={plantCount}
+                />
+                <p className="text-xs text-muted-foreground mt-1">
+                  Enter how many plants you want to keep (must be less than {plantCount})
+                </p>
+              </div>
+            </>
+          )}
+
+          {/* Pruning-specific fields */}
+          {activityType === "pruning" && (
+            <>
+              <div>
+                <label htmlFor="parts-removed" className="text-sm font-medium block mb-2">
+                  Parts Removed
+                </label>
+                <select
+                  id="parts-removed"
+                  value={partsRemoved}
+                  onChange={(e) => setPartsRemoved(e.target.value as "leaves" | "stems" | "flowers" | "runners" | "multiple")}
+                  className="w-full p-3 border border-border rounded-lg bg-background text-foreground focus:ring-2 focus:ring-ring focus:border-ring"
+                >
+                  <option value="leaves">Leaves</option>
+                  <option value="stems">Stems</option>
+                  <option value="flowers">Flowers</option>
+                  <option value="runners">Runners</option>
+                  <option value="multiple">Multiple parts</option>
+                </select>
+              </div>
+              <div>
+                <label htmlFor="amount-removed" className="text-sm font-medium block mb-2">
+                  Amount Removed
+                </label>
+                <Input
+                  id="amount-removed"
+                  value={amountRemoved}
+                  onChange={(e) => setAmountRemoved(e.target.value)}
+                  placeholder="e.g., 5 leaves, bottom third, light trimming"
+                />
+              </div>
+              <div>
+                <label htmlFor="pruning-purpose" className="text-sm font-medium block mb-2">
+                  Purpose
+                </label>
+                <select
+                  id="pruning-purpose"
+                  value={pruningPurpose}
+                  onChange={(e) => setPruningPurpose(e.target.value as "maintenance" | "disease-control" | "shape" | "harvest" | "other")}
+                  className="w-full p-3 border border-border rounded-lg bg-background text-foreground focus:ring-2 focus:ring-ring focus:border-ring"
+                >
+                  <option value="maintenance">Maintenance</option>
+                  <option value="disease-control">Disease Control</option>
+                  <option value="shape">Shape/Training</option>
+                  <option value="harvest">Harvest</option>
+                  <option value="other">Other</option>
+                </select>
+              </div>
+            </>
           )}
 
           <div>

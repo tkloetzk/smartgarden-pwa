@@ -23,30 +23,30 @@
         <div class='clearfix'>
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">0% </span>
+                <span class="strong">100% </span>
                 <span class="quiet">Statements</span>
-                <span class='fraction'>0/9</span>
+                <span class='fraction'>9/9</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">0% </span>
+                <span class="strong">38.88% </span>
                 <span class="quiet">Branches</span>
-                <span class='fraction'>0/18</span>
+                <span class='fraction'>7/18</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">0% </span>
+                <span class="strong">100% </span>
                 <span class="quiet">Functions</span>
-                <span class='fraction'>0/1</span>
+                <span class='fraction'>1/1</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">0% </span>
+                <span class="strong">100% </span>
                 <span class="quiet">Lines</span>
-                <span class='fraction'>0/8</span>
+                <span class='fraction'>8/8</span>
             </div>
         
             
@@ -61,7 +61,7 @@
             </div>
         </template>
     </div>
-    <div class='status-line low'></div>
+    <div class='status-line high'></div>
     <pre><table class="coverage">
 <tr><td class="line-count quiet"><a name='L1'></a><a href='#L1'>1</a>
 <a name='L2'></a><a href='#L2'>2</a>
@@ -159,9 +159,9 @@
 <a name='L94'></a><a href='#L94'>94</a>
 <a name='L95'></a><a href='#L95'>95</a>
 <a name='L96'></a><a href='#L96'>96</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -169,22 +169,14 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">6x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">6x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -197,9 +189,17 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">6x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">6x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -254,9 +254,9 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span></td><td class="text"><pre class="prettyprint lang-js">// src/components/ui/DarkModeToggle.tsx
-<span class="cstat-no" title="statement not covered" >import React from "react";</span>
-<span class="cstat-no" title="statement not covered" >import { useDarkMode } from "@/hooks/useDarkMode";</span>
-<span class="cstat-no" title="statement not covered" >import { cn } from "@/utils/cn";</span>
+import React from "react";
+import { useDarkMode } from "@/hooks/useDarkMode";
+import { cn } from "@/utils/cn";
 &nbsp;
 interface DarkModeToggleProps {
   size?: "sm" | "md" | "lg";
@@ -264,14 +264,14 @@ interface DarkModeToggleProps {
   showLabels?: boolean;
 }
 &nbsp;
-export const <span class="cstat-no" title="statement not covered" >DarkModeToggle: React.FC&lt;DarkModeToggleProps&gt; = <span class="cstat-no" title="statement not covered" ><span class="fstat-no" title="function not covered" >(</span>{</span></span>
+export const DarkModeToggle: React.FC&lt;DarkModeToggleProps&gt; = ({
   size = <span class="branch-0 cbranch-no" title="branch not covered" >"md",</span>
   className,
-  showLabels = <span class="branch-0 cbranch-no" title="branch not covered" >false,</span>
+  showLabels = false,
 }) =&gt; {
-  const { isDarkMode, toggleDarkMode } = <span class="cstat-no" title="statement not covered" >useDarkMode();</span>
+  const { isDarkMode, toggleDarkMode } = useDarkMode();
 &nbsp;
-  const sizeClasses = <span class="cstat-no" title="statement not covered" >{</span>
+  const sizeClasses = {
     sm: {
       button: "w-12 h-6",
       circle: "w-4 h-4",
@@ -292,12 +292,12 @@ export const <span class="cstat-no" title="statement not covered" >DarkModeToggl
     },
   };
 &nbsp;
-  const sizes = <span class="cstat-no" title="statement not covered" >sizeClasses[size];</span>
+  const sizes = sizeClasses[size];
 &nbsp;
-<span class="cstat-no" title="statement not covered" >  return (</span>
+  return (
     &lt;div className={cn("flex items-center gap-2", className)}&gt;
       {showLabels &amp;&amp; (
-        &lt;span
+<span class="branch-1 cbranch-no" title="branch not covered" >        &lt;span</span>
           className={cn(
             "relative inline-flex flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2",
             sizes.button,
@@ -317,24 +317,24 @@ export const <span class="cstat-no" title="statement not covered" >DarkModeToggl
           "relative inline-flex flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2",
           sizes.button,
           isDarkMode
-            ? "bg-emerald-600 hover:bg-emerald-700"
+            ? <span class="branch-0 cbranch-no" title="branch not covered" >"bg-emerald-600 hover:bg-emerald-700"</span>
             : "bg-gray-300 hover:bg-gray-400 dark:bg-gray-600 dark:hover:bg-background0"
         )}
-        aria-label={`Switch to ${isDarkMode ? "light" : "dark"} mode`}
+        aria-label={`Switch to ${isDarkMode ? <span class="branch-0 cbranch-no" title="branch not covered" >"light" </span>: "dark"} mode`}
       &gt;
         &lt;span
           className={cn(
             "pointer-events-none inline-block rounded-full bg-card shadow transform ring-0 transition duration-200 ease-in-out flex items-center justify-center",
             sizes.circle,
-            isDarkMode ? sizes.translate : "translate-x-0"
+            isDarkMode ? <span class="branch-0 cbranch-no" title="branch not covered" >sizes.translate </span>: "translate-x-0"
           )}
         &gt;
-          &lt;span className={cn(sizes.icon)}&gt;{isDarkMode ? "🌙" : "☀️"}&lt;/span&gt;
+          &lt;span className={cn(sizes.icon)}&gt;{isDarkMode ? <span class="branch-0 cbranch-no" title="branch not covered" >"🌙" </span>: "☀️"}&lt;/span&gt;
         &lt;/span&gt;
       &lt;/button&gt;
 &nbsp;
       {showLabels &amp;&amp; (
-        &lt;span
+<span class="branch-1 cbranch-no" title="branch not covered" >        &lt;span</span>
           className={cn(
             "text-sm font-medium transition-colors",
             isDarkMode
@@ -355,7 +355,7 @@ export const <span class="cstat-no" title="statement not covered" >DarkModeToggl
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2025-07-12T00:44:08.029Z
+                at 2025-07-15T18:41:54.746Z
             </div>
         <script src="../../../prettify.js"></script>
         <script>

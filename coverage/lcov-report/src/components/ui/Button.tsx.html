@@ -23,30 +23,30 @@
         <div class='clearfix'>
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">0% </span>
+                <span class="strong">100% </span>
                 <span class="quiet">Statements</span>
-                <span class='fraction'>0/9</span>
+                <span class='fraction'>9/9</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">0% </span>
+                <span class="strong">69.23% </span>
                 <span class="quiet">Branches</span>
-                <span class='fraction'>0/13</span>
+                <span class='fraction'>9/13</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">0% </span>
+                <span class="strong">100% </span>
                 <span class="quiet">Functions</span>
-                <span class='fraction'>0/1</span>
+                <span class='fraction'>1/1</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">0% </span>
+                <span class="strong">100% </span>
                 <span class="quiet">Lines</span>
-                <span class='fraction'>0/8</span>
+                <span class='fraction'>8/8</span>
             </div>
         
             
@@ -61,7 +61,7 @@
             </div>
         </template>
     </div>
-    <div class='status-line low'></div>
+    <div class='status-line high'></div>
     <pre><table class="coverage">
 <tr><td class="line-count quiet"><a name='L1'></a><a href='#L1'>1</a>
 <a name='L2'></a><a href='#L2'>2</a>
@@ -186,8 +186,8 @@
 <a name='L121'></a><a href='#L121'>121</a>
 <a name='L122'></a><a href='#L122'>122</a>
 <a name='L123'></a><a href='#L123'>123</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">22x</span>
+<span class="cline-any cline-yes">22x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -198,7 +198,7 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">22x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -209,7 +209,7 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">1647x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -221,7 +221,7 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">1647x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -273,16 +273,16 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">1647x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">1647x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">1647x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -308,8 +308,8 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span></td><td class="text"><pre class="prettyprint lang-js">// src/components/ui/Button.tsx (Now Tailwind should work!)
-<span class="cstat-no" title="statement not covered" >import React from "react";</span>
-<span class="cstat-no" title="statement not covered" >import { cn } from "@/utils/cn";</span>
+import React from "react";
+import { cn } from "@/utils/cn";
 &nbsp;
 interface ButtonProps extends React.ButtonHTMLAttributes&lt;HTMLButtonElement&gt; {
   variant?: "primary" | "secondary" | "outline" | "ghost" | "destructive";
@@ -320,18 +320,18 @@ interface ButtonProps extends React.ButtonHTMLAttributes&lt;HTMLButtonElement&gt
   rightIcon?: React.ReactNode;
 }
 &nbsp;
-export const <span class="cstat-no" title="statement not covered" >Button: React.FC&lt;ButtonProps&gt; = <span class="cstat-no" title="statement not covered" ><span class="fstat-no" title="function not covered" >(</span>{</span></span>
-  variant = <span class="branch-0 cbranch-no" title="branch not covered" >"primary",</span>
-  size = <span class="branch-0 cbranch-no" title="branch not covered" >"md",</span>
+export const Button: React.FC&lt;ButtonProps&gt; = ({
+  variant = "primary",
+  size = "md",
   className,
   children,
-  loading = <span class="branch-0 cbranch-no" title="branch not covered" >false,</span>
+  loading = false,
   leftIcon,
   rightIcon,
   disabled,
   ...props
 }) =&gt; {
-  const baseClasses = <span class="cstat-no" title="statement not covered" >[</span>
+  const baseClasses = [
     "inline-flex items-center justify-center",
     "font-bold tracking-wide",
     "rounded-2xl",
@@ -343,7 +343,7 @@ export const <span class="cstat-no" title="statement not covered" >Button: React
     "relative overflow-hidden",
   ].join(" ");
 &nbsp;
-  const variantClasses = <span class="cstat-no" title="statement not covered" >{</span>
+  const variantClasses = {
     primary: [
       "bg-gradient-to-r from-emerald-500 to-green-600",
       "text-white",
@@ -395,16 +395,16 @@ export const <span class="cstat-no" title="statement not covered" >Button: React
     ].join(" "),
   };
 &nbsp;
-  const sizeClasses = <span class="cstat-no" title="statement not covered" >{</span>
+  const sizeClasses = {
     sm: "px-3 py-1.5 text-sm gap-1.5",
     md: "px-4 py-2 text-base gap-2",
     lg: "px-6 py-3 text-lg gap-2.5",
     xl: "px-8 py-4 text-xl gap-3",
   };
 &nbsp;
-  const isDisabled = <span class="cstat-no" title="statement not covered" >disabled || loading;</span>
+  const isDisabled = disabled || loading;
 &nbsp;
-<span class="cstat-no" title="statement not covered" >  return (</span>
+  return (
     &lt;button
       className={cn(
         baseClasses,
@@ -416,15 +416,15 @@ export const <span class="cstat-no" title="statement not covered" >Button: React
       {...props}
     &gt;
       {loading &amp;&amp; (
-        &lt;div className="absolute inset-0 flex items-center justify-center"&gt;
+<span class="branch-1 cbranch-no" title="branch not covered" >        &lt;div className="absolute inset-0 flex items-center justify-center"&gt;</span>
           &lt;div className="w-5 h-5 border-2 border-current border-t-transparent rounded-full animate-spin" /&gt;
         &lt;/div&gt;
       )}
 &nbsp;
-      &lt;div className={cn("flex items-center gap-2", loading &amp;&amp; "opacity-0")}&gt;
-        {leftIcon &amp;&amp; &lt;span className="flex-shrink-0"&gt;{leftIcon}&lt;/span&gt;}
+      &lt;div className={cn("flex items-center gap-2", loading &amp;&amp; <span class="branch-1 cbranch-no" title="branch not covered" >"opacity-0")</span>}&gt;
+        {leftIcon &amp;&amp; <span class="branch-1 cbranch-no" title="branch not covered" >&lt;span className="flex-shrink-0"&gt;{leftIcon}&lt;/span&gt;}</span>
         &lt;span&gt;{children}&lt;/span&gt;
-        {rightIcon &amp;&amp; &lt;span className="flex-shrink-0"&gt;{rightIcon}&lt;/span&gt;}
+        {rightIcon &amp;&amp; <span class="branch-1 cbranch-no" title="branch not covered" >&lt;span className="flex-shrink-0"&gt;{rightIcon}&lt;/span&gt;}</span>
       &lt;/div&gt;
     &lt;/button&gt;
   );
@@ -436,7 +436,7 @@ export const <span class="cstat-no" title="statement not covered" >Button: React
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2025-07-12T00:44:08.029Z
+                at 2025-07-15T18:41:54.746Z
             </div>
         <script src="../../../prettify.js"></script>
         <script>
