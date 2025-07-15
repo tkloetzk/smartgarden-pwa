@@ -37,6 +37,7 @@ const config: Config = {
     "/__tests__/utils/testDataFactories.ts",
     "/__tests__/utils/plantFactory.ts",
     "/__tests__/utils/testSetup.ts",
+    "/__tests__/utils/mockServices.helper.tsx",
     "/__tests__/e2e/",
     "/node_modules/",
     "/.*\\.spec\\.ts$",

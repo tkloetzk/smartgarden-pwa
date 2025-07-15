@@ -30,6 +30,12 @@ import { ApplicationMethod } from "@/types";
 import { FertilizationScheduleItem } from "@/types";
 import { format, subDays } from "date-fns";
 import toast from "react-hot-toast";
+import SectionApplyCard from "@/components/care/SectionApplyCard";
+import { 
+  getSectionApplyOption, 
+  BulkCareResult,
+  SectionApplyOption 
+} from "@/services/sectionBulkService";
 
 const careFormSchema = z.object({
   plantId: z.string().min(1, "Please select a plant"),
@@ -144,6 +150,9 @@ export function CareLogForm({
   const [isBackfillMode, setIsBackfillMode] = useState(false);
   const [backfillReason, setBackfillReason] = useState("");
   const [searchParams] = useSearchParams();
+  const [showSectionApply, setShowSectionApply] = useState(false);
+  const [sectionApplyOption, setSectionApplyOption] = useState<SectionApplyOption | null>(null);
+  const [lastSubmittedData, setLastSubmittedData] = useState<CareFormData | null>(null);
 
   const plantIdFromParams =
     preselectedPlantId || searchParams.get("plantId") || "";
@@ -265,6 +274,19 @@ export function CareLogForm({
     }
   }, [selectedFertilizerType, availableFertilizers, setValue]);
 
+  // Check for section apply options when plant is selected
+  useEffect(() => {
+    if (selectedPlantId && plants.length > 0) {
+      const selectedPlant = plants.find(p => p.id === selectedPlantId);
+      if (selectedPlant) {
+        const sectionOption = getSectionApplyOption(selectedPlant, plants);
+        setSectionApplyOption(sectionOption);
+      }
+    } else {
+      setSectionApplyOption(null);
+    }
+  }, [selectedPlantId, plants]);
+
   useEffect(() => {
     const backfillParam = searchParams.get("backfill");
     const dateParam = searchParams.get("date");
@@ -275,6 +297,98 @@ export function CareLogForm({
       setBackfillReason("Catching up on missed care activity");
     }
   }, [searchParams, setValue]);
+
+  // Handle bulk care submission for section apply
+  const handleBulkCareSubmission = async (plantIds: string[]): Promise<BulkCareResult[]> => {
+    if (!lastSubmittedData) {
+      throw new Error('No previous submission data available');
+    }
+
+    const results: BulkCareResult[] = [];
+
+    for (const plantId of plantIds) {
+      try {
+        const plant = plants.find(p => p.id === plantId);
+        if (!plant) {
+          results.push({
+            plantId,
+            plantName: 'Unknown Plant',
+            success: false,
+            error: 'Plant not found'
+          });
+          continue;
+        }
+
+        const details: Partial<CareActivityDetails> = {
+          type: lastSubmittedData.type,
+          notes: lastSubmittedData.notes,
+        };
+
+        if (lastSubmittedData.type === "water") {
+          details.amount = {
+            value: lastSubmittedData.waterValue!,
+            unit: lastSubmittedData.waterUnit!,
+          };
+          if (showDetailedTracking && lastSubmittedData.moistureBefore && lastSubmittedData.moistureAfter) {
+            details.moistureLevel = {
+              before: lastSubmittedData.moistureBefore,
+              after: lastSubmittedData.moistureAfter,
+              scale: "1-10",
+            };
+          }
+        } else if (lastSubmittedData.type === "fertilize") {
+          details.product = lastSubmittedData.fertilizeType;
+          details.dilution = lastSubmittedData.fertilizeDilution;
+          details.amount = lastSubmittedData.fertilizeAmount;
+          details.applicationMethod = selectedFertilizer?.method;
+        }
+
+        await logActivity({
+          plantId: plantId,
+          type: lastSubmittedData.type,
+          date: new Date(lastSubmittedData.date),
+          details: details as CareActivityDetails,
+        });
+
+        results.push({
+          plantId,
+          plantName: plant.name || plant.varietyName,
+          success: true
+        });
+
+      } catch (error) {
+        const plant = plants.find(p => p.id === plantId);
+        results.push({
+          plantId,
+          plantName: plant?.name || plant?.varietyName || 'Unknown Plant',
+          success: false,
+          error: error instanceof Error ? error.message : 'Unknown error'
+        });
+      }
+    }
+
+    // Show summary toast
+    const successCount = results.filter(r => r.success).length;
+    const totalCount = results.length;
+    
+    if (successCount === totalCount) {
+      toast.success(`✓ Applied to all ${totalCount} plants in section`);
+    } else if (successCount > 0) {
+      toast.success(`✓ Applied to ${successCount} of ${totalCount} plants`);
+    } else {
+      toast.error('Failed to apply to section plants');
+    }
+
+    // Auto-hide section apply after completion
+    setTimeout(() => {
+      setShowSectionApply(false);
+      setLastSubmittedData(null);
+      reset();
+      onSuccess?.();
+    }, 3000);
+
+    return results;
+  };
   // src/pages/care/CareLogForm.tsx
 
   const onSubmit = async (data: CareFormData) => {
@@ -322,8 +436,15 @@ export function CareLogForm({
       });
 
       toast.success("Care activity logged!");
-      reset();
-      onSuccess?.();
+      
+      // Show section apply option if available
+      if (sectionApplyOption && sectionApplyOption.plantCount > 0) {
+        setLastSubmittedData(data);
+        setShowSectionApply(true);
+      } else {
+        reset();
+        onSuccess?.();
+      }
     } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : "An unknown error occurred.";
@@ -985,6 +1106,21 @@ export function CareLogForm({
             </Button>
           </div>
         </form>
+
+        {/* Section Apply Card - shown after successful submission */}
+        {showSectionApply && sectionApplyOption && lastSubmittedData && (
+          <div className="mt-4">
+            <SectionApplyCard
+              targetPlant={plants.find(p => p.id === lastSubmittedData.plantId)!}
+              allPlants={plants}
+              sectionOption={sectionApplyOption}
+              activityType={lastSubmittedData.type}
+              activityLabel={getActivityLabel(lastSubmittedData.type)}
+              onApplyToSection={handleBulkCareSubmission}
+              disabled={isLoading}
+            />
+          </div>
+        )}
       </CardContent>
     </Card>
   );
