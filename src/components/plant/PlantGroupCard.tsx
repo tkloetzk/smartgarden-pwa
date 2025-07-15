@@ -89,10 +89,12 @@ const PlantGroupCard = memo(({ group, onBulkLogActivity }: PlantGroupCardProps) 
     setShowBulkActions(!showBulkActions);
   }, [showBulkActions]);
 
-  const navigateToPlants = useCallback((e: React.MouseEvent) => {
+  const handleBulkMoreAction = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
-    navigate('/plants');
-  }, [navigate]);
+    // Navigate to care logging page for bulk operations
+    // For now, navigate to the first plant's care page as a starting point
+    navigate(`/log-care/${currentPlant.id}`);
+  }, [navigate, currentPlant.id]);
 
   return (
     <Card className="hover:shadow-lg transition-shadow">
@@ -252,7 +254,7 @@ const PlantGroupCard = memo(({ group, onBulkLogActivity }: PlantGroupCardProps) 
                   </Button>
                   <Button
                     size="sm"
-                    onClick={navigateToPlants}
+                    onClick={handleBulkMoreAction}
                     className="bg-purple-500 hover:bg-purple-600 text-white"
                   >
                     📝 More

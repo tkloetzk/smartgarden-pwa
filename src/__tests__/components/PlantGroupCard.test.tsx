@@ -672,7 +672,7 @@ describe("PlantGroupCard", () => {
       expect(mockOnBulkLogActivity).toHaveBeenCalledWith(["plant-1", "plant-2"], "observe", group);
     });
 
-    it("navigates to plants page when 'More' bulk action is clicked", async () => {
+    it("navigates to care logging page when 'More' bulk action is clicked", async () => {
       const user = userEvent.setup();
       const group = createMockGroup({
         plants: [
@@ -693,7 +693,7 @@ describe("PlantGroupCard", () => {
       // Click more action
       await user.click(screen.getByRole("button", { name: "📝 More" }));
 
-      expect(mockNavigate).toHaveBeenCalledWith("/plants");
+      expect(mockNavigate).toHaveBeenCalledWith("/log-care/plant-1");
     });
 
     it("hides bulk actions after bulk action is selected", async () => {
