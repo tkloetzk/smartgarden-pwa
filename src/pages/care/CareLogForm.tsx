@@ -33,7 +33,7 @@ import toast from "react-hot-toast";
 
 const careFormSchema = z.object({
   plantId: z.string().min(1, "Please select a plant"),
-  type: z.enum(["water", "fertilize", "observe", "photo", "note"]),
+  type: z.enum(["water", "fertilize", "observe", "photo", "note", "pruning"]),
   date: z
     .string()
     .min(1, "Date is required")
@@ -56,7 +56,7 @@ interface CareLogFormProps {
   onSuccess?: () => void;
   onCancel?: () => void;
   preselectedPlantId?: string;
-  preselectedActivityType?: "water" | "fertilize" | "observe";
+  preselectedActivityType?: "water" | "fertilize" | "observe" | "pruning";
 }
 
 interface FertilizerProduct {
@@ -149,7 +149,7 @@ export function CareLogForm({
     preselectedPlantId || searchParams.get("plantId") || "";
   const activityTypeFromParams =
     preselectedActivityType ||
-    (searchParams.get("type") as "water" | "fertilize" | "observe") ||
+    (searchParams.get("type") as "water" | "fertilize" | "observe" | "pruning") ||
     "water";
 
   const {
@@ -347,6 +347,8 @@ export function CareLogForm({
         return <Camera className="h-4 w-4" />;
       case "note":
         return <FileText className="h-4 w-4" />;
+      case "pruning":
+        return <span className="text-sm">✂️</span>;
       default:
         return <Droplets className="h-4 w-4" />;
     }
@@ -364,6 +366,8 @@ export function CareLogForm({
         return "Photo Log";
       case "note":
         return "General Note";
+      case "pruning":
+        return "Pruning";
       default:
         return "Activity";
     }
@@ -837,6 +841,7 @@ export function CareLogForm({
                     <option value="observe">👁️ Health Check</option>
                     <option value="photo">📸 Photo Log</option>
                     <option value="note">📝 General Note</option>
+                    <option value="pruning">✂️ Pruning</option>
                   </select>
                   {errors.type && (
                     <p className="mt-1 text-sm text-red-600" role="alert">

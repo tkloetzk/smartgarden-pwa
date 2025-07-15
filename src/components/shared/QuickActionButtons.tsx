@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/Button";
 import { CareActivityType } from "@/types";
 
 // Define the subset of care activities that are commonly used as quick actions
-export type QuickActionType = Extract<CareActivityType, "water" | "fertilize" | "observe" | "photo">;
+export type QuickActionType = Extract<CareActivityType, "water" | "fertilize" | "observe" | "photo" | "pruning">;
 
 export interface QuickActionButtonsProps {
   onAction: (type: QuickActionType | "more") => void;
@@ -45,6 +45,12 @@ const ACTION_CONFIG: Record<QuickActionType | "more", ActionConfig> = {
     icon: "📸",
     label: "Photo",
     className: "bg-purple-500 hover:bg-purple-600 text-white",
+    variant: "primary"
+  },
+  pruning: {
+    icon: "✂️",
+    label: "Prune",
+    className: "bg-indigo-500 hover:bg-indigo-600 text-white",
     variant: "primary"
   },
   more: {
