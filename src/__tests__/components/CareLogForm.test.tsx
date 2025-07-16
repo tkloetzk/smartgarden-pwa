@@ -152,12 +152,19 @@ describe("CareLogForm", () => {
 
       renderWithRouter(<CareLogForm onSuccess={mockOnSuccess} />);
 
+      // First tab goes to "Select Multiple Plants" button
+      await user.tab();
+      expect(screen.getByRole("button", { name: /Select Multiple Plants/i })).toHaveFocus();
+      
+      // Second tab goes to plant select field
       await user.tab();
       expect(screen.getByLabelText(/Plant \*/i)).toHaveFocus();
 
+      // Third tab goes to activity type
       await user.tab();
       expect(screen.getByLabelText(/Activity Type \*/i)).toHaveFocus();
 
+      // Fourth tab goes to date field
       await user.tab();
       expect(screen.getByLabelText(/Date \*/i)).toHaveFocus();
     });
