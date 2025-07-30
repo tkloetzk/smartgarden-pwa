@@ -2,9 +2,8 @@
  * Tests for ActionButtonGroup generic UI component
  */
 
-import React from "react";
 import { render, screen, fireEvent } from "@testing-library/react";
-import { Calendar, Settings } from "lucide-react";
+import { Settings } from "lucide-react";
 import { 
   ActionButtonGroup, 
   PrimaryCancelButtons, 
@@ -207,7 +206,7 @@ describe("PrimaryCancelButtons", () => {
     );
     
     const buttons = screen.getAllByRole("button");
-    const primaryButton = buttons.find(btn => btn.disabled);
+    const primaryButton = buttons.find(btn => (btn as HTMLButtonElement).disabled);
     expect(primaryButton).toBeDisabled();
   });
 });

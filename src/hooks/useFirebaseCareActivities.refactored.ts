@@ -55,7 +55,7 @@ export function useFirebaseCareActivities(plantId?: string): UseFirebaseCareActi
   const crud = useFirebaseCrud(
     {
       serviceName: "care activities",
-      service: FirebaseCareActivityService,
+      service: FirebaseCareActivityService as any,
     },
     {
       createMethod: "createCareActivity",

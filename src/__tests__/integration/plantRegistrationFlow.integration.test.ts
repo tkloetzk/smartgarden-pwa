@@ -22,7 +22,7 @@ jest.mock("@/types/database", () => ({
     getVariety: jest.fn(),
     getAllVarieties: jest.fn(),
     addVariety: jest.fn(),
-    searchByName: jest.fn(),
+    getVarietyByName: jest.fn(),
   },
 }));
 
@@ -40,30 +40,54 @@ describe("Plant Registration Flow Integration Tests", () => {
     id: "tomato-variety-1",
     name: "Cherry Tomato",
     normalizedName: "cherry-tomato",
-    category: "fruit",
-    type: "determinate",
-    daysToGermination: [7, 14],
-    daysToMaturity: [60, 80],
+    category: "fruiting-plants",
+    createdAt: new Date(),
+    updatedAt: new Date(),
     description: "Small cherry tomatoes perfect for containers",
-    growthStages: ["germination", "seedling", "vegetative", "flowering", "fruiting"],
+    growthTimeline: {
+      germination: 7,
+      seedling: 14,
+      vegetative: 30,
+      maturation: 60
+    },
     protocols: {
       fertilization: {
-        stages: {
-          germination: {
-            frequency: "weekly",
-            product: "Starter fertilizer",
-            dilution: "1:2000",
-            amount: "100ml",
-          },
-          vegetative: {
-            frequency: "weekly",
-            product: "Growth fertilizer",
-            dilution: "1:1000",
-            amount: "200ml",
-          },
+        germination: {
+          schedule: [{
+            taskName: "Weekly Starter Feed",
+            startDays: 0,
+            frequencyDays: 7,
+            repeatCount: 2,
+            details: {
+              product: "Starter fertilizer",
+              dilution: "1:2000",
+              amount: "100ml",
+              method: "soil-drench"
+            }
+          }]
         },
+        seedling: {
+          schedule: []
+        },
+        vegetative: {
+          schedule: [{
+            taskName: "Weekly Growth Feed",
+            startDays: 0,
+            frequencyDays: 7,
+            repeatCount: 3,
+            details: {
+              product: "Growth fertilizer",
+              dilution: "1:1000",
+              amount: "200ml",
+              method: "soil-drench"
+            }
+          }]
+        },
+        maturation: {
+          schedule: []
+        }
       },
-    },
+    } as any,
   };
 
   // Mock variety without protocol
@@ -71,12 +95,16 @@ describe("Plant Registration Flow Integration Tests", () => {
     id: "basil-variety-1",
     name: "Sweet Basil",
     normalizedName: "sweet-basil",
-    category: "herb",
-    type: "annual",
-    daysToGermination: [7, 10],
-    daysToMaturity: [30, 45],
+    category: "herbs",
+    createdAt: new Date(),
+    updatedAt: new Date(),
     description: "Classic culinary basil",
-    growthStages: ["germination", "seedling", "vegetative", "maturation"],
+    growthTimeline: {
+      germination: 7,
+      seedling: 14,
+      vegetative: 21,
+      maturation: 30
+    },
     protocols: {},
   };
 
@@ -223,7 +251,7 @@ describe("Plant Registration Flow Integration Tests", () => {
         .mockResolvedValueOnce(null); // First attempt - variety not found
 
       // Mock variety creation process
-      (varietyService.searchByName as jest.Mock).mockResolvedValue([]);
+      (varietyService.getVarietyByName as jest.Mock).mockResolvedValue(null);
       (varietyService.addVariety as jest.Mock).mockResolvedValue("new-variety-id");
 
       const formDataWithNewVariety = {
@@ -585,9 +613,9 @@ describe("Plant Registration Flow Integration Tests", () => {
 
       expect(result.createdAt.getTime()).toBeGreaterThanOrEqual(beforeRegistration.getTime());
       expect(result.createdAt.getTime()).toBeLessThanOrEqual(afterRegistration.getTime());
-      expect(result.updatedAt.getTime()).toBeGreaterThanOrEqual(beforeRegistration.getTime());
-      expect(result.updatedAt.getTime()).toBeLessThanOrEqual(afterRegistration.getTime());
-      expect(result.createdAt.getTime()).toBe(result.updatedAt.getTime());
+      expect(result.updatedAt?.getTime()).toBeGreaterThanOrEqual(beforeRegistration.getTime());
+      expect(result.updatedAt?.getTime()).toBeLessThanOrEqual(afterRegistration.getTime());
+      expect(result.createdAt.getTime()).toBe(result.updatedAt?.getTime());
     });
   });
 

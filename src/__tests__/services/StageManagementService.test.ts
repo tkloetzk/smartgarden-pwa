@@ -44,15 +44,13 @@ describe("StageManagementService", () => {
     id: "variety-1",
     name: "Cherry Tomato",
     normalizedName: "cherry tomato",
-    category: "fruits",
+    category: "fruiting-plants",
     createdAt: new Date("2024-01-01"),
     updatedAt: new Date("2024-01-01"),
     growthTimeline: {
       germination: 7,
       seedling: 14,
       vegetative: 21,
-      flowering: 14,
-      fruiting: 30,
       maturation: 70,
     },
     protocols: {
@@ -73,25 +71,18 @@ describe("StageManagementService", () => {
             },
           ],
         },
-        flowering: {
-          schedule: [
-            {
-              startDays: 0,
-              taskName: "Bloom Booster",
-              details: {
-                product: "Phosphorus Fertilizer",
-                dilution: "2 tbsp/gal",
-                amount: "Full application",
-                method: "soil-drench" as const,
-              },
-              frequencyDays: 10,
-              repeatCount: 3,
-            },
-          ],
+        germination: {
+          schedule: []
+        },
+        seedling: {
+          schedule: []
+        },
+        maturation: {
+          schedule: []
         },
       },
     },
-  };
+  } as unknown as VarietyRecord;
 
   const mockScheduledTasks: ScheduledTask[] = [
     {
@@ -151,7 +142,7 @@ describe("StageManagementService", () => {
     mockFirebasePlantService.updatePlant.mockResolvedValue();
     mockFirebaseScheduledTaskService.deletePendingTasksForPlant.mockResolvedValue();
     mockProtocolTranspilerService.transpileProtocolFromStage.mockResolvedValue(mockScheduledTasks);
-    mockFirebaseScheduledTaskService.createMultipleTasks.mockResolvedValue();
+    mockFirebaseScheduledTaskService.createMultipleTasks.mockResolvedValue([]);
     mockToast.success = jest.fn();
   });
 
@@ -232,7 +223,7 @@ describe("StageManagementService", () => {
     });
 
     it("throws error when plant is not found", async () => {
-      mockFirebasePlantService.getPlant.mockResolvedValue(undefined);
+      mockFirebasePlantService.getPlant.mockResolvedValue(null);
 
       await expect(
         StageManagementService.confirmNewStage(mockPlantId, "flowering", mockUserId)

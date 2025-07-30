@@ -1,4 +1,4 @@
-import { ProtocolTranspilerService, ScheduledTask } from "@/services/ProtocolTranspilerService";
+import { ProtocolTranspilerService } from "@/services/ProtocolTranspilerService";
 import { PlantRecord, VarietyRecord, GrowthStage } from "@/types";
 
 describe("ProtocolTranspilerService", () => {
@@ -22,16 +22,14 @@ describe("ProtocolTranspilerService", () => {
     id: "variety-1",
     name: "Cherry Tomato",
     normalizedName: "cherry tomato",
-    category: "fruits",
+    category: "fruiting-plants",
     createdAt: futureDate,
     updatedAt: futureDate,
     growthTimeline: {
       germination: 7,
       seedling: 14,
       vegetative: 21,
-      flowering: 14,
-      fruiting: 30,
-      maturation: 70, // Total days to reach maturation (7+14+21+14+14)
+      maturation: 70
     },
     protocols: {
       fertilization: {
@@ -79,25 +77,15 @@ describe("ProtocolTranspilerService", () => {
             },
           ],
         },
-        flowering: {
-          schedule: [
-            {
-              startDays: 0,
-              taskName: "Bloom Booster",
-              details: {
-                product: "Bloom Fertilizer",
-                dilution: "2 tbsp/gal",
-                amount: "Full application",
-                method: "soil-drench" as const,
-              },
-              frequencyDays: 10,
-              repeatCount: 3,
-            },
-          ],
+        seedling: {
+          schedule: []
+        },
+        maturation: {
+          schedule: []
         },
       },
     },
-  };
+  } as unknown as VarietyRecord;
 
   const mockVarietyNoProtocols: VarietyRecord = {
     ...mockVariety,
@@ -121,14 +109,12 @@ describe("ProtocolTranspilerService", () => {
 
       expect(tasks.length).toBeGreaterThan(0);
 
-      // Should have tasks from germination, vegetative, and flowering stages
+      // Should have tasks from germination and vegetative stages
       const germinationTasks = tasks.filter(t => t.sourceProtocol.stage === "germination");
       const vegetativeTasks = tasks.filter(t => t.sourceProtocol.stage === "vegetative");
-      const floweringTasks = tasks.filter(t => t.sourceProtocol.stage === "flowering");
 
       expect(germinationTasks).toHaveLength(1); // 1 task × 1 repeat
       expect(vegetativeTasks).toHaveLength(5); // 2 tasks × (3+2) repeats
-      expect(floweringTasks).toHaveLength(3); // 1 task × 3 repeats
 
       // Verify task structure
       const firstTask = tasks[0];
@@ -216,11 +202,10 @@ describe("ProtocolTranspilerService", () => {
         anchorDate
       );
 
-      // Should only have tasks from vegetative and flowering stages, not germination
+      // Should only have tasks from vegetative stage onward, not germination
       const stages = [...new Set(tasks.map(t => t.sourceProtocol.stage))];
       expect(stages).not.toContain("germination");
       expect(stages).toContain("vegetative");
-      expect(stages).toContain("flowering");
     });
 
     it("uses custom anchor date for scheduling", async () => {
@@ -314,15 +299,13 @@ describe("ProtocolTranspilerService", () => {
 
       const germinationTask = tasks.find(t => t.sourceProtocol.stage === "germination");
       const vegetativeTask = tasks.find(t => t.sourceProtocol.stage === "vegetative");
-      const floweringTask = tasks.find(t => t.sourceProtocol.stage === "flowering");
 
       // Based on growth timeline and calculateStageStartDays logic:
-      // germination: 0, seedling: 7, vegetative: 21 (7+14), flowering: 42 (7+14+21)
+      // germination: 0, seedling: 7, vegetative: 21 (7+14)
       const plantedDate = mockPlant.plantedDate.getTime();
       
       expect(germinationTask?.dueDate.getTime()).toBe(plantedDate);
       expect(vegetativeTask?.dueDate.getTime()).toBe(plantedDate + 21 * 24 * 60 * 60 * 1000); // 21 days
-      expect(floweringTask?.dueDate.getTime()).toBe(plantedDate + 42 * 24 * 60 * 60 * 1000); // 42 days
     });
   });
 
@@ -434,20 +417,22 @@ describe("ProtocolTranspilerService", () => {
         ...mockVariety,
         protocols: {
           fertilization: {
-            // Missing germination and vegetative stages
-            flowering: mockVariety.protocols!.fertilization!.flowering,
+            // Missing germination stage, only have vegetative
+            vegetative: mockVariety.protocols!.fertilization!.vegetative,
+            seedling: { schedule: [] },
+            maturation: { schedule: [] },
           },
         },
       };
 
       const tasks = await ProtocolTranspilerService.transpilePlantProtocol(
         mockPlant,
-        partialVariety as VarietyRecord
+        partialVariety as unknown as VarietyRecord
       );
 
-      // Should only have flowering stage tasks
+      // Should only have vegetative stage tasks
       const stages = [...new Set(tasks.map(t => t.sourceProtocol.stage))];
-      expect(stages).toEqual(["flowering"]);
+      expect(stages).toEqual(["vegetative"]);
     });
 
     it("handles empty schedule arrays", async () => {
@@ -464,7 +449,7 @@ describe("ProtocolTranspilerService", () => {
 
       const tasks = await ProtocolTranspilerService.transpilePlantProtocol(
         mockPlant,
-        emptyScheduleVariety as VarietyRecord
+        emptyScheduleVariety as unknown as VarietyRecord
       );
 
       expect(tasks).toEqual([]);

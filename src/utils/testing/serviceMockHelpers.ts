@@ -32,18 +32,60 @@ export const createMockVariety = (overrides: Partial<VarietyRecord> = {}): Varie
   id: 'test-variety-id',
   name: 'Test Variety',
   normalizedName: 'test-variety',
-  category: 'vegetables',
-  type: 'determinate',
-  daysToGermination: [7, 14],
-  daysToMaturity: [60, 80],
+  category: 'fruiting-plants',
   description: 'Test variety description',
-  growthStages: ['germination', 'seedling', 'vegetative', 'flowering', 'fruiting'],
+  growthTimeline: {
+    germination: 7,
+    seedling: 14,
+    vegetative: 30,
+    maturation: 60,
+  },
   protocols: {
     watering: {
+      germination: {
+        trigger: { moistureLevel: '7-8 on moisture meter' },
+        target: { moistureLevel: '8-9 on moisture meter' },
+        volume: { amount: '50-75ml', frequency: 'daily', perPlant: true },
+      },
+      seedling: {
+        trigger: { moistureLevel: '6-7 on moisture meter' },
+        target: { moistureLevel: '7-8 on moisture meter' },
+        volume: { amount: '100-125ml', frequency: 'every 1-2 days', perPlant: true },
+      },
       vegetative: {
         trigger: { moistureLevel: '3-4 on moisture meter' },
         target: { moistureLevel: '6-7 on moisture meter' },
         volume: { amount: '150-200ml', frequency: 'every 2-3 days', perPlant: true },
+      },
+      flowering: {
+        trigger: { moistureLevel: '4-5 on moisture meter' },
+        target: { moistureLevel: '6-7 on moisture meter' },
+        volume: { amount: '200-250ml', frequency: 'every 2-3 days', perPlant: true },
+      },
+      fruiting: {
+        trigger: { moistureLevel: '4-5 on moisture meter' },
+        target: { moistureLevel: '6-7 on moisture meter' },
+        volume: { amount: '200-300ml', frequency: 'every 2-3 days', perPlant: true },
+      },
+      harvest: {
+        trigger: { moistureLevel: '4-5 on moisture meter' },
+        target: { moistureLevel: '6-7 on moisture meter' },
+        volume: { amount: '200-300ml', frequency: 'every 2-3 days', perPlant: true },
+      },
+      maturation: {
+        trigger: { moistureLevel: '3-4 on moisture meter' },
+        target: { moistureLevel: '6-7 on moisture meter' },
+        volume: { amount: '150-200ml', frequency: 'every 2-3 days', perPlant: true },
+      },
+      rootDevelopment: {
+        trigger: { moistureLevel: '3-4 on moisture meter' },
+        target: { moistureLevel: '6-7 on moisture meter' },
+        volume: { amount: '150-200ml', frequency: 'every 2-3 days', perPlant: true },
+      },
+      'ongoing-production': {
+        trigger: { moistureLevel: '4-5 on moisture meter' },
+        target: { moistureLevel: '6-7 on moisture meter' },
+        volume: { amount: '200-300ml', frequency: 'every 2-3 days', perPlant: true },
       },
     },
   },
@@ -80,29 +122,29 @@ export class ServiceMockManager {
   setupDatabaseMocks(): void {
     // Plant service mocks
     this.mockService('plantService.getPlant', jest.fn());
-    this.mockService('plantService.addPlant', jest.fn().mockResolvedValue('test-plant-id'));
-    this.mockService('plantService.updatePlant', jest.fn().mockResolvedValue(undefined));
-    this.mockService('plantService.getActivePlants', jest.fn().mockResolvedValue([]));
+    this.mockService('plantService.addPlant', (jest.fn() as any).mockResolvedValue('test-plant-id'));
+    this.mockService('plantService.updatePlant', (jest.fn() as any).mockResolvedValue(undefined));
+    this.mockService('plantService.getActivePlants', (jest.fn() as any).mockResolvedValue([]));
     
     // Variety service mocks
     this.mockService('varietyService.getVariety', jest.fn());
-    this.mockService('varietyService.getAllVarieties', jest.fn().mockResolvedValue([]));
+    this.mockService('varietyService.getAllVarieties', (jest.fn() as any).mockResolvedValue([]));
     
     // Care service mocks
-    this.mockService('careService.addCareActivity', jest.fn().mockResolvedValue('test-activity-id'));
-    this.mockService('careService.getLastActivityByType', jest.fn().mockResolvedValue(null));
-    this.mockService('careService.getPlantCareHistory', jest.fn().mockResolvedValue([]));
+    this.mockService('careService.addCareActivity', (jest.fn() as any).mockResolvedValue('test-activity-id'));
+    this.mockService('careService.getLastActivityByType', (jest.fn() as any).mockResolvedValue(null));
+    this.mockService('careService.getPlantCareHistory', (jest.fn() as any).mockResolvedValue([]));
   }
 
   setupFirebaseMocks(): void {
     // Firebase Plant Service
     jest.spyOn(FirebasePlantService, 'getPlant').mockResolvedValue(createMockPlant());
-    jest.spyOn(FirebasePlantService, 'getUserPlants').mockResolvedValue([]);
-    jest.spyOn(FirebasePlantService, 'createPlant').mockResolvedValue(undefined);
+    jest.spyOn(FirebasePlantService, 'subscribeToPlantsChanges').mockReturnValue(() => {});
+    jest.spyOn(FirebasePlantService, 'createPlant').mockResolvedValue('test-plant-id');
     jest.spyOn(FirebasePlantService, 'updatePlant').mockResolvedValue(undefined);
     
     // Firebase Care Activity Service
-    jest.spyOn(FirebaseCareActivityService, 'createCareActivity').mockResolvedValue(undefined);
+    jest.spyOn(FirebaseCareActivityService, 'createCareActivity').mockResolvedValue('test-activity-id');
     jest.spyOn(FirebaseCareActivityService, 'getRecentActivitiesForPlant').mockResolvedValue([]);
   }
 
@@ -116,7 +158,7 @@ export class ServiceMockManager {
     }
   }
 
-  private getService(serviceName: string): unknown {
+  private getService(serviceName: string): any {
     switch (serviceName) {
       case 'plantService': return plantService;
       case 'varietyService': return varietyService;
@@ -127,9 +169,9 @@ export class ServiceMockManager {
 
   // Configure specific mock behaviors
   configurePlantMocks(plant: PlantRecord, variety?: VarietyRecord): void {
-    (plantService.getPlant as jest.Mock).mockResolvedValue(plant);
+    (plantService.getPlant as any).mockResolvedValue(plant);
     if (variety) {
-      (varietyService.getVariety as jest.Mock).mockResolvedValue(variety);
+      (varietyService.getVariety as any).mockResolvedValue(variety);
     }
   }
 
@@ -138,7 +180,7 @@ export class ServiceMockManager {
     
     switch (errorType) {
       case 'database':
-        (careService.addCareActivity as jest.Mock).mockRejectedValue(error);
+        (careService.addCareActivity as any).mockRejectedValue(error);
         break;
       case 'firebase':
         jest.spyOn(FirebaseCareActivityService, 'createCareActivity').mockRejectedValue(error);
@@ -208,7 +250,7 @@ export class IntegrationTestHelper {
   getMockCallInfo(servicePath: string) {
     const [serviceName, methodName] = servicePath.split('.');
     const service = this.mockManager['getService'](serviceName) as any;
-    const mock = service?.[methodName] as jest.Mock;
+    const mock = service?.[methodName] as any;
     
     return {
       callCount: mock?.mock.calls.length || 0,

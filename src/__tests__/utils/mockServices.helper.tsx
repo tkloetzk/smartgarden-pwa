@@ -1,11 +1,10 @@
 // src/__tests__/utils/mockServices.tsx - Unified Service Mocking
 // This file provides consistent service mocking patterns across all tests
 
-import React from 'react';
 import { jest } from '@jest/globals';
 import { User } from 'firebase/auth';
 import { PlantRecord, VarietyRecord, CareActivityRecord } from '@/types';
-import { createMockPlant, createMockVariety, createMockCareActivity } from './testDataFactories';
+import { createMockPlant, createMockVariety } from './testDataFactories';
 
 // ===========================
 // FIREBASE HOOKS MOCKING
@@ -92,7 +91,7 @@ export const setupCommonComponentMocks = () => {
   // Mock router navigation
   const mockNavigate = jest.fn();
   jest.mock("react-router-dom", () => ({
-    ...jest.requireActual("react-router-dom"),
+    ...(jest.requireActual("react-router-dom") as any),
     useNavigate: () => mockNavigate,
   }));
 
@@ -122,55 +121,55 @@ export class ServiceMockManager {
     // Mock database operations that are commonly used
     const mockDb = {
       plants: {
-        add: jest.fn().mockResolvedValue('test-plant-id'),
-        get: jest.fn().mockResolvedValue(createMockPlant()),
-        update: jest.fn().mockResolvedValue(undefined),
-        delete: jest.fn().mockResolvedValue(undefined),
-        where: jest.fn().mockReturnValue({
-          toArray: jest.fn().mockResolvedValue([]),
+        add: (jest.fn() as any).mockResolvedValue('test-plant-id'),
+        get: (jest.fn() as any).mockResolvedValue(createMockPlant()),
+        update: (jest.fn() as any).mockResolvedValue(undefined),
+        delete: (jest.fn() as any).mockResolvedValue(undefined),
+        where: (jest.fn() as any).mockReturnValue({
+          toArray: (jest.fn() as any).mockResolvedValue([]),
         }),
-        toArray: jest.fn().mockResolvedValue([]),
-        clear: jest.fn().mockResolvedValue(undefined),
-        bulkAdd: jest.fn().mockResolvedValue(undefined),
+        toArray: (jest.fn() as any).mockResolvedValue([]),
+        clear: (jest.fn() as any).mockResolvedValue(undefined),
+        bulkAdd: (jest.fn() as any).mockResolvedValue(undefined),
       },
       varieties: {
-        toArray: jest.fn().mockResolvedValue([]),
-        where: jest.fn().mockReturnValue({
-          first: jest.fn().mockResolvedValue(createMockVariety()),
+        toArray: (jest.fn() as any).mockResolvedValue([]),
+        where: (jest.fn() as any).mockReturnValue({
+          first: (jest.fn() as any).mockResolvedValue(createMockVariety()),
         }),
-        clear: jest.fn().mockResolvedValue(undefined),
-        bulkAdd: jest.fn().mockResolvedValue(undefined),
+        clear: (jest.fn() as any).mockResolvedValue(undefined),
+        bulkAdd: (jest.fn() as any).mockResolvedValue(undefined),
       },
       careActivities: {
-        add: jest.fn().mockResolvedValue('test-activity-id'),
-        where: jest.fn().mockReturnValue({
-          toArray: jest.fn().mockResolvedValue([]),
-          reverse: jest.fn().mockReturnValue({
-            limit: jest.fn().mockReturnValue({
-              toArray: jest.fn().mockResolvedValue([]),
+        add: (jest.fn() as any).mockResolvedValue('test-activity-id'),
+        where: (jest.fn() as any).mockReturnValue({
+          toArray: (jest.fn() as any).mockResolvedValue([]),
+          reverse: (jest.fn() as any).mockReturnValue({
+            limit: (jest.fn() as any).mockReturnValue({
+              toArray: (jest.fn() as any).mockResolvedValue([]),
             }),
           }),
         }),
-        clear: jest.fn().mockResolvedValue(undefined),
-        bulkAdd: jest.fn().mockResolvedValue(undefined),
+        clear: (jest.fn() as any).mockResolvedValue(undefined),
+        bulkAdd: (jest.fn() as any).mockResolvedValue(undefined),
       },
       scheduledTasks: {
-        add: jest.fn().mockResolvedValue('test-task-id'),
-        toArray: jest.fn().mockResolvedValue([]),
-        clear: jest.fn().mockResolvedValue(undefined),
-        bulkAdd: jest.fn().mockResolvedValue(undefined),
+        add: (jest.fn() as any).mockResolvedValue('test-task-id'),
+        toArray: (jest.fn() as any).mockResolvedValue([]),
+        clear: (jest.fn() as any).mockResolvedValue(undefined),
+        bulkAdd: (jest.fn() as any).mockResolvedValue(undefined),
       },
       taskBypasses: {
-        clear: jest.fn().mockResolvedValue(undefined),
+        clear: (jest.fn() as any).mockResolvedValue(undefined),
       },
       taskCompletions: {
-        clear: jest.fn().mockResolvedValue(undefined),
+        clear: (jest.fn() as any).mockResolvedValue(undefined),
       },
     };
 
     // Mock the database import
     jest.doMock("@/types/database", () => ({
-      ...jest.requireActual("@/types/database"),
+      ...(jest.requireActual("@/types/database") as any),
       db: mockDb,
     }));
   }
@@ -203,7 +202,6 @@ export class ServiceMockManager {
   }) {
     const {
       plants = [],
-      varieties = [],
       activities = [],
       user = null,
       loading = false,

@@ -28,9 +28,15 @@ describe("PlantRegistrationService", () => {
     id: "variety-1",
     name: "Cherry Tomato",
     normalizedName: "cherry tomato",
-    category: "fruits",
+    category: "fruiting-plants",
     createdAt: new Date("2024-01-01"),
     updatedAt: new Date("2024-01-01"),
+    growthTimeline: {
+      germination: 7,
+      seedling: 14,
+      vegetative: 30,
+      maturation: 60
+    },
     protocols: {
       fertilization: {
         vegetative: {
@@ -44,11 +50,22 @@ describe("PlantRegistrationService", () => {
                 amount: "1 cup",
                 method: "soil-drench" as const,
               },
+              frequencyDays: 14,
+              repeatCount: 1,
             },
           ],
         },
+        germination: {
+          schedule: []
+        },
+        seedling: {
+          schedule: []
+        },
+        maturation: {
+          schedule: []
+        }
       },
-    },
+    } as any,
   };
 
   const mockPlantData: PlantRecord = {

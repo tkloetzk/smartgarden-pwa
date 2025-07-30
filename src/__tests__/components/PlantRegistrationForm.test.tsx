@@ -4,7 +4,6 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { PlantRegistrationForm } from "@/components/plant/PlantRegistrationForm";
 import { useFirebasePlants } from "@/hooks/useFirebasePlants";
-import { varietyService } from "@/types/database";
 import toast from "react-hot-toast";
 import { varieties } from "@/data";
 

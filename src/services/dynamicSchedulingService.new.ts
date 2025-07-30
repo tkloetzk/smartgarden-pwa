@@ -274,7 +274,7 @@ export class DynamicSchedulingService implements IDynamicSchedulingService {
         return APP_CONFIG.CARE_SCHEDULING.DEFAULT_FERTILIZING_INTERVAL_DAYS;
       case "observe":
         return 7; // Weekly observations
-      case "prune":
+      case "pruning":
         return 21; // Every 3 weeks
       case "transplant":
         return 90; // Quarterly

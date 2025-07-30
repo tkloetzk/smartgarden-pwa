@@ -9,7 +9,7 @@ import React from "react";
 
 // Import centralized factories and utilities
 import { db } from "@/types/database";
-import { createMockGarden, createMockUser, createMockPlant, createMockVariety } from "./testDataFactories";
+import { createMockGarden, createMockUser } from "./testDataFactories";
 
 // ===========================
 // UNIFIED RENDERING UTILITIES

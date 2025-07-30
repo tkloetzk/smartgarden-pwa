@@ -406,7 +406,6 @@ describe("NextActivityCard", () => {
     });
 
     it("handles button click gracefully when no task is available", async () => {
-      const user = userEvent.setup();
       (useNextPlantTaskModule.useNextPlantTask as jest.Mock).mockReturnValue({
         nextTask: null,
         isLoading: false,

@@ -3,7 +3,7 @@
  * Eliminates repeated expandable card patterns across components
  */
 
-import React, { ReactNode, useState } from "react";
+import { ReactNode, useState } from "react";
 import { ChevronDown, ChevronUp } from "lucide-react";
 import { ActionCard, ActionCardProps } from "./ActionCard";
 import { cn } from "@/utils/cn";

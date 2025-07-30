@@ -12,11 +12,7 @@ import {
   getDocs,
   updateDoc,
   doc,
-  QuerySnapshot,
-  DocumentData,
-  QueryDocumentSnapshot,
 } from "firebase/firestore";
-import { db } from "@/services/firebase/config";
 
 // Mock Firestore functions
 jest.mock("firebase/firestore", () => ({
@@ -279,7 +275,7 @@ describe("FirebaseScheduledTaskService", () => {
       const mockErrorCallback = jest.fn();
 
       // Mock onSnapshot to immediately call the success callback
-      mockOnSnapshot.mockImplementation((query, successCallback, errorCallback) => {
+      mockOnSnapshot.mockImplementation((_query: any, successCallback: any, _errorCallback: any) => {
         const mockSnapshot = {
           docs: [{
             id: "task-1",
@@ -313,10 +309,14 @@ describe("FirebaseScheduledTaskService", () => {
     it("calls error callback on subscription error", () => {
       const mockCallback = jest.fn();
       const mockErrorCallback = jest.fn();
-      const subscriptionError = new Error("Subscription failed");
+      const subscriptionError = {
+        code: 'permission-denied',
+        message: 'Subscription failed',
+        name: 'FirebaseError'
+      } as any;
 
       // Mock onSnapshot to call the error callback
-      mockOnSnapshot.mockImplementation((query, successCallback, errorCallback) => {
+      mockOnSnapshot.mockImplementation((_query, _successCallback, errorCallback) => {
         errorCallback(subscriptionError);
         return jest.fn();
       });

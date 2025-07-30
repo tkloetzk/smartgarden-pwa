@@ -1,4 +1,3 @@
-import React from 'react';
 import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { renderComponent } from '../utils/testSetup';
@@ -84,7 +83,7 @@ describe('SectionApplyCard', () => {
     renderComponent(<SectionApplyCard {...defaultProps} />);
 
     expect(screen.getByText('Consider differences:')).toBeInTheDocument();
-    expect(screen.getByText((content, element) => {
+    expect(screen.getByText((_, element) => {
       return element?.textContent === '• Mixed varieties: Cherry Tomato, Sweet Basil';
     })).toBeInTheDocument();
   });

@@ -2,9 +2,8 @@
  * Tests for ActionCard generic UI component
  */
 
-import React from "react";
 import { render, screen, fireEvent } from "@testing-library/react";
-import { Calendar, Settings } from "lucide-react";
+import { Calendar } from "lucide-react";
 import { ActionCard, StatusCard, LoadingCard } from "@/components/ui/ActionCard";
 
 describe("ActionCard", () => {

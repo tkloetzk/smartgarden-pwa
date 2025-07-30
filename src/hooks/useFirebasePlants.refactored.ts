@@ -52,7 +52,7 @@ export function useFirebasePlants(includeInactive = false): UseFirebasePlantsRet
   const crud = useFirebaseCrud(
     {
       serviceName: "plants",
-      service: FirebasePlantService,
+      service: FirebasePlantService as any,
     },
     {
       createMethod: "createPlant",

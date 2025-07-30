@@ -77,7 +77,7 @@ export const SectionApplyCard: React.FC<SectionApplyCardProps> = ({
       const allSucceeded = results.every(r => r.success);
       return allSucceeded ? 'outline' : 'destructive';
     }
-    return validation.warnings.length > 0 ? 'outline' : 'default';
+    return validation.warnings.length > 0 ? 'outline' : 'primary';
   };
 
   const getButtonText = () => {

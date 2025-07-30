@@ -113,7 +113,7 @@ export class CareSchedulingService implements ICareSchedulingService {
       const tasks: UpcomingTask[] = [];
 
       // Generate tasks for each configured type
-      for (const [taskType, config] of Object.entries(TASK_CONFIGS)) {
+      for (const [taskType, _config] of Object.entries(TASK_CONFIGS)) {
         const task = await this.createTaskForType(plant, variety, currentStage, taskType as keyof typeof TASK_CONFIGS);
         if (task) {
           tasks.push(task);
@@ -131,7 +131,7 @@ export class CareSchedulingService implements ICareSchedulingService {
     activityType: CareActivityType,
     lastDate: Date,
     plant: PlantRecord,
-    variety: VarietyRecord
+    _variety: VarietyRecord
   ): Date {
     try {
       // Use configuration-based fallback interval
@@ -160,7 +160,7 @@ export class CareSchedulingService implements ICareSchedulingService {
 
   private async createTaskForType(
     plant: PlantRecord,
-    variety: VarietyRecord,
+    _variety: VarietyRecord,
     currentStage: GrowthStage,
     taskType: keyof typeof TASK_CONFIGS
   ): Promise<UpcomingTask | null> {

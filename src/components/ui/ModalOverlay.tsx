@@ -5,7 +5,7 @@
 
 import React, { ReactNode, useEffect } from "react";
 import { X } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Button } from "@/components/ui/Button";
 import { cn } from "@/utils/cn";
 
 export interface ModalOverlayProps {
@@ -157,7 +157,7 @@ export function ModalOverlay({
               {showCloseButton && (
                 <Button
                   variant="ghost"
-                  size="icon"
+                  size="sm"
                   onClick={onClose}
                   className="h-8 w-8 text-muted-foreground hover:text-foreground"
                 >
@@ -217,7 +217,7 @@ export function ConfirmationModal({
         {cancelText}
       </Button>
       <Button 
-        variant={confirmVariant}
+        variant={confirmVariant === "default" ? "primary" : confirmVariant}
         onClick={onConfirm}
         disabled={isLoading}
       >

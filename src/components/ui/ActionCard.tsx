@@ -3,9 +3,9 @@
  * Handles the common card structure with icon, title, optional badge, and content
  */
 
-import React, { ReactNode } from "react";
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import { ReactNode } from "react";
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/Card";
+import { Badge } from "@/components/ui/Badge";
 import { cn } from "@/utils/cn";
 
 export interface ActionCardProps {

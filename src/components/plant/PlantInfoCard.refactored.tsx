@@ -3,15 +3,14 @@
  * Demonstrates use of ActionCard, ToggleSection, and ActionButtonGroup
  */
 
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { Calendar, MapPin, Package, Droplets } from "lucide-react";
 import { ActionCard } from "@/components/ui/ActionCard";
 import { ToggleSection, ShowHideSection } from "@/components/ui/ToggleSection";
 import { QuickActionButtons } from "@/components/ui/ActionButtonGroup";
 import { PlantRecord, VarietyRecord } from "@/types/database";
 import { varietyService } from "@/types/database";
-import { getDaysPlanted } from "@/utils/dateHelpers";
-import { formatDate } from "date-fns";
+import { formatDate, differenceInDays } from "date-fns";
 
 interface PlantInfoCardProps {
   plant: PlantRecord;
@@ -47,7 +46,7 @@ export function PlantInfoCard({
     setShowActions(false); // Close actions after selection
   };
 
-  const daysPlanted = getDaysPlanted(plant.plantedDate);
+  const daysPlanted = differenceInDays(new Date(), new Date(plant.plantedDate));
   const plantedDate = formatDate(new Date(plant.plantedDate), "PPP");
 
   // Get watering protocol if available
@@ -55,7 +54,7 @@ export function PlantInfoCard({
 
   return (
     <ActionCard
-      title={plant.name}
+      title={plant.name || plant.varietyName}
       icon={<Calendar className="h-4 w-4" />}
       badge={variety ? { text: variety.name, variant: "secondary" } : undefined}
       onClick={onClick}
@@ -90,19 +89,20 @@ export function PlantInfoCard({
             showText="Show Guide"
             hideText="Hide Guide"
             icon={<Droplets className="h-4 w-4" />}
+            onToggle={() => {}}
             hiddenContent={
               <div className="space-y-2 text-sm">
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Trigger:</span>
-                  <span>Water at moisture: {wateringProtocol.trigger.moistureLevel}</span>
+                  <span>Water at moisture: {wateringProtocol.trigger?.moistureLevel}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Target:</span>
-                  <span>Target moisture: {wateringProtocol.target.moistureLevel}</span>
+                  <span>Target moisture: {wateringProtocol.target?.moistureLevel}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Amount:</span>
-                  <span>{wateringProtocol.volume.amount} {wateringProtocol.volume.frequency}</span>
+                  <span>{wateringProtocol.volume?.amount} {wateringProtocol.volume?.frequency}</span>
                 </div>
               </div>
             }

@@ -85,7 +85,7 @@ export class ServiceMigrationHelper {
         return LegacyCareSchedulingService.getTasksForPlant(plant);
       },
 
-      calculateNextDueDate(activityType, lastDate) {
+      calculateNextDueDate(_activityType, lastDate) {
         ServiceMigrationHelper.logMigrationWarning('CareSchedulingService', 'calculateNextDueDate');
         // Legacy service doesn't have this exact method, so we provide a simple fallback
         const addDays = (date: Date, days: number) => {
@@ -140,7 +140,12 @@ export class ServiceMigrationHelper {
 
       async getCompletionPatterns(plantId, taskType) {
         ServiceMigrationHelper.logMigrationWarning('DynamicSchedulingService', 'getCompletionPatterns');
-        return LegacyDynamicSchedulingService.getCompletionPatterns(plantId, taskType);
+        const legacyResult = await LegacyDynamicSchedulingService.getCompletionPatterns(plantId, taskType);
+        return {
+          ...legacyResult,
+          totalCompletions: 0, // Legacy service doesn't provide this, default to 0
+          lastCompletion: undefined, // Legacy service doesn't provide this
+        };
       },
 
       async getNextDueDateForTask(plantId, taskType) {
@@ -206,6 +211,9 @@ export class DynamicSchedulingServiceAdapter {
 
   static async getSchedulingAdjustments(plantId?: string) {
     const service = ServiceMigrationHelper.getDynamicSchedulingService();
+    if (!plantId) {
+      return [];
+    }
     return service.getAdjustmentRecommendations(plantId);
   }
 }

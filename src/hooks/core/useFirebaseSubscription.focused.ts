@@ -4,7 +4,6 @@
  */
 
 import { useState, useEffect, useCallback, useRef } from "react";
-import { User } from "firebase/auth";
 import { Logger } from "@/utils/logger";
 
 export interface SubscriptionConfig<T> {
@@ -14,7 +13,7 @@ export interface SubscriptionConfig<T> {
   onError: (error: string) => void;
 }
 
-export interface FirebaseSubscription<T> {
+export interface FirebaseSubscription<_T> {
   subscribe: () => void;
   unsubscribe: () => void;
   isSubscribed: boolean;

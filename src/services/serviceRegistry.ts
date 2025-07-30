@@ -1,5 +1,5 @@
 // src/services/serviceRegistry.ts - Central service registration and configuration
-import { container, SERVICE_KEYS } from "./interfaces";
+import { container, SERVICE_KEYS, ICareSchedulingService, IDynamicSchedulingService, IPlantService, ICareService, IVarietyService } from "./interfaces";
 import { CareSchedulingService } from "./careSchedulingService.new";
 import { DynamicSchedulingService } from "./dynamicSchedulingService.new";
 import { plantService, careService, varietyService } from "@/types/database";
@@ -41,7 +41,12 @@ export class ServiceRegistry {
         const varietySvc = container.get(SERVICE_KEYS.VARIETY_SERVICE);
         const dynamicSvc = container.getSingleton(SERVICE_KEYS.DYNAMIC_SCHEDULING);
 
-        return new CareSchedulingService(plantSvc, careSvc, varietySvc, dynamicSvc);
+        return new CareSchedulingService(
+          plantSvc as IPlantService, 
+          careSvc as ICareService, 
+          varietySvc as IVarietyService, 
+          dynamicSvc as IDynamicSchedulingService
+        );
       });
 
       ServiceRegistry.isBootstrapped = true;
@@ -107,10 +112,10 @@ export class ServiceRegistry {
 
 // Convenience functions for common service access patterns
 export const getSchedulingService = () => 
-  ServiceRegistry.getService(SERVICE_KEYS.CARE_SCHEDULING);
+  ServiceRegistry.getService<ICareSchedulingService>(SERVICE_KEYS.CARE_SCHEDULING);
 
 export const getDynamicSchedulingService = () => 
-  ServiceRegistry.getSingleton(SERVICE_KEYS.DYNAMIC_SCHEDULING);
+  ServiceRegistry.getSingleton<IDynamicSchedulingService>(SERVICE_KEYS.DYNAMIC_SCHEDULING);
 
 export const getPlantService = () => 
   ServiceRegistry.getSingleton(SERVICE_KEYS.PLANT_SERVICE);

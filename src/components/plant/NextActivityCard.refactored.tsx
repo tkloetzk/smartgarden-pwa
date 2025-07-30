@@ -3,7 +3,6 @@
  * Demonstrates elimination of repeated card layout patterns
  */
 
-import React from "react";
 import { Calendar, CheckCircle2 } from "lucide-react";
 import { ActionCard, LoadingCard } from "@/components/ui/ActionCard";
 import { PriorityBadge } from "@/components/ui/PriorityBadge";
@@ -32,7 +31,7 @@ export function NextActivityCard({
   
   // Determine priority based on task urgency
   const getPriority = (task: UpcomingTask) => {
-    if (task.isOverdue) return "high";
+    if (task.priority === "overdue") return "high";
     
     const now = new Date();
     const dueDate = new Date(task.dueDate);
@@ -43,7 +42,7 @@ export function NextActivityCard({
   };
 
   const getStatus = (task: UpcomingTask) => {
-    if (task.isOverdue) return "overdue";
+    if (task.priority === "overdue") return "overdue";
     
     const now = new Date();
     const dueDate = new Date(task.dueDate);
@@ -102,7 +101,7 @@ export function NextActivityCard({
         {
           id: "complete",
           label: "Complete",
-          variant: "default",
+          variant: "primary",
           onClick: () => onMarkComplete(nextTask.id),
           icon: <CheckCircle2 className="h-3 w-3" />,
         },

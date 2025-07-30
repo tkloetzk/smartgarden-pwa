@@ -3,16 +3,16 @@
  * Eliminates repeated button layout and styling patterns
  */
 
-import React, { ReactNode } from "react";
-import { Button } from "@/components/ui/button";
+import { ReactNode } from "react";
+import { Button } from "@/components/ui/Button";
 import { cn } from "@/utils/cn";
 
 export interface ActionButtonConfig {
   id: string;
   label: string;
   icon?: ReactNode;
-  variant?: "default" | "destructive" | "outline" | "secondary" | "ghost" | "link";
-  size?: "default" | "sm" | "lg" | "icon";
+  variant?: "primary" | "secondary" | "outline" | "ghost" | "destructive";
+  size?: "sm" | "md" | "lg" | "xl";
   onClick: () => void;
   disabled?: boolean;
   loading?: boolean;
@@ -25,7 +25,7 @@ export interface ActionButtonGroupProps {
   layout?: "grid" | "flex" | "vertical";
   gridCols?: 1 | 2 | 3 | 4;
   gap?: "sm" | "md" | "lg";
-  size?: "default" | "sm" | "lg";
+  size?: "sm" | "md" | "lg" | "xl";
   className?: string;
   fullWidth?: boolean;
 }
@@ -71,7 +71,7 @@ export function ActionButtonGroup({
       {buttons.map((button) => (
         <Button
           key={button.id}
-          variant={button.variant || "default"}
+          variant={button.variant || "primary"}
           size={button.size || size}
           onClick={button.onClick}
           disabled={button.disabled || button.loading}
@@ -130,7 +130,7 @@ export function PrimaryCancelButtons({
     {
       id: "primary",
       label: primaryLabel,
-      variant: primaryVariant,
+      variant: primaryVariant === "default" ? "primary" : primaryVariant,
       onClick: onPrimary,
       loading: primaryLoading,
       disabled: primaryDisabled,
@@ -162,7 +162,7 @@ export function QuickActionButtons({
   onObserve?: () => void;
   onPrune?: () => void;
   disabled?: boolean;
-  size?: "default" | "sm" | "lg";
+  size?: "sm" | "md" | "lg" | "xl";
   className?: string;
 }) {
   const buttons: ActionButtonConfig[] = [
@@ -215,7 +215,7 @@ export function ToggleActionButton({
   isActive,
   onClick,
   variant = "outline",
-  activeVariant = "default",
+  activeVariant = "primary", 
   size = "sm",
   className,
 }: {
@@ -225,9 +225,9 @@ export function ToggleActionButton({
   activeIcon?: ReactNode;
   isActive: boolean;
   onClick: () => void;
-  variant?: "default" | "destructive" | "outline" | "secondary" | "ghost";
-  activeVariant?: "default" | "destructive" | "outline" | "secondary" | "ghost";
-  size?: "default" | "sm" | "lg";
+  variant?: "primary" | "secondary" | "outline" | "ghost" | "destructive";
+  activeVariant?: "primary" | "secondary" | "outline" | "ghost" | "destructive";
+  size?: "sm" | "md" | "lg" | "xl";
   className?: string;
 }) {
   return (

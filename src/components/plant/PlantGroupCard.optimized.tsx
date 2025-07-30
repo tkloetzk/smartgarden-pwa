@@ -71,8 +71,8 @@ const PlantInfo = React.memo(({
   }, [plant.plantedDate]);
 
   const stageDisplay = useMemo(() => {
-    return calculatedStage?.currentStage || 'Unknown';
-  }, [calculatedStage?.currentStage]);
+    return calculatedStage || 'Unknown';
+  }, [calculatedStage]);
 
   return (
     <div 
@@ -125,17 +125,21 @@ const PlantGroupCard = React.memo(({ group, onBulkLogActivity }: PlantGroupCardP
 
   // Memoized bulk action handler
   const handleBulkAction = useCallback((
-    activityType: "water" | "fertilize" | "observe"
+    activityType: QuickActionType | "more"
   ) => {
-    onBulkLogActivity(plantIds, activityType, group);
+    if (activityType !== "more") {
+      onBulkLogActivity(plantIds, activityType, group);
+    }
     setShowBulkActions(false);
   }, [onBulkLogActivity, plantIds, group]);
 
   // Memoized individual action handler
   const handleIndividualAction = useCallback((
-    activityType: "water" | "fertilize" | "observe"
+    activityType: QuickActionType | "more"
   ) => {
-    onBulkLogActivity([currentPlant.id], activityType, group);
+    if (activityType !== "more") {
+      onBulkLogActivity([currentPlant.id], activityType, group);
+    }
     setShowIndividualActions(false);
   }, [onBulkLogActivity, currentPlant.id, group]);
 
@@ -155,8 +159,8 @@ const PlantGroupCard = React.memo(({ group, onBulkLogActivity }: PlantGroupCardP
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
           <CardTitle className="text-lg flex items-center gap-2">
-            <span className="text-2xl">{group.icon}</span>
-            {group.title}
+            <span className="text-2xl">🌱</span>
+            {group.varietyName}
             <span className="text-sm font-normal text-muted-foreground">
               ({group.plants.length} plants)
             </span>
@@ -209,7 +213,6 @@ const PlantGroupCard = React.memo(({ group, onBulkLogActivity }: PlantGroupCardP
             </p>
             <QuickActionButtons
               onAction={handleBulkAction}
-              plantStage={calculatedStage?.currentStage}
             />
           </div>
         )}
@@ -222,7 +225,6 @@ const PlantGroupCard = React.memo(({ group, onBulkLogActivity }: PlantGroupCardP
             </p>
             <QuickActionButtons
               onAction={handleIndividualAction}
-              plantStage={calculatedStage?.currentStage}
             />
           </div>
         )}

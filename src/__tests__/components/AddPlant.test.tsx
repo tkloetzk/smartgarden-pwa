@@ -12,7 +12,6 @@ import { varieties } from "@/data";
 jest.mock("@/components/plant/SimplifiedLocationSelector", () => ({
   SimplifiedLocationSelector: ({
     onBedSelect,
-    onLocationChange,
   }: {
     onBedSelect: (bedId: string) => void;
     onLocationChange: (isOutdoor: boolean) => void;

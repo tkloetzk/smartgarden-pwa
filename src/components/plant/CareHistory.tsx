@@ -3,6 +3,7 @@ import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { CareRecord } from "@/types/database";
+import { CareActivityType } from "@/types";
 import CareActivityItem from "./CareActivityItem";
 import { useNavigate } from "react-router-dom";
 
@@ -15,7 +16,7 @@ const CareHistory: React.FC<CareHistoryProps> = ({ plantId, careHistory }) => {
   const navigate = useNavigate();
 
   const [showAll, setShowAll] = useState(false);
-  const [filter, setFilter] = useState<string>("all");
+  const [filter, setFilter] = useState<CareActivityType | "all">("all");
 
   // Filter care history based on selected filter
   const filteredHistory = careHistory.filter((activity) => {
@@ -33,15 +34,16 @@ const CareHistory: React.FC<CareHistoryProps> = ({ plantId, careHistory }) => {
   
   // All possible activity type filters
   const allActivityTypeFilters = [
-    { value: "water", label: "Watering", icon: "💧" },
-    { value: "fertilize", label: "Fertilizing", icon: "🌱" },
-    { value: "observe", label: "Observations", icon: "👁️" },
-    { value: "harvest", label: "Harvest", icon: "🌾" },
-    { value: "transplant", label: "Transplant", icon: "🏺" },
-    { value: "photo", label: "Photos", icon: "📸" },
-    { value: "note", label: "Notes", icon: "📝" },
-    { value: "prune", label: "Pruning", icon: "✂️" },
-    { value: "repot", label: "Repotting", icon: "🪴" },
+    { value: "water" as CareActivityType, label: "Watering", icon: "💧" },
+    { value: "fertilize" as CareActivityType, label: "Fertilizing", icon: "🌱" },
+    { value: "observe" as CareActivityType, label: "Observations", icon: "👁️" },
+    { value: "harvest" as CareActivityType, label: "Harvest", icon: "🌾" },
+    { value: "transplant" as CareActivityType, label: "Transplant", icon: "🏺" },
+    { value: "photo" as CareActivityType, label: "Photos", icon: "📸" },
+    { value: "note" as CareActivityType, label: "Notes", icon: "📝" },
+    { value: "pruning" as CareActivityType, label: "Pruning", icon: "✂️" },
+    { value: "lighting" as CareActivityType, label: "Lighting", icon: "💡" },
+    { value: "thin" as CareActivityType, label: "Thinning", icon: "🌿" },
   ];
 
   // Filter to only show activity types that have data, plus "All Activities"
@@ -102,7 +104,7 @@ const CareHistory: React.FC<CareHistoryProps> = ({ plantId, careHistory }) => {
                     filter === filterOption.value ? "primary" : "outline"
                   }
                   size="sm"
-                  onClick={() => setFilter(filterOption.value)}
+                  onClick={() => setFilter(filterOption.value as CareActivityType | "all")}
                   className="whitespace-nowrap"
                 >
                   <span className="mr-1">{filterOption.icon}</span>

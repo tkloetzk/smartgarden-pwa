@@ -7,7 +7,7 @@ import { useEffect, useMemo } from "react";
 import { useAsyncState } from "./useAsyncState";
 import { useFirebaseSubscription } from "./useFirebaseSubscription.focused";
 
-export interface DataSubscriptionConfig<T> {
+export interface DataSubscriptionConfig<_T> {
   serviceName: string;
   isEnabled: boolean;
   dependencies?: unknown[];

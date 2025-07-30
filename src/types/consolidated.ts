@@ -350,6 +350,18 @@ export interface StageSpecificFertilizationProtocol {
 }
 
 // ============================================================================
+// SETTINGS AND PREFERENCES TYPES
+// ============================================================================
+
+export interface ReminderPreferences {
+  watering?: boolean;
+  fertilizing?: boolean;
+  observation?: boolean;
+  lighting?: boolean;
+  pruning?: boolean;
+}
+
+// ============================================================================
 // DATABASE RECORD TYPES
 // ============================================================================
 
@@ -374,13 +386,7 @@ export interface PlantRecord extends BaseRecord {
   confirmedStage?: GrowthStage;
   stageConfirmedDate?: Date;
   growthRateModifier?: number;
-  reminderPreferences?: {
-    watering?: boolean;
-    fertilizing?: boolean;
-    observation?: boolean;
-    lighting?: boolean;
-    pruning?: boolean;
-  };
+  reminderPreferences?: ReminderPreferences;
   currentPlantCount?: number;
   originalPlantCount?: number;
   lastThinningDate?: Date;
@@ -553,13 +559,7 @@ export interface FirebasePlantRecord {
   notes?: string[];
   quantity?: number;
   setupType?: "multiple-containers" | "same-container";
-  reminderPreferences?: {
-    watering?: boolean;
-    fertilizing?: boolean;
-    observation?: boolean;
-    lighting?: boolean;
-    pruning?: boolean;
-  };
+  reminderPreferences?: ReminderPreferences;
   createdAt: Timestamp;
   updatedAt: Timestamp;
 }

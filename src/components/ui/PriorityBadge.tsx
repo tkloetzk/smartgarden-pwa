@@ -4,7 +4,7 @@
  */
 
 import React from "react";
-import { Badge } from "@/components/ui/badge";
+import { Badge } from "@/components/ui/Badge";
 import { cn } from "@/utils/cn";
 
 export type Priority = "high" | "medium" | "low";

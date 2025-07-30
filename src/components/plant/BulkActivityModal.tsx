@@ -9,7 +9,6 @@ import { toast } from "react-hot-toast";
 import { seedVarieties } from "@/data/seedVarieties";
 import { CareActivityDetails } from "@/types";
 import { CareActivityType, ApplicationMethod } from "@/types";
-import { getActivityIcon } from "@/components/shared/QuickActionButtons";
 
 interface BulkActivityModalProps {
   isOpen: boolean;

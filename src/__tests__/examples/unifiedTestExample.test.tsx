@@ -143,7 +143,7 @@ describe("Dashboard Component - Unified Test Example", () => {
   describe("Authenticated User with Data", () => {
     it("displays plants and tasks for authenticated user", async () => {
       // Use pre-configured scenario with data
-      const { user, garden } = await TestScenarios.authenticatedUserWithPlants();
+      const { garden } = await TestScenarios.authenticatedUserWithPlants();
 
       renderComponent(<Dashboard />);
 
@@ -263,7 +263,7 @@ describe("Dashboard Integration Tests", () => {
   useTestLifecycle();
 
   it("full user workflow: login -> view plants -> add care activity", async () => {
-    const { user, garden } = await TestScenarios.authenticatedUserWithPlants();
+    const { garden } = await TestScenarios.authenticatedUserWithPlants();
     const userEvents = userEvent.setup();
 
     renderComponent(<Dashboard />);

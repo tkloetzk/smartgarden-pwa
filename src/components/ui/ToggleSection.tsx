@@ -3,8 +3,8 @@
  * Eliminates repeated toggle section layouts across components
  */
 
-import React, { ReactNode } from "react";
-import { Button } from "@/components/ui/button";
+import { ReactNode } from "react";
+import { Button } from "@/components/ui/Button";
 import { cn } from "@/utils/cn";
 
 export interface ToggleSectionProps {
@@ -26,8 +26,8 @@ export interface ToggleSectionProps {
   buttonClassName?: string;
   
   // Button customization
-  buttonVariant?: "default" | "destructive" | "outline" | "secondary" | "ghost" | "link";
-  buttonSize?: "default" | "sm" | "lg" | "icon";
+  buttonVariant?: "primary" | "destructive" | "outline" | "secondary" | "ghost";
+  buttonSize?: "sm" | "md" | "lg";
   
   // Layout
   layout?: "horizontal" | "vertical";
@@ -120,7 +120,7 @@ export function ToggleSection({
 
         {/* Toggle button */}
         <Button
-          variant={isActive ? "default" : buttonVariant}
+          variant={isActive ? "primary" : buttonVariant}
           size={buttonSize}
           onClick={onToggle}
           disabled={disabled || loading}
@@ -219,7 +219,7 @@ export function EnableDisableSection({
       activeButtonText={disableText}
       isActive={isEnabled}
       onToggle={onToggle}
-      buttonVariant={isEnabled ? "destructive" : "default"}
+      buttonVariant={isEnabled ? "destructive" : "primary"}
     />
   );
 }

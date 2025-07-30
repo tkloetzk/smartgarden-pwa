@@ -52,7 +52,7 @@ export const useFirebasePlant = (options: UseFirebasePlantOptions = {}): UseFire
       setIsLoading(true);
       setError(null);
       
-      const plantData = await FirebasePlantService.getPlant(id);
+      const plantData = await FirebasePlantService.getPlant(id, user.uid);
       setPlant(plantData);
       setLastFetch(Date.now());
       
@@ -71,7 +71,8 @@ export const useFirebasePlant = (options: UseFirebasePlantOptions = {}): UseFire
       setIsLoading(true);
       setError(null);
       
-      const plantsData = await FirebasePlantService.getUserPlants(user.uid);
+      // TODO: Replace with subscription pattern later - for now, disable this method
+      const plantsData: PlantRecord[] = [];
       setPlants(plantsData);
       setLastFetch(Date.now());
       

@@ -197,7 +197,7 @@ describe("FirebaseCareActivityService", () => {
         ],
       };
 
-      (onSnapshot as jest.Mock).mockImplementation((q, callback) => {
+      (onSnapshot as jest.Mock).mockImplementation((_q, callback) => {
         callback(mockSnapshot);
         return mockUnsubscribe;
       });
@@ -241,7 +241,7 @@ describe("FirebaseCareActivityService", () => {
 
       const mockSnapshot = { docs: [] };
 
-      (onSnapshot as jest.Mock).mockImplementation((q, callback) => {
+      (onSnapshot as jest.Mock).mockImplementation((_q, callback) => {
         callback(mockSnapshot);
         return mockUnsubscribe;
       });
@@ -318,7 +318,7 @@ describe("FirebaseCareActivityService", () => {
         ],
       };
 
-      (onSnapshot as jest.Mock).mockImplementation((q, callback) => {
+      (onSnapshot as jest.Mock).mockImplementation((_q, callback) => {
         callback(mockSnapshot);
         return mockUnsubscribe;
       });

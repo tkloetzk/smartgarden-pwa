@@ -1,11 +1,10 @@
 // src/__tests__/integration/careLogging.integration.test.ts
 import { describe, it, expect, beforeEach, jest } from "@jest/globals";
 import { CareSchedulingServiceAdapter, DynamicSchedulingServiceAdapter } from "@/services/serviceMigration";
-import { ServiceRegistry } from "@/services/serviceRegistry";
 import { careService, plantService, varietyService } from "@/types/database";
 import { FirebaseCareActivityService } from "@/services/firebase/careActivityService";
 import { generateUUID } from "@/utils/cn";
-import { VarietyRecord, PlantRecord } from "@/types";
+import { VarietyRecord, PlantRecord, CareActivityType, CareActivityDetails } from "@/types";
 
 // Mock the UUID generation for consistent testing
 jest.mock("@/utils/cn", () => ({
@@ -68,15 +67,15 @@ jest.mock("@/services/serviceRegistry", () => ({
 
 interface ActivityData {
   plantId: string;
-  type: string;
+  type: CareActivityType;
   date: Date;
-  details: Record<string, unknown>;
+  details: CareActivityDetails;
 }
 
 interface BulkData {
-  type: string;
+  type: CareActivityType;
   date: Date;
-  details: Record<string, unknown>;
+  details: CareActivityDetails;
 }
 
 interface PlantReference {
@@ -94,7 +93,7 @@ class CareLoggingWorkflow {
     const activityId = await careService.addCareActivity(activityData);
     
     // 2. Sync to Firebase (in a real app, this might be async/background)
-    await FirebaseCareActivityService.createCareActivity(activityData);
+    await FirebaseCareActivityService.createCareActivity(activityData, "test-user-id");
     
     // 3. Record completion for dynamic scheduling
     await DynamicSchedulingServiceAdapter.recordTaskCompletion(
@@ -108,7 +107,7 @@ class CareLoggingWorkflow {
     
     // 4. Get plant and variety data for scheduling
     const plant = await plantService.getPlant(activityData.plantId);
-    const variety = await varietyService.getVariety(plant?.varietyId);
+    const variety = plant?.varietyId ? await varietyService.getVariety(plant.varietyId) : null;
     
     // 5. Calculate next due date
     if (plant && variety) {
@@ -159,34 +158,89 @@ describe("Care Activity Logging Integration Tests", () => {
     id: mockVarietyId,
     name: "Cherry Tomato",
     normalizedName: "cherry-tomato",
-    category: "vegetables",
-    type: "determinate",
-    daysToGermination: [7, 14],
-    daysToMaturity: [60, 80],
+    category: "fruiting-plants",
+    createdAt: new Date(),
+    updatedAt: new Date(),
     description: "Small cherry tomatoes perfect for containers",
-    growthStages: ["germination", "seedling", "vegetative", "flowering", "fruiting"],
+    growthTimeline: {
+      germination: 7,
+      seedling: 14,
+      vegetative: 30,
+      maturation: 60
+    },
     protocols: {
       watering: {
+        germination: {
+          trigger: { moistureLevel: "7-8 on moisture meter" },
+          target: { moistureLevel: "8-9 on moisture meter" },
+          volume: { amount: "50-75ml", frequency: "daily", perPlant: true },
+        },
+        seedling: {
+          trigger: { moistureLevel: "6-7 on moisture meter" },
+          target: { moistureLevel: "7-8 on moisture meter" },
+          volume: { amount: "100-125ml", frequency: "every 1-2 days", perPlant: true },
+        },
         vegetative: {
           trigger: { moistureLevel: "3-4 on moisture meter" },
           target: { moistureLevel: "6-7 on moisture meter" },
           volume: { amount: "150-200ml", frequency: "every 2-3 days", perPlant: true },
         },
+        flowering: {
+          trigger: { moistureLevel: "4-5 on moisture meter" },
+          target: { moistureLevel: "6-7 on moisture meter" },
+          volume: { amount: "200-250ml", frequency: "every 2-3 days", perPlant: true },
+        },
+        fruiting: {
+          trigger: { moistureLevel: "4-5 on moisture meter" },
+          target: { moistureLevel: "6-7 on moisture meter" },
+          volume: { amount: "200-300ml", frequency: "every 2-3 days", perPlant: true },
+        },
+        harvest: {
+          trigger: { moistureLevel: "4-5 on moisture meter" },
+          target: { moistureLevel: "6-7 on moisture meter" },
+          volume: { amount: "200-300ml", frequency: "every 2-3 days", perPlant: true },
+        },
+        maturation: {
+          trigger: { moistureLevel: "3-4 on moisture meter" },
+          target: { moistureLevel: "6-7 on moisture meter" },
+          volume: { amount: "150-200ml", frequency: "every 2-3 days", perPlant: true },
+        },
+        rootDevelopment: {
+          trigger: { moistureLevel: "3-4 on moisture meter" },
+          target: { moistureLevel: "6-7 on moisture meter" },
+          volume: { amount: "150-200ml", frequency: "every 2-3 days", perPlant: true },
+        },
+        "ongoing-production": {
+          trigger: { moistureLevel: "4-5 on moisture meter" },
+          target: { moistureLevel: "6-7 on moisture meter" },
+          volume: { amount: "200-300ml", frequency: "every 2-3 days", perPlant: true },
+        },
       },
       fertilization: {
+        germination: { schedule: [] },
+        seedling: { schedule: [] },
         vegetative: {
           schedule: [
             {
+              taskName: "Weekly fertilization",
               details: {
                 product: "Balanced liquid fertilizer",
                 dilution: "1:2000",
                 amount: "150ml per plant",
                 method: "soil-drench" as const,
               },
-              frequency: "weekly",
+              startDays: 14,
+              frequencyDays: 7,
+              repeatCount: 4,
             },
           ],
         },
+        flowering: { schedule: [] },
+        fruiting: { schedule: [] },
+        harvest: { schedule: [] },
+        maturation: { schedule: [] },
+        rootDevelopment: { schedule: [] },
+        "ongoing-production": { schedule: [] },
       },
     },
   };
@@ -217,13 +271,14 @@ describe("Care Activity Logging Integration Tests", () => {
     console.error = jest.fn();
 
     // Set up default mock implementations
-    (generateUUID as jest.Mock).mockReturnValue(mockActivityId);
-    (varietyService.getVariety as jest.Mock).mockResolvedValue(mockVariety);
-    (plantService.getPlant as jest.Mock).mockResolvedValue(mockPlant);
-    (careService.addCareActivity as jest.Mock).mockResolvedValue(mockActivityId);
-    (FirebaseCareActivityService.createCareActivity as jest.Mock).mockResolvedValue(undefined);
-    (DynamicSchedulingServiceAdapter.recordTaskCompletion as jest.Mock).mockResolvedValue(undefined);
-    (CareSchedulingServiceAdapter.calculateNextDueDate as jest.Mock).mockReturnValue(new Date(Date.now() + 3 * 24 * 60 * 60 * 1000)); // 3 days from now
+    // @ts-ignore - Mock function typing
+    (generateUUID as any).mockReturnValue(mockActivityId);
+    (varietyService.getVariety as any).mockResolvedValue(mockVariety);
+    (plantService.getPlant as any).mockResolvedValue(mockPlant);
+    (careService.addCareActivity as any).mockResolvedValue(mockActivityId);
+    (FirebaseCareActivityService.createCareActivity as any).mockResolvedValue(undefined);
+    (DynamicSchedulingServiceAdapter.recordTaskCompletion as any).mockResolvedValue(undefined);
+    (CareSchedulingServiceAdapter.calculateNextDueDate as any).mockReturnValue(new Date(Date.now() + 3 * 24 * 60 * 60 * 1000)); // 3 days from now
   });
 
   describe("Individual Activity Logging", () => {
@@ -240,7 +295,7 @@ describe("Care Activity Logging Integration Tests", () => {
       };
 
       // Mock the last activity for scheduling calculations
-      (careService.getLastActivityByType as jest.Mock).mockResolvedValue({
+      (careService.getLastActivityByType as any).mockResolvedValue({
         id: "previous-activity",
         plantId: mockPlantId,
         type: "water",
@@ -252,7 +307,7 @@ describe("Care Activity Logging Integration Tests", () => {
 
       // Verify the workflow components were called
       expect(careService.addCareActivity).toHaveBeenCalledWith(activityData);
-      expect(FirebaseCareActivityService.createCareActivity).toHaveBeenCalledWith(activityData);
+      expect(FirebaseCareActivityService.createCareActivity).toHaveBeenCalledWith(activityData, "test-user-id");
       expect(DynamicSchedulingServiceAdapter.recordTaskCompletion).toHaveBeenCalledWith(
         mockPlantId,
         "water",
@@ -347,14 +402,14 @@ describe("Care Activity Logging Integration Tests", () => {
       const nextWateringDate = new Date(currentDate.getTime() + 1 * 24 * 60 * 60 * 1000); // Tomorrow
 
       // Mock the last activity and next due date calculation
-      (careService.getLastActivityByType as jest.Mock).mockResolvedValue({
+      (careService.getLastActivityByType as any).mockResolvedValue({
         id: "last-watering",
         plantId: mockPlantId,
         type: "water",
         date: lastWateringDate,
       });
 
-      (CareSchedulingServiceAdapter.calculateNextDueDate as jest.Mock).mockReturnValue(nextWateringDate);
+      (CareSchedulingServiceAdapter.calculateNextDueDate as any).mockReturnValue(nextWateringDate);
 
       // Log a new watering activity through the workflow
       const newWateringActivity = {
@@ -411,8 +466,8 @@ describe("Care Activity Logging Integration Tests", () => {
 
       const filteredTasks = [mockUpcomingTasks[0]]; // Only water task (if fertilizing was disabled)
 
-      (CareSchedulingServiceAdapter.getUpcomingTasks as jest.Mock).mockResolvedValue(mockUpcomingTasks);
-      (CareSchedulingServiceAdapter.filterTasksByPreferences as jest.Mock).mockReturnValue(filteredTasks);
+      (CareSchedulingServiceAdapter.getUpcomingTasks as any).mockResolvedValue(mockUpcomingTasks);
+      (CareSchedulingServiceAdapter.filterTasksByPreferences as any).mockReturnValue(filteredTasks);
 
       // Get upcoming tasks after recent activity logging
       const upcomingTasks = await CareSchedulingServiceAdapter.getUpcomingTasks();
@@ -441,7 +496,7 @@ describe("Care Activity Logging Integration Tests", () => {
         },
       };
 
-      (plantService.getPlant as jest.Mock).mockResolvedValue(plantWithLimitedReminders);
+      (plantService.getPlant as any).mockResolvedValue(plantWithLimitedReminders);
 
       const allTasks = [
         { id: "water-task", type: "water", priority: "high" },
@@ -454,7 +509,7 @@ describe("Care Activity Logging Integration Tests", () => {
         { id: "observe-task", type: "observe", priority: "low" },
       ];
 
-      (CareSchedulingServiceAdapter.filterTasksByPreferences as jest.Mock).mockReturnValue(filteredTasks);
+      (CareSchedulingServiceAdapter.filterTasksByPreferences as any).mockReturnValue(filteredTasks);
 
       const result = await CareSchedulingServiceAdapter.filterTasksByPreferences(
         allTasks,
@@ -486,7 +541,7 @@ describe("Care Activity Logging Integration Tests", () => {
       };
 
       // Mock UUID to return different IDs for each activity
-      (generateUUID as jest.Mock)
+      (generateUUID as any)
         .mockReturnValueOnce("activity-1")
         .mockReturnValueOnce("activity-2")
         .mockReturnValueOnce("activity-3");
@@ -547,11 +602,11 @@ describe("Care Activity Logging Integration Tests", () => {
       ];
 
       // Mock the plant service to return the right plants
-      (plantService.getPlant as jest.Mock)
+      (plantService.getPlant as any)
         .mockResolvedValueOnce(mixedPlants[0])
         .mockResolvedValueOnce(mixedPlants[1]);
 
-      (varietyService.getVariety as jest.Mock)
+      (varietyService.getVariety as any)
         .mockResolvedValueOnce(tomatoVariety)
         .mockResolvedValueOnce(basilVariety);
 
@@ -569,7 +624,7 @@ describe("Care Activity Logging Integration Tests", () => {
       };
 
       // Mock different activity IDs
-      (generateUUID as jest.Mock)
+      (generateUUID as any)
         .mockReturnValueOnce("fertilize-activity-1")
         .mockReturnValueOnce("fertilize-activity-2");
 
@@ -613,7 +668,7 @@ describe("Care Activity Logging Integration Tests", () => {
       };
 
       // Mock failure scenario - one of the individual activity logs fails
-      (careService.addCareActivity as jest.Mock)
+      (careService.addCareActivity as any)
         .mockResolvedValueOnce("activity-1") // First plant succeeds
         .mockRejectedValueOnce(new Error("Failed to log activity for plant-2")) // Second plant fails
         .mockResolvedValueOnce("activity-3"); // Third plant would succeed
@@ -638,10 +693,10 @@ describe("Care Activity Logging Integration Tests", () => {
         lastCompletion: new Date("2024-01-05"),
       };
 
-      (DynamicSchedulingServiceAdapter.getCompletionPatterns as jest.Mock).mockResolvedValue(mockCompletionPattern);
+      (DynamicSchedulingServiceAdapter.getCompletionPatterns as any).mockResolvedValue(mockCompletionPattern);
 
       const nextDueDate = new Date("2024-01-07"); // 2 days after last completion
-      (DynamicSchedulingServiceAdapter.getNextDueDateForTask as jest.Mock).mockResolvedValue(nextDueDate);
+      (DynamicSchedulingServiceAdapter.getNextDueDateForTask as any).mockResolvedValue(nextDueDate);
 
       // Record a new completion
       await DynamicSchedulingServiceAdapter.recordTaskCompletion(
@@ -677,11 +732,11 @@ describe("Care Activity Logging Integration Tests", () => {
         lastCompletion: new Date("2024-01-10"),
       };
 
-      (DynamicSchedulingServiceAdapter.getCompletionPatterns as jest.Mock).mockResolvedValue(inconsistentPattern);
+      (DynamicSchedulingServiceAdapter.getCompletionPatterns as any).mockResolvedValue(inconsistentPattern);
 
       // Should fall back to protocol defaults when patterns are inconsistent
       const fallbackDate = new Date("2024-01-13"); // 3 days (default interval)
-      (CareSchedulingServiceAdapter.calculateNextDueDate as jest.Mock).mockReturnValue(fallbackDate);
+      (CareSchedulingServiceAdapter.calculateNextDueDate as any).mockReturnValue(fallbackDate);
 
       const nextDate = await CareSchedulingServiceAdapter.calculateNextDueDate(
         "water",
@@ -738,11 +793,11 @@ describe("Care Activity Logging Integration Tests", () => {
 
     it("maintains data consistency during Firebase sync failures", async () => {
       // Reset careService mock to succeed (default behavior)
-      (careService.addCareActivity as jest.Mock).mockResolvedValue(mockActivityId);
+      (careService.addCareActivity as any).mockResolvedValue(mockActivityId);
       
       // Set up Firebase to fail
       const syncError = new Error("Network connection failed");
-      (FirebaseCareActivityService.createCareActivity as jest.Mock).mockImplementation(async () => {
+      (FirebaseCareActivityService.createCareActivity as any).mockImplementation(async () => {
         throw syncError;
       });
 
@@ -763,7 +818,7 @@ describe("Care Activity Logging Integration Tests", () => {
 
       // Verify local storage was attempted first
       expect(careService.addCareActivity).toHaveBeenCalledWith(activityData);
-      expect(FirebaseCareActivityService.createCareActivity).toHaveBeenCalledWith(activityData);
+      expect(FirebaseCareActivityService.createCareActivity).toHaveBeenCalledWith(activityData, "test-user-id");
     });
 
     it("validates activity data before logging", async () => {
@@ -779,7 +834,7 @@ describe("Care Activity Logging Integration Tests", () => {
 
       // Should reject invalid data
       const validationError = new Error("Invalid activity data");
-      (careService.addCareActivity as jest.Mock).mockImplementation(async () => {
+      (careService.addCareActivity as any).mockImplementation(async () => {
         throw validationError;
       });
 

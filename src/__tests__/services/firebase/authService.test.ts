@@ -212,7 +212,7 @@ describe("FirebaseAuthService", () => {
       const mockUnsubscribe = jest.fn();
       
       // Mock onAuthStateChanged to immediately call the callback
-      mockOnAuthStateChanged.mockImplementation((auth, callback) => {
+      mockOnAuthStateChanged.mockImplementation((_auth: any, callback: any) => {
         callback(mockUser as User);
         return mockUnsubscribe;
       });
@@ -227,7 +227,7 @@ describe("FirebaseAuthService", () => {
       const mockUnsubscribe = jest.fn();
       
       // Mock onAuthStateChanged to call callback with null (signed out)
-      mockOnAuthStateChanged.mockImplementation((auth, callback) => {
+      mockOnAuthStateChanged.mockImplementation((_auth: any, callback: any) => {
         callback(null);
         return mockUnsubscribe;
       });
@@ -240,7 +240,7 @@ describe("FirebaseAuthService", () => {
 
   describe("getCurrentUser", () => {
     it("returns current user when authenticated", () => {
-      mockAuth.currentUser = mockUser as User;
+      Object.defineProperty(mockAuth, 'currentUser', { value: mockUser as User, configurable: true });
 
       const currentUser = FirebaseAuthService.getCurrentUser();
 
@@ -248,7 +248,7 @@ describe("FirebaseAuthService", () => {
     });
 
     it("returns null when not authenticated", () => {
-      mockAuth.currentUser = null;
+      Object.defineProperty(mockAuth, 'currentUser', { value: null, configurable: true });
 
       const currentUser = FirebaseAuthService.getCurrentUser();
 

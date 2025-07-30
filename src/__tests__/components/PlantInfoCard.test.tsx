@@ -1,4 +1,4 @@
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { BrowserRouter } from "react-router-dom";
 import PlantInfoCard from "@/components/plant/PlantInfoCard";
@@ -60,12 +60,22 @@ describe("PlantInfoCard", () => {
     },
     protocols: {
       lighting: {
+        germination: { ppfd: { min: 100, max: 200, unit: "µmol/m²/s" }, photoperiod: { hours: 12 } },
+        seedling: { ppfd: { min: 150, max: 250, unit: "µmol/m²/s" }, photoperiod: { hours: 14 } },
         vegetative: {
           ppfd: { min: 200, max: 400, optimal: 300, unit: "µmol/m²/s" },
           photoperiod: { hours: 16 },
         },
+        flowering: { ppfd: { min: 300, max: 500, unit: "µmol/m²/s" }, photoperiod: { hours: 12 } },
+        fruiting: { ppfd: { min: 300, max: 500, unit: "µmol/m²/s" }, photoperiod: { hours: 12 } },
+        harvest: { ppfd: { min: 300, max: 500, unit: "µmol/m²/s" }, photoperiod: { hours: 12 } },
+        maturation: { ppfd: { min: 200, max: 400, unit: "µmol/m²/s" }, photoperiod: { hours: 14 } },
+        rootDevelopment: { ppfd: { min: 200, max: 400, unit: "µmol/m²/s" }, photoperiod: { hours: 14 } },
+        "ongoing-production": { ppfd: { min: 300, max: 500, unit: "µmol/m²/s" }, photoperiod: { hours: 12 } },
       },
       watering: {
+        germination: { trigger: { moistureLevel: "7-8" }, volume: { amount: "4-6 oz", frequency: "daily", perPlant: true } },
+        seedling: { trigger: { moistureLevel: "6-7" }, volume: { amount: "8-12 oz", frequency: "every 1-2 days", perPlant: true } },
         vegetative: {
           volume: {
             amount: "16-24 oz",
@@ -74,6 +84,12 @@ describe("PlantInfoCard", () => {
           },
           trigger: { moistureLevel: "3-4" },
         },
+        flowering: { trigger: { moistureLevel: "4-5" }, volume: { amount: "20-30 oz", frequency: "every 2-3 days", perPlant: true } },
+        fruiting: { trigger: { moistureLevel: "4-5" }, volume: { amount: "20-30 oz", frequency: "every 2-3 days", perPlant: true } },
+        harvest: { trigger: { moistureLevel: "4-5" }, volume: { amount: "20-30 oz", frequency: "every 2-3 days", perPlant: true } },
+        maturation: { trigger: { moistureLevel: "3-4" }, volume: { amount: "16-24 oz", frequency: "every 2-3 days", perPlant: true } },
+        rootDevelopment: { trigger: { moistureLevel: "3-4" }, volume: { amount: "16-24 oz", frequency: "every 2-3 days", perPlant: true } },
+        "ongoing-production": { trigger: { moistureLevel: "4-5" }, volume: { amount: "20-30 oz", frequency: "every 2-3 days", perPlant: true } },
       },
     },
     createdAt: new Date("2024-01-01"),
@@ -165,8 +181,8 @@ describe("PlantInfoCard", () => {
     it("hides optional fields when not provided", () => {
       const plantWithoutOptionalFields = {
         ...mockPlant,
-        location: undefined,
-        container: undefined,
+        location: "",
+        container: "",
         section: undefined,
       };
 
