@@ -2097,4 +2097,189 @@ export const seedVarieties: SeedVariety[] = [
       ],
     },
   },
+  
+  // FLOWERS
+  {
+    name: "Red Rose",
+    category: "flowers",
+    isEverbearing: false,
+    productiveLifespan: 1825, // 5 years
+    growthTimeline: {
+      germination: 14, // 2 weeks from seed
+      seedling: 28, // 4 weeks seedling phase
+      vegetative: 84, // 12 weeks vegetative growth
+      budding: 21, // 3 weeks bud formation
+      flowering: 56, // 8 weeks flowering period
+      dormancy: 120, // 4-month dormancy (winter)
+      maturation: 365, // Full cycle including dormancy
+    },
+    protocols: {
+      watering: {
+        germination: {
+          trigger: { moistureLevel: "6/10" },
+          target: { moistureLevel: "8/10" },
+          volume: { amount: "2-3 oz", frequency: "every 2-3 days", perPlant: true },
+        },
+        seedling: {
+          trigger: { moistureLevel: "5/10" },
+          target: { moistureLevel: "7/10" },
+          volume: { amount: "4-6 oz", frequency: "every 2-3 days", perPlant: true },
+        },
+        vegetative: {
+          trigger: { moistureLevel: "4/10" },
+          target: { moistureLevel: "6/10" },
+          volume: { amount: "8-12 oz", frequency: "every 2-3 days", perPlant: true },
+        },
+        budding: {
+          trigger: { moistureLevel: "4/10" },
+          target: { moistureLevel: "7/10" },
+          volume: { amount: "12-16 oz", frequency: "every 2 days", perPlant: true },
+        },
+        flowering: {
+          trigger: { moistureLevel: "4/10" },
+          target: { moistureLevel: "6/10" },
+          volume: { amount: "12-16 oz", frequency: "every 2-3 days", perPlant: true },
+        },
+        dormancy: {
+          trigger: { moistureLevel: "3/10" },
+          target: { moistureLevel: "5/10" },
+          volume: { amount: "4-6 oz", frequency: "weekly", perPlant: true },
+        },
+      },
+      environment: {
+        temperature: { min: 60, max: 75, optimal: 68, unit: "F" },
+        humidity: { min: 40, max: 60, optimal: 50 },
+        pH: { min: 6.0, max: 7.0, optimal: 6.5 },
+      },
+      container: {
+        depth: "18-24 inches",
+        staging: { final: "Large container for extensive root system" },
+      },
+      specialRequirements: [
+        "Requires winter dormancy period for proper flowering",
+        "Prefers morning sunlight with afternoon shade",
+        "Regular deadheading to encourage continued blooming",
+      ],
+    },
+  },
+  {
+    name: "Tulip",
+    category: "flowers",
+    isEverbearing: false,
+    productiveLifespan: 1095, // 3 years
+    growthTimeline: {
+      germination: 90, // 12-14 weeks cold stratification + germination
+      seedling: 28, // 4 weeks seedling phase
+      vegetative: 56, // 8 weeks vegetative growth
+      budding: 14, // 2 weeks bud formation
+      flowering: 21, // 3 weeks flowering period
+      dormancy: 182, // 6-month dormancy
+      maturation: 365, // Full cycle
+    },
+    protocols: {
+      watering: {
+        germination: {
+          trigger: { moistureLevel: "6/10" },
+          target: { moistureLevel: "7/10" },
+          volume: { amount: "1-2 oz", frequency: "every 3-4 days", perPlant: true },
+        },
+        seedling: {
+          trigger: { moistureLevel: "5/10" },
+          target: { moistureLevel: "7/10" },
+          volume: { amount: "2-4 oz", frequency: "every 2-3 days", perPlant: true },
+        },
+        vegetative: {
+          trigger: { moistureLevel: "4/10" },
+          target: { moistureLevel: "6/10" },
+          volume: { amount: "4-6 oz", frequency: "every 2-3 days", perPlant: true },
+        },
+        budding: {
+          trigger: { moistureLevel: "5/10" },
+          target: { moistureLevel: "7/10" },
+          volume: { amount: "6-8 oz", frequency: "every 2 days", perPlant: true },
+        },
+        flowering: {
+          trigger: { moistureLevel: "5/10" },
+          target: { moistureLevel: "7/10" },
+          volume: { amount: "6-8 oz", frequency: "every 2-3 days", perPlant: true },
+        },
+        dormancy: {
+          trigger: { moistureLevel: "2/10" },
+          target: { moistureLevel: "4/10" },
+          volume: { amount: "2-3 oz", frequency: "weekly", perPlant: true },
+        },
+      },
+      environment: {
+        temperature: { min: 35, max: 65, optimal: 50, unit: "F" },
+        humidity: { min: 30, max: 50, optimal: 40 },
+        pH: { min: 6.0, max: 7.5, optimal: 6.8 },
+      },
+      container: {
+        depth: "8-12 inches",
+        staging: { final: "Medium container with good drainage" },
+      },
+      specialRequirements: [
+        "Requires 12-16 weeks cold treatment before planting",
+        "Plant bulbs in fall for spring blooming",
+        "Allow foliage to die back naturally after flowering",
+      ],
+    },
+  },
+  {
+    name: "Sunflower",
+    category: "flowers",
+    isEverbearing: false,
+    productiveLifespan: 120, // Single season annual
+    growthTimeline: {
+      germination: 7, // 1 week
+      seedling: 14, // 2 weeks
+      vegetative: 42, // 6 weeks
+      budding: 14, // 2 weeks
+      flowering: 21, // 3 weeks
+      maturation: 120, // Full cycle
+    },
+    protocols: {
+      watering: {
+        germination: {
+          trigger: { moistureLevel: "6/10" },
+          target: { moistureLevel: "8/10" },
+          volume: { amount: "2-3 oz", frequency: "daily", perPlant: true },
+        },
+        seedling: {
+          trigger: { moistureLevel: "5/10" },
+          target: { moistureLevel: "7/10" },
+          volume: { amount: "4-6 oz", frequency: "daily", perPlant: true },
+        },
+        vegetative: {
+          trigger: { moistureLevel: "4/10" },
+          target: { moistureLevel: "7/10" },
+          volume: { amount: "12-16 oz", frequency: "daily", perPlant: true },
+        },
+        budding: {
+          trigger: { moistureLevel: "4/10" },
+          target: { moistureLevel: "7/10" },
+          volume: { amount: "16-24 oz", frequency: "daily", perPlant: true },
+        },
+        flowering: {
+          trigger: { moistureLevel: "4/10" },
+          target: { moistureLevel: "6/10" },
+          volume: { amount: "16-24 oz", frequency: "daily", perPlant: true },
+        },
+      },
+      environment: {
+        temperature: { min: 65, max: 85, optimal: 75, unit: "F" },
+        humidity: { min: 40, max: 70, optimal: 55 },
+        pH: { min: 6.0, max: 7.5, optimal: 6.8 },
+      },
+      container: {
+        depth: "24-36 inches",
+        staging: { final: "Very large container for tall growth" },
+      },
+      specialRequirements: [
+        "Requires full sun exposure (6+ hours daily)",
+        "May need staking for support as it grows tall",
+        "Heavy feeder - benefits from rich, well-draining soil",
+      ],
+    },
+  },
 ];

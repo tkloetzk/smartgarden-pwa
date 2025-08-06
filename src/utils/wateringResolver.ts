@@ -62,6 +62,16 @@ export class WateringResolver {
       "ongoing-production": { amount: 24, unit: "oz" },
       maturation: { amount: 20, unit: "oz" },
     } as CategoryWateringConfig<"berries">,
+
+    flowers: {
+      germination: { amount: 6, unit: "oz" },
+      seedling: { amount: 10, unit: "oz" },
+      vegetative: { amount: 16, unit: "oz" },
+      budding: { amount: 20, unit: "oz" },
+      flowering: { amount: 18, unit: "oz" },
+      dormancy: { amount: 8, unit: "oz" },
+      maturation: { amount: 16, unit: "oz" },
+    } as CategoryWateringConfig<"flowers">,
   } as const;
 
   static resolveWateringAmount(

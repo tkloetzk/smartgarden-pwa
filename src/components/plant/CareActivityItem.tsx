@@ -39,10 +39,27 @@ const CareActivityItem: React.FC<CareActivityItemProps> = ({ activity }) => {
         } else if (details.waterAmount && details.waterUnit) {
           amountDisplay = `${details.waterAmount} ${details.waterUnit}`;
         }
-        return `Watering (${amountDisplay})`;
+        
+        // Show section-based context
+        let title = `Watering (${amountDisplay})`;
+        if (details.sectionBased && details.totalSectionAmount) {
+          title = `Section Watering (${details.totalSectionAmount.value} ${details.totalSectionAmount.unit} total)`;
+        }
+
+        // Show partial watering indicator
+        if (details.isPartialWatering && details.wateringCompleteness) {
+          const percentage = Math.round(details.wateringCompleteness * 100);
+          title = `⚠️ ${title} - ${percentage}% of recommended`;
+        }
+        
+        return title;
       }
       case "fertilize": {
-        return `Fertilized with ${details.product || "fertilizer"}`;
+        let title = `Fertilized with ${details.product || "fertilizer"}`;
+        if (details.sectionBased) {
+          title = `Section Fertilizing with ${details.product || "fertilizer"}`;
+        }
+        return title;
       }
       case "observe": {
         return `Health Check (${details.healthAssessment || "unknown"})`;
@@ -69,6 +86,24 @@ const CareActivityItem: React.FC<CareActivityItemProps> = ({ activity }) => {
       case "water": {
         return (
           <div className="space-y-2">
+            {details.sectionBased && (
+              <div className="p-3 bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800 rounded-md">
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="text-emerald-600 dark:text-emerald-400">🌱</span>
+                  <span className="text-sm font-medium text-emerald-900 dark:text-emerald-100">
+                    Section-Based Application
+                  </span>
+                </div>
+                <div className="text-xs text-emerald-700 dark:text-emerald-300">
+                  Applied to {details.plantsInSection} plants in section
+                  {details.totalSectionAmount && (
+                    <span className="block mt-1">
+                      Total amount: {details.totalSectionAmount.value} {details.totalSectionAmount.unit}
+                    </span>
+                  )}
+                </div>
+              </div>
+            )}
             <div className="grid grid-cols-2 gap-4 text-sm">
               <div>
                 <span className="font-medium text-muted-foreground">
@@ -80,6 +115,17 @@ const CareActivityItem: React.FC<CareActivityItemProps> = ({ activity }) => {
                     : details.waterAmount && details.waterUnit
                     ? `${details.waterAmount} ${details.waterUnit}`
                     : "Not specified"}
+                  {details.sectionBased && details.totalSectionAmount && (
+                    <span className="text-xs text-muted-foreground block">
+                      ({details.totalSectionAmount.value} {details.totalSectionAmount.unit} total for section)
+                    </span>
+                  )}
+                  {details.isPartialWatering && details.recommendedAmount && (
+                    <span className="text-xs text-amber-600 block">
+                      Recommended: {details.recommendedAmount.value} {details.recommendedAmount.unit}
+                      ({Math.round((details.wateringCompleteness || 0) * 100)}% given)
+                    </span>
+                  )}
                 </div>
               </div>
               {details.method && (
@@ -119,6 +165,19 @@ const CareActivityItem: React.FC<CareActivityItemProps> = ({ activity }) => {
       case "fertilize": {
         return (
           <div className="space-y-2">
+            {details.sectionBased && (
+              <div className="p-3 bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800 rounded-md">
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="text-emerald-600 dark:text-emerald-400">🌱</span>
+                  <span className="text-sm font-medium text-emerald-900 dark:text-emerald-100">
+                    Section-Based Application
+                  </span>
+                </div>
+                <div className="text-xs text-emerald-700 dark:text-emerald-300">
+                  Applied to {details.plantsInSection} plants in section
+                </div>
+              </div>
+            )}
             <div className="grid grid-cols-2 gap-4 text-sm">
               <div>
                 <span className="font-medium text-muted-foreground">

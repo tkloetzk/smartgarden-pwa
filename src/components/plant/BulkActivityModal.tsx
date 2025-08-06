@@ -8,7 +8,8 @@ import { useFirebasePlants } from "@/hooks/useFirebasePlants";
 import { toast } from "react-hot-toast";
 import { seedVarieties } from "@/data/seedVarieties";
 import { CareActivityDetails } from "@/types";
-import { CareActivityType, ApplicationMethod } from "@/types";
+import { CareActivityType, ApplicationMethod, VolumeUnit } from "@/types";
+import { PartialWateringService } from "@/services/partialWateringService";
 
 interface BulkActivityModalProps {
   isOpen: boolean;
@@ -53,6 +54,7 @@ const BulkActivityModal = ({
 }: BulkActivityModalProps) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [amount, setAmount] = useState("20");
+  const [waterUnit, setWaterUnit] = useState<VolumeUnit>("oz");
   const [notes, setNotes] = useState("");
 
   // Fertilizing-specific fields
@@ -230,7 +232,26 @@ const BulkActivityModal = ({
 
         if (activityType === "water") {
           details.waterAmount = parseFloat(amount);
-          details.waterUnit = "oz";
+          details.waterUnit = waterUnit;
+          
+          // Analyze if this is partial watering for better scheduling
+          const plant = plants?.find((p) => p.id === plantId);
+          if (plant) {
+            try {
+              const analysis = await PartialWateringService.analyzeWateringAmount(
+                plant,
+                parseFloat(amount),
+                waterUnit
+              );
+              
+              // Enhance details with partial watering info
+              details.recommendedAmount = analysis.recommendedAmount;
+              details.isPartialWatering = analysis.isPartial;
+              details.wateringCompleteness = analysis.completeness;
+            } catch (error) {
+              console.error("Failed to analyze watering amount:", error);
+            }
+          }
         } else if (activityType === "fertilize") {
           details.product = fertilizeProduct;
           details.dilution = dilution === "custom" ? amount : dilution;
@@ -333,17 +354,37 @@ const BulkActivityModal = ({
         <CardContent className="space-y-4">
           {/* Water-specific fields */}
           {activityType === "water" && (
-            <div>
-              <label htmlFor="bulk-amount" className="text-sm font-medium">
-                Amount (oz)
-              </label>
-              <Input
-                id="bulk-amount"
-                type="number"
-                value={amount}
-                onChange={(e) => setAmount(e.target.value)}
-                placeholder="20"
-              />
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label htmlFor="bulk-amount" className="text-sm font-medium block mb-2">
+                    Water Amount
+                  </label>
+                  <Input
+                    id="bulk-amount"
+                    type="number"
+                    value={amount}
+                    onChange={(e) => setAmount(e.target.value)}
+                    placeholder="20"
+                  />
+                </div>
+                <div>
+                  <label htmlFor="water-unit" className="text-sm font-medium block mb-2">
+                    Unit
+                  </label>
+                  <select
+                    id="water-unit"
+                    value={waterUnit}
+                    onChange={(e) => setWaterUnit(e.target.value as VolumeUnit)}
+                    className="w-full p-3 border border-border rounded-lg bg-background text-foreground focus:ring-2 focus:ring-ring focus:border-ring"
+                  >
+                    <option value="oz">oz</option>
+                    <option value="ml">ml</option>
+                    <option value="cups">cups</option>
+                    <option value="L">L</option>
+                  </select>
+                </div>
+              </div>
             </div>
           )}
 

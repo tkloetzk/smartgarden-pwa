@@ -87,11 +87,26 @@ describe("varietyService", () => {
     });
 
     it("should return an empty array for a category with no varieties", async () => {
-      // Assuming 'flowers' is not a category in the seed data
-      const flowers = await varietyService.getVarietiesByCategory(
-        "flowers" as PlantCategory
+      // Use a category that doesn't exist in the seed data
+      const nonExistentCategory = await varietyService.getVarietiesByCategory(
+        "non-existent-category" as PlantCategory
       );
-      expect(flowers).toEqual([]);
+      expect(nonExistentCategory).toEqual([]);
+    });
+
+    it("should retrieve all flower varieties", async () => {
+      const flowers = await varietyService.getVarietiesByCategory("flowers");
+      const flowerNames = flowers.map((v) => v.name);
+
+      expect(flowers.length).toBeGreaterThan(0);
+      expect(flowerNames).toContain("Red Rose");
+      expect(flowerNames).toContain("Tulip");
+      expect(flowerNames).toContain("Sunflower");
+
+      // Ensure all returned items actually belong to the flowers category
+      flowers.forEach((flower) => {
+        expect(flower.category).toBe("flowers");
+      });
     });
   });
 

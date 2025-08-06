@@ -1,5 +1,5 @@
 // src/services/dynamicSchedulingService.ts
-import { db, TaskCompletionRecord } from "@/types/database";
+import { db, TaskCompletionRecord, careService } from "@/types/database";
 import { CareActivityType, GrowthStage } from "@/types";
 import { addDays, differenceInDays } from "date-fns";
 import { generateUUID } from "@/utils/cn";
@@ -53,6 +53,25 @@ export class DynamicSchedulingService {
     lastCompletionDate: Date
   ): Promise<Date> {
     try {
+      // Check if last watering was partial and needs early follow-up
+      if (taskType === "water") {
+        const lastWateringActivity = await careService.getLastActivityByType(
+          plantId,
+          "water"
+        );
+        
+        if (lastWateringActivity?.details.isPartialWatering) {
+          const completeness = lastWateringActivity.details.wateringCompleteness || 0;
+          
+          // Schedule earlier follow-up for partial waterings
+          if (completeness < 0.5) {
+            return addDays(lastCompletionDate, 1); // Very low - check tomorrow
+          } else if (completeness < 0.8) {
+            return addDays(lastCompletionDate, 2); // Moderate deficit - check in 2 days
+          }
+        }
+      }
+
       const patterns = await this.getCompletionPatterns(plantId, taskType);
 
       // Base interval of 7 days, adjusted by patterns

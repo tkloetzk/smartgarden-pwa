@@ -186,6 +186,23 @@ export class SmartDefaultsService {
           amount: "Apply bi-weekly",
         },
       },
+      flowers: {
+        general: {
+          product: "Flower fertilizer",
+          dilution: "Half strength",
+          amount: "Apply bi-weekly",
+        },
+        budding: {
+          product: "High phosphorus fertilizer",
+          dilution: "Half strength",
+          amount: "Apply weekly during budding",
+        },
+        flowering: {
+          product: "Bloom booster fertilizer",
+          dilution: "Half strength",
+          amount: "Apply bi-weekly during flowering",
+        },
+      },
     };
 
     const stageKey = ["flowering", "fruiting"].includes(stage)

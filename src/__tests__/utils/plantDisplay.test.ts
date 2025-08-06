@@ -21,9 +21,9 @@ describe("getPlantDisplayName", () => {
     expect(getPlantDisplayName(plant)).toBe("My Special Tomato");
   });
 
-  it("returns variety name when no custom name", () => {
+  it("returns variety name with container info when no custom name", () => {
     const plant = { ...basePlant, name: undefined };
-    expect(getPlantDisplayName(plant)).toBe("Roma Tomato");
+    expect(getPlantDisplayName(plant)).toBe("Roma Tomato (5 gallon)");
   });
 
   it("returns fallback when no custom name or variety name", () => {
@@ -39,5 +39,22 @@ describe("getPlantDisplayName", () => {
   it("returns fallback when varietyName is whitespace only", () => {
     const plant = { ...basePlant, name: undefined, varietyName: "   " };
     expect(getPlantDisplayName(plant)).toBe("Unknown Plant");
+  });
+
+  it("handles container with emoji prefix", () => {
+    const plant = { ...basePlant, name: undefined, container: "🪣 4-inch pot" };
+    expect(getPlantDisplayName(plant)).toBe("Roma Tomato (4-inch pot)");
+  });
+
+  it("handles empty container gracefully", () => {
+    const plant = { ...basePlant, name: undefined, container: "" };
+    expect(getPlantDisplayName(plant)).toBe("Roma Tomato");
+  });
+
+  it("handles undefined container gracefully", () => {
+    const plant = { ...basePlant, name: undefined };
+    // @ts-expect-error Testing undefined container edge case
+    plant.container = undefined;
+    expect(getPlantDisplayName(plant)).toBe("Roma Tomato");
   });
 });

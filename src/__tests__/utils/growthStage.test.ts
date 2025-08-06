@@ -87,14 +87,16 @@ describe("Growth Stage Utilities", () => {
     it("returns correct next stages", () => {
       expect(getNextStage("germination")).toBe("seedling");
       expect(getNextStage("seedling")).toBe("vegetative");
-      expect(getNextStage("vegetative")).toBe("flowering");
+      expect(getNextStage("vegetative")).toBe("budding");
+      expect(getNextStage("budding")).toBe("flowering");
       expect(getNextStage("flowering")).toBe("maturation");
       expect(getNextStage("maturation")).toBe("ongoing-production");
       expect(getNextStage("ongoing-production")).toBe("harvest");
+      expect(getNextStage("harvest")).toBe("dormancy");
     });
 
     it("returns null for the final stage", () => {
-      expect(getNextStage("harvest")).toBe(null);
+      expect(getNextStage("dormancy")).toBe(null);
     });
 
     it("handles invalid stages gracefully", () => {

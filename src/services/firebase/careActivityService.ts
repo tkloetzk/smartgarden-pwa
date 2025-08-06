@@ -86,6 +86,39 @@ export class FirebaseCareActivityService {
     });
   }
 
+  /**
+   * Get the last activity of a specific type for a plant
+   */
+  static async getLastActivityByType(
+    plantId: string,
+    userId: string,
+    type: string
+  ): Promise<CareRecord | null> {
+    try {
+      const activitiesQuery = query(
+        this.careActivitiesCollection,
+        where("userId", "==", userId),
+        where("plantId", "==", plantId),
+        where("type", "==", type),
+        orderBy("date", "desc"),
+        limit(1)
+      );
+
+      const snapshot = await getDocs(activitiesQuery);
+      
+      if (snapshot.empty) {
+        return null;
+      }
+
+      const doc = snapshot.docs[0];
+      const data = doc.data() as FirebaseCareRecord;
+      return convertCareActivityFromFirebase({ ...data, id: doc.id });
+    } catch (error) {
+      console.error("Error getting last activity by type:", error);
+      return null;
+    }
+  }
+
   // ✅ ADD THIS NEW METHOD
   static async getRecentActivitiesForPlant(
     plantId: string,

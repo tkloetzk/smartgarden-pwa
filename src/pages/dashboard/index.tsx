@@ -17,6 +17,8 @@ import toast from "react-hot-toast";
 import { QuickCompletionValues } from "@/services/smartDefaultsService";
 import { DynamicSchedulingService } from "@/services/dynamicSchedulingService";
 import { CareActivityDetails } from "@/types";
+import { FirebaseCareSchedulingService } from "@/services/firebaseCareSchedulingService";
+import { FirebaseCareActivityService } from "@/services/firebase/careActivityService";
 // ❌ REMOVED: import { CatchUpAnalysisService } from "@/services/CatchUpAnalysisService";
 import {
   initializeDatabase,
@@ -31,6 +33,7 @@ export const Dashboard = () => {
   const navigate = useNavigate();
   const [plantGroups, setPlantGroups] = useState<PlantGroup[]>([]);
   const [plantsNeedingCatchUp, setPlantsNeedingCatchUp] = useState(0);
+  const [careStatusLoading, setCareStatusLoading] = useState(true);
 
   const {
     getUpcomingFertilizationTasks,
@@ -49,16 +52,37 @@ export const Dashboard = () => {
     const loadCatchUpCount = async () => {
       if (!plants || !user?.uid) {
         setPlantsNeedingCatchUp(0);
+        setCareStatusLoading(false);
         return;
       }
 
+      setCareStatusLoading(true);
       try {
-        // TODO: Implement catch-up analysis when needed
-        // For now, just set to 0
-        setPlantsNeedingCatchUp(0);
+        // TODO: Add retroactive analysis back later
+        console.log("🔧 Skipping retroactive analysis for now...");
+
+        // Get upcoming tasks using the Firebase care scheduling service
+        const getLastActivityByType = async (plantId: string, type: any) => {
+          return FirebaseCareActivityService.getLastActivityByType(plantId, user.uid, type);
+        };
+        
+        const upcomingTasks = await FirebaseCareSchedulingService.getUpcomingTasks(
+          plants,
+          getLastActivityByType
+        );
+        // Count unique plants that have any tasks (indicating they need care)
+        const uniquePlantIds = new Set();
+        upcomingTasks.forEach((task) => {
+          uniquePlantIds.add(task.plantId);
+        });
+
+
+        setPlantsNeedingCatchUp(uniquePlantIds.size);
       } catch (error) {
         console.error("Failed to load catch-up count:", error);
         setPlantsNeedingCatchUp(0);
+      } finally {
+        setCareStatusLoading(false);
       }
     };
 
@@ -173,7 +197,8 @@ export const Dashboard = () => {
   // Bulk Activity Modal state
   const [bulkModalOpen, setBulkModalOpen] = useState(false);
   const [selectedPlantIds, setSelectedPlantIds] = useState<string[]>([]);
-  const [selectedActivityType, setSelectedActivityType] = useState<QuickActionType>("water");
+  const [selectedActivityType, setSelectedActivityType] =
+    useState<QuickActionType>("water");
   const [selectedGroup, setSelectedGroup] = useState<PlantGroup | null>(null);
 
   const handleBulkLogActivity = (
@@ -241,11 +266,13 @@ export const Dashboard = () => {
           {/* Plant Care Status Card - Only catch-up UI element on dashboard */}
           <Card
             className={`cursor-pointer transition-all duration-200 ${
-              plantsNeedingCatchUp > 0
+              careStatusLoading
+                ? "border-gray-200 bg-gray-50"
+                : plantsNeedingCatchUp > 0
                 ? "border-orange-200 bg-orange-50 hover:bg-orange-100"
                 : "border-green-200 bg-green-50 hover:bg-green-100"
             }`}
-            onClick={handleCatchUpClick}
+            onClick={careStatusLoading ? undefined : handleCatchUpClick}
           >
             <CardContent className="p-4">
               <div className="flex items-center justify-between">
@@ -253,17 +280,27 @@ export const Dashboard = () => {
                   <p className="text-sm font-medium text-muted-foreground">
                     Plant Care Status
                   </p>
-                  <p className="text-2xl font-bold">
-                    {plantsNeedingCatchUp === 0 ? "✅" : plantsNeedingCatchUp}
-                  </p>
+                  {careStatusLoading ? (
+                    <p className="text-2xl font-bold">⏳</p>
+                  ) : (
+                    <p className="text-2xl font-bold">
+                      {plantsNeedingCatchUp === 0 ? "✅" : plantsNeedingCatchUp}
+                    </p>
+                  )}
                   <p className="text-xs text-muted-foreground">
-                    {plantsNeedingCatchUp === 0
+                    {careStatusLoading
+                      ? "Checking plants..."
+                      : plantsNeedingCatchUp === 0
                       ? "All caught up!"
                       : `plants need attention`}
                   </p>
                 </div>
                 <div className="text-2xl">
-                  {plantsNeedingCatchUp > 0 ? "⚠️" : "🌱"}
+                  {careStatusLoading
+                    ? "🔄"
+                    : plantsNeedingCatchUp > 0
+                    ? "⚠️"
+                    : "🌱"}
                 </div>
               </div>
             </CardContent>

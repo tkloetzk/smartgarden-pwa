@@ -167,10 +167,12 @@ export function getNextStage(currentStage: GrowthStage): GrowthStage | null {
     "germination",
     "seedling",
     "vegetative",
+    "budding",
     "flowering",
     "maturation",
     "ongoing-production",
     "harvest",
+    "dormancy",
   ];
   const currentIndex = stages.indexOf(currentStage);
 

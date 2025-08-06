@@ -1,0 +1,308 @@
+// src/__tests__/integration/partialWateringCareStatus.test.tsx
+import { render, screen, waitFor } from "@testing-library/react";
+import { Dashboard } from "@/pages/dashboard";
+import { CareSchedulingService } from "@/services/careSchedulingService";
+import { RetroactiveWateringService } from "@/services/retroactiveWateringService";
+import { useFirebasePlants } from "@/hooks/useFirebasePlants";
+import { useFirebaseAuth } from "@/hooks/useFirebaseAuth";
+import { createMockPlantWithVariety } from "@/__tests__/utils/testDataFactories";
+import { BrowserRouter } from "react-router-dom";
+import { subDays } from "date-fns";
+
+// Mock the hooks and services
+jest.mock("@/hooks/useFirebasePlants");
+jest.mock("@/hooks/useFirebaseAuth");
+jest.mock("@/services/careSchedulingService");
+jest.mock("@/services/retroactiveWateringService");
+jest.mock("@/hooks/useScheduledTasks", () => ({
+  useScheduledTasks: () => ({
+    getUpcomingFertilizationTasks: jest.fn(() => []),
+    error: null,
+  }),
+}));
+jest.mock("@/hooks/useFirebaseCareActivities", () => ({
+  useFirebaseCareActivities: () => ({
+    logActivity: jest.fn(),
+  }),
+}));
+
+const mockUseFirebasePlants = useFirebasePlants as jest.MockedFunction<typeof useFirebasePlants>;
+const mockUseFirebaseAuth = useFirebaseAuth as jest.MockedFunction<typeof useFirebaseAuth>;
+const mockCareSchedulingService = CareSchedulingService as jest.Mocked<typeof CareSchedulingService>;
+const mockRetroactiveWateringService = RetroactiveWateringService as jest.Mocked<typeof RetroactiveWateringService>;
+
+describe("Dashboard Care Status - Partial Watering Integration", () => {
+  const mockUser = { 
+    uid: "test-user-123", 
+    email: "test@example.com",
+    emailVerified: false,
+    isAnonymous: false,
+    metadata: {} as any,
+    providerData: [],
+    refreshToken: "",
+    tenantId: null,
+    delete: jest.fn(),
+    getIdToken: jest.fn(),
+    getIdTokenResult: jest.fn(),
+    reload: jest.fn(),
+    toJSON: jest.fn(),
+    displayName: null,
+    phoneNumber: null,
+    photoURL: null,
+    providerId: "firebase",
+  } as any;
+  
+  beforeEach(() => {
+    jest.clearAllMocks();
+    
+    // Mock Firebase Auth
+    mockUseFirebaseAuth.mockReturnValue({
+      user: mockUser,
+      signOut: jest.fn(),
+      loading: false,
+    });
+
+    // Mock Retroactive Service
+    mockRetroactiveWateringService.analyzeAndUpdateWaterActivities.mockResolvedValue({
+      analyzed: 1,
+      updated: 1,
+      errors: 0,
+    });
+  });
+
+  describe("Little Finger Carrots Partial Watering Scenario", () => {
+    it("should show plant needs care when 7oz logged vs 32-40oz required (61 days old)", async () => {
+      // Create a 61-day-old Little Finger Carrots plant
+      const plantedDate = subDays(new Date(), 61);
+      const littleFingerCarrots = createMockPlantWithVariety("Little Finger Carrots", {
+        plantedDate,
+        id: "carrot-plant-1",
+      });
+
+      // Mock plants data
+      mockUseFirebasePlants.mockReturnValue({
+        plants: [littleFingerCarrots],
+        loading: false,
+        error: null,
+        createPlant: jest.fn(),
+        updatePlant: jest.fn(),
+        deletePlant: jest.fn(),
+      });
+
+      // Mock care scheduling service to return water task for partial watering
+      const mockWaterTask = {
+        id: "water-carrot-plant-1",
+        plantId: "carrot-plant-1", 
+        plantName: "Little Finger Carrots (Test Container)",
+        task: "Check water level",
+        type: "water" as const,
+        dueIn: "due today",
+        priority: "overdue" as const,
+        plantStage: "rootDevelopment" as const,
+        dueDate: new Date(),
+        category: "watering" as const,
+        canBypass: true,
+      };
+
+      mockCareSchedulingService.getUpcomingTasks.mockResolvedValue([mockWaterTask]);
+
+      // Render dashboard
+      render(
+        <BrowserRouter>
+          <Dashboard />
+        </BrowserRouter>
+      );
+
+      // Wait for async operations
+      await waitFor(() => {
+        expect(mockRetroactiveWateringService.analyzeAndUpdateWaterActivities).toHaveBeenCalled();
+      });
+
+      await waitFor(() => {
+        expect(mockCareSchedulingService.getUpcomingTasks).toHaveBeenCalled();
+      });
+
+      // Check that Plant Care Status shows 1 plant needing care (not "All caught up")
+      await waitFor(() => {
+        const careStatusText = screen.getByText("Plant Care Status");
+        expect(careStatusText).toBeInTheDocument();
+        
+        // Should show "1" not "✅" 
+        const statusValue = screen.getByText("1");
+        expect(statusValue).toBeInTheDocument();
+        
+        // Should show "plants need attention" not "All caught up!"
+        const statusMessage = screen.getByText("plants need attention");
+        expect(statusMessage).toBeInTheDocument();
+      });
+
+      // Verify the warning emoji is shown (not the happy plant emoji)
+      const warningEmoji = screen.getByText("⚠️");
+      expect(warningEmoji).toBeInTheDocument();
+    });
+
+    it("should show 0 plants when no partial watering tasks exist", async () => {
+      const plant = createMockPlantWithVariety("Little Finger Carrots", {
+        plantedDate: subDays(new Date(), 61),
+        id: "carrot-plant-1",
+      });
+
+      mockUseFirebasePlants.mockReturnValue({
+        plants: [plant],
+        loading: false,
+      });
+
+      // Mock no tasks (plant is caught up)
+      mockCareSchedulingService.getUpcomingTasks.mockResolvedValue([]);
+
+      render(
+        <BrowserRouter>
+          <Dashboard />
+        </BrowserRouter>
+      );
+
+      await waitFor(() => {
+        expect(mockCareSchedulingService.getUpcomingTasks).toHaveBeenCalled();
+      });
+
+      // Should show "All caught up!" when no tasks
+      await waitFor(() => {
+        const checkmark = screen.getByText("✅");
+        expect(checkmark).toBeInTheDocument();
+        
+        const caughtUpMessage = screen.getByText("All caught up!");
+        expect(caughtUpMessage).toBeInTheDocument();
+      });
+    });
+
+    it("should handle multiple plants with partial watering", async () => {
+      const carrotPlant = createMockPlantWithVariety("Little Finger Carrots", {
+        plantedDate: subDays(new Date(), 61),
+        id: "carrot-plant-1",
+      });
+
+      const basilPlant = createMockPlantWithVariety("Genovese Basil", {
+        plantedDate: subDays(new Date(), 30),
+        id: "basil-plant-1", 
+      });
+
+      mockUseFirebasePlants.mockReturnValue({
+        plants: [carrotPlant, basilPlant],
+        loading: false,
+      });
+
+      // Mock tasks for both plants
+      const mockTasks = [
+        {
+          id: "water-carrot-plant-1",
+          plantId: "carrot-plant-1",
+          plantName: "Little Finger Carrots",
+          task: "Check water level",
+          type: "water" as const,
+          dueIn: "due today",
+          priority: "overdue" as const,
+          plantStage: "rootDevelopment" as const,
+          dueDate: new Date(),
+          category: "watering" as const,
+          canBypass: true,
+        },
+        {
+          id: "water-basil-plant-1", 
+          plantId: "basil-plant-1",
+          plantName: "Genovese Basil",
+          task: "Check water level",
+          type: "water" as const,
+          dueIn: "due tomorrow",
+          priority: "normal" as const,
+          plantStage: "vegetative" as const,
+          dueDate: new Date(),
+          category: "watering" as const,
+          canBypass: true,
+        }
+      ];
+
+      mockCareSchedulingService.getUpcomingTasks.mockResolvedValue(mockTasks);
+
+      render(
+        <BrowserRouter>
+          <Dashboard />
+        </BrowserRouter>
+      );
+
+      await waitFor(() => {
+        expect(mockCareSchedulingService.getUpcomingTasks).toHaveBeenCalled();
+      });
+
+      // Should show "2" plants needing care
+      await waitFor(() => {
+        const statusValue = screen.getByText("2");
+        expect(statusValue).toBeInTheDocument();
+        
+        const statusMessage = screen.getByText("plants need attention");
+        expect(statusMessage).toBeInTheDocument();
+      });
+    });
+  });
+
+  describe("Dashboard Care Status Edge Cases", () => {
+    it("should handle care scheduling service errors gracefully", async () => {
+      const plant = createMockPlantWithVariety("Little Finger Carrots", {
+        plantedDate: subDays(new Date(), 61),
+        id: "carrot-plant-1",
+      });
+
+      mockUseFirebasePlants.mockReturnValue({
+        plants: [plant],
+        loading: false,
+      });
+
+      // Mock service error
+      mockCareSchedulingService.getUpcomingTasks.mockRejectedValue(
+        new Error("Service unavailable")
+      );
+
+      render(
+        <BrowserRouter>
+          <Dashboard />
+        </BrowserRouter>
+      );
+
+      // Should still render and show 0 plants (error fallback)
+      await waitFor(() => {
+        const checkmark = screen.getByText("✅");
+        expect(checkmark).toBeInTheDocument();
+      });
+    });
+
+    it("should handle retroactive analysis errors without crashing", async () => {
+      const plant = createMockPlantWithVariety("Little Finger Carrots", {
+        plantedDate: subDays(new Date(), 61),
+        id: "carrot-plant-1",
+      });
+
+      mockUseFirebasePlants.mockReturnValue({
+        plants: [plant],
+        loading: false,
+      });
+
+      // Mock retroactive service error
+      mockRetroactiveWateringService.analyzeAndUpdateWaterActivities.mockRejectedValue(
+        new Error("Analysis failed")
+      );
+
+      mockCareSchedulingService.getUpcomingTasks.mockResolvedValue([]);
+
+      render(
+        <BrowserRouter>
+          <Dashboard />
+        </BrowserRouter>
+      );
+
+      // Should still complete and show status (despite analysis error)
+      await waitFor(() => {
+        const careStatusText = screen.getByText("Plant Care Status");
+        expect(careStatusText).toBeInTheDocument();
+      });
+    });
+  });
+});

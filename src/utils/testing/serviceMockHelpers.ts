@@ -87,6 +87,16 @@ export const createMockVariety = (overrides: Partial<VarietyRecord> = {}): Varie
         target: { moistureLevel: '6-7 on moisture meter' },
         volume: { amount: '200-300ml', frequency: 'every 2-3 days', perPlant: true },
       },
+      budding: {
+        trigger: { moistureLevel: '4-5 on moisture meter' },
+        target: { moistureLevel: '7-8 on moisture meter' },
+        volume: { amount: '150-200ml', frequency: 'every 2 days', perPlant: true },
+      },
+      dormancy: {
+        trigger: { moistureLevel: '2-3 on moisture meter' },
+        target: { moistureLevel: '4-5 on moisture meter' },
+        volume: { amount: '50-75ml', frequency: 'weekly', perPlant: true },
+      },
     },
   },
   createdAt: new Date(),

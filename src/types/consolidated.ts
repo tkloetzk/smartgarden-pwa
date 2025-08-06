@@ -17,7 +17,8 @@ export type PlantCategory =
   | "leafy-greens"
   | "herbs"
   | "berries"
-  | "fruiting-plants";
+  | "fruiting-plants"
+  | "flowers";
 
 // Growth Stages - Consolidated from core.ts and plantStages.ts
 type BaseGrowthStage = "germination" | "seedling" | "vegetative" | "maturation";
@@ -36,13 +37,19 @@ type BerryStage =
   | "fruiting"
   | "harvest"
   | "ongoing-production";
+type FlowerStage =
+  | BaseGrowthStage
+  | "budding"
+  | "flowering"
+  | "dormancy";
 
 export type GrowthStage =
   | RootVegetableStage
   | FruitingPlantStage
   | LeafyGreenStage
   | HerbStage
-  | BerryStage;
+  | BerryStage
+  | FlowerStage;
 
 // Care Activity Types
 export type CareActivityType =
@@ -210,22 +217,22 @@ export interface FertilizationScheduleItem {
 }
 
 export interface VarietyProtocols {
-  watering?: Record<
+  watering?: Partial<Record<
     GrowthStage,
     {
       trigger?: { moistureLevel?: string | number };
       target?: { moistureLevel?: string | number };
       volume?: { amount?: string | number; frequency?: string; perPlant?: boolean };
     }
-  >;
-  fertilization?: Record<
+  >>;
+  fertilization?: Partial<Record<
     GrowthStage,
     {
       schedule?: FertilizationScheduleItem[];
       notes?: string[];
     }
-  >;
-  lighting?: Record<
+  >>;
+  lighting?: Partial<Record<
     GrowthStage,
     {
       ppfd?: { min: number; max: number; optimal?: number; unit: string };
@@ -233,7 +240,7 @@ export interface VarietyProtocols {
       dli?: { min: number; max: number; unit: string };
       notes?: string[];
     }
-  >;
+  >>;
   environment?: EnvironmentalProtocol;
   soilMixture?: SoilMixture;
   container?: ContainerRequirements;
@@ -412,6 +419,18 @@ export interface BedRecord extends BaseRecord, BedReference {
 
 export interface CareActivityDetails {
   type: CareActivityType;
+  
+  // Section-based activity tracking
+  sectionBased?: boolean;
+  sectionId?: string; // Unique identifier for this section application
+  totalSectionAmount?: { value: number; unit: VolumeUnit }; // Total amount applied to entire section
+  plantsInSection?: number; // Number of plants this was applied to
+  
+  // Watering adequacy tracking
+  recommendedAmount?: { value: number; unit: VolumeUnit }; // What was recommended
+  isPartialWatering?: boolean; // True if less than 80% of recommended amount
+  wateringCompleteness?: number; // Percentage of recommended amount (0-1)
+  
   // Watering details
   waterAmount?: number;
   waterUnit?: VolumeUnit;
@@ -658,6 +677,7 @@ export type CategoryStageMap = {
   "leafy-greens": LeafyGreenStage;
   herbs: HerbStage;
   berries: BerryStage;
+  flowers: FlowerStage;
 };
 
 export type StagesForCategory<T extends PlantCategory> = CategoryStageMap[T];
@@ -703,6 +723,15 @@ export const CATEGORY_STAGES: Record<PlantCategory, readonly GrowthStage[]> = {
     "fruiting",
     "harvest",
     "ongoing-production",
+    "maturation",
+  ],
+  flowers: [
+    "germination",
+    "seedling",
+    "vegetative",
+    "budding",
+    "flowering",
+    "dormancy",
     "maturation",
   ],
 } as const;

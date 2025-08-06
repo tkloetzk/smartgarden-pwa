@@ -20,6 +20,7 @@ import { Logger } from "@/utils/logger";
 
 const plantSchema = z.object({
   varietyId: z.string().min(1, "Please select a variety"),
+  name: z.string().optional(),
   plantedDate: z.string().refine((date) => {
     const selectedDate = new Date(date);
     const today = new Date();
@@ -68,8 +69,8 @@ export function PlantRegistrationForm({
     watering: true,
     fertilizing: true,
     observation: true,
-    lighting: false,
-    pruning: false,
+    lighting: true,
+    pruning: true,
   });
   const [structuredSection, setStructuredSection] = useState<PlantSection | null>(null);
 
@@ -84,6 +85,7 @@ export function PlantRegistrationForm({
     resolver: zodResolver(plantSchema),
     mode: "onChange",
     defaultValues: {
+      name: "",
       location: false,
       selectedBedId: "",
       quantity: 1,
@@ -106,6 +108,15 @@ export function PlantRegistrationForm({
     try {
       setIsLoadingVarieties(true);
       const varietyList = await varietyService.getAllVarieties();
+      
+      // Debug logging to help identify variety loading issues
+      console.log(`Loaded ${varietyList.length} varieties`);
+      const categoryCount = varietyList.reduce((acc, variety) => {
+        acc[variety.category] = (acc[variety.category] || 0) + 1;
+        return acc;
+      }, {} as Record<string, number>);
+      console.log("Varieties by category:", categoryCount);
+      
       setVarieties(varietyList);
     } catch (error) {
       console.error("Failed to load varieties:", error);
@@ -121,6 +132,27 @@ export function PlantRegistrationForm({
   const getVarietyDisplayName = (variety: VarietyRecord) => {
     return variety.isCustom ? `${variety.name} (Custom)` : variety.name;
   };
+
+  const getCategoryDisplayName = (category: string) => {
+    const categoryNames: Record<string, string> = {
+      "leafy-greens": "🥬 Leafy Greens",
+      "root-vegetables": "🥕 Root Vegetables", 
+      "herbs": "🌿 Herbs",
+      "fruiting-plants": "🍅 Fruiting Plants",
+      "berries": "🫐 Berries",
+      "flowers": "🌸 Flowers"
+    };
+    return categoryNames[category] || category;
+  };
+
+  const groupedVarieties = varieties.reduce((groups, variety) => {
+    const category = variety.category;
+    if (!groups[category]) {
+      groups[category] = [];
+    }
+    groups[category].push(variety);
+    return groups;
+  }, {} as Record<string, VarietyRecord[]>);
 
   const onSubmit = async (data: PlantFormData) => {
     try {
@@ -157,13 +189,16 @@ export function PlantRegistrationForm({
         containerDescription += ` - ${data.section}`;
       }
 
-      const baseName = varietyName;
+      // Use custom name if provided, otherwise use variety name
+      const baseName = data.name?.trim() || varietyName;
 
       const plantPromises = [];
       for (let i = 0; i < data.quantity; i++) {
-        let plantName = baseName;
+        let plantName = data.name?.trim() || undefined; // Use undefined if no custom name
 
-        if (data.quantity > 1) {
+        // If no custom name was provided, don't set a name (let display logic handle it)
+        // If custom name was provided and quantity > 1, add numbering
+        if (data.name?.trim() && data.quantity > 1) {
           const isMultipleContainers = data.setupType === "multiple-containers";
           if (isMultipleContainers) {
             plantName = `${baseName} #${i + 1}`;
@@ -234,31 +269,51 @@ export function PlantRegistrationForm({
             <select
               {...register(id)}
               id={id}
-              className={`w-full p-3 border rounded-lg bg-background text-foreground focus:ring-2 focus:ring-accent focus:border-accent ${
-                error ? "border-red-500" : "border-border"
+              className={`w-full p-3 border rounded-lg bg-card text-foreground focus:ring-2 focus:ring-primary focus:border-primary shadow-sm ${
+                error ? "border-red-500" : "border-input"
               }`}
               disabled={isLoadingVarieties}
             >
               <option value="">
                 {isLoadingVarieties
                   ? "Loading varieties..."
-                  : "Select a variety"}
+                  : `Select a variety (${varieties.length} available)`}
               </option>
-              {varieties.map((variety) => (
-                <option key={variety.id} value={variety.id}>
-                  {getVarietyDisplayName(variety)}
-                </option>
-              ))}
+              {Object.entries(groupedVarieties)
+                .sort(([a], [b]) => a.localeCompare(b))
+                .map(([category, categoryVarieties]) => (
+                  <optgroup key={category} label={getCategoryDisplayName(category)}>
+                    {categoryVarieties
+                      .sort((a, b) => a.name.localeCompare(b.name))
+                      .map((variety) => (
+                        <option key={variety.id} value={variety.id}>
+                          {getVarietyDisplayName(variety)}
+                        </option>
+                      ))}
+                  </optgroup>
+                ))}
             </select>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => setShowCustomVarietyForm(true)}
-              className="text-sm"
-            >
-              + Add Custom Variety
-            </Button>
+            <div className="flex gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setShowCustomVarietyForm(true)}
+                className="text-sm"
+              >
+                + Add Custom Variety
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={loadVarieties}
+                className="text-sm text-muted-foreground"
+                title="Refresh plant varieties"
+              >
+                🔄 Refresh
+              </Button>
+            </div>
           </div>
         ) : type === "textarea" ? (
           <textarea
@@ -266,8 +321,8 @@ export function PlantRegistrationForm({
             id={id}
             placeholder={placeholder}
             rows={3}
-            className={`w-full p-3 border rounded-lg bg-background text-foreground focus:ring-2 focus:ring-accent focus:border-accent resize-none ${
-              error ? "border-red-500" : "border-border"
+            className={`w-full p-3 border rounded-lg bg-card text-foreground focus:ring-2 focus:ring-primary focus:border-primary resize-none shadow-sm ${
+              error ? "border-red-500" : "border-input"
             }`}
           />
         ) : type === "number" ? (
@@ -376,6 +431,13 @@ export function PlantRegistrationForm({
                 "select",
                 "",
                 true
+              )}
+              {renderFormField(
+                "name",
+                "Plant Name",
+                "text",
+                "Optional - leave blank to auto-name as 'Variety (Container Size)'",
+                false
               )}
               {renderFormField(
                 "plantedDate",

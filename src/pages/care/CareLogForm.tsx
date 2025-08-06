@@ -31,11 +31,13 @@ import { FertilizationScheduleItem } from "@/types";
 import { format, subDays } from "date-fns";
 import toast from "react-hot-toast";
 import SectionApplyCard from "@/components/care/SectionApplyCard";
+import SupplementalWateringCard from "@/components/care/SupplementalWateringCard";
 import { 
   getSectionApplyOption, 
   BulkCareResult,
   SectionApplyOption 
 } from "@/services/sectionBulkService";
+import { PartialWateringService, PartialWateringAnalysis } from "@/services/partialWateringService";
 
 const careFormSchema = z.object({
   plantId: z.string().min(1, "Please select a plant"),
@@ -155,6 +157,8 @@ export function CareLogForm({
   const [lastSubmittedData, setLastSubmittedData] = useState<CareFormData | null>(null);
   const [selectedPlantIds, setSelectedPlantIds] = useState<string[]>([]);
   const [isBulkMode, setIsBulkMode] = useState(false);
+  const [showSupplementalWatering, setShowSupplementalWatering] = useState(false);
+  const [partialWateringAnalysis, setPartialWateringAnalysis] = useState<PartialWateringAnalysis | null>(null);
 
   // Handle both single plant ID and bulk plant IDs from URL params
   const plantIdsFromParams = searchParams.get("plantIds");
@@ -327,6 +331,9 @@ export function CareLogForm({
     }
 
     const results: BulkCareResult[] = [];
+    
+    // Generate a unique section ID for this bulk application
+    const sectionId = `section_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
     for (const plantId of plantIds) {
       try {
@@ -344,10 +351,19 @@ export function CareLogForm({
         const details: Partial<CareActivityDetails> = {
           type: lastSubmittedData.type,
           notes: lastSubmittedData.notes,
+          // Mark as section-based activity
+          sectionBased: true,
+          sectionId: sectionId,
+          plantsInSection: plantIds.length,
         };
 
         if (lastSubmittedData.type === "water") {
           details.amount = {
+            value: lastSubmittedData.waterValue!,
+            unit: lastSubmittedData.waterUnit!,
+          };
+          // Store total section amount for reference
+          details.totalSectionAmount = {
             value: lastSubmittedData.waterValue!,
             unit: lastSubmittedData.waterUnit!,
           };
@@ -411,6 +427,40 @@ export function CareLogForm({
 
     return results;
   };
+
+  // Handle supplemental watering addition
+  const handleSupplementalWatering = async (amount: number, unit: string) => {
+    if (!lastSubmittedData || !partialWateringAnalysis) return;
+
+    const plant = plants.find(p => p.id === lastSubmittedData.plantId);
+    if (!plant) return;
+
+    try {
+      const details: Partial<CareActivityDetails> = {
+        type: "water",
+        amount: { value: amount, unit: unit as any },
+        notes: "Supplemental watering to complete previous partial application",
+        // Mark as supplemental
+        isPartialWatering: false, // This completes the watering
+        recommendedAmount: partialWateringAnalysis.recommendedAmount,
+        wateringCompleteness: 1, // Now complete
+      };
+
+      await logActivity({
+        plantId: lastSubmittedData.plantId,
+        type: "water",
+        date: new Date(),
+        details: details as CareActivityDetails,
+      });
+
+      toast.success(`Added ${amount} ${unit} supplemental water!`);
+    } catch (error) {
+      console.error("Failed to add supplemental watering:", error);
+      toast.error("Failed to add supplemental water");
+      throw error;
+    }
+  };
+
   // src/pages/care/CareLogForm.tsx
 
   const onSubmit = async (data: CareFormData) => {
@@ -443,6 +493,44 @@ export function CareLogForm({
             scale: "1-10",
           };
         }
+
+        // Analyze if this is partial watering
+        const plant = plants.find(p => p.id === data.plantId);
+        if (plant) {
+          try {
+            const analysis = await PartialWateringService.analyzeWateringAmount(
+              plant,
+              data.waterValue!,
+              data.waterUnit!
+            );
+            
+            // Enhance details with partial watering info
+            details.recommendedAmount = analysis.recommendedAmount;
+            details.isPartialWatering = analysis.isPartial;
+            details.wateringCompleteness = analysis.completeness;
+
+            // Show user feedback if partial and offer supplemental watering
+            if (analysis.isPartial) {
+              toast(analysis.message, { 
+                duration: 6000,
+                icon: '⚠️',
+                style: {
+                  background: '#FEF3C7',
+                  color: '#92400E',
+                  border: '1px solid #FCD34D'
+                }
+              });
+
+              // Show supplemental watering option
+              if (analysis.canAddSupplement && !isBulkMode) {
+                setPartialWateringAnalysis(analysis);
+                setShowSupplementalWatering(true);
+              }
+            }
+          } catch (error) {
+            console.error("Failed to analyze watering amount:", error);
+          }
+        }
       } else if (data.type === "fertilize") {
         details.product = data.fertilizeType;
         details.dilution = data.fertilizeDilution;
@@ -451,17 +539,34 @@ export function CareLogForm({
       }
 
       if (isBulkMode && selectedPlantIds.length > 1) {
-        // Handle bulk submission
+        // Handle bulk submission with section tracking
+        const sectionId = `section_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
         let successCount = 0;
         let errorCount = 0;
         
         for (const plantId of selectedPlantIds) {
           try {
+            // Create section-aware details for bulk mode
+            const bulkDetails: CareActivityDetails = {
+              ...details as CareActivityDetails,
+              sectionBased: true,
+              sectionId: sectionId,
+              plantsInSection: selectedPlantIds.length,
+            };
+            
+            // For watering, store the total section amount
+            if (data.type === "water" && data.waterValue) {
+              bulkDetails.totalSectionAmount = {
+                value: data.waterValue,
+                unit: data.waterUnit!,
+              };
+            }
+
             await logActivity({
               plantId,
               type: data.type,
               date: new Date(data.date),
-              details: details as CareActivityDetails,
+              details: bulkDetails,
             });
             successCount++;
           } catch (error) {
@@ -493,10 +598,10 @@ export function CareLogForm({
         toast.success("Care activity logged!");
         
         // Show section apply option if available (only for single plant mode)
-        if (sectionApplyOption && sectionApplyOption.plantCount > 0) {
+        if (sectionApplyOption && sectionApplyOption.plantCount > 0 && !showSupplementalWatering) {
           setLastSubmittedData(data);
           setShowSectionApply(true);
-        } else {
+        } else if (!showSupplementalWatering) {
           reset();
           onSuccess?.();
         }
@@ -1249,6 +1354,29 @@ export function CareLogForm({
             </Button>
           </div>
         </form>
+
+        {/* Supplemental Watering Card - shown after partial watering */}
+        {showSupplementalWatering && partialWateringAnalysis && lastSubmittedData && (
+          <div className="mt-4">
+            <SupplementalWateringCard
+              plant={plants.find(p => p.id === lastSubmittedData.plantId)!}
+              analysis={partialWateringAnalysis}
+              onSupplementAdded={handleSupplementalWatering}
+              onSkip={() => {
+                setShowSupplementalWatering(false);
+                setPartialWateringAnalysis(null);
+                // Show section apply if available, otherwise finish
+                if (sectionApplyOption && sectionApplyOption.plantCount > 0) {
+                  setShowSectionApply(true);
+                } else {
+                  reset();
+                  onSuccess?.();
+                }
+              }}
+              disabled={isLoading}
+            />
+          </div>
+        )}
 
         {/* Section Apply Card - shown after successful submission */}
         {showSectionApply && sectionApplyOption && lastSubmittedData && (

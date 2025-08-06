@@ -1,0 +1,314 @@
+// src/__tests__/services/careSchedulingService.partialWatering.test.ts
+import { CareSchedulingService } from "@/services/careSchedulingService";
+import { DynamicSchedulingService } from "@/services/dynamicSchedulingService";
+import { plantService, careService, varietyService } from "@/types/database";
+import { createMockPlantWithVariety, getRealVariety } from "@/__tests__/utils/testDataFactories";
+import { subDays } from "date-fns";
+import { CareActivityRecord } from "@/types/database";
+
+// Mock the dependencies
+jest.mock("@/types/database", () => ({
+  plantService: {
+    getActivePlants: jest.fn(),
+  },
+  careService: {
+    getLastActivityByType: jest.fn(),
+  },
+  varietyService: {
+    getVariety: jest.fn(),
+  },
+}));
+
+jest.mock("@/services/dynamicSchedulingService");
+
+const mockPlantService = plantService as jest.Mocked<typeof plantService>;
+const mockCareService = careService as jest.Mocked<typeof careService>;
+const mockVarietyService = varietyService as jest.Mocked<typeof varietyService>;
+const mockDynamicSchedulingService = DynamicSchedulingService as jest.Mocked<typeof DynamicSchedulingService>;
+
+describe("CareSchedulingService - Partial Watering Integration", () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  describe("Little Finger Carrots - 61 Days Old - 7oz vs 32-40oz Required", () => {
+    it("should create water task when last watering was partial (7oz vs 36oz needed)", async () => {
+      // Setup: 61-day-old Little Finger Carrots (rootDevelopment stage)
+      const plantedDate = subDays(new Date(), 61);
+      const carrotPlant = createMockPlantWithVariety("Little Finger Carrots", {
+        plantedDate,
+        id: "carrot-plant-1",
+        varietyName: "Little Finger Carrots",
+      });
+
+      // Get the real Little Finger Carrots variety
+      const realVariety = getRealVariety("Little Finger Carrots");
+      if (!realVariety) {
+        throw new Error("Little Finger Carrots variety not found in test data");
+      }
+
+      // Mock services
+      mockPlantService.getActivePlants.mockResolvedValue([carrotPlant]);
+      mockVarietyService.getVariety.mockResolvedValue(realVariety);
+
+      // Mock last water activity: 7oz logged today (partial watering)
+      const partialWaterActivity: CareActivityRecord = {
+        id: "water-activity-1",
+        plantId: "carrot-plant-1",
+        type: "water",
+        date: new Date(),
+        details: {
+          type: "water",
+          waterAmount: 7,
+          waterUnit: "oz",
+          isPartialWatering: true,
+          wateringCompleteness: 0.19, // 7/36 = 19%
+          recommendedAmount: { value: 36, unit: "oz" },
+        },
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+
+      mockCareService.getLastActivityByType.mockResolvedValue(partialWaterActivity);
+
+      // Mock dynamic scheduling to return early follow-up (1 day for very low completeness)
+      const tomorrow = new Date();
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      mockDynamicSchedulingService.getNextDueDateForTask.mockResolvedValue(tomorrow);
+
+      // Execute: Get upcoming tasks
+      const upcomingTasks = await CareSchedulingService.getUpcomingTasks();
+
+      // Verify: Should return water task for the carrot plant
+      expect(upcomingTasks).toHaveLength(1);
+      
+      const waterTask = upcomingTasks[0];
+      expect(waterTask.plantId).toBe("carrot-plant-1");
+      expect(waterTask.type).toBe("water");
+      expect(waterTask.task).toBe("Check water level");
+      expect(waterTask.category).toBe("watering");
+      
+      // Should be high priority due to partial watering
+      expect(waterTask.priority).toMatch(/urgent|overdue/);
+    });
+
+    it("should return empty tasks when last watering was sufficient", async () => {
+      const plantedDate = subDays(new Date(), 61);
+      const carrotPlant = createMockPlantWithVariety("Little Finger Carrots", {
+        plantedDate,
+        id: "carrot-plant-1",
+      });
+
+      const realVariety = getRealVariety("Little Finger Carrots");
+      if (!realVariety) {
+        throw new Error("Little Finger Carrots variety not found in test data");
+      }
+
+      mockPlantService.getActivePlants.mockResolvedValue([carrotPlant]);
+      mockVarietyService.getVariety.mockResolvedValue(realVariety);
+
+      // Mock sufficient water activity: 40oz logged today (complete watering)
+      const sufficientWaterActivity: CareActivityRecord = {
+        id: "water-activity-1", 
+        plantId: "carrot-plant-1",
+        type: "water",
+        date: new Date(),
+        details: {
+          type: "water",
+          waterAmount: 40,
+          waterUnit: "oz",
+          isPartialWatering: false,
+          wateringCompleteness: 1.0, // 40/36 = 111% (sufficient)
+          recommendedAmount: { value: 36, unit: "oz" },
+        },
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+
+      mockCareService.getLastActivityByType.mockResolvedValue(sufficientWaterActivity);
+
+      // Mock normal scheduling (7 days from now)
+      const nextWeek = new Date();
+      nextWeek.setDate(nextWeek.getDate() + 7);
+      mockDynamicSchedulingService.getNextDueDateForTask.mockResolvedValue(nextWeek);
+
+      // Execute
+      const upcomingTasks = await CareSchedulingService.getUpcomingTasks();
+
+      // Verify: Should return no tasks (next watering is too far in future)
+      expect(upcomingTasks).toHaveLength(0);
+    });
+
+    it("should handle different levels of partial watering completeness", async () => {
+      const plantedDate = subDays(new Date(), 61);
+      const carrotPlant = createMockPlantWithVariety("Little Finger Carrots", {
+        plantedDate,
+        id: "carrot-plant-1",
+      });
+
+      const realVariety = getRealVariety("Little Finger Carrots");
+      if (!realVariety) {
+        throw new Error("Little Finger Carrots variety not found in test data");
+      }
+
+      mockPlantService.getActivePlants.mockResolvedValue([carrotPlant]);
+      mockVarietyService.getVariety.mockResolvedValue(realVariety);
+
+      // Test cases for different completeness levels
+      const testCases = [
+        {
+          name: "Very low (7oz = 19%)",
+          waterAmount: 7,
+          completeness: 0.19,
+          expectedDaysUntilNext: 1, // Should be very urgent
+        },
+        {
+          name: "Moderate (20oz = 56%)", 
+          waterAmount: 20,
+          completeness: 0.56,
+          expectedDaysUntilNext: 2, // Should be moderately urgent
+        },
+        {
+          name: "High but partial (30oz = 83%)",
+          waterAmount: 30,
+          completeness: 0.83,
+          expectedDaysUntilNext: 3, // Should be less urgent
+        },
+      ];
+
+      for (const testCase of testCases) {
+        // Reset mocks
+        jest.clearAllMocks();
+        mockPlantService.getActivePlants.mockResolvedValue([carrotPlant]);
+        mockVarietyService.getVariety.mockResolvedValue(realVariety);
+
+        const partialActivity: CareActivityRecord = {
+          id: "water-activity-1",
+          plantId: "carrot-plant-1", 
+          type: "water",
+          date: new Date(),
+          details: {
+            type: "water",
+            waterAmount: testCase.waterAmount,
+            waterUnit: "oz",
+            isPartialWatering: true,
+            wateringCompleteness: testCase.completeness,
+            recommendedAmount: { value: 36, unit: "oz" },
+          },
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        };
+
+        mockCareService.getLastActivityByType.mockResolvedValue(partialActivity);
+
+        const nextDueDate = new Date();
+        nextDueDate.setDate(nextDueDate.getDate() + testCase.expectedDaysUntilNext);
+        mockDynamicSchedulingService.getNextDueDateForTask.mockResolvedValue(nextDueDate);
+
+        // Execute
+        const upcomingTasks = await CareSchedulingService.getUpcomingTasks();
+
+        // Verify
+        expect(upcomingTasks).toHaveLength(1);
+        expect(upcomingTasks[0].type).toBe("water");
+        
+        console.log(`${testCase.name}: Generated task with priority ${upcomingTasks[0].priority}`);
+      }
+    });
+
+    it("should use extended threshold for partial watering tasks", async () => {
+      const plantedDate = subDays(new Date(), 61);
+      const carrotPlant = createMockPlantWithVariety("Little Finger Carrots", {
+        plantedDate,
+        id: "carrot-plant-1",
+      });
+
+      const realVariety = getRealVariety("Little Finger Carrots");
+      if (!realVariety) {
+        throw new Error("Little Finger Carrots variety not found in test data");
+      }
+
+      mockPlantService.getActivePlants.mockResolvedValue([carrotPlant]);
+      mockVarietyService.getVariety.mockResolvedValue(realVariety);
+
+      // Mock partial watering from 5 days ago
+      const partialActivity: CareActivityRecord = {
+        id: "water-activity-1",
+        plantId: "carrot-plant-1",
+        type: "water", 
+        date: subDays(new Date(), 5),
+        details: {
+          type: "water",
+          waterAmount: 10,
+          waterUnit: "oz",
+          isPartialWatering: true,
+          wateringCompleteness: 0.28,
+          recommendedAmount: { value: 36, unit: "oz" },
+        },
+        createdAt: subDays(new Date(), 5),
+        updatedAt: subDays(new Date(), 5),
+      };
+
+      mockCareService.getLastActivityByType.mockResolvedValue(partialActivity);
+
+      // Mock next due date as 6 days from the activity (should be within extended 7-day threshold)
+      const sixDaysFromActivity = new Date(partialActivity.date);
+      sixDaysFromActivity.setDate(sixDaysFromActivity.getDate() + 6);
+      mockDynamicSchedulingService.getNextDueDateForTask.mockResolvedValue(sixDaysFromActivity);
+
+      // Execute
+      const upcomingTasks = await CareSchedulingService.getUpcomingTasks();
+
+      // Verify: Should show task due to extended threshold for partial watering (7 days vs normal 2 days)
+      expect(upcomingTasks).toHaveLength(1);
+      expect(upcomingTasks[0].type).toBe("water");
+      expect(upcomingTasks[0].priority).toMatch(/overdue|urgent/);
+    });
+  });
+
+  describe("Edge Cases", () => {
+    it("should handle plants without water activities", async () => {
+      const carrotPlant = createMockPlantWithVariety("Little Finger Carrots", {
+        plantedDate: subDays(new Date(), 61),
+        id: "carrot-plant-1",
+      });
+
+      const realVariety = getRealVariety("Little Finger Carrots");
+      if (!realVariety) {
+        throw new Error("Little Finger Carrots variety not found in test data");
+      }
+
+      mockPlantService.getActivePlants.mockResolvedValue([carrotPlant]);
+      mockVarietyService.getVariety.mockResolvedValue(realVariety);
+      
+      // No last water activity
+      mockCareService.getLastActivityByType.mockResolvedValue(null);
+
+      // Mock fallback scheduling for new plants
+      const fallbackDate = new Date();
+      fallbackDate.setDate(fallbackDate.getDate() + 1);
+      mockDynamicSchedulingService.getNextDueDateForTask.mockResolvedValue(fallbackDate);
+
+      const upcomingTasks = await CareSchedulingService.getUpcomingTasks();
+
+      // Should create a task for new plants that need watering
+      expect(upcomingTasks).toHaveLength(1);
+      expect(upcomingTasks[0].type).toBe("water");
+    });
+
+    it("should handle missing variety gracefully", async () => {
+      const carrotPlant = createMockPlantWithVariety("Little Finger Carrots", {
+        plantedDate: subDays(new Date(), 61),
+        id: "carrot-plant-1",
+      });
+
+      mockPlantService.getActivePlants.mockResolvedValue([carrotPlant]);
+      mockVarietyService.getVariety.mockResolvedValue(undefined); // Variety not found
+
+      const upcomingTasks = await CareSchedulingService.getUpcomingTasks();
+
+      // Should handle missing variety gracefully (return empty tasks)
+      expect(upcomingTasks).toHaveLength(0);
+    });
+  });
+});

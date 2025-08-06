@@ -1,10 +1,5 @@
-// src/services/careSchedulingService.ts
-import {
-  plantService,
-  careService,
-  varietyService,
-  PlantRecord,
-} from "@/types/database";
+// src/services/firebaseCareSchedulingService.ts
+import { PlantRecord } from "@/types/database";
 import { GrowthStage, CareActivityType, UpcomingTask } from "@/types";
 import { calculateCurrentStageWithVariety } from "@/utils/growthStage";
 import { getPlantDisplayName } from "@/utils/plantDisplay";
@@ -16,6 +11,8 @@ import {
   ensureDateObject,
 } from "@/utils/dateUtils";
 import { Logger } from "@/utils/logger";
+import { seedVarieties, SeedVariety } from "@/data/seedVarieties";
+import { CareRecord } from "@/types";
 
 interface TaskConfig {
   type: CareActivityType;
@@ -55,31 +52,77 @@ const TASK_TYPE_MAP: Record<
   "Health check": "observation",
 };
 
-export class CareSchedulingService {
-  public static async getUpcomingTasks(): Promise<UpcomingTask[]> {
+export class FirebaseCareSchedulingService {
+  /**
+   * Get upcoming tasks using Firebase plant and activity data
+   */
+  public static async getUpcomingTasks(
+    plants: PlantRecord[],
+    getLastActivityByType: (plantId: string, type: CareActivityType) => Promise<CareRecord | null>
+  ): Promise<UpcomingTask[]> {
     try {
-      const plants = await plantService.getActivePlants();
       const allTasks: UpcomingTask[] = [];
 
       for (const plant of plants) {
-        const plantTasks = await this.getTasksForPlant(plant);
+        const plantTasks = await this.getTasksForPlant(plant, getLastActivityByType);
         const filteredTasks = this.filterTasksByPreferences(plant, plantTasks);
         allTasks.push(...filteredTasks);
       }
-
       return allTasks.sort((a, b) => a.dueDate.getTime() - b.dueDate.getTime());
     } catch (error) {
       Logger.error("Error getting upcoming tasks:", error);
+      console.error("❌ Firebase care scheduling error:", error);
       return [];
     }
   }
 
-  public static async getTasksForPlant(
-    plant: PlantRecord
+  /**
+   * Get next task for a specific plant
+   */
+  public static async getNextTaskForPlant(
+    plant: PlantRecord,
+    getLastActivityByType: (plantId: string, type: CareActivityType) => Promise<CareRecord | null>
+  ): Promise<UpcomingTask | null> {
+    const tasks = await this.getTasksForPlant(plant, getLastActivityByType);
+    const filteredTasks = this.filterTasksByPreferences(plant, tasks);
+
+    return filteredTasks.length > 0 ? filteredTasks[0] : null;
+  }
+
+  private static async getTasksForPlant(
+    plant: PlantRecord,
+    getLastActivityByType: (plantId: string, type: CareActivityType) => Promise<CareRecord | null>
   ): Promise<UpcomingTask[]> {
     try {
-      const variety = await varietyService.getVariety(plant.varietyId);
-      if (!variety) return [];
+      // Find variety by name in seed data instead of IndexedDB lookup
+      const seedVariety = seedVarieties.find((v: SeedVariety) => v.name === plant.varietyName);
+      
+      if (!seedVariety) {
+        console.warn(`No variety found for ${plant.varietyName}`);
+        return [];
+      }
+
+      // Convert SeedVariety to VarietyRecord format for compatibility
+      const variety = {
+        id: plant.varietyId || 'seed-variety',
+        name: seedVariety.name,
+        normalizedName: seedVariety.name.toLowerCase(),
+        category: seedVariety.category,
+        description: undefined,
+        growthTimeline: {
+          germination: seedVariety.growthTimeline.germination || 14,
+          seedling: seedVariety.growthTimeline.seedling || 14,
+          vegetative: seedVariety.growthTimeline.vegetative || 28,
+          maturation: seedVariety.growthTimeline.maturation || 56,
+          rootDevelopment: seedVariety.growthTimeline.rootDevelopment
+        },
+        protocols: seedVariety.protocols,
+        isEverbearing: seedVariety.isEverbearing,
+        productiveLifespan: seedVariety.productiveLifespan,
+        isCustom: false,
+        createdAt: new Date(),
+        updatedAt: new Date()
+      };
 
       const currentStage = calculateCurrentStageWithVariety(
         plant.plantedDate,
@@ -91,42 +134,31 @@ export class CareSchedulingService {
       const wateringTask = await this.createTaskForType(
         plant,
         currentStage,
-        "water"
+        "water",
+        getLastActivityByType
       );
       if (wateringTask) tasks.push(wateringTask);
 
       const observationTask = await this.createTaskForType(
         plant,
         currentStage,
-        "observe"
+        "observe",
+        getLastActivityByType
       );
       if (observationTask) tasks.push(observationTask);
-
       return tasks;
     } catch (error) {
+      console.error(`❌ Error processing tasks for plant ${plant.id}:`, error);
       Logger.error(`Error processing tasks for plant ${plant.id}:`, error);
       return [];
     }
   }
 
-  public static async getNextTaskForPlant(
-    plantId: string
-  ): Promise<UpcomingTask | null> {
-    const plants = await plantService.getActivePlants();
-    const plant = plants.find((p) => p.id === plantId);
-
-    if (!plant) return null;
-
-    const tasks = await this.getTasksForPlant(plant);
-    const filteredTasks = this.filterTasksByPreferences(plant, tasks);
-
-    return filteredTasks.length > 0 ? filteredTasks[0] : null;
-  }
-
   private static async createTaskForType(
     plant: PlantRecord,
     currentStage: GrowthStage,
-    taskType: keyof typeof TASK_CONFIGS
+    taskType: keyof typeof TASK_CONFIGS,
+    getLastActivityByType: (plantId: string, type: CareActivityType) => Promise<CareRecord | null>
   ): Promise<UpcomingTask | null> {
     const config = TASK_CONFIGS[taskType];
     if (!config) return null;
@@ -134,7 +166,8 @@ export class CareSchedulingService {
     const nextDueDate = await this.calculateNextDueDate(
       plant,
       config.type,
-      config.fallbackInterval
+      config.fallbackInterval,
+      getLastActivityByType
     );
 
     const today = new Date();
@@ -142,7 +175,7 @@ export class CareSchedulingService {
     
     // For watering tasks, check if last watering was partial and extend threshold
     if (taskType === "water") {
-      const lastActivity = await careService.getLastActivityByType(plant.id, "water");
+      const lastActivity = await getLastActivityByType(plant.id, "water");
       if (lastActivity?.details.isPartialWatering) {
         thresholdDays = 7; // Show partial watering follow-up tasks for up to a week
       }
@@ -153,7 +186,7 @@ export class CareSchedulingService {
     // Create task if it's due today/overdue OR within the threshold
     if (nextDueDate <= thresholdDate) {
       const daysOverdue = differenceInDays(today, nextDueDate);
-
+      
       return {
         id: `${taskType}-${plant.id}`,
         plantId: plant.id,
@@ -168,19 +201,16 @@ export class CareSchedulingService {
         canBypass: true,
       };
     }
-
     return null;
   }
 
   private static async calculateNextDueDate(
     plant: PlantRecord,
     activityType: CareActivityType,
-    fallbackInterval: number
+    fallbackInterval: number,
+    getLastActivityByType: (plantId: string, type: CareActivityType) => Promise<CareRecord | null>
   ): Promise<Date> {
-    const lastActivity = await careService.getLastActivityByType(
-      plant.id,
-      activityType
-    );
+    const lastActivity = await getLastActivityByType(plant.id, activityType);
 
     if (lastActivity) {
       const lastActivityDate = ensureDateObject(lastActivity.date);
@@ -207,20 +237,5 @@ export class CareSchedulingService {
       const preferenceKey = TASK_TYPE_MAP[task.task];
       return preferenceKey ? plant.reminderPreferences![preferenceKey] : true;
     });
-  }
-
-  // Legacy methods for backwards compatibility
-  public static async createWateringTask(
-    plant: PlantRecord,
-    currentStage: GrowthStage
-  ): Promise<UpcomingTask | null> {
-    return this.createTaskForType(plant, currentStage, "water");
-  }
-
-  public static async createObservationTask(
-    plant: PlantRecord,
-    currentStage: GrowthStage
-  ): Promise<UpcomingTask | null> {
-    return this.createTaskForType(plant, currentStage, "observe");
   }
 }
