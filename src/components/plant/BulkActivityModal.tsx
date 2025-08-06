@@ -18,6 +18,13 @@ interface BulkActivityModalProps {
   activityType: string;
   plantCount: number;
   varietyName: string;
+  containerMates?: Array<{
+    groupId: string;
+    plantIds: string[];
+    varietyName: string;
+    location: string;
+    plantCount: number;
+  }>;
 }
 
 interface FertilizerOption {
@@ -51,6 +58,7 @@ const BulkActivityModal = ({
   activityType,
   plantCount,
   varietyName,
+  containerMates = [],
 }: BulkActivityModalProps) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [amount, setAmount] = useState("20");
@@ -88,6 +96,9 @@ const BulkActivityModal = ({
   const [selectedDate, setSelectedDate] = useState(
     new Date().toISOString().split("T")[0]
   );
+
+  // Container-aware logging state
+  const [selectedContainerMates, setSelectedContainerMates] = useState<string[]>([]);
 
   const { logActivity } = useFirebaseCareActivities();
   const { plants, deletePlant } = useFirebasePlants();
@@ -214,7 +225,18 @@ const BulkActivityModal = ({
 
     setIsSubmitting(true);
     try {
-      const promises = plantIds.map(async (plantId) => {
+      // Collect all plant IDs to log activities for
+      const allPlantIds = [...plantIds];
+      
+      // Add selected container mates
+      selectedContainerMates.forEach(groupId => {
+        const containerMate = containerMates.find(mate => mate.groupId === groupId);
+        if (containerMate) {
+          allPlantIds.push(...containerMate.plantIds);
+        }
+      });
+
+      const promises = allPlantIds.map(async (plantId) => {
         // Create a proper Date object for the selected date
         const activityDate = new Date(selectedDate);
         const now = new Date();
@@ -319,9 +341,18 @@ const BulkActivityModal = ({
           );
         }
       } else {
-        toast.success(
-          `Activity logged for all ${plantCount} ${varietyName} plants! 🌱`
-        );
+        const totalPlantsAffected = allPlantIds.length;
+        const containerMateCount = selectedContainerMates.length;
+        
+        if (containerMateCount > 0) {
+          toast.success(
+            `Activity logged for ${varietyName} and ${containerMateCount} other section${containerMateCount > 1 ? 's' : ''} in container! (${totalPlantsAffected} plants total) 🌱`
+          );
+        } else {
+          toast.success(
+            `Activity logged for all ${plantCount} ${varietyName} plants! 🌱`
+          );
+        }
       }
       
       onClose();
@@ -739,6 +770,57 @@ const BulkActivityModal = ({
               max={new Date().toISOString().split("T")[0]}
             />
           </div>
+
+          {/* Container-aware logging section */}
+          {containerMates.length > 0 && (
+            <div className="border-t border-border pt-4">
+              <div className="mb-3">
+                <h4 className="text-sm font-medium text-foreground mb-1">
+                  💡 Apply to other sections in same container?
+                </h4>
+                <p className="text-xs text-muted-foreground">
+                  You can apply the same {activityInfo.label.toLowerCase()} to other plant sections in this container
+                </p>
+              </div>
+              <div className="space-y-2 max-h-32 overflow-y-auto">
+                {containerMates.map((mate) => (
+                  <label
+                    key={mate.groupId}
+                    className="flex items-center gap-3 p-2 rounded-lg border border-border hover:bg-muted/50 cursor-pointer"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={selectedContainerMates.includes(mate.groupId)}
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          setSelectedContainerMates([...selectedContainerMates, mate.groupId]);
+                        } else {
+                          setSelectedContainerMates(selectedContainerMates.filter(id => id !== mate.groupId));
+                        }
+                      }}
+                      className="w-4 h-4 text-primary bg-background border-border rounded focus:ring-ring focus:ring-2"
+                    />
+                    <div className="flex-1 min-w-0">
+                      <div className="text-sm font-medium text-foreground truncate">
+                        {mate.varietyName} ({mate.location})
+                      </div>
+                      <div className="text-xs text-muted-foreground">
+                        {mate.plantCount} plant{mate.plantCount !== 1 ? 's' : ''} • Same {activityType === 'water' ? `${amount}${waterUnit}` : 'activity'}
+                      </div>
+                    </div>
+                  </label>
+                ))}
+              </div>
+              {selectedContainerMates.length > 0 && (
+                <div className="mt-2 p-2 bg-muted/30 rounded-lg">
+                  <p className="text-xs text-muted-foreground">
+                    ✅ Will apply to {selectedContainerMates.length} additional section{selectedContainerMates.length > 1 ? 's' : ''}
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
+
           {/* General notes field for all types */}
           <div>
             <label

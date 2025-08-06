@@ -8,6 +8,7 @@ import { useFirebasePlants } from "@/hooks/useFirebasePlants";
 import { useFirebaseCareActivities } from "@/hooks/useFirebaseCareActivities";
 import { useNavigate } from "react-router-dom";
 import { groupPlantsByConditions, PlantGroup } from "@/utils/plantGrouping";
+import { groupPlantGroupsByContainer, ContainerGroup, findContainerMates } from "@/utils/containerGrouping";
 import PlantGroupCard from "@/components/plant/PlantGroupCard";
 import BulkActivityModal from "@/components/plant/BulkActivityModal";
 import { QuickActionType } from "@/components/shared/QuickActionButtons";
@@ -32,6 +33,7 @@ export const Dashboard = () => {
   const { logActivity } = useFirebaseCareActivities();
   const navigate = useNavigate();
   const [plantGroups, setPlantGroups] = useState<PlantGroup[]>([]);
+  const [containerGroups, setContainerGroups] = useState<ContainerGroup[]>([]);
   const [plantsNeedingCatchUp, setPlantsNeedingCatchUp] = useState(0);
   const [careStatusLoading, setCareStatusLoading] = useState(true);
 
@@ -200,6 +202,13 @@ export const Dashboard = () => {
   const [selectedActivityType, setSelectedActivityType] =
     useState<QuickActionType>("water");
   const [selectedGroup, setSelectedGroup] = useState<PlantGroup | null>(null);
+  const [selectedContainerMates, setSelectedContainerMates] = useState<Array<{
+    groupId: string;
+    plantIds: string[];
+    varietyName: string;
+    location: string;
+    plantCount: number;
+  }>>([]);
 
   const handleBulkLogActivity = (
     plantIds: string[],
@@ -209,6 +218,18 @@ export const Dashboard = () => {
     setSelectedPlantIds(plantIds);
     setSelectedActivityType(activityType);
     setSelectedGroup(group);
+    
+    // Find container mates for this plant group
+    const containerMates = findContainerMates(group, plantGroups);
+    const containerMatesData = containerMates.map(mate => ({
+      groupId: mate.id,
+      plantIds: mate.plants.map(p => p.id),
+      varietyName: mate.varietyName,
+      location: mate.location,
+      plantCount: mate.plants.length,
+    }));
+    setSelectedContainerMates(containerMatesData);
+    
     setBulkModalOpen(true);
   };
 
@@ -222,6 +243,9 @@ export const Dashboard = () => {
     if (!loading && plants) {
       const groups = groupPlantsByConditions(plants);
       setPlantGroups(groups);
+      
+      const containers = groupPlantGroupsByContainer(groups);
+      setContainerGroups(containers);
     }
   }, [plants, loading]);
 
@@ -378,19 +402,54 @@ export const Dashboard = () => {
           </Card>
         ) : (
           <div>
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-xl font-semibold">Your Plants</h2>
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-xl font-semibold">Your Garden</h2>
               <Button onClick={() => navigate("/add-plant")}>Add Plant</Button>
             </div>
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-              {plantGroups.map((group) => (
-                <PlantGroupCard
-                  key={group.id}
-                  group={group}
-                  onBulkLogActivity={handleBulkLogActivity}
-                />
-              ))}
-            </div>
+            
+            {containerGroups.map((container) => (
+              <div key={container.containerName} className="mb-8">
+                {/* Container Header */}
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center gap-3">
+                    <div className="text-2xl">📦</div>
+                    <div>
+                      <h3 className="text-lg font-semibold text-foreground">
+                        {container.containerName}
+                      </h3>
+                      <p className="text-sm text-muted-foreground">
+                        {container.plantGroups.length} section{container.plantGroups.length !== 1 ? 's' : ''} • {container.totalPlants} plant{container.totalPlants !== 1 ? 's' : ''}
+                      </p>
+                    </div>
+                  </div>
+                  {container.needsCareCount > 0 && (
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm text-orange-600 dark:text-orange-400">
+                        {container.needsCareCount} need{container.needsCareCount !== 1 ? '' : 's'} care
+                      </span>
+                      <div className="w-2 h-2 bg-orange-500 rounded-full"></div>
+                    </div>
+                  )}
+                </div>
+                
+                {/* Plant Groups in Container */}
+                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 ml-6">
+                  {container.plantGroups.map((group) => (
+                    <PlantGroupCard
+                      key={group.id}
+                      group={group}
+                      onBulkLogActivity={handleBulkLogActivity}
+                    />
+                  ))}
+                </div>
+              </div>
+            ))}
+            
+            {containerGroups.length === 0 && (
+              <div className="text-center py-8 text-muted-foreground">
+                <p>No plant groups found. Start by adding your first plant!</p>
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -403,6 +462,7 @@ export const Dashboard = () => {
         activityType={selectedActivityType}
         plantCount={selectedPlantIds.length}
         varietyName={selectedGroup?.varietyName || ""}
+        containerMates={selectedContainerMates}
       />
     </>
   );

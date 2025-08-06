@@ -93,7 +93,7 @@ export function SimplifiedLocationSelector({
   onStructuredSectionChange,
   onLocationChange,
 }: SimplifiedLocationSelectorProps) {
-  const { plants } = useFirebasePlants();
+  const { plants, loading: plantsLoading } = useFirebasePlants();
   const [beds, setBeds] = useState<BedRecord[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [showSectionInput, setShowSectionInput] = useState(false);
@@ -134,9 +134,70 @@ export function SimplifiedLocationSelector({
       section: plant.structuredSection,
     }));
 
+  const loadBeds = useCallback(async () => {
+    // Don't load if plants are still loading
+    if (plantsLoading) {
+      return;
+    }
+    
+    try {
+      setIsLoading(true);
+      
+      // Get beds from IndexedDB
+      const activeBeds = await bedService.getActiveBeds();
+      
+      // Get existing containers from Firebase plants and analyze their properties
+      const containerMap = new Map<string, { hasStructuredSections: boolean, dimensions?: any }>();
+      
+      if (plants && plants.length > 0) {
+        plants.forEach(plant => {
+          if (plant.container && plant.container.trim()) {
+            const containerName = plant.container;
+            if (!containerMap.has(containerName)) {
+              containerMap.set(containerName, { hasStructuredSections: false });
+            }
+            
+            // Check if this container has plants with structured sections (indicating it's a raised bed)
+            if (plant.structuredSection) {
+              const containerInfo = containerMap.get(containerName)!;
+              containerInfo.hasStructuredSections = true;
+              containerMap.set(containerName, containerInfo);
+            }
+          }
+        });
+      }
+      
+      // Convert existing containers to bed format for compatibility
+      const containerBeds: BedRecord[] = Array.from(containerMap.entries()).map(([containerName, info]) => ({
+        id: `firebase-${containerName.toLowerCase().replace(/\s+/g, '-')}`,
+        name: containerName,
+        // If container has structured sections, treat it as a raised-bed, otherwise as a container
+        type: info.hasStructuredSections ? 'raised-bed' as const : 'container' as const,
+        dimensions: {
+          length: info.hasStructuredSections ? 48 : 12, // Larger default for raised beds
+          width: info.hasStructuredSections ? 24 : 12,   // Larger default for raised beds
+          unit: 'inches' as const,
+        },
+        isActive: true,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      }));
+      
+      // Combine IndexedDB beds with Firebase containers
+      const allBeds = [...activeBeds, ...containerBeds];
+      setBeds(allBeds);
+      
+    } catch (error) {
+      console.error("Failed to load beds:", error);
+      toast.error("Failed to load beds");
+    } finally {
+      setIsLoading(false);
+    }
+  }, [plants, plantsLoading]);
+
   useEffect(() => {
     loadBeds();
-  }, []);
+  }, [loadBeds]);
 
   // Auto-show section input if section has content and bed type supports sections
   useEffect(() => {
@@ -150,19 +211,6 @@ export function SimplifiedLocationSelector({
       if (structuredSection) onStructuredSectionChange(null);
     }
   }, [section, structuredSection, selectedBed, onSectionChange, onStructuredSectionChange]);
-
-  const loadBeds = async () => {
-    try {
-      setIsLoading(true);
-      const activeBeds = await bedService.getActiveBeds();
-      setBeds(activeBeds);
-    } catch (error) {
-      console.error("Failed to load beds:", error);
-      toast.error("Failed to load beds");
-    } finally {
-      setIsLoading(false);
-    }
-  };
 
   const handleCreateContainer = async (data: ContainerFormData) => {
     try {
@@ -547,9 +595,10 @@ export function SimplifiedLocationSelector({
           value={selectedBedId || ""}
           onChange={(e) => onBedSelect(e.target.value)}
           className="w-full p-3 border border-border rounded bg-background text-foreground focus:ring-2 focus:ring-accent focus:border-accent"
+          disabled={isLoading || plantsLoading}
         >
           <option value="">
-            {isLoading ? "Loading..." : "Select where you're planting"}
+            {isLoading || plantsLoading ? "Loading..." : "Select where you're planting"}
           </option>
           {(beds || []).map((bed) => (
             <option key={bed.id} value={bed.id}>
