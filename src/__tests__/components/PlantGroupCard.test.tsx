@@ -85,10 +85,10 @@ describe("PlantGroupCard", () => {
         </TestWrapper>
       );
 
-      expect(screen.getByText("Cherry Tomato Plant 1")).toBeInTheDocument();
       expect(screen.getByText("Cherry Tomato")).toBeInTheDocument();
       expect(screen.getByText("vegetative")).toBeInTheDocument();
       expect(screen.getByText("30 days old")).toBeInTheDocument();
+      expect(screen.getByText("Cherry Tomato Plant 1")).toBeInTheDocument();
     });
 
     it("renders multiple plant group correctly", () => {
@@ -106,12 +106,11 @@ describe("PlantGroupCard", () => {
         </TestWrapper>
       );
 
-      expect(screen.getByText("Plant 1")).toBeInTheDocument();
-      expect(screen.getByText("1 of 3")).toBeInTheDocument();
-      expect(screen.getByText("• 3 plants")).toBeInTheDocument();
+      expect(screen.getByText("Cherry Tomato")).toBeInTheDocument();
+      expect(screen.getAllByText("3 plants")).toHaveLength(2); // Both in header and content
     });
 
-    it("calls useDynamicStage with current plant", () => {
+    it("calls useDynamicStage with representative plant", () => {
       const group = createMockGroup();
 
       render(
@@ -125,27 +124,13 @@ describe("PlantGroupCard", () => {
   });
 
   describe("Plant Navigation", () => {
-    it("shows navigation controls for multiple plants", () => {
+    it("does not show navigation controls (removed feature)", () => {
       const group = createMockGroup({
         plants: [
           createMockPlant({ id: "plant-1", name: "Plant 1" }),
           createMockPlant({ id: "plant-2", name: "Plant 2" }),
         ],
       });
-
-      render(
-        <TestWrapper>
-          <PlantGroupCard group={group} onBulkLogActivity={mockOnBulkLogActivity} />
-        </TestWrapper>
-      );
-
-      expect(screen.getByRole("button", { name: "←" })).toBeInTheDocument();
-      expect(screen.getByRole("button", { name: "→" })).toBeInTheDocument();
-      expect(screen.getByText("1 of 2")).toBeInTheDocument();
-    });
-
-    it("hides navigation controls for single plant", () => {
-      const group = createMockGroup();
 
       render(
         <TestWrapper>
@@ -155,130 +140,7 @@ describe("PlantGroupCard", () => {
 
       expect(screen.queryByRole("button", { name: "←" })).not.toBeInTheDocument();
       expect(screen.queryByRole("button", { name: "→" })).not.toBeInTheDocument();
-      expect(screen.queryByText("1 of 1")).not.toBeInTheDocument();
-    });
-
-    it("navigates to next plant when next button is clicked", async () => {
-      const user = userEvent.setup();
-      const group = createMockGroup({
-        plants: [
-          createMockPlant({ id: "plant-1", name: "Plant 1" }),
-          createMockPlant({ id: "plant-2", name: "Plant 2" }),
-        ],
-      });
-
-      render(
-        <TestWrapper>
-          <PlantGroupCard group={group} onBulkLogActivity={mockOnBulkLogActivity} />
-        </TestWrapper>
-      );
-
-      expect(screen.getByText("Plant 1")).toBeInTheDocument();
-      expect(screen.getByText("1 of 2")).toBeInTheDocument();
-
-      const nextButton = screen.getByRole("button", { name: "→" });
-      await user.click(nextButton);
-
-      expect(screen.getByText("Plant 2")).toBeInTheDocument();
-      expect(screen.getByText("2 of 2")).toBeInTheDocument();
-    });
-
-    it("navigates to previous plant when previous button is clicked", async () => {
-      const user = userEvent.setup();
-      const group = createMockGroup({
-        plants: [
-          createMockPlant({ id: "plant-1", name: "Plant 1" }),
-          createMockPlant({ id: "plant-2", name: "Plant 2" }),
-        ],
-      });
-
-      render(
-        <TestWrapper>
-          <PlantGroupCard group={group} onBulkLogActivity={mockOnBulkLogActivity} />
-        </TestWrapper>
-      );
-
-      // Navigate to second plant first
-      const nextButton = screen.getByRole("button", { name: "→" });
-      await user.click(nextButton);
-      expect(screen.getByText("Plant 2")).toBeInTheDocument();
-
-      // Navigate back to first plant
-      const prevButton = screen.getByRole("button", { name: "←" });
-      await user.click(prevButton);
-      expect(screen.getByText("Plant 1")).toBeInTheDocument();
-    });
-
-    it("wraps around to last plant when clicking previous from first plant", async () => {
-      const user = userEvent.setup();
-      const group = createMockGroup({
-        plants: [
-          createMockPlant({ id: "plant-1", name: "Plant 1" }),
-          createMockPlant({ id: "plant-2", name: "Plant 2" }),
-          createMockPlant({ id: "plant-3", name: "Plant 3" }),
-        ],
-      });
-
-      render(
-        <TestWrapper>
-          <PlantGroupCard group={group} onBulkLogActivity={mockOnBulkLogActivity} />
-        </TestWrapper>
-      );
-
-      expect(screen.getByText("Plant 1")).toBeInTheDocument();
-
-      const prevButton = screen.getByRole("button", { name: "←" });
-      await user.click(prevButton);
-
-      expect(screen.getByText("Plant 3")).toBeInTheDocument();
-      expect(screen.getByText("3 of 3")).toBeInTheDocument();
-    });
-
-    it("wraps around to first plant when clicking next from last plant", async () => {
-      const user = userEvent.setup();
-      const group = createMockGroup({
-        plants: [
-          createMockPlant({ id: "plant-1", name: "Plant 1" }),
-          createMockPlant({ id: "plant-2", name: "Plant 2" }),
-        ],
-      });
-
-      render(
-        <TestWrapper>
-          <PlantGroupCard group={group} onBulkLogActivity={mockOnBulkLogActivity} />
-        </TestWrapper>
-      );
-
-      // Navigate to last plant
-      const nextButton = screen.getByRole("button", { name: "→" });
-      await user.click(nextButton);
-      expect(screen.getByText("Plant 2")).toBeInTheDocument();
-
-      // Wrap around to first plant
-      await user.click(nextButton);
-      expect(screen.getByText("Plant 1")).toBeInTheDocument();
-    });
-
-    it("prevents event propagation when clicking navigation buttons", async () => {
-      const user = userEvent.setup();
-      const group = createMockGroup({
-        plants: [
-          createMockPlant({ id: "plant-1", name: "Plant 1" }),
-          createMockPlant({ id: "plant-2", name: "Plant 2" }),
-        ],
-      });
-
-      render(
-        <TestWrapper>
-          <PlantGroupCard group={group} onBulkLogActivity={mockOnBulkLogActivity} />
-        </TestWrapper>
-      );
-
-      const nextButton = screen.getByRole("button", { name: "→" });
-      await user.click(nextButton);
-
-      // Navigation should not trigger plant click
-      expect(mockNavigate).not.toHaveBeenCalled();
+      expect(screen.queryByText("1 of 2")).not.toBeInTheDocument();
     });
   });
 
@@ -355,7 +217,7 @@ describe("PlantGroupCard", () => {
         </TestWrapper>
       );
 
-      expect(screen.getByText("• 4 plants")).toBeInTheDocument();
+      expect(screen.getAllByText("4 plants")).toHaveLength(2); // Both in header and content
     });
   });
 
@@ -370,12 +232,12 @@ describe("PlantGroupCard", () => {
         </TestWrapper>
       );
 
-      await user.click(screen.getByText("Cherry Tomato"));
+      await user.click(screen.getByText("Cherry Tomato Plant 1"));
 
       expect(mockNavigate).toHaveBeenCalledWith("/plants/plant-1");
     });
 
-    it("navigates to correct plant when multiple plants exist", async () => {
+    it("navigates to representative plant when multiple plants exist", async () => {
       const user = userEvent.setup();
       const group = createMockGroup({
         plants: [
@@ -390,18 +252,15 @@ describe("PlantGroupCard", () => {
         </TestWrapper>
       );
 
-      // Navigate to second plant
-      await user.click(screen.getByRole("button", { name: "→" }));
-      
-      // Click on plant info to navigate
-      await user.click(screen.getByText("Cherry Tomato"));
+      // Click on age text within the clickable area
+      await user.click(screen.getByText("30 days old"));
 
-      expect(mockNavigate).toHaveBeenCalledWith("/plants/plant-2");
+      expect(mockNavigate).toHaveBeenCalledWith("/plants/plant-1");
     });
   });
 
-  describe("Individual Plant Actions", () => {
-    it("shows individual action button with correct label for single plant", () => {
+  describe("Quick Actions", () => {
+    it("shows quick action button with correct label for single plant", () => {
       const group = createMockGroup();
 
       render(
@@ -411,10 +270,11 @@ describe("PlantGroupCard", () => {
       );
 
       expect(screen.getByText("Quick Actions")).toBeInTheDocument();
+      expect(screen.getByText("Log care activity")).toBeInTheDocument();
       expect(screen.getByRole("button", { name: "Log Care" })).toBeInTheDocument();
     });
 
-    it("shows individual action button with correct label for multiple plants", () => {
+    it("shows quick action button with correct label for multiple plants", () => {
       const group = createMockGroup({
         plants: [
           createMockPlant({ id: "plant-1" }),
@@ -428,11 +288,12 @@ describe("PlantGroupCard", () => {
         </TestWrapper>
       );
 
-      expect(screen.getByText("Current Plant Actions")).toBeInTheDocument();
-      expect(screen.getByRole("button", { name: "Log One" })).toBeInTheDocument();
+      expect(screen.getByText("Quick Actions")).toBeInTheDocument();
+      expect(screen.getByText("Log care for 2 plants")).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Log Care" })).toBeInTheDocument();
     });
 
-    it("toggles individual action buttons when clicked", async () => {
+    it("toggles quick action buttons when clicked", async () => {
       const user = userEvent.setup();
       const group = createMockGroup();
 
@@ -457,7 +318,7 @@ describe("PlantGroupCard", () => {
       expect(screen.queryByTestId("quick-action-buttons")).not.toBeInTheDocument();
     });
 
-    it("calls onBulkLogActivity when individual action is selected", async () => {
+    it("calls onBulkLogActivity when action is selected", async () => {
       const user = userEvent.setup();
       const group = createMockGroup();
 
@@ -474,6 +335,31 @@ describe("PlantGroupCard", () => {
       await user.click(screen.getByTestId("action-water"));
 
       expect(mockOnBulkLogActivity).toHaveBeenCalledWith(["plant-1"], "water", group);
+    });
+
+    it("calls onBulkLogActivity with all plant IDs for multiple plants", async () => {
+      const user = userEvent.setup();
+      const group = createMockGroup({
+        plants: [
+          createMockPlant({ id: "plant-1" }),
+          createMockPlant({ id: "plant-2" }),
+          createMockPlant({ id: "plant-3" }),
+        ],
+      });
+
+      render(
+        <TestWrapper>
+          <PlantGroupCard group={group} onBulkLogActivity={mockOnBulkLogActivity} />
+        </TestWrapper>
+      );
+
+      // Show action buttons
+      await user.click(screen.getByRole("button", { name: "Log Care" }));
+      
+      // Click water action
+      await user.click(screen.getByTestId("action-water"));
+
+      expect(mockOnBulkLogActivity).toHaveBeenCalledWith(["plant-1", "plant-2", "plant-3"], "water", group);
     });
 
     it("navigates to log-care page when 'more' action is selected", async () => {
@@ -495,7 +381,7 @@ describe("PlantGroupCard", () => {
       expect(mockNavigate).toHaveBeenCalledWith("/log-care/plant-1");
     });
 
-    it("hides individual actions after action is selected", async () => {
+    it("hides quick actions after action is selected", async () => {
       const user = userEvent.setup();
       const group = createMockGroup();
 
@@ -515,7 +401,7 @@ describe("PlantGroupCard", () => {
       expect(screen.queryByTestId("quick-action-buttons")).not.toBeInTheDocument();
     });
 
-    it("prevents event propagation when clicking individual action button", async () => {
+    it("prevents event propagation when clicking action button", async () => {
       const user = userEvent.setup();
       const group = createMockGroup();
 
@@ -527,14 +413,19 @@ describe("PlantGroupCard", () => {
 
       await user.click(screen.getByRole("button", { name: "Log Care" }));
 
-      // Individual action button click should not trigger plant navigation
+      // Action button click should not trigger plant navigation
       expect(mockNavigate).not.toHaveBeenCalledWith("/plants/plant-1");
     });
   });
 
-  describe("Bulk Actions", () => {
-    it("hides bulk actions for single plant", () => {
-      const group = createMockGroup();
+  describe("Simplified Actions (No Separate Bulk Actions)", () => {
+    it("does not show separate bulk actions section", () => {
+      const group = createMockGroup({
+        plants: [
+          createMockPlant({ id: "plant-1" }),
+          createMockPlant({ id: "plant-2" }),
+        ],
+      });
 
       render(
         <TestWrapper>
@@ -544,268 +435,12 @@ describe("PlantGroupCard", () => {
 
       expect(screen.queryByText("Group Actions")).not.toBeInTheDocument();
       expect(screen.queryByRole("button", { name: "Log All" })).not.toBeInTheDocument();
-    });
-
-    it("shows bulk actions for multiple plants", () => {
-      const group = createMockGroup({
-        plants: [
-          createMockPlant({ id: "plant-1" }),
-          createMockPlant({ id: "plant-2" }),
-        ],
-      });
-
-      render(
-        <TestWrapper>
-          <PlantGroupCard group={group} onBulkLogActivity={mockOnBulkLogActivity} />
-        </TestWrapper>
-      );
-
-      expect(screen.getByText("Group Actions")).toBeInTheDocument();
-      expect(screen.getByText("Log activity for all 2 plants")).toBeInTheDocument();
-      expect(screen.getByRole("button", { name: "Log All" })).toBeInTheDocument();
-    });
-
-    it("toggles bulk action buttons when clicked", async () => {
-      const user = userEvent.setup();
-      const group = createMockGroup({
-        plants: [
-          createMockPlant({ id: "plant-1" }),
-          createMockPlant({ id: "plant-2" }),
-        ],
-      });
-
-      render(
-        <TestWrapper>
-          <PlantGroupCard group={group} onBulkLogActivity={mockOnBulkLogActivity} />
-        </TestWrapper>
-      );
-
-      // Initially, bulk action buttons should not be visible
       expect(screen.queryByRole("button", { name: "💧 Water All" })).not.toBeInTheDocument();
-
-      // Click to show bulk actions
-      await user.click(screen.getByRole("button", { name: "Log All" }));
-      
-      expect(screen.getByRole("button", { name: "💧 Water All" })).toBeInTheDocument();
-      expect(screen.getByRole("button", { name: "🌱 Fertilize All" })).toBeInTheDocument();
-      expect(screen.getByRole("button", { name: "💡 Lighting All" })).toBeInTheDocument();
-      expect(screen.getByRole("button", { name: "📝 More" })).toBeInTheDocument();
-      expect(screen.getByRole("button", { name: "Cancel" })).toBeInTheDocument();
-
-      // Click to hide bulk actions
-      await user.click(screen.getByRole("button", { name: "Cancel" }));
-      
-      expect(screen.queryByRole("button", { name: "💧 Water All" })).not.toBeInTheDocument();
-    });
-
-    it("calls onBulkLogActivity with all plant IDs when bulk action is selected", async () => {
-      const user = userEvent.setup();
-      const group = createMockGroup({
-        plants: [
-          createMockPlant({ id: "plant-1" }),
-          createMockPlant({ id: "plant-2" }),
-          createMockPlant({ id: "plant-3" }),
-        ],
-      });
-
-      render(
-        <TestWrapper>
-          <PlantGroupCard group={group} onBulkLogActivity={mockOnBulkLogActivity} />
-        </TestWrapper>
-      );
-
-      // Show bulk actions
-      await user.click(screen.getByRole("button", { name: "Log All" }));
-      
-      // Click water all action
-      await user.click(screen.getByRole("button", { name: "💧 Water All" }));
-
-      expect(mockOnBulkLogActivity).toHaveBeenCalledWith(
-        ["plant-1", "plant-2", "plant-3"],
-        "water",
-        group
-      );
-    });
-
-    it("calls onBulkLogActivity for each bulk action type", async () => {
-      const user = userEvent.setup();
-      const group = createMockGroup({
-        plants: [
-          createMockPlant({ id: "plant-1" }),
-          createMockPlant({ id: "plant-2" }),
-        ],
-      });
-
-      const { rerender } = render(
-        <TestWrapper>
-          <PlantGroupCard group={group} onBulkLogActivity={mockOnBulkLogActivity} />
-        </TestWrapper>
-      );
-
-      // Test water action
-      await user.click(screen.getByRole("button", { name: "Log All" }));
-      await user.click(screen.getByRole("button", { name: "💧 Water All" }));
-      expect(mockOnBulkLogActivity).toHaveBeenCalledWith(["plant-1", "plant-2"], "water", group);
-
-      // Re-render and test fertilize action
-      mockOnBulkLogActivity.mockClear();
-      rerender(
-        <TestWrapper>
-          <PlantGroupCard group={group} onBulkLogActivity={mockOnBulkLogActivity} />
-        </TestWrapper>
-      );
-      
-      await user.click(screen.getByRole("button", { name: "Log All" }));
-      await user.click(screen.getByRole("button", { name: "🌱 Fertilize All" }));
-      expect(mockOnBulkLogActivity).toHaveBeenCalledWith(["plant-1", "plant-2"], "fertilize", group);
-
-      // Re-render and test lighting action
-      mockOnBulkLogActivity.mockClear();
-      rerender(
-        <TestWrapper>
-          <PlantGroupCard group={group} onBulkLogActivity={mockOnBulkLogActivity} />
-        </TestWrapper>
-      );
-      
-      await user.click(screen.getByRole("button", { name: "Log All" }));
-      await user.click(screen.getByRole("button", { name: "💡 Lighting All" }));
-      expect(mockOnBulkLogActivity).toHaveBeenCalledWith(["plant-1", "plant-2"], "lighting", group);
-    });
-
-    it("expands all bulk actions when 'More' bulk action is clicked", async () => {
-      const user = userEvent.setup();
-      const group = createMockGroup({
-        plants: [
-          createMockPlant({ id: "plant-1" }),
-          createMockPlant({ id: "plant-2" }),
-        ],
-      });
-
-      render(
-        <TestWrapper>
-          <PlantGroupCard group={group} onBulkLogActivity={mockOnBulkLogActivity} />
-        </TestWrapper>
-      );
-
-      // Show bulk actions
-      await user.click(screen.getByRole("button", { name: "Log All" }));
-      
-      // Initially, expanded actions should not be visible
-      expect(screen.queryByText("Additional bulk care activities for 2 plants:")).not.toBeInTheDocument();
-      
-      // Click more action to expand
-      await user.click(screen.getByRole("button", { name: "📝 More" }));
-
-      // Now expanded actions should be visible
-      expect(screen.getByText("Additional bulk care activities for 2 plants:")).toBeInTheDocument();
-      expect(screen.getByRole("button", { name: "📝 Less" })).toBeInTheDocument();
-      
-      // Should not navigate when clicking More
-      expect(mockNavigate).not.toHaveBeenCalled();
-    });
-
-    it("calls onBulkLogActivity when expanded bulk action is selected", async () => {
-      const user = userEvent.setup();
-      const group = createMockGroup({
-        plants: [
-          createMockPlant({ id: "plant-1" }),
-          createMockPlant({ id: "plant-2" }),
-        ],
-      });
-
-      render(
-        <TestWrapper>
-          <PlantGroupCard group={group} onBulkLogActivity={mockOnBulkLogActivity} />
-        </TestWrapper>
-      );
-
-      // Show bulk actions and expand
-      await user.click(screen.getByRole("button", { name: "Log All" }));
-      await user.click(screen.getByRole("button", { name: "📝 More" }));
-      
-      // Click observe action from expanded list (observe moved to expanded actions)
-      await user.click(screen.getByTestId("action-observe"));
-
-      expect(mockOnBulkLogActivity).toHaveBeenCalledWith(["plant-1", "plant-2"], "observe", group);
-      
-      // Expanded actions should be hidden after selection
-      expect(screen.queryByText("Additional bulk care activities for 2 plants:")).not.toBeInTheDocument();
-    });
-
-    it("supports all new maintenance activities in expanded bulk actions", async () => {
-      const user = userEvent.setup();
-      const group = createMockGroup({
-        plants: [
-          createMockPlant({ id: "plant-1" }),
-          createMockPlant({ id: "plant-2" }),
-        ],
-      });
-
-      render(
-        <TestWrapper>
-          <PlantGroupCard group={group} onBulkLogActivity={mockOnBulkLogActivity} />
-        </TestWrapper>
-      );
-
-      // Show bulk actions and expand
-      await user.click(screen.getByRole("button", { name: "Log All" }));
-      await user.click(screen.getByRole("button", { name: "📝 More" }));
-      
-      // Test harvest action
-      await user.click(screen.getByTestId("action-harvest"));
-      expect(mockOnBulkLogActivity).toHaveBeenCalledWith(["plant-1", "plant-2"], "harvest", group);
-    });
-
-    it("hides bulk actions after bulk action is selected", async () => {
-      const user = userEvent.setup();
-      const group = createMockGroup({
-        plants: [
-          createMockPlant({ id: "plant-1" }),
-          createMockPlant({ id: "plant-2" }),
-        ],
-      });
-
-      render(
-        <TestWrapper>
-          <PlantGroupCard group={group} onBulkLogActivity={mockOnBulkLogActivity} />
-        </TestWrapper>
-      );
-
-      // Show bulk actions
-      await user.click(screen.getByRole("button", { name: "Log All" }));
-      expect(screen.getByRole("button", { name: "💧 Water All" })).toBeInTheDocument();
-      
-      // Select a bulk action
-      await user.click(screen.getByRole("button", { name: "🌱 Fertilize All" }));
-
-      expect(screen.queryByRole("button", { name: "💧 Water All" })).not.toBeInTheDocument();
-    });
-
-    it("prevents event propagation when clicking bulk action buttons", async () => {
-      const user = userEvent.setup();
-      const group = createMockGroup({
-        plants: [
-          createMockPlant({ id: "plant-1" }),
-          createMockPlant({ id: "plant-2" }),
-        ],
-      });
-
-      render(
-        <TestWrapper>
-          <PlantGroupCard group={group} onBulkLogActivity={mockOnBulkLogActivity} />
-        </TestWrapper>
-      );
-
-      await user.click(screen.getByRole("button", { name: "Log All" }));
-      await user.click(screen.getByRole("button", { name: "💧 Water All" }));
-
-      // Bulk action button click should not trigger plant navigation
-      expect(mockNavigate).toHaveBeenCalledTimes(0);
     });
   });
 
   describe("Component State Management", () => {
-    it("maintains separate state for individual and bulk actions", async () => {
+    it("manages quick actions state correctly", async () => {
       const user = userEvent.setup();
       const group = createMockGroup({
         plants: [
@@ -820,20 +455,16 @@ describe("PlantGroupCard", () => {
         </TestWrapper>
       );
 
-      // Show individual actions
-      await user.click(screen.getByRole("button", { name: "Log One" }));
+      // Show quick actions
+      await user.click(screen.getByRole("button", { name: "Log Care" }));
       expect(screen.getByTestId("quick-action-buttons")).toBeInTheDocument();
 
-      // Show bulk actions
-      await user.click(screen.getByRole("button", { name: "Log All" }));
-      expect(screen.getByRole("button", { name: "💧 Water All" })).toBeInTheDocument();
-
-      // Both should be visible simultaneously
-      expect(screen.getByTestId("quick-action-buttons")).toBeInTheDocument();
-      expect(screen.getByRole("button", { name: "💧 Water All" })).toBeInTheDocument();
+      // Hide quick actions
+      await user.click(screen.getByRole("button", { name: "Cancel" }));
+      expect(screen.queryByTestId("quick-action-buttons")).not.toBeInTheDocument();
     });
 
-    it("resets to first plant index when group changes", () => {
+    it("uses representative plant consistently", () => {
       const group1 = createMockGroup({
         plants: [
           createMockPlant({ id: "plant-1", name: "Plant 1" }),
@@ -847,13 +478,15 @@ describe("PlantGroupCard", () => {
         </TestWrapper>
       );
 
-      expect(screen.getByText("Plant 1")).toBeInTheDocument();
+      expect(screen.getByText("Cherry Tomato")).toBeInTheDocument();
+      expect(screen.getAllByText("2 plants")).toHaveLength(2); // Both in header and content
 
       const group2 = createMockGroup({
         id: "group-2",
+        varietyName: "Roma Tomato", 
         plants: [
-          createMockPlant({ id: "plant-3", name: "Plant 3" }),
-          createMockPlant({ id: "plant-4", name: "Plant 4" }),
+          createMockPlant({ id: "plant-3", name: "Plant 3", varietyName: "Roma Tomato" }),
+          createMockPlant({ id: "plant-4", name: "Plant 4", varietyName: "Roma Tomato" }),
         ],
       });
 
@@ -863,7 +496,8 @@ describe("PlantGroupCard", () => {
         </TestWrapper>
       );
 
-      expect(screen.getByText("Plant 3")).toBeInTheDocument();
+      expect(screen.getByText("Roma Tomato")).toBeInTheDocument();
+      expect(screen.getAllByText("2 plants")).toHaveLength(2); // Both in header and content
     });
   });
 
@@ -877,7 +511,7 @@ describe("PlantGroupCard", () => {
         </TestWrapper>
       );
 
-      const card = screen.getByText("Cherry Tomato Plant 1").closest(".hover\\:shadow-lg");
+      const card = screen.getByText("Cherry Tomato").closest(".hover\\:shadow-lg");
       expect(card).toBeInTheDocument();
     });
 
@@ -891,10 +525,10 @@ describe("PlantGroupCard", () => {
       );
 
       // StatusBadge component should be rendered (mocked by default)
-      expect(screen.getByText("Cherry Tomato Plant 1")).toBeInTheDocument();
+      expect(screen.getByText("Cherry Tomato")).toBeInTheDocument();
     });
 
-    it("maintains proper button styling for action types", () => {
+    it("maintains proper button styling for unified actions", () => {
       const group = createMockGroup({
         plants: [
           createMockPlant({ id: "plant-1" }),
@@ -908,11 +542,8 @@ describe("PlantGroupCard", () => {
         </TestWrapper>
       );
 
-      const logAllButton = screen.getByRole("button", { name: "Log All" });
-      expect(logAllButton).toHaveClass("text-primary", "border-primary/50", "hover:bg-primary/10");
-
-      const logOneButton = screen.getByRole("button", { name: "Log One" });
-      expect(logOneButton).toHaveClass("text-primary", "border-primary/50", "hover:bg-primary/10");
+      const logCareButton = screen.getByRole("button", { name: "Log Care" });
+      expect(logCareButton).toHaveClass("text-primary", "border-primary/50", "hover:bg-primary/10");
     });
   });
 
@@ -949,7 +580,7 @@ describe("PlantGroupCard", () => {
       expect(screen.getByText("Cherry Tomato")).toBeInTheDocument();
     });
 
-    it("correctly calculates days old for plants with different dates", () => {
+    it("correctly calculates days old for representative plant", () => {
       const group = createMockGroup({
         plants: [createMockPlant({ plantedDate: subDays(new Date(), 15) })],
       });

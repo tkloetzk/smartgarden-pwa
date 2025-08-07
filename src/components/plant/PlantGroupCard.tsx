@@ -17,91 +17,47 @@ interface PlantGroupCardProps {
     activityType: QuickActionType,
     group: PlantGroup
   ) => void;
+  onRemoveFromView?: (group: PlantGroup) => void;
 }
 
-const PlantGroupCard = memo(({ group, onBulkLogActivity }: PlantGroupCardProps) => {
+const PlantGroupCard = memo(({ group, onBulkLogActivity, onRemoveFromView }: PlantGroupCardProps) => {
   const navigate = useNavigate();
-  const [currentIndex, setCurrentIndex] = useState(0);
-  const [showBulkActions, setShowBulkActions] = useState(false);
-  const [showIndividualActions, setShowIndividualActions] = useState(false);
-  const [showAllBulkActions, setShowAllBulkActions] = useState(false);
+  const [showQuickActions, setShowQuickActions] = useState(false);
 
-  // Memoize expensive calculations
-  const currentPlant = useMemo(() => group.plants[currentIndex], [group.plants, currentIndex]);
+  // Use the first plant as representative (since they're all the same variety/container)
+  const representativePlant = useMemo(() => group.plants[0], [group.plants]);
   const hasMultiplePlants = useMemo(() => group.plants.length > 1, [group.plants.length]);
   const plantIds = useMemo(() => group.plants.map((p) => p.id), [group.plants]);
-  const plantAge = useMemo(() => differenceInDays(new Date(), currentPlant.plantedDate), [currentPlant.plantedDate]);
+  const plantAge = useMemo(() => differenceInDays(new Date(), representativePlant.plantedDate), [representativePlant.plantedDate]);
   
-  const calculatedStage = useDynamicStage(currentPlant);
-
-  // Memoize navigation callbacks
-  const goToPrevious = useCallback(() => {
-    setCurrentIndex((prev) =>
-      prev === 0 ? group.plants.length - 1 : prev - 1
-    );
-  }, [group.plants.length]);
-
-  const goToNext = useCallback(() => {
-    setCurrentIndex((prev) =>
-      prev === group.plants.length - 1 ? 0 : prev + 1
-    );
-  }, [group.plants.length]);
+  const calculatedStage = useDynamicStage(representativePlant);
 
   const handlePlantClick = useCallback(() => {
-    navigate(`/plants/${currentPlant.id}`);
-  }, [navigate, currentPlant.id]);
+    navigate(`/plants/${representativePlant.id}`);
+  }, [navigate, representativePlant.id]);
 
-  const handleBulkAction = useCallback((
-    activityType: "water" | "fertilize" | "lighting"
-  ) => {
-    onBulkLogActivity(plantIds, activityType, group);
-    setShowBulkActions(false);
-  }, [onBulkLogActivity, plantIds, group]);
-
-  const handleBulkAllAction = useCallback((
+  const handleAction = useCallback((
     activityType: QuickActionType | "more"
   ) => {
     if (activityType === "more") {
-      // Toggle the expanded view instead of navigating
-      setShowAllBulkActions(!showAllBulkActions);
+      navigate(`/log-care/${representativePlant.id}`);
     } else {
       onBulkLogActivity(plantIds, activityType, group);
-      setShowAllBulkActions(false);
-      setShowBulkActions(false);
     }
-  }, [onBulkLogActivity, plantIds, group, showAllBulkActions]);
+    setShowQuickActions(false);
+  }, [navigate, representativePlant.id, onBulkLogActivity, plantIds, group]);
 
-  const handleIndividualAction = useCallback((
-    activityType: QuickActionType | "more"
-  ) => {
-    if (activityType === "more") {
-      navigate(`/log-care/${currentPlant.id}`);
-    } else {
-      onBulkLogActivity([currentPlant.id], activityType, group);
+  const toggleQuickActions = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
+    setShowQuickActions(!showQuickActions);
+  }, [showQuickActions]);
+
+  const handleRemoveFromView = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (onRemoveFromView) {
+      onRemoveFromView(group);
     }
-    setShowIndividualActions(false);
-  }, [navigate, currentPlant.id, onBulkLogActivity, group]);
-
-  // Memoize event handlers to prevent inline function creation
-  const handlePreviousClick = useCallback((e: React.MouseEvent) => {
-    e.stopPropagation();
-    goToPrevious();
-  }, [goToPrevious]);
-
-  const handleNextClick = useCallback((e: React.MouseEvent) => {
-    e.stopPropagation();
-    goToNext();
-  }, [goToNext]);
-
-  const toggleIndividualActions = useCallback((e: React.MouseEvent) => {
-    e.stopPropagation();
-    setShowIndividualActions(!showIndividualActions);
-  }, [showIndividualActions]);
-
-  const toggleBulkActions = useCallback((e: React.MouseEvent) => {
-    e.stopPropagation();
-    setShowBulkActions(!showBulkActions);
-  }, [showBulkActions]);
+  }, [onRemoveFromView, group]);
 
 
   return (
@@ -110,31 +66,25 @@ const PlantGroupCard = memo(({ group, onBulkLogActivity }: PlantGroupCardProps) 
         <div className="flex justify-between items-start">
           <div className="flex-1">
             <CardTitle className="text-lg flex items-center justify-between">
-              <span className="truncate">{currentPlant.name}</span>
-              <StatusBadge status="healthy" size="sm" />
+              <span className="truncate">{group.varietyName}</span>
+              <div className="flex items-center gap-2">
+                <StatusBadge status="healthy" size="sm" />
+                {onRemoveFromView && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={handleRemoveFromView}
+                    className="h-6 w-6 p-0 text-muted-foreground hover:text-destructive"
+                    title="Remove from view"
+                  >
+                    ✕
+                  </Button>
+                )}
+              </div>
             </CardTitle>
-
             {hasMultiplePlants && (
-              <div className="flex items-center gap-2 mt-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handlePreviousClick}
-                  className="h-8 w-8 p-0"
-                >
-                  ←
-                </Button>
-                <span className="text-sm text-muted-foreground">
-                  {currentIndex + 1} of {group.plants.length}
-                </span>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handleNextClick}
-                  className="h-8 w-8 p-0"
-                >
-                  →
-                </Button>
+              <div className="text-sm text-muted-foreground mt-1">
+                {group.plants.length} plants
               </div>
             )}
           </div>
@@ -147,7 +97,9 @@ const PlantGroupCard = memo(({ group, onBulkLogActivity }: PlantGroupCardProps) 
           <div onClick={handlePlantClick} className="cursor-pointer">
             <div className="space-y-2">
               <div className="flex justify-between items-center">
-                <span className="text-sm font-medium">{group.varietyName}</span>
+                <span className="text-sm font-medium">
+                  {hasMultiplePlants ? `${group.plants.length} plants` : representativePlant.name}
+                </span>
                 <span className="text-xs text-muted-foreground capitalize">
                   {calculatedStage}
                 </span>
@@ -155,24 +107,21 @@ const PlantGroupCard = memo(({ group, onBulkLogActivity }: PlantGroupCardProps) 
 
               <div className="text-xs text-muted-foreground">
                 {plantAge} days old
-                {hasMultiplePlants && (
-                  <span className="ml-2">• {group.plants.length} plants</span>
-                )}
               </div>
 
               {/* Location and Section Info */}
               <div className="text-xs text-muted-foreground space-y-1">
                 <div className="flex items-center gap-1">
                   <span>📍</span>
-                  <span>{currentPlant.location}</span>
-                  {currentPlant.container && currentPlant.container !== currentPlant.location && (
-                    <span> • {currentPlant.container}</span>
+                  <span>{representativePlant.location}</span>
+                  {representativePlant.container && representativePlant.container !== representativePlant.location && (
+                    <span> • {representativePlant.container}</span>
                   )}
                 </div>
-                {currentPlant.section && (
+                {representativePlant.section && (
                   <div className="flex items-center gap-1">
                     <span>🏷️</span>
-                    <span className="font-medium">{currentPlant.section}</span>
+                    <span className="font-medium">{representativePlant.section}</span>
                   </div>
                 )}
               </div>
@@ -184,112 +133,34 @@ const PlantGroupCard = memo(({ group, onBulkLogActivity }: PlantGroupCardProps) 
             <div className="flex items-center justify-between">
               <div>
                 <div className="text-sm font-medium text-primary">
-                  {hasMultiplePlants
-                    ? "Current Plant Actions"
-                    : "Quick Actions"}
+                  Quick Actions
                 </div>
                 <div className="text-xs text-muted-foreground">
-                  Log activity for {currentPlant.name}
+                  {hasMultiplePlants 
+                    ? `Log care for ${group.plants.length} plants`
+                    : "Log care activity"
+                  }
                 </div>
               </div>
               <Button
                 variant="outline"
                 size="sm"
-                onClick={toggleIndividualActions}
+                onClick={toggleQuickActions}
                 className="text-primary border-primary/50 hover:bg-primary/10"
               >
-                {showIndividualActions
-                  ? "Cancel"
-                  : hasMultiplePlants
-                  ? "Log One"
-                  : "Log Care"}
+                {showQuickActions ? "Cancel" : "Log Care"}
               </Button>
             </div>
 
-            {showIndividualActions && (
+            {showQuickActions && (
               <QuickActionButtons
-                onAction={handleIndividualAction}
+                onAction={handleAction}
                 actions={["water", "fertilize", "observe", "more"]}
                 layout="grid"
                 preventPropagation={true}
               />
             )}
           </div>
-
-          {hasMultiplePlants && (
-            <div className="border-t pt-3 space-y-3">
-              <div className="flex items-center justify-between">
-                <div>
-                  <div className="text-sm font-medium text-primary">
-                    Group Actions
-                  </div>
-                  <div className="text-xs text-muted-foreground">
-                    Log activity for all {group.plants.length} plants
-                  </div>
-                </div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={toggleBulkActions}
-                  className="text-primary border-primary/50 hover:bg-primary/10"
-                >
-                  {showBulkActions ? "Cancel" : "Log All"}
-                </Button>
-              </div>
-
-              {showBulkActions && (
-                <div className="space-y-3">
-                  {/* Primary bulk actions */}
-                  <div className="grid grid-cols-2 gap-2">
-                    <Button
-                      size="sm"
-                      onClick={() => handleBulkAction("water")}
-                      className="bg-blue-500 hover:bg-blue-600 text-white"
-                    >
-                      💧 Water All
-                    </Button>
-                    <Button
-                      size="sm"
-                      onClick={() => handleBulkAction("fertilize")}
-                      className="bg-green-500 hover:bg-green-600 text-white"
-                    >
-                      🌱 Fertilize All
-                    </Button>
-                    <Button
-                      size="sm"
-                      onClick={() => handleBulkAction("lighting")}
-                      className="bg-amber-500 hover:bg-amber-600 text-white"
-                    >
-                      💡 Lighting All
-                    </Button>
-                    <Button
-                      size="sm"
-                      onClick={() => handleBulkAllAction("more")}
-                      className="bg-purple-500 hover:bg-purple-600 text-white"
-                    >
-                      {showAllBulkActions ? "📝 Less" : "📝 More"}
-                    </Button>
-                  </div>
-
-                  {/* Expanded bulk actions */}
-                  {showAllBulkActions && (
-                    <div className="border-t pt-3">
-                      <p className="text-xs text-muted-foreground mb-2">
-                        Additional bulk care activities for {group.plants.length} plants:
-                      </p>
-                      <QuickActionButtons
-                        onAction={handleBulkAllAction}
-                        actions={["observe", "photo", "pruning", "harvest", "transplant", "thin", "note"]}
-                        layout="grid"
-                        preventPropagation={true}
-                        buttonSize="sm"
-                      />
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-          )}
         </div>
       </CardContent>
     </Card>

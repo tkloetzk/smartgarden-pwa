@@ -101,7 +101,8 @@ export function SimplifiedLocationSelector({
   const [advancedMode, setAdvancedMode] = useState<"visual" | "custom">("visual");
   const [customGridRows, setCustomGridRows] = useState<number>(3);
   const [customGridCols, setCustomGridCols] = useState<number>(4);
-  const [selectedCustomPosition, setSelectedCustomPosition] = useState<{row: number, col: number} | null>(null);
+  const [selectedCustomPositions, setSelectedCustomPositions] = useState<Set<string>>(new Set());
+  const [detectedGridDimensions, setDetectedGridDimensions] = useState<{rows: number, cols: number} | null>(null);
   const [showCreateContainer, setShowCreateContainer] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
 
@@ -133,6 +134,23 @@ export function SimplifiedLocationSelector({
       varietyName: plant.varietyName,
       section: plant.structuredSection,
     }));
+
+  // Detect existing grid dimensions from current plants
+  const detectGridDimensions = useCallback(() => {
+    if (!currentBedPlants.length) return null;
+    
+    let maxRow = 0;
+    let maxCol = 0;
+    
+    currentBedPlants.forEach(plant => {
+      if (plant.section?.row && plant.section?.column) {
+        maxRow = Math.max(maxRow, plant.section.row);
+        maxCol = Math.max(maxCol, plant.section.column);
+      }
+    });
+    
+    return maxRow > 0 && maxCol > 0 ? { rows: maxRow, cols: maxCol } : null;
+  }, [currentBedPlants]);
 
   const loadBeds = useCallback(async () => {
     // Don't load if plants are still loading
@@ -198,6 +216,27 @@ export function SimplifiedLocationSelector({
   useEffect(() => {
     loadBeds();
   }, [loadBeds]);
+
+  // Detect and apply existing grid dimensions when bed is selected
+  useEffect(() => {
+    if (selectedBed && currentBedPlants.length > 0) {
+      const detected = detectGridDimensions();
+      if (detected) {
+        setDetectedGridDimensions(detected);
+        setCustomGridRows(detected.rows);
+        setCustomGridCols(detected.cols);
+      } else {
+        setDetectedGridDimensions(null);
+      }
+    } else {
+      setDetectedGridDimensions(null);
+      // Reset to defaults when no existing grid
+      setCustomGridRows(3);
+      setCustomGridCols(4);
+    }
+    // Clear selections when bed changes
+    setSelectedCustomPositions(new Set());
+  }, [selectedBed, currentBedPlants, detectGridDimensions]);
 
   // Auto-show section input if section has content and bed type supports sections
   useEffect(() => {
@@ -284,35 +323,58 @@ export function SimplifiedLocationSelector({
   };
 
   const handleCustomGridPositionSelect = (row: number, col: number) => {
-    setSelectedCustomPosition({ row, col });
+    const positionKey = `${row}-${col}`;
+    const newPositions = new Set(selectedCustomPositions);
     
-    // Convert to section description
-    const sectionDescription = `Row ${row + 1}, Column ${col + 1}`;
-    onSectionChange(sectionDescription);
+    if (newPositions.has(positionKey)) {
+      newPositions.delete(positionKey);
+    } else {
+      newPositions.add(positionKey);
+    }
     
-    // Also create a structured section for this custom grid position
-    if (selectedBed) {
-      const bedWidth = selectedBed.dimensions.width;
-      const bedLength = selectedBed.dimensions.length;
+    setSelectedCustomPositions(newPositions);
+    
+    // Update section description with selected positions
+    if (newPositions.size === 0) {
+      onSectionChange("");
+      onStructuredSectionChange(null);
+    } else if (newPositions.size === 1) {
+      // Single selection - use specific position
+      const sectionDescription = `Row ${row + 1}, Column ${col + 1}`;
+      onSectionChange(sectionDescription);
       
-      // Calculate position within the bed based on custom grid
-      const sectionWidth = bedWidth / customGridCols;
-      const sectionLength = bedLength / customGridRows;
-      const startPosition = (row * sectionLength) + (col * sectionWidth);
+      if (selectedBed) {
+        const bedWidth = selectedBed.dimensions.width;
+        const bedLength = selectedBed.dimensions.length;
+        
+        const sectionWidth = bedWidth / customGridCols;
+        const sectionLength = bedLength / customGridRows;
+        const startPosition = (row * sectionLength) + (col * sectionWidth);
+        
+        const newSection: PlantSection = {
+          bedId: selectedBed.id,
+          position: { 
+            start: startPosition, 
+            length: sectionLength, 
+            width: sectionWidth,
+            unit: selectedBed.dimensions.unit 
+          },
+          row: row + 1,
+          column: col + 1,
+          description: sectionDescription,
+        };
+        onStructuredSectionChange(newSection);
+      }
+    } else {
+      // Multiple selections - use descriptive text
+      const positions = Array.from(newPositions).map(key => {
+        const [r, c] = key.split('-').map(Number);
+        return `R${r + 1}C${c + 1}`;
+      }).sort().join(', ');
       
-      const newSection: PlantSection = {
-        bedId: selectedBed.id,
-        position: { 
-          start: startPosition, 
-          length: sectionLength, 
-          width: sectionWidth,
-          unit: selectedBed.dimensions.unit 
-        },
-        row: row + 1,
-        column: col + 1,
-        description: sectionDescription,
-      };
-      onStructuredSectionChange(newSection);
+      const sectionDescription = `Multiple sections: ${positions}`;
+      onSectionChange(sectionDescription);
+      onStructuredSectionChange(null); // Multiple sections don't have single structured section
     }
   };
 
@@ -329,7 +391,8 @@ export function SimplifiedLocationSelector({
     for (let row = 0; row < customGridRows; row++) {
       const rowCells = [];
       for (let col = 0; col < customGridCols; col++) {
-        const isSelected = selectedCustomPosition?.row === row && selectedCustomPosition?.col === col;
+        const positionKey = `${row}-${col}`;
+        const isSelected = selectedCustomPositions.has(positionKey);
         const isOccupied = currentBedPlants.some(plant => 
           plant.section?.row === row + 1 && plant.section?.column === col + 1
         );
@@ -362,11 +425,18 @@ export function SimplifiedLocationSelector({
               ${isSelected 
                 ? "border-accent bg-accent/20 text-accent" 
                 : isOccupied
-                  ? "border-orange-400 bg-orange-50 text-orange-600"
+                  ? "border-orange-400 bg-orange-50 text-orange-600 cursor-not-allowed"
                   : "border-border hover:border-accent/50 hover:bg-accent/5"
               }
             `}
-            title={isOccupied ? `Occupied - ${dimensionText}` : `Row ${row + 1}, Col ${col + 1} - ${dimensionText}`}
+            disabled={isOccupied}
+            title={
+              isOccupied 
+                ? `Occupied - ${dimensionText}` 
+                : isSelected 
+                  ? `Selected: Row ${row + 1}, Col ${col + 1} - ${dimensionText}` 
+                  : `Row ${row + 1}, Col ${col + 1} - ${dimensionText}`
+            }
           >
             <div className="text-center">
               <div className="font-semibold">
@@ -743,31 +813,47 @@ export function SimplifiedLocationSelector({
                         
                         {/* Grid Size Controls */}
                         <div className="flex gap-4 items-center p-3 bg-background/50 rounded-lg">
-                          <div className="flex items-center gap-2">
-                            <label className="text-xs font-medium">Rows:</label>
-                            <Input
-                              type="number"
-                              min="1"
-                              max="10"
-                              value={customGridRows}
-                              onChange={(e) => setCustomGridRows(Math.max(1, Math.min(10, parseInt(e.target.value) || 1)))}
-                              className="w-16 h-8 text-xs"
-                            />
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <label className="text-xs font-medium">Columns:</label>
-                            <Input
-                              type="number"
-                              min="1"
-                              max="10"
-                              value={customGridCols}
-                              onChange={(e) => setCustomGridCols(Math.max(1, Math.min(10, parseInt(e.target.value) || 1)))}
-                              className="w-16 h-8 text-xs"
-                            />
-                          </div>
-                          <div className="text-xs text-muted-foreground">
-                            {customGridRows} × {customGridCols} = {customGridRows * customGridCols} sections
-                          </div>
+                          {detectedGridDimensions ? (
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2 mb-1">
+                                <span className="text-xs font-medium text-green-600">✓ Using existing grid:</span>
+                                <span className="text-xs text-foreground font-medium">
+                                  {detectedGridDimensions.rows} × {detectedGridDimensions.cols} = {detectedGridDimensions.rows * detectedGridDimensions.cols} sections
+                                </span>
+                              </div>
+                              <p className="text-xs text-muted-foreground">
+                                Grid dimensions detected from existing plants in this container
+                              </p>
+                            </div>
+                          ) : (
+                            <>
+                              <div className="flex items-center gap-2">
+                                <label className="text-xs font-medium">Rows:</label>
+                                <Input
+                                  type="number"
+                                  min="1"
+                                  max="10"
+                                  value={customGridRows}
+                                  onChange={(e) => setCustomGridRows(Math.max(1, Math.min(10, parseInt(e.target.value) || 1)))}
+                                  className="w-16 h-8 text-xs"
+                                />
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <label className="text-xs font-medium">Columns:</label>
+                                <Input
+                                  type="number"
+                                  min="1"
+                                  max="10"
+                                  value={customGridCols}
+                                  onChange={(e) => setCustomGridCols(Math.max(1, Math.min(10, parseInt(e.target.value) || 1)))}
+                                  className="w-16 h-8 text-xs"
+                                />
+                              </div>
+                              <div className="text-xs text-muted-foreground">
+                                {customGridRows} × {customGridCols} = {customGridRows * customGridCols} sections
+                              </div>
+                            </>
+                          )}
                         </div>
 
                         {/* Grid Dimensions Summary */}
@@ -814,12 +900,22 @@ export function SimplifiedLocationSelector({
                           </div>
                         </div>
 
-                        {/* Selected Position Display */}
-                        {selectedCustomPosition && (
+                        {/* Selected Positions Display */}
+                        {selectedCustomPositions.size > 0 && (
                           <div className="p-2 bg-accent/10 rounded-lg border border-accent/20">
-                            <p className="text-xs font-medium text-accent">
-                              Selected: Row {selectedCustomPosition.row + 1}, Column {selectedCustomPosition.col + 1}
+                            <p className="text-xs font-medium text-accent mb-1">
+                              {selectedCustomPositions.size === 1 ? 'Selected section:' : `Selected ${selectedCustomPositions.size} sections:`}
                             </p>
+                            <div className="flex flex-wrap gap-1">
+                              {Array.from(selectedCustomPositions).map(positionKey => {
+                                const [row, col] = positionKey.split('-').map(Number);
+                                return (
+                                  <span key={positionKey} className="text-xs px-2 py-1 bg-accent/20 rounded-md">
+                                    R{row + 1}C{col + 1}
+                                  </span>
+                                );
+                              })}
+                            </div>
                           </div>
                         )}
 
@@ -827,7 +923,8 @@ export function SimplifiedLocationSelector({
                           <p>• Numbers show row,column positions</p>
                           <p>• Dimensions show length×width for each section</p>
                           <p>• 🌱 indicates occupied sections</p>
-                          <p>• Click any section to plant there</p>
+                          <p>• Click sections to select multiple planting areas</p>
+                          <p>• Click selected sections again to deselect them</p>
                         </div>
                       </div>
                     )}

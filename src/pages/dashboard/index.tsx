@@ -36,6 +36,7 @@ export const Dashboard = () => {
   const [containerGroups, setContainerGroups] = useState<ContainerGroup[]>([]);
   const [plantsNeedingCatchUp, setPlantsNeedingCatchUp] = useState(0);
   const [careStatusLoading, setCareStatusLoading] = useState(true);
+  const [hiddenGroups, setHiddenGroups] = useState<Set<string>>(new Set());
 
   const {
     getUpcomingFertilizationTasks,
@@ -233,6 +234,17 @@ export const Dashboard = () => {
     setBulkModalOpen(true);
   };
 
+  const handleRemoveFromView = (group: PlantGroup) => {
+    setHiddenGroups(prev => new Set([...prev, group.id]));
+    toast.success(`${group.varietyName} removed from view`);
+  };
+
+  const handleRestoreAllHidden = () => {
+    const count = hiddenGroups.size;
+    setHiddenGroups(new Set());
+    toast.success(`${count} plant group${count !== 1 ? 's' : ''} restored to view`);
+  };
+
   const closeBulkModal = () => {
     setBulkModalOpen(false);
     setSelectedPlantIds([]);
@@ -244,10 +256,12 @@ export const Dashboard = () => {
       const groups = groupPlantsByConditions(plants);
       setPlantGroups(groups);
       
-      const containers = groupPlantGroupsByContainer(groups);
+      // Filter out hidden groups
+      const visibleGroups = groups.filter(group => !hiddenGroups.has(group.id));
+      const containers = groupPlantGroupsByContainer(visibleGroups);
       setContainerGroups(containers);
     }
-  }, [plants, loading]);
+  }, [plants, loading, hiddenGroups]);
 
   if (loading) {
     return (
@@ -403,7 +417,19 @@ export const Dashboard = () => {
         ) : (
           <div>
             <div className="flex justify-between items-center mb-6">
-              <h2 className="text-xl font-semibold">Your Garden</h2>
+              <div className="flex items-center gap-4">
+                <h2 className="text-xl font-semibold">Your Garden</h2>
+                {hiddenGroups.size > 0 && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleRestoreAllHidden}
+                    className="text-muted-foreground hover:text-foreground"
+                  >
+                    Show {hiddenGroups.size} hidden group{hiddenGroups.size !== 1 ? 's' : ''}
+                  </Button>
+                )}
+              </div>
               <Button onClick={() => navigate("/add-plant")}>Add Plant</Button>
             </div>
             
@@ -439,6 +465,7 @@ export const Dashboard = () => {
                       key={group.id}
                       group={group}
                       onBulkLogActivity={handleBulkLogActivity}
+                      onRemoveFromView={handleRemoveFromView}
                     />
                   ))}
                 </div>
