@@ -85,6 +85,7 @@ export const groupPlantsByConditions = (
 
   const result = groups.sort((a, b) => a.varietyName.localeCompare(b.varietyName));
   
+  
   // Cache the result
   groupingCache.set(cacheKey, result);
   cacheTimestamps.set(cacheKey, Date.now());

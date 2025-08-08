@@ -15,7 +15,20 @@ export const groupPlantGroupsByContainer = (
 
   // Group by container name
   plantGroups.forEach((plantGroup) => {
-    const containerName = plantGroup.container || "Unassigned Container";
+    let containerName = plantGroup.container || "Unassigned Container";
+    
+    // Extract base container name by removing section information
+    // Handle patterns like "🏗️ Little Finger Carrots Bed - Row 3, Column 1"
+    const sectionPatterns = [
+      / - Row \d+, Column \d+/,
+      / - Section .+$/,
+      / - R\d+C\d+/,
+      / - \d+,\d+/
+    ];
+    
+    for (const pattern of sectionPatterns) {
+      containerName = containerName.replace(pattern, '');
+    }
     
     if (!containerMap.has(containerName)) {
       containerMap.set(containerName, []);
@@ -37,7 +50,10 @@ export const groupPlantGroupsByContainer = (
     });
   });
 
-  return containerGroups.sort((a, b) => a.containerName.localeCompare(b.containerName));
+  const result = containerGroups.sort((a, b) => a.containerName.localeCompare(b.containerName));
+  
+  
+  return result;
 };
 
 export const findContainerMates = (

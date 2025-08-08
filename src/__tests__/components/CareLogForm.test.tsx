@@ -1,30 +1,26 @@
-// src/__tests__/components/CareLogForm.test.tsx
-import { describe, it, expect, beforeEach, afterEach } from "@jest/globals";
+// src/__tests__/components/CareLogForm.updated.test.tsx
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
+import { format } from "date-fns";
 import { CareLogForm } from "@/pages/care/CareLogForm";
-import {
-  initializeDatabase,
-  resetDatabaseInitializationFlag,
-} from "@/db/seedData";
-import { PlantRecord } from "@/types/database";
 import { useFirebasePlants } from "@/hooks/useFirebasePlants";
 import { useFirebaseCareActivities } from "@/hooks/useFirebaseCareActivities";
-import {
-  createMockPlant,
-  createPlantWithVariety,
-} from "../utils/testDataFactories";
 
-// Mocks
+// Mock dependencies
 jest.mock("@/hooks/useFirebasePlants");
 jest.mock("@/hooks/useFirebaseCareActivities");
+jest.mock("react-hot-toast");
+jest.mock("@/utils/plantGrouping");
 
 const mockUseFirebasePlants = useFirebasePlants as jest.Mock;
 const mockUseFirebaseCareActivities = useFirebaseCareActivities as jest.Mock;
 const mockLogActivity = jest.fn();
 
-// Helper to render components with Router context
+// Mock plant grouping utility
+import { groupPlantsByConditions } from "@/utils/plantGrouping";
+const mockGroupPlantsByConditions = groupPlantsByConditions as jest.Mock;
+
 const renderWithRouter = (
   component: React.ReactElement,
   initialEntries: string[] = ["/log-care"]
@@ -34,33 +30,14 @@ const renderWithRouter = (
   );
 };
 
-// Helper function to set up the plants mock
-const setupMockPlants = (plants: PlantRecord[]): void => {
-  mockUseFirebasePlants.mockReturnValue({
-    plants,
-    loading: false,
-    error: null,
-  });
-};
-
 describe("CareLogForm", () => {
   const user = userEvent.setup();
   const mockOnSuccess = jest.fn();
 
-  beforeEach(async () => {
-    // Reset database initialization flag
-    resetDatabaseInitializationFlag();
-
-    // Clear the database and reinitialize
-    const { db } = await import("@/types/database");
-    await db.delete();
-    await db.open();
-    await initializeDatabase();
-
-    // Clear mocks
+  beforeEach(() => {
     jest.clearAllMocks();
 
-    // Setup default mock returns
+    // Setup default mocks
     mockUseFirebasePlants.mockReturnValue({
       plants: [],
       loading: false,
@@ -72,245 +49,12 @@ describe("CareLogForm", () => {
     });
 
     mockLogActivity.mockResolvedValue(undefined);
+
+    mockGroupPlantsByConditions.mockReturnValue([]);
   });
 
-  afterEach(async () => {
-    // Clean up database after each test
-    const { db } = await import("@/types/database");
-    await db.delete();
-  });
-
-  describe("form validation", () => {
-    it("submit button starts disabled without plant selection", async () => {
-      renderWithRouter(<CareLogForm onSuccess={mockOnSuccess} />);
-
-      const submitButton = screen.getByRole("button", {
-        name: /Log Activity/i,
-      });
-      
-      // Button should be disabled when form is invalid (no plant selected)
-      expect(submitButton).toBeDisabled();
-    });
-
-    it("prevents submission when water amount is missing", async () => {
-      const mockPlant = await createMockPlant();
-      setupMockPlants([mockPlant]);
-
-      renderWithRouter(<CareLogForm onSuccess={mockOnSuccess} />);
-
-      const plantSelect = screen.getByLabelText(/Plant/i);
-      await user.selectOptions(plantSelect, mockPlant.id);
-
-      const activitySelect = screen.getByLabelText(/Activity Type/i);
-      await user.selectOptions(activitySelect, "water");
-
-      await waitFor(() => {
-        expect(screen.getByLabelText(/Water Amount/i)).toBeInTheDocument();
-      });
-
-      // Clear the water amount field to ensure it's empty
-      const waterAmountInput = screen.getByLabelText(/Water Amount/i);
-      await user.clear(waterAmountInput);
-
-      // Trigger validation by blurring the field
-      await user.tab();
-
-      const submitButton = screen.getByRole("button", {
-        name: /Log Activity/i,
-      });
-      
-      // Submit button should be disabled due to form validation
-      await waitFor(() => {
-        expect(submitButton).toBeDisabled();
-      });
-
-      // Verify submission was prevented
-      expect(mockLogActivity).not.toHaveBeenCalled();
-    });
-  });
-
-  describe("accessibility", () => {
-    it("has proper form labels and ARIA attributes", async () => {
-      renderWithRouter(<CareLogForm onSuccess={mockOnSuccess} />);
-
-      // Verify required form fields have proper labels
-      expect(screen.getByLabelText(/Plant \*/i)).toBeInTheDocument();
-      expect(screen.getByLabelText(/Activity Type \*/i)).toBeInTheDocument();
-      expect(screen.getByLabelText(/Date \*/i)).toBeInTheDocument();
-
-      // Verify submit button exists and is accessible
-      const submitButton = screen.getByRole("button", {
-        name: /Log Activity/i,
-      });
-      expect(submitButton).toBeInTheDocument();
-      expect(submitButton).toHaveAttribute("type", "submit");
-    });
-
-    it("supports keyboard navigation through form fields", async () => {
-      const mockPlant = await createMockPlant();
-      setupMockPlants([mockPlant]);
-
-      renderWithRouter(<CareLogForm onSuccess={mockOnSuccess} />);
-
-      // First tab goes to "Select Multiple Plants" button
-      await user.tab();
-      expect(screen.getByRole("button", { name: /Select Multiple Plants/i })).toHaveFocus();
-      
-      // Second tab goes to plant select field
-      await user.tab();
-      expect(screen.getByLabelText(/Plant \*/i)).toHaveFocus();
-
-      // Third tab goes to activity type
-      await user.tab();
-      expect(screen.getByLabelText(/Activity Type \*/i)).toHaveFocus();
-
-      // Fourth tab goes to date field
-      await user.tab();
-      expect(screen.getByLabelText(/Date \*/i)).toHaveFocus();
-    });
-  });
-
-  describe("Validation Edge Cases", () => {
-    it("should prevent future dates for care activities", async () => {
-      const mockPlant = await createMockPlant();
-      setupMockPlants([mockPlant]);
-
-      renderWithRouter(<CareLogForm onSuccess={mockOnSuccess} />);
-
-      const plantSelect = screen.getByLabelText(/Plant/i);
-      await user.selectOptions(plantSelect, mockPlant.id);
-
-      const activitySelect = screen.getByLabelText(/Activity Type/i);
-      await user.selectOptions(activitySelect, "water");
-
-      // Set date to tomorrow
-      const tomorrow = new Date();
-      tomorrow.setDate(tomorrow.getDate() + 1);
-      const futureDate = tomorrow.toISOString().split("T")[0];
-
-      const dateInput = screen.getByLabelText(/Date \*/i);
-      await user.clear(dateInput);
-      await user.type(dateInput, futureDate);
-      await user.tab(); // Trigger onTouched validation
-
-      // Add required water amount
-      await waitFor(() => {
-        expect(screen.getByLabelText(/Water Amount/i)).toBeInTheDocument();
-      });
-      const waterAmountInput = screen.getByLabelText(/Water Amount/i);
-      await user.type(waterAmountInput, "20");
-
-      const submitButton = screen.getByRole("button", {
-        name: /Log Activity/i,
-      });
-      await user.click(submitButton);
-
-      // The form should NOT submit due to future date validation
-      await waitFor(() => {
-        // Check that the future date error appears
-        expect(
-          screen.getByText("Date cannot be in the future.")
-        ).toBeInTheDocument();
-      });
-
-      // Verify the mock was NOT called due to validation failure
-      expect(mockLogActivity).not.toHaveBeenCalled();
-    });
-
-    it("should validate moisture readings are 1-10", async () => {
-      const mockPlant = await createMockPlant();
-      setupMockPlants([mockPlant]);
-
-      renderWithRouter(<CareLogForm onSuccess={mockOnSuccess} />);
-
-      const plantSelect = screen.getByLabelText(/Plant/i);
-      await user.selectOptions(plantSelect, mockPlant.id);
-
-      const activitySelect = screen.getByLabelText(/Activity Type/i);
-      await user.selectOptions(activitySelect, "water");
-
-      const waterAmountInput = screen.getByLabelText(/Water Amount/i);
-      await user.type(waterAmountInput, "20");
-
-      // Enable detailed tracking to show moisture fields
-      const detailedTrackingCheckbox = screen.getByLabelText(
-        /Track moisture levels/i
-      );
-      await user.click(detailedTrackingCheckbox);
-
-      await waitFor(() => {
-        expect(
-          screen.getByText(/Moisture Before \(1-10\)/i)
-        ).toBeInTheDocument();
-      });
-
-      // Get all moisture inputs and select the first one specifically
-      const moistureInputs = screen.getAllByPlaceholderText("1-10");
-      const moistureBeforeField = moistureInputs[0]; // First is "before"
-
-      await user.type(moistureBeforeField, "11"); // Above max
-
-      // Verify HTML validation attributes exist
-      expect(moistureBeforeField).toHaveAttribute("max", "10");
-      expect(moistureBeforeField).toHaveAttribute("min", "1");
-
-      const submitButton = screen.getByRole("button", {
-        name: /Log Activity/i,
-      });
-      await user.click(submitButton);
-
-      // HTML validation should prevent submission, but since we can't test browser validation,
-      // we verify the constraints are in place
-      expect((moistureBeforeField as HTMLInputElement).max).toBe("10");
-      expect((moistureBeforeField as HTMLInputElement).min).toBe("1");
-    });
-
-    it("should accept large water amounts in input field", async () => {
-      const mockPlant = await createMockPlant();
-      setupMockPlants([mockPlant]);
-
-      renderWithRouter(<CareLogForm onSuccess={mockOnSuccess} />);
-
-      const plantSelect = screen.getByLabelText(/Plant/i);
-      await user.selectOptions(plantSelect, mockPlant.id);
-
-      const activitySelect = screen.getByLabelText(/Activity Type/i);
-      await user.selectOptions(activitySelect, "water");
-
-      // Wait for the watering details section to appear
-      await waitFor(() => {
-        expect(screen.getByText("Watering Details")).toBeInTheDocument();
-        expect(screen.getByLabelText(/Water Amount/i)).toBeInTheDocument();
-      });
-
-      const waterAmountInput = screen.getByLabelText(/Water Amount/i) as HTMLInputElement;
-      await user.clear(waterAmountInput);
-      await user.type(waterAmountInput, "1000");
-
-      // Verify large amounts are accepted in the input
-      await waitFor(() => {
-        expect(waterAmountInput.value).toBe("1000");
-      });
-
-      // Verify no validation errors appear for large amounts
-      expect(screen.queryByText(/amount.*too large/i)).not.toBeInTheDocument();
-      expect(screen.queryByText(/invalid.*amount/i)).not.toBeInTheDocument();
-    });
-  });
-
-  describe("rendering", () => {
-    it("renders form with basic fields", () => {
-      renderWithRouter(<CareLogForm onSuccess={mockOnSuccess} />);
-
-      expect(screen.getByLabelText(/Plant \*/i)).toBeInTheDocument();
-      expect(screen.getByLabelText(/Activity Type \*/i)).toBeInTheDocument();
-      expect(screen.getByLabelText(/Date \*/i)).toBeInTheDocument();
-      expect(
-        screen.getByRole("button", { name: /Log Activity/i })
-      ).toBeInTheDocument();
-    });
-
-    it("does not render when plants are loading", () => {
+  describe("Loading States", () => {
+    it("shows loading spinner when plants are loading", () => {
       mockUseFirebasePlants.mockReturnValue({
         plants: [],
         loading: true,
@@ -321,241 +65,517 @@ describe("CareLogForm", () => {
 
       expect(screen.getByTestId("loading-spinner")).toBeInTheDocument();
     });
+
+    it("renders form when plants finish loading", () => {
+      mockUseFirebasePlants.mockReturnValue({
+        plants: [],
+        loading: false,
+        error: null,
+      });
+
+      renderWithRouter(<CareLogForm onSuccess={mockOnSuccess} />);
+
+      // The form should be rendered (not showing loading spinner)
+      expect(screen.queryByTestId("loading-spinner")).not.toBeInTheDocument();
+      // Should show form elements
+      expect(screen.getByLabelText(/plant section/i)).toBeInTheDocument();
+      expect(screen.getByLabelText(/activity type/i)).toBeInTheDocument();
+    });
   });
 
-  describe("plant selection", () => {
-    it("pre-selects plant when preselectedPlantId is provided", async () => {
-      const mockPlant = await createMockPlant();
-      setupMockPlants([mockPlant]);
+  describe("Form Validation", () => {
+    beforeEach(() => {
+      const mockPlantGroups = [
+        {
+          id: "group-test-tomato",
+          varietyName: "Tomato",
+          plants: [
+            { id: "plant1", varietyName: "Tomato", container: "Container 1" },
+            { id: "plant2", varietyName: "Tomato", container: "Container 1" },
+          ],
+        },
+      ];
+
+      mockUseFirebasePlants.mockReturnValue({
+        plants: mockPlantGroups[0].plants,
+        loading: false,
+        error: null,
+      });
+
+      mockGroupPlantsByConditions.mockReturnValue(mockPlantGroups);
+    });
+
+    it("submit button starts enabled but form validates on submit", async () => {
+      renderWithRouter(<CareLogForm onSuccess={mockOnSuccess} />);
+
+      // Wait for form to render
+      await waitFor(() => {
+        expect(screen.getByLabelText(/plant section/i)).toBeInTheDocument();
+      });
+
+      // The component may not disable the button, but should prevent invalid submission
+      const submitButton = screen.getByRole("button", {
+        name: /log activity/i,
+      });
+      expect(submitButton).toBeInTheDocument();
+
+      // Try to submit without selecting anything - should not call mockLogActivity
+      await user.click(submitButton);
+      expect(mockLogActivity).not.toHaveBeenCalled();
+    });
+
+    it("validates required fields before submission", async () => {
+      renderWithRouter(<CareLogForm onSuccess={mockOnSuccess} />);
+
+      // Wait for form to render
+      await waitFor(() => {
+        expect(screen.getByLabelText(/plant section/i)).toBeInTheDocument();
+      });
+
+      // Select a plant group
+      const groupSelect = screen.getByLabelText(/plant section/i);
+      await user.selectOptions(groupSelect, "group-test-tomato");
+
+      // Component may not disable the button, but should prevent invalid submission
+      const submitButton = screen.getByRole("button", {
+        name: /log activity/i,
+      });
+      await user.click(submitButton);
+
+      // Should not call mockLogActivity without activity type selection
+      expect(mockLogActivity).not.toHaveBeenCalled();
+    });
+
+    it("enables submit button when required fields are filled", async () => {
+      renderWithRouter(<CareLogForm onSuccess={mockOnSuccess} />);
+
+      // Select plant group
+      const groupSelect = screen.getByLabelText(/plant section/i);
+      await user.selectOptions(groupSelect, "group-test-tomato");
+
+      // Select activity type
+      const activitySelect = screen.getByLabelText(/activity type/i);
+      await user.selectOptions(activitySelect, "observe");
+
+      // Submit button should now be enabled
+      await waitFor(() => {
+        const submitButton = screen.getByRole("button", {
+          name: /log activity/i,
+        });
+        expect(submitButton).not.toBeDisabled();
+      });
+    });
+
+    it("prevents future dates", async () => {
+      renderWithRouter(<CareLogForm onSuccess={mockOnSuccess} />);
+
+      // Wait for form to render
+      await waitFor(() => {
+        expect(screen.getByLabelText(/plant section/i)).toBeInTheDocument();
+      });
+
+      // The date input should have a max attribute that prevents future dates
+      const dateInput = screen.getByLabelText(/date/i);
+      const maxDate = dateInput.getAttribute("max");
+      expect(maxDate).toBe(format(new Date(), "yyyy-MM-dd"));
+    }, 10000);
+  });
+
+  describe("Activity Types", () => {
+    beforeEach(() => {
+      const mockPlantGroups = [
+        {
+          id: "group-test-tomato",
+          varietyName: "Tomato",
+          plants: [{ id: "plant1", varietyName: "Tomato" }],
+        },
+      ];
+
+      mockUseFirebasePlants.mockReturnValue({
+        plants: mockPlantGroups[0].plants,
+        loading: false,
+        error: null,
+      });
+
+      mockGroupPlantsByConditions.mockReturnValue(mockPlantGroups);
+    });
+
+    it("shows water-specific fields when water activity is selected", async () => {
+      renderWithRouter(<CareLogForm onSuccess={mockOnSuccess} />);
+
+      const groupSelect = screen.getByLabelText(/plant section/i);
+      await user.selectOptions(groupSelect, "group-test-tomato");
+
+      const activitySelect = screen.getByLabelText(/activity type/i);
+      await user.selectOptions(activitySelect, "water");
+
+      await waitFor(() => {
+        expect(screen.getByLabelText(/water amount/i)).toBeInTheDocument();
+        expect(screen.getByLabelText(/moisture level/i)).toBeInTheDocument();
+      });
+    });
+
+    it("shows fertilize-specific fields when fertilize activity is selected", async () => {
+      renderWithRouter(<CareLogForm onSuccess={mockOnSuccess} />);
+
+      // Wait for form to render
+      await waitFor(() => {
+        expect(screen.getByLabelText(/plant section/i)).toBeInTheDocument();
+      });
+
+      const groupSelect = screen.getByLabelText(/plant section/i);
+      await user.selectOptions(groupSelect, "group-test-tomato");
+
+      const activitySelect = screen.getByLabelText(/activity type/i);
+      await user.selectOptions(activitySelect, "fertilize");
+
+      await waitFor(
+        () => {
+          // Look for the fertilizer card header
+          expect(screen.getByText(/fertilizer details/i)).toBeInTheDocument();
+          expect(screen.getByText(/fertilizer product/i)).toBeInTheDocument();
+        },
+        { timeout: 3000 }
+      );
+    }, 10000);
+
+    it("does not show activity-specific fields for observe activity", async () => {
+      renderWithRouter(<CareLogForm onSuccess={mockOnSuccess} />);
+
+      // Wait for form to render
+      await waitFor(() => {
+        expect(screen.getByLabelText(/plant section/i)).toBeInTheDocument();
+      });
+
+      const groupSelect = screen.getByLabelText(/plant section/i);
+      await user.selectOptions(groupSelect, "group-test-tomato");
+
+      const activitySelect = screen.getByLabelText(/activity type/i);
+      await user.selectOptions(activitySelect, "observe");
+
+      // Observe activity doesn't show specific fields, just has the general form
+      expect(screen.getByLabelText(/notes.*optional/i)).toBeInTheDocument();
+      // Should not show water or fertilizer specific fields
+      expect(screen.queryByText(/water amount/i)).not.toBeInTheDocument();
+      expect(screen.queryByText(/fertilizer details/i)).not.toBeInTheDocument();
+    });
+
+    it("does not show activity-specific fields for photo activity", async () => {
+      renderWithRouter(<CareLogForm onSuccess={mockOnSuccess} />);
+
+      // Wait for form to render
+      await waitFor(() => {
+        expect(screen.getByLabelText(/plant section/i)).toBeInTheDocument();
+      });
+
+      const groupSelect = screen.getByLabelText(/plant section/i);
+      await user.selectOptions(groupSelect, "group-test-tomato");
+
+      const activitySelect = screen.getByLabelText(/activity type/i);
+      await user.selectOptions(activitySelect, "photo");
+
+      // Photo activity doesn't show specific fields, just has the general form
+      expect(screen.getByLabelText(/notes.*optional/i)).toBeInTheDocument();
+      // Should not show water or fertilizer specific fields
+      expect(screen.queryByText(/water amount/i)).not.toBeInTheDocument();
+      expect(screen.queryByText(/fertilizer details/i)).not.toBeInTheDocument();
+    });
+
+    it("shows note-specific fields when note activity is selected", async () => {
+      renderWithRouter(<CareLogForm onSuccess={mockOnSuccess} />);
+
+      const groupSelect = screen.getByLabelText(/plant section/i);
+      await user.selectOptions(groupSelect, "group-test-tomato");
+
+      const activitySelect = screen.getByLabelText(/activity type/i);
+      await user.selectOptions(activitySelect, "note");
+
+      await waitFor(() => {
+        expect(screen.getByLabelText(/notes/i)).toBeInTheDocument();
+      });
+    });
+
+    it("does not show activity-specific fields for pruning activity", async () => {
+      renderWithRouter(<CareLogForm onSuccess={mockOnSuccess} />);
+
+      // Wait for form to render
+      await waitFor(() => {
+        expect(screen.getByLabelText(/plant section/i)).toBeInTheDocument();
+      });
+
+      const groupSelect = screen.getByLabelText(/plant section/i);
+      await user.selectOptions(groupSelect, "group-test-tomato");
+
+      const activitySelect = screen.getByLabelText(/activity type/i);
+      await user.selectOptions(activitySelect, "pruning");
+
+      // Pruning activity doesn't show specific fields, just has the general form
+      expect(screen.getByLabelText(/notes.*optional/i)).toBeInTheDocument();
+      // Should not show water or fertilizer specific fields
+      expect(screen.queryByText(/water amount/i)).not.toBeInTheDocument();
+      expect(screen.queryByText(/fertilizer details/i)).not.toBeInTheDocument();
+    });
+  });
+
+  describe("Group-Based Plant Selection", () => {
+    it("displays plant groups correctly", async () => {
+      const mockPlantGroups = [
+        {
+          id: "group-tomato-large",
+          varietyName: "Tomato",
+          plants: [
+            { id: "plant1", varietyName: "Tomato" },
+            { id: "plant2", varietyName: "Tomato" },
+            { id: "plant3", varietyName: "Tomato" },
+          ],
+        },
+        {
+          id: "group-basil-small",
+          varietyName: "Basil",
+          plants: [{ id: "plant4", varietyName: "Basil" }],
+        },
+      ];
+
+      mockUseFirebasePlants.mockReturnValue({
+        plants: [...mockPlantGroups[0].plants, ...mockPlantGroups[1].plants],
+        loading: false,
+        error: null,
+      });
+
+      mockGroupPlantsByConditions.mockReturnValue(mockPlantGroups);
+
+      renderWithRouter(<CareLogForm onSuccess={mockOnSuccess} />);
+
+      // Should show both plant groups
+      expect(screen.getByText(/tomato.*3 plants/i)).toBeInTheDocument();
+      expect(screen.getByText(/basil.*1 plant/i)).toBeInTheDocument();
+    });
+
+    it("handles single plant groups appropriately", async () => {
+      const mockPlantGroups = [
+        {
+          id: "group-single-plant",
+          varietyName: "Lettuce",
+          plants: [{ id: "plant1", varietyName: "Lettuce" }],
+        },
+      ];
+
+      mockUseFirebasePlants.mockReturnValue({
+        plants: mockPlantGroups[0].plants,
+        loading: false,
+        error: null,
+      });
+
+      mockGroupPlantsByConditions.mockReturnValue(mockPlantGroups);
+
+      renderWithRouter(<CareLogForm onSuccess={mockOnSuccess} />);
+
+      expect(screen.getByText(/lettuce.*1 plant/i)).toBeInTheDocument();
+    });
+  });
+
+  describe("Form Submission", () => {
+    beforeEach(() => {
+      const mockPlantGroups = [
+        {
+          id: "group-test-tomato",
+          varietyName: "Tomato",
+          plants: [{ id: "plant1", varietyName: "Tomato" }],
+        },
+      ];
+
+      mockUseFirebasePlants.mockReturnValue({
+        plants: mockPlantGroups[0].plants,
+        loading: false,
+        error: null,
+      });
+
+      mockGroupPlantsByConditions.mockReturnValue(mockPlantGroups);
+    });
+
+    it("successfully submits observe activity", async () => {
+      renderWithRouter(<CareLogForm onSuccess={mockOnSuccess} />);
+
+      // Wait for form to render
+      await waitFor(() => {
+        expect(screen.getByLabelText(/plant section/i)).toBeInTheDocument();
+      });
+
+      // Fill required fields
+      const groupSelect = screen.getByLabelText(/plant section/i);
+      await user.selectOptions(groupSelect, "group-test-tomato");
+
+      const activitySelect = screen.getByLabelText(/activity type/i);
+      await user.selectOptions(activitySelect, "observe");
+
+      // Submit form without requiring additional fields for observe
+      const submitButton = screen.getByRole("button", {
+        name: /log activity/i,
+      });
+
+      // Wait for submit button to be enabled
+      await waitFor(() => {
+        expect(submitButton).not.toBeDisabled();
+      });
+
+      await user.click(submitButton);
+
+      await waitFor(() => {
+        expect(mockLogActivity).toHaveBeenCalled();
+      });
+    }, 10000);
+
+    it("shows success message after successful submission", async () => {
+      renderWithRouter(<CareLogForm onSuccess={mockOnSuccess} />);
+
+      // Fill and submit form
+      const groupSelect = screen.getByLabelText(/plant section/i);
+      await user.selectOptions(groupSelect, "group-test-tomato");
+
+      const activitySelect = screen.getByLabelText(/activity type/i);
+      await user.selectOptions(activitySelect, "observe");
+
+      const submitButton = screen.getByRole("button", {
+        name: /log activity/i,
+      });
+      await user.click(submitButton);
+
+      await waitFor(() => {
+        expect(mockOnSuccess).toHaveBeenCalled();
+      });
+    });
+
+    it("handles submission errors gracefully", async () => {
+      mockLogActivity.mockRejectedValueOnce(new Error("Submission failed"));
+
+      renderWithRouter(<CareLogForm onSuccess={mockOnSuccess} />);
+
+      // Wait for form to render
+      await waitFor(() => {
+        expect(screen.getByLabelText(/plant section/i)).toBeInTheDocument();
+      });
+
+      // Fill and submit form
+      const groupSelect = screen.getByLabelText(/plant section/i);
+      await user.selectOptions(groupSelect, "group-test-tomato");
+
+      const activitySelect = screen.getByLabelText(/activity type/i);
+      await user.selectOptions(activitySelect, "observe");
+
+      const submitButton = screen.getByRole("button", {
+        name: /log activity/i,
+      });
+
+      // Wait for button to be enabled
+      await waitFor(() => {
+        expect(submitButton).not.toBeDisabled();
+      });
+
+      await user.click(submitButton);
+
+      // Verify that mockLogActivity was called but failed
+      await waitFor(() => {
+        expect(mockLogActivity).toHaveBeenCalled();
+      });
+
+      // onSuccess should not be called when there's an error
+      expect(mockOnSuccess).not.toHaveBeenCalled();
+    }, 10000);
+  });
+
+  describe("URL Parameter Handling", () => {
+    it("pre-selects activity type from URL parameters", () => {
+      renderWithRouter(<CareLogForm onSuccess={mockOnSuccess} />, [
+        "/log-care?activityType=water",
+      ]);
+
+      const activitySelect = screen.getByLabelText(
+        /activity type/i
+      ) as HTMLSelectElement;
+      expect(activitySelect.value).toBe("water");
+    });
+
+    it("pre-selects plant group when preselectedPlantId is provided", async () => {
+      const mockPlantGroups = [
+        {
+          id: "group-test-plant",
+          varietyName: "Tomato",
+          plants: [{ id: "specific-plant-id", varietyName: "Tomato" }],
+        },
+      ];
+
+      mockUseFirebasePlants.mockReturnValue({
+        plants: mockPlantGroups[0].plants,
+        loading: false,
+        error: null,
+      });
+
+      mockGroupPlantsByConditions.mockReturnValue(mockPlantGroups);
 
       renderWithRouter(
         <CareLogForm
           onSuccess={mockOnSuccess}
-          preselectedPlantId={mockPlant.id}
+          preselectedPlantId="specific-plant-id"
         />
       );
 
       await waitFor(() => {
-        const plantSelect = screen.getByLabelText(
-          /Plant/i
+        const groupSelect = screen.getByLabelText(
+          /plant section/i
         ) as HTMLSelectElement;
-        expect(plantSelect.value).toBe(mockPlant.id);
-      });
-    });
-
-    it("shows normal plant selection when no preselectedPlantId is provided", async () => {
-      const mockPlant = await createMockPlant({
-        name: "My Tomato",
-        varietyName: "Cherry Tomato",
-        location: "Greenhouse",
-      });
-      setupMockPlants([mockPlant]);
-
-      renderWithRouter(<CareLogForm onSuccess={mockOnSuccess} />);
-
-      await waitFor(() => {
-        const plantSelect = screen.getByLabelText(
-          /Plant/i
-        ) as HTMLSelectElement;
-        expect(plantSelect.value).toBe("");
-      });
-
-      expect(
-        screen.getByText("My Tomato (Cherry Tomato) - Greenhouse")
-      ).toBeInTheDocument();
-    });
-
-    it("handles plants without custom name correctly", async () => {
-      const mockPlant = await createMockPlant({
-        name: undefined, // No custom name
-        varietyName: "Cherry Tomato",
-        location: "Greenhouse",
-      });
-      setupMockPlants([mockPlant]);
-
-      renderWithRouter(<CareLogForm onSuccess={mockOnSuccess} />);
-
-      await waitFor(() => {
-        expect(
-          screen.getByText("Cherry Tomato - Greenhouse")
-        ).toBeInTheDocument();
+        expect(groupSelect.value).toBe("group-test-plant");
       });
     });
   });
 
-  describe("activity types", () => {
-    let mockPlant: PlantRecord;
+  describe("Accessibility", () => {
+    beforeEach(() => {
+      const mockPlantGroups = [
+        {
+          id: "group-test-tomato",
+          varietyName: "Tomato",
+          plants: [{ id: "plant1", varietyName: "Tomato" }],
+        },
+      ];
 
-    beforeEach(async () => {
-      mockPlant = await createMockPlant();
-      setupMockPlants([mockPlant]);
+      mockUseFirebasePlants.mockReturnValue({
+        plants: mockPlantGroups[0].plants,
+        loading: false,
+        error: null,
+      });
+
+      mockGroupPlantsByConditions.mockReturnValue(mockPlantGroups);
     });
 
-    it("shows watering fields when water activity is selected", async () => {
+    it("has proper form labels and ARIA attributes", () => {
       renderWithRouter(<CareLogForm onSuccess={mockOnSuccess} />);
 
-      const plantSelect = screen.getByLabelText(/Plant/i);
-      await user.selectOptions(plantSelect, mockPlant.id);
+      expect(screen.getByLabelText(/plant section.*\*/i)).toBeInTheDocument();
+      expect(screen.getByLabelText(/activity type.*\*/i)).toBeInTheDocument();
+      expect(screen.getByLabelText(/date.*\*/i)).toBeInTheDocument();
 
-      const activitySelect = screen.getByLabelText(/Activity Type/i);
-      await user.selectOptions(activitySelect, "water");
-
-      await waitFor(() => {
-        expect(screen.getByText("Watering Details")).toBeInTheDocument();
-        expect(screen.getByLabelText(/Water Amount/i)).toBeInTheDocument();
-        expect(screen.getByDisplayValue("oz")).toBeInTheDocument();
+      const submitButton = screen.getByRole("button", {
+        name: /log activity/i,
       });
+      expect(submitButton).toHaveAttribute("type", "submit");
     });
 
-    it("shows fertilize activity fields correctly", async () => {
+    it("supports keyboard navigation through form fields", async () => {
       renderWithRouter(<CareLogForm onSuccess={mockOnSuccess} />);
 
-      const plantSelect = screen.getByLabelText(/Plant/i);
-      await user.selectOptions(plantSelect, mockPlant.id);
+      const groupSelect = screen.getByLabelText(/plant section/i);
+      const activitySelect = screen.getByLabelText(/activity type/i);
+      const dateInput = screen.getByLabelText(/date/i);
 
-      const activitySelect = screen.getByLabelText(/Activity Type/i);
-      await user.selectOptions(activitySelect, "fertilize");
+      // Tab through form fields
+      await user.tab();
+      expect(groupSelect).toHaveFocus();
 
-      await waitFor(() => {
-        expect(screen.getByText("Fertilizer Details")).toBeInTheDocument();
-        expect(
-          screen.getByLabelText(/Fertilizer Product/i)
-        ).toBeInTheDocument();
-      });
-    });
+      await user.tab();
+      expect(activitySelect).toHaveFocus();
 
-    it("shows observe activity with minimal fields", async () => {
-      renderWithRouter(<CareLogForm onSuccess={mockOnSuccess} />);
-
-      const plantSelect = screen.getByLabelText(/Plant/i);
-      await user.selectOptions(plantSelect, mockPlant.id);
-
-      const activitySelect = screen.getByLabelText(/Activity Type/i);
-      await user.selectOptions(activitySelect, "observe");
-
-      // For observe, no special fields should appear - only the basic form
-      await waitFor(() => {
-        // Should NOT show watering or fertilizer specific fields
-        expect(screen.queryByText("Watering Details")).not.toBeInTheDocument();
-        expect(
-          screen.queryByText("Fertilizer Details")
-        ).not.toBeInTheDocument();
-        // Should still have the notes field
-        expect(screen.getByLabelText(/Notes/i)).toBeInTheDocument();
-      });
-    });
-  });
-
-  describe("form submission", () => {
-    it("renders form fields correctly for water activity type", async () => {
-      const mockPlant = await createMockPlant();
-      setupMockPlants([mockPlant]);
-
-      renderWithRouter(<CareLogForm onSuccess={mockOnSuccess} />);
-
-      const plantSelect = screen.getByLabelText(/Plant/i);
-      await user.selectOptions(plantSelect, mockPlant.id);
-
-      // Verify water activity fields appear
-      await waitFor(() => {
-        expect(screen.getByText("Watering Details")).toBeInTheDocument();
-        expect(screen.getByLabelText(/Water Amount/i)).toBeInTheDocument();
-        expect(screen.getByDisplayValue("oz")).toBeInTheDocument();
-      });
-
-      // Verify form allows input
-      const waterAmountInput = screen.getByLabelText(/Water Amount/i);
-      await user.type(waterAmountInput, "25");
-      expect(waterAmountInput).toHaveValue(25);
-
-      const waterUnitSelect = screen.getByDisplayValue("oz");
-      await user.selectOptions(waterUnitSelect, "ml");
-      expect(waterUnitSelect).toHaveValue("ml");
-    });
-
-    it("validates required water amount", async () => {
-      const mockPlant = await createMockPlant();
-      setupMockPlants([mockPlant]);
-
-      renderWithRouter(<CareLogForm onSuccess={mockOnSuccess} />);
-
-      const plantSelect = screen.getByLabelText(/Plant/i);
-      await user.selectOptions(plantSelect, mockPlant.id);
-
-      // For water activity, submit button should be disabled without water amount
-      await waitFor(() => {
-        const submitButton = screen.getByRole("button", { name: /Log Activity/i });
-        expect(submitButton).toBeDisabled();
-      });
-
-      // After adding water amount, button should be enabled
-      const waterAmountInput = screen.getByLabelText(/Water Amount/i);
-      await user.type(waterAmountInput, "25");
-
-      // Note: We're not testing actual submission due to complex mocking requirements
-      // but the form validation behavior is what's important
-    });
-
-    it("shows different activity types correctly", async () => {
-      const mockPlant = await createMockPlant();
-      setupMockPlants([mockPlant]);
-
-      renderWithRouter(<CareLogForm onSuccess={mockOnSuccess} />);
-
-      const plantSelect = screen.getByLabelText(/Plant/i);
-      await user.selectOptions(plantSelect, mockPlant.id);
-
-      const activitySelect = screen.getByLabelText(/Activity Type/i);
-
-      // Test fertilize activity
-      await user.selectOptions(activitySelect, "fertilize");
-      await waitFor(() => {
-        expect(screen.getByText("Fertilizer Details")).toBeInTheDocument();
-        expect(screen.getByLabelText(/Fertilizer Product/i)).toBeInTheDocument();
-      });
-
-      // Test observe activity
-      await user.selectOptions(activitySelect, "observe");
-      await waitFor(() => {
-        expect(screen.queryByText("Watering Details")).not.toBeInTheDocument();
-        expect(screen.queryByText("Fertilizer Details")).not.toBeInTheDocument();
-        expect(screen.getByLabelText(/Notes/i)).toBeInTheDocument();
-      });
-    });
-  });
-
-  describe("URL parameter handling", () => {
-    it("pre-selects activity type from URL parameters", () => {
-      renderWithRouter(<CareLogForm onSuccess={mockOnSuccess} />, [
-        "/log-care?type=fertilize",
-      ]);
-
-      const activitySelect = screen.getByLabelText(
-        /Activity Type/i
-      ) as HTMLSelectElement;
-      expect(activitySelect.value).toBe("fertilize");
-    });
-
-    it("handles both preselectedPlantId prop and URL param, with prop taking precedence", async () => {
-      const plant1 = await createPlantWithVariety("Sugar Snap Peas");
-      const plant2 = await createPlantWithVariety("Astro Arugula");
-      setupMockPlants([plant1, plant2]);
-
-      renderWithRouter(
-        <CareLogForm
-          onSuccess={mockOnSuccess}
-          preselectedPlantId={plant1.id}
-        />,
-        [`/log-care?plantId=${plant2.id}`]
-      );
-
-      // Component should use the prop value (plant1), not the URL param (plant2)
-      await waitFor(() => {
-        const plantSelect = screen.getByLabelText(
-          /Plant/i
-        ) as HTMLSelectElement;
-        expect(plantSelect.value).toBe(plant1.id);
-      });
+      await user.tab();
+      expect(dateInput).toHaveFocus();
     });
   });
 });

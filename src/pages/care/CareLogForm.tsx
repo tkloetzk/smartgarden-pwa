@@ -13,6 +13,8 @@ import {
   VarietyRecord,
   CareActivityDetails,
 } from "@/types/database";
+import { groupPlantsByConditions } from "@/utils/plantGrouping";
+import { seedVarieties } from "@/data/seedVarieties";
 import { calculateCurrentStageWithVariety } from "@/utils/growthStage";
 import { GrowthStage } from "@/types";
 import {
@@ -33,14 +35,13 @@ import toast from "react-hot-toast";
 import SectionApplyCard from "@/components/care/SectionApplyCard";
 import SupplementalWateringCard from "@/components/care/SupplementalWateringCard";
 import { 
-  getSectionApplyOption, 
   BulkCareResult,
   SectionApplyOption 
 } from "@/services/sectionBulkService";
 import { PartialWateringService, PartialWateringAnalysis } from "@/services/partialWateringService";
 
 const careFormSchema = z.object({
-  plantId: z.string().min(1, "Please select a plant"),
+  groupId: z.string().min(1, "Please select a plant section"),
   type: z.enum(["water", "fertilize", "observe", "photo", "note", "pruning"]),
   date: z
     .string()
@@ -49,11 +50,17 @@ const careFormSchema = z.object({
       message: "Date cannot be in the future.",
     }),
   notes: z.string().optional(),
-  waterValue: z.number().optional(),
+  waterValue: z.number().optional().nullable(),
   waterUnit: z.enum(["oz", "ml", "cups", "L"]).optional(),
   fertilizeType: z.string().optional(),
   fertilizeDilution: z.string().optional(),
   fertilizeAmount: z.string().optional(),
+  // New structured fertilizer fields
+  fertilizerDilutionValue: z.number().optional(),
+  fertilizerDilutionUnit: z.enum(["tsp", "tbsp", "oz", "ml", "cups"]).optional(),
+  fertilizerDilutionPerUnit: z.enum(["gal", "quart", "liter", "cup"]).optional(),
+  fertilizerApplicationAmount: z.number().optional(),
+  fertilizerApplicationUnit: z.enum(["oz", "ml", "cups", "gal", "quart", "liter"]).optional(),
   moistureBefore: z.number().min(1).max(10).optional(),
   moistureAfter: z.number().min(1).max(10).optional(),
 });
@@ -65,6 +72,7 @@ interface CareLogFormProps {
   onCancel?: () => void;
   preselectedPlantId?: string;
   preselectedActivityType?: "water" | "fertilize" | "observe" | "pruning";
+  isGroupTask?: boolean;
 }
 
 interface FertilizerProduct {
@@ -109,10 +117,12 @@ const getProtocolForStage = (
     vegetative: ["vegetativeGrowth", "vegetativeVining"],
     flowering: ["flowerBudFormation"],
     harvest: ["fruitingHarvesting", "podSetMaturation"],
-    "ongoing-production": ["ongoingProduction"],
     germination: ["germinationEmergence", "slipProduction"],
     seedling: ["establishment"],
-  };
+    rootDevelopment: ["rootDevelopment", "tuberDevelopment"],
+    fruiting: ["fruiting"],
+    maturation: ["maturation", "ongoing-production"], // Map maturation to ongoing production for everbearing plants
+  } as const;
   const possibleKeys = stageMappings[stage] || [];
   for (const key of possibleKeys) {
     if (protocols[key]) {
@@ -136,9 +146,13 @@ export function CareLogForm({
   onCancel,
   preselectedPlantId,
   preselectedActivityType,
+  isGroupTask = false,
 }: CareLogFormProps) {
   const { plants, loading: plantsLoading } = useFirebasePlants();
   const { logActivity } = useFirebaseCareActivities();
+  
+  // Group plants by sections/containers
+  const plantGroups = plants.length > 0 ? groupPlantsByConditions(plants) : [];
   const [isLoading, setIsLoading] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [showDetailedTracking, setShowDetailedTracking] = useState(false);
@@ -155,10 +169,11 @@ export function CareLogForm({
   const [showSectionApply, setShowSectionApply] = useState(false);
   const [sectionApplyOption, setSectionApplyOption] = useState<SectionApplyOption | null>(null);
   const [lastSubmittedData, setLastSubmittedData] = useState<CareFormData | null>(null);
-  const [selectedPlantIds, setSelectedPlantIds] = useState<string[]>([]);
-  const [isBulkMode, setIsBulkMode] = useState(false);
+  // Bulk mode state removed - now using groups exclusively
   const [showSupplementalWatering, setShowSupplementalWatering] = useState(false);
   const [partialWateringAnalysis, setPartialWateringAnalysis] = useState<PartialWateringAnalysis | null>(null);
+  const [applyToAllGroupPlants, setApplyToAllGroupPlants] = useState(isGroupTask);
+  const [useStructuredFertilizer, setUseStructuredFertilizer] = useState(true);
 
   // Handle both single plant ID and bulk plant IDs from URL params
   const plantIdsFromParams = searchParams.get("plantIds");
@@ -174,7 +189,7 @@ export function CareLogForm({
     register,
     handleSubmit,
     watch,
-    formState: { errors, isValid, isSubmitting },
+    formState: { errors, isSubmitting },
     reset,
     setValue,
     setError,
@@ -182,58 +197,100 @@ export function CareLogForm({
     resolver: zodResolver(careFormSchema),
     mode: "onChange",
     defaultValues: {
-      plantId: "",
+      groupId: "",
       type: activityTypeFromParams,
       date: new Date().toISOString().split("T")[0],
-      waterValue: undefined,
+      waterValue: null,
       waterUnit: "oz",
     },
   });
 
   const activityType = watch("type");
-  const selectedPlantId = watch("plantId");
+  const selectedGroupId = watch("groupId");
   const selectedFertilizerType = watch("fertilizeType");
+  const fertilizerDilutionValue = watch("fertilizerDilutionValue");
+  const fertilizerDilutionUnit = watch("fertilizerDilutionUnit");
+  const fertilizerDilutionPerUnit = watch("fertilizerDilutionPerUnit");
+  const fertilizerApplicationAmount = watch("fertilizerApplicationAmount");
+  const fertilizerApplicationUnit = watch("fertilizerApplicationUnit");
+  
+  
+  // Get the selected group and its plants
+  const selectedGroup = plantGroups.find(group => group.id === selectedGroupId);
+  const selectedPlantIds = selectedGroup ? selectedGroup.plants.map(p => p.id) : [];
+  
+  // Find all other groups with the same variety for the "Apply to all grouped plants" option
+  const otherSameVarietyGroups = selectedGroup ? 
+    plantGroups.filter(group => 
+      group.id !== selectedGroup.id && 
+      group.varietyName === selectedGroup.varietyName
+    ) : [];
+  const otherSameVarietyPlantIds = otherSameVarietyGroups.flatMap(group => group.plants.map(p => p.id));
+  const totalSameVarietyPlants = selectedPlantIds.length + otherSameVarietyPlantIds.length;
 
   useEffect(() => {
-    if (!plantsLoading && plants.length > 0 && plantIdFromParams) {
-      const plantExists = plants.some(
-        (plant) => plant.id === plantIdFromParams
+    if (!plantsLoading && plantGroups.length > 0 && plantIdFromParams) {
+      // Find the group that contains the preselected plant
+      const targetGroup = plantGroups.find(group => 
+        group.plants.some(plant => plant.id === plantIdFromParams)
       );
-      if (plantExists) {
-        setValue("plantId", plantIdFromParams, { shouldValidate: true });
+      if (targetGroup) {
+        setValue("groupId", targetGroup.id, { shouldValidate: true });
       }
     }
-  }, [plantsLoading, plants, plantIdFromParams, setValue]);
+  }, [plantsLoading, plantGroups, plantIdFromParams, setValue]);
 
-  // Initialize bulk mode from URL parameters
+  // Auto-check apply to all checkbox when group has multiple plants  
   useEffect(() => {
-    if (isBulkFromParams && plantIdsFromParams) {
+    if (selectedGroup && selectedGroup.plants.length > 1) {
+      setApplyToAllGroupPlants(true);
+    }
+  }, [selectedGroup]);
+
+  // Initialize from bulk URL parameters - find the group containing the plants
+  useEffect(() => {
+    if (isBulkFromParams && plantIdsFromParams && plantGroups.length > 0) {
       const plantIds = plantIdsFromParams.split(',').filter(id => id.trim());
-      const validPlantIds = plantIds.filter(id => 
-        plants.some(plant => plant.id === id)
+      const targetGroup = plantGroups.find(group => 
+        plantIds.some(id => group.plants.some(plant => plant.id === id))
       );
-      
-      if (validPlantIds.length > 0) {
-        setIsBulkMode(true);
-        setSelectedPlantIds(validPlantIds);
-        // Set the first plant as the primary selection for form defaults
-        setValue("plantId", validPlantIds[0], { shouldValidate: true });
+      if (targetGroup) {
+        setValue("groupId", targetGroup.id, { shouldValidate: true });
       }
     }
-  }, [isBulkFromParams, plantIdsFromParams, plants, setValue]);
+  }, [isBulkFromParams, plantIdsFromParams, plantGroups, setValue]);
 
   useEffect(() => {
     const loadPlantData = async () => {
-      if (!selectedPlantId) {
+      if (!selectedGroup) {
         setPlantVariety(null);
         setCurrentStage("germination");
         setAvailableFertilizers([]);
         return;
       }
-      const plant = plants.find((p) => p.id === selectedPlantId);
+      // Use the first plant in the group as the representative plant
+      const plant = selectedGroup.plants[0];
       if (!plant) return;
       try {
-        const variety = await varietyService.getVariety(plant.varietyId);
+        // Try IndexedDB first, then fallback to seedVarieties data
+        let variety = await varietyService.getVariety(plant.varietyId);
+        if (!variety) {
+          // Fallback to seedVarieties data for Firebase plants
+          const seedVariety = seedVarieties.find(v => v.name === plant.varietyName);
+          if (seedVariety) {
+            variety = {
+              id: plant.varietyId,
+              name: seedVariety.name,
+              category: seedVariety.category,
+              normalizedName: seedVariety.name.toLowerCase(),
+              protocols: seedVariety.protocols,
+              isCustom: false,
+              createdAt: new Date(),
+              updatedAt: new Date(),
+            } as VarietyRecord;
+          }
+        }
+        
         setPlantVariety(variety || null);
         if (variety) {
           const stage = calculateCurrentStageWithVariety(
@@ -249,6 +306,7 @@ export function CareLogForm({
               variety.protocols.fertilization,
               stage
             );
+            
             if (
               fertilizingProtocol?.schedule &&
               Array.isArray(fertilizingProtocol.schedule)
@@ -279,7 +337,7 @@ export function CareLogForm({
       }
     };
     loadPlantData();
-  }, [selectedPlantId, plants, activityType, setValue]);
+  }, [selectedGroup, plants, activityType, setValue]);
 
   useEffect(() => {
     if (selectedFertilizerType) {
@@ -300,18 +358,34 @@ export function CareLogForm({
     }
   }, [selectedFertilizerType, availableFertilizers, setValue]);
 
-  // Check for section apply options when plant is selected
+  // Check for container-wide apply options when group is selected
   useEffect(() => {
-    if (selectedPlantId && plants.length > 0) {
-      const selectedPlant = plants.find(p => p.id === selectedPlantId);
-      if (selectedPlant) {
-        const sectionOption = getSectionApplyOption(selectedPlant, plants);
-        setSectionApplyOption(sectionOption);
+    if (selectedGroup && plants.length > 0) {
+      // Find other groups in the same container
+      const sameContainerGroups = plantGroups.filter(group => 
+        group.id !== selectedGroup.id && 
+        group.container === selectedGroup.container &&
+        group.varietyName === selectedGroup.varietyName
+      );
+      
+      if (sameContainerGroups.length > 0) {
+        const otherPlantIds = sameContainerGroups.flatMap(group => group.plants.map(p => p.id));
+        setSectionApplyOption({
+          sectionKey: `${selectedGroup.container}_${selectedGroup.varietyName}`,
+          plantCount: otherPlantIds.length,
+          varieties: [selectedGroup.varietyName],
+          location: selectedGroup.location,
+          container: selectedGroup.container,
+          hasVarietyMix: false,
+          displayText: `Apply to ${otherPlantIds.length} other ${selectedGroup.varietyName} plants in ${selectedGroup.container}`,
+        });
+      } else {
+        setSectionApplyOption(null);
       }
     } else {
       setSectionApplyOption(null);
     }
-  }, [selectedPlantId, plants]);
+  }, [selectedGroup, plantGroups]);
 
   useEffect(() => {
     const backfillParam = searchParams.get("backfill");
@@ -350,12 +424,16 @@ export function CareLogForm({
 
         const details: Partial<CareActivityDetails> = {
           type: lastSubmittedData.type,
-          notes: lastSubmittedData.notes,
           // Mark as section-based activity
           sectionBased: true,
           sectionId: sectionId,
           plantsInSection: plantIds.length,
         };
+        
+        // Only set notes if it has a valid value
+        if (lastSubmittedData.notes) {
+          details.notes = lastSubmittedData.notes;
+        }
 
         if (lastSubmittedData.type === "water") {
           details.amount = {
@@ -375,10 +453,20 @@ export function CareLogForm({
             };
           }
         } else if (lastSubmittedData.type === "fertilize") {
-          details.product = lastSubmittedData.fertilizeType;
-          details.dilution = lastSubmittedData.fertilizeDilution;
-          details.amount = lastSubmittedData.fertilizeAmount;
-          details.applicationMethod = selectedFertilizer?.method;
+          // Only set fertilizer fields if they have valid values
+          if (lastSubmittedData.fertilizeType) {
+            details.product = lastSubmittedData.fertilizeType;
+          }
+          if (lastSubmittedData.fertilizeDilution) {
+            details.dilution = lastSubmittedData.fertilizeDilution;
+          }
+          if (lastSubmittedData.fertilizeAmount) {
+            details.amount = lastSubmittedData.fertilizeAmount;
+          }
+          // Only set applicationMethod if it has a valid value
+          if (selectedFertilizer?.method) {
+            details.applicationMethod = selectedFertilizer.method;
+          }
         }
 
         await logActivity({
@@ -430,10 +518,7 @@ export function CareLogForm({
 
   // Handle supplemental watering addition
   const handleSupplementalWatering = async (amount: number, unit: string) => {
-    if (!lastSubmittedData || !partialWateringAnalysis) return;
-
-    const plant = plants.find(p => p.id === lastSubmittedData.plantId);
-    if (!plant) return;
+    if (!lastSubmittedData || !partialWateringAnalysis || !selectedGroup) return;
 
     try {
       const details: Partial<CareActivityDetails> = {
@@ -446,12 +531,15 @@ export function CareLogForm({
         wateringCompleteness: 1, // Now complete
       };
 
-      await logActivity({
-        plantId: lastSubmittedData.plantId,
-        type: "water",
-        date: new Date(),
-        details: details as CareActivityDetails,
-      });
+      // Apply to all plants in the group
+      for (const plant of selectedGroup.plants) {
+        await logActivity({
+          plantId: plant.id,
+          type: "water",
+          date: new Date(),
+          details: details as CareActivityDetails,
+        });
+      }
 
       toast.success(`Added ${amount} ${unit} supplemental water!`);
     } catch (error) {
@@ -473,13 +561,28 @@ export function CareLogForm({
       return;
     }
 
+    // Manual validation for structured fertilizer inputs
+    if (data.type === "fertilize" && useStructuredFertilizer) {
+      if (!data.fertilizerApplicationAmount || !data.fertilizerApplicationUnit) {
+        setError("fertilizerApplicationAmount", {
+          type: "manual",
+          message: "Application amount and unit are required when using structured fertilizer inputs.",
+        });
+        return;
+      }
+    }
+
     setIsLoading(true);
     setSubmitError(null);
     try {
       const details: Partial<CareActivityDetails> = {
         type: data.type,
-        notes: data.notes,
       };
+      
+      // Only set notes if it has a valid value
+      if (data.notes) {
+        details.notes = data.notes;
+      }
 
       if (data.type === "water") {
         details.amount = {
@@ -494,12 +597,12 @@ export function CareLogForm({
           };
         }
 
-        // Analyze if this is partial watering
-        const plant = plants.find(p => p.id === data.plantId);
-        if (plant) {
+        // Analyze if this is partial watering using representative plant from group
+        if (selectedGroup && selectedGroup.plants.length > 0) {
+          const representativePlant = selectedGroup.plants[0];
           try {
             const analysis = await PartialWateringService.analyzeWateringAmount(
-              plant,
+              representativePlant,
               data.waterValue!,
               data.waterUnit!
             );
@@ -522,7 +625,7 @@ export function CareLogForm({
               });
 
               // Show supplemental watering option
-              if (analysis.canAddSupplement && !isBulkMode) {
+              if (analysis.canAddSupplement) {
                 setPartialWateringAnalysis(analysis);
                 setShowSupplementalWatering(true);
               }
@@ -532,19 +635,43 @@ export function CareLogForm({
           }
         }
       } else if (data.type === "fertilize") {
-        details.product = data.fertilizeType;
-        details.dilution = data.fertilizeDilution;
-        details.amount = data.fertilizeAmount;
-        details.applicationMethod = selectedFertilizer?.method;
+        // Only set product if it has a valid value
+        if (data.fertilizeType) {
+          details.product = data.fertilizeType;
+        }
+        
+        // Handle structured fertilizer inputs
+        if (useStructuredFertilizer && data.fertilizerDilutionValue && data.fertilizerDilutionUnit && data.fertilizerDilutionPerUnit) {
+          details.dilution = `${data.fertilizerDilutionValue} ${data.fertilizerDilutionUnit}/${data.fertilizerDilutionPerUnit}`;
+        } else if (data.fertilizeDilution) {
+          details.dilution = data.fertilizeDilution;
+        }
+        
+        if (useStructuredFertilizer && data.fertilizerApplicationAmount && data.fertilizerApplicationUnit) {
+          details.amount = `${data.fertilizerApplicationAmount} ${data.fertilizerApplicationUnit}`;
+        } else if (data.fertilizeAmount) {
+          details.amount = data.fertilizeAmount;
+        }
+        
+        // Only set applicationMethod if it has a valid value
+        if (selectedFertilizer?.method) {
+          details.applicationMethod = selectedFertilizer.method;
+        }
       }
 
-      if (isBulkMode && selectedPlantIds.length > 1) {
-        // Handle bulk submission with section tracking
+      // Now all submissions are "bulk" since we're working with groups
+      if (selectedPlantIds.length > 0) {
+        // Determine which plants to apply care to
+        const targetPlantIds = applyToAllGroupPlants ? 
+          [...selectedPlantIds, ...otherSameVarietyPlantIds] : 
+          selectedPlantIds;
+        
+        // Handle group submission with section tracking
         const sectionId = `section_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
         let successCount = 0;
         let errorCount = 0;
         
-        for (const plantId of selectedPlantIds) {
+        for (const plantId of targetPlantIds) {
           try {
             // Create section-aware details for bulk mode
             const bulkDetails: CareActivityDetails = {
@@ -576,28 +703,35 @@ export function CareLogForm({
         }
         
         if (errorCount === 0) {
-          toast.success(`Care activity logged for ${successCount} plants!`);
+          const message = applyToAllGroupPlants && otherSameVarietyPlantIds.length > 0 ? 
+            `✅ Care activity logged for ${successCount} ${selectedGroup?.varietyName} plants!` :
+            `✅ Care activity logged for ${successCount} plants!`;
+          toast.success(message, {
+            duration: 4000,
+            style: {
+              background: '#10B981',
+              color: 'white',
+            }
+          });
+          
+          // Reset form on successful submission
+          reset();
+          
+          // Call success callback if provided
+          onSuccess?.();
         } else if (successCount > 0) {
-          toast.success(`Care activity logged for ${successCount} plants (${errorCount} failed)`);
+          toast.success(`⚠️ Care activity logged for ${successCount} plants (${errorCount} failed)`, {
+            duration: 5000,
+            style: {
+              background: '#F59E0B',
+              color: 'white',
+            }
+          });
         } else {
           throw new Error("Failed to log activity for all plants");
         }
         
-        // For bulk mode, always reset and call onSuccess (no section apply)
-        reset();
-        onSuccess?.();
-      } else {
-        // Handle single plant submission
-        await logActivity({
-          plantId: data.plantId,
-          type: data.type,
-          date: new Date(data.date),
-          details: details as CareActivityDetails,
-        });
-
-        toast.success("Care activity logged!");
-        
-        // Show section apply option if available (only for single plant mode)
+        // Show section apply option if available and not showing supplemental watering
         if (sectionApplyOption && sectionApplyOption.plantCount > 0 && !showSupplementalWatering) {
           setLastSubmittedData(data);
           setShowSectionApply(true);
@@ -605,13 +739,22 @@ export function CareLogForm({
           reset();
           onSuccess?.();
         }
+      } else {
+        // No group selected - this shouldn't happen with proper validation
+        throw new Error("No plant section selected");
       }
     } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : "An unknown error occurred.";
       console.error("Failed to log care activity:", error);
       setSubmitError(`Failed to log care activity: ${errorMessage}`);
-      toast.error("Failed to log activity.");
+      toast.error(`❌ Failed to log activity: ${errorMessage}`, {
+        duration: 6000,
+        style: {
+          background: '#EF4444',
+          color: 'white',
+        }
+      });
     } finally {
       setIsLoading(false);
     }
@@ -924,43 +1067,215 @@ export function CareLogForm({
               />
             </div>
           )}
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label
-                htmlFor="dilution"
-                className="block text-sm font-medium text-foreground mb-2"
-              >
-                Dilution
-              </label>
-              <input
-                id="dilution"
-                type="text"
-                placeholder="e.g., 2 Tbsp/gal"
-                {...register("fertilizeDilution")}
-                className="w-full p-3 border border-border rounded-lg bg-background text-foreground focus:ring-2 focus:ring-ring focus:border-ring"
-              />
-            </div>
-            <div>
-              <label
-                htmlFor="fertilizeAmount"
-                className="block text-sm font-medium text-foreground mb-2"
-              >
-                Amount *
-              </label>
-              <input
-                id="fertilizeAmount"
-                type="text"
-                placeholder="e.g., light application"
-                {...register("fertilizeAmount")}
-                className="w-full p-3 border border-border rounded-lg bg-background text-foreground focus:ring-2 focus:ring-ring focus:border-ring"
-              />
-              {errors.fertilizeAmount && (
-                <p className="mt-1 text-sm text-red-600" role="alert">
-                  {errors.fertilizeAmount.message}
-                </p>
-              )}
-            </div>
+          {/* Toggle between structured and simple input */}
+          <div className="flex items-center gap-3 mb-4">
+            <input
+              type="checkbox"
+              id="structured-fertilizer"
+              checked={useStructuredFertilizer}
+              onChange={(e) => setUseStructuredFertilizer(e.target.checked)}
+              className="rounded border-border"
+            />
+            <label
+              htmlFor="structured-fertilizer"
+              className="text-sm text-foreground"
+            >
+              Use structured inputs (precise measurements)
+            </label>
           </div>
+
+          {useStructuredFertilizer && (
+            <div className="mb-4 p-3 bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800 rounded-lg">
+              <div className="text-sm text-green-800 dark:text-green-200">
+                <div className="font-medium mb-1">Quick Presets:</div>
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setValue("fertilizerDilutionValue", 1);
+                      setValue("fertilizerDilutionUnit", "tbsp");
+                      setValue("fertilizerDilutionPerUnit", "gal");
+                    }}
+                    className="text-xs px-2 py-1 bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200 rounded hover:bg-green-200 dark:hover:bg-green-800"
+                  >
+                    1 tbsp/gal
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setValue("fertilizerDilutionValue", 2);
+                      setValue("fertilizerDilutionUnit", "tbsp");
+                      setValue("fertilizerDilutionPerUnit", "gal");
+                    }}
+                    className="text-xs px-2 py-1 bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200 rounded hover:bg-green-200 dark:hover:bg-green-800"
+                  >
+                    2 tbsp/gal
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setValue("fertilizerDilutionValue", 1);
+                      setValue("fertilizerDilutionUnit", "tsp");
+                      setValue("fertilizerDilutionPerUnit", "quart");
+                    }}
+                    className="text-xs px-2 py-1 bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200 rounded hover:bg-green-200 dark:hover:bg-green-800"
+                  >
+                    1 tsp/quart
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {useStructuredFertilizer ? (
+            <>
+              {/* Structured Dilution Input */}
+              <div>
+                <label className="block text-sm font-medium text-foreground mb-2">
+                  Dilution Ratio
+                </label>
+                <div className="grid grid-cols-4 gap-2">
+                  <input
+                    type="number"
+                    step="0.1"
+                    placeholder="1"
+                    {...register("fertilizerDilutionValue", { valueAsNumber: true })}
+                    className="p-3 border border-border rounded-lg bg-background text-foreground focus:ring-2 focus:ring-ring focus:border-ring"
+                  />
+                  <select
+                    {...register("fertilizerDilutionUnit")}
+                    className="p-3 border border-border rounded-lg bg-background text-foreground focus:ring-2 focus:ring-ring focus:border-ring"
+                  >
+                    <option value="">Unit</option>
+                    <option value="tsp">tsp</option>
+                    <option value="tbsp">tbsp</option>
+                    <option value="oz">oz</option>
+                    <option value="ml">ml</option>
+                    <option value="cups">cups</option>
+                  </select>
+                  <span className="flex items-center justify-center text-foreground">per</span>
+                  <select
+                    {...register("fertilizerDilutionPerUnit")}
+                    className="p-3 border border-border rounded-lg bg-background text-foreground focus:ring-2 focus:ring-ring focus:border-ring"
+                  >
+                    <option value="">Unit</option>
+                    <option value="gal">gallon</option>
+                    <option value="quart">quart</option>
+                    <option value="liter">liter</option>
+                    <option value="cup">cup</option>
+                  </select>
+                </div>
+                {fertilizerDilutionValue && fertilizerDilutionUnit && fertilizerDilutionPerUnit && (
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Dilution: {fertilizerDilutionValue} {fertilizerDilutionUnit} per {fertilizerDilutionPerUnit}
+                  </p>
+                )}
+              </div>
+
+              {/* Structured Application Amount */}
+              <div>
+                <label className="block text-sm font-medium text-foreground mb-2">
+                  Application Amount *
+                </label>
+                <div className="grid grid-cols-2 gap-3">
+                  <input
+                    type="number"
+                    step="0.1"
+                    placeholder="0.5"
+                    {...register("fertilizerApplicationAmount", { valueAsNumber: true })}
+                    className="p-3 border border-border rounded-lg bg-background text-foreground focus:ring-2 focus:ring-ring focus:border-ring"
+                  />
+                  <select
+                    {...register("fertilizerApplicationUnit")}
+                    className="p-3 border border-border rounded-lg bg-background text-foreground focus:ring-2 focus:ring-ring focus:border-ring"
+                  >
+                    <option value="">Unit</option>
+                    <option value="oz">oz</option>
+                    <option value="ml">ml</option>
+                    <option value="cups">cups</option>
+                    <option value="gal">gallon</option>
+                    <option value="quart">quart</option>
+                    <option value="liter">liter</option>
+                  </select>
+                </div>
+                {fertilizerApplicationAmount && fertilizerApplicationUnit && (
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Amount: {fertilizerApplicationAmount} {fertilizerApplicationUnit}
+                  </p>
+                )}
+                {errors.fertilizerApplicationAmount && (
+                  <p className="mt-1 text-sm text-red-600" role="alert">
+                    {errors.fertilizerApplicationAmount.message}
+                  </p>
+                )}
+              </div>
+
+              {/* Structured Input Preview */}
+              {(fertilizerDilutionValue && fertilizerDilutionUnit && fertilizerDilutionPerUnit) || (fertilizerApplicationAmount && fertilizerApplicationUnit) ? (
+                <div className="p-3 bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-lg">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Info className="h-4 w-4 text-blue-600" />
+                    <span className="text-sm font-medium text-blue-900 dark:text-blue-100">
+                      Fertilizer Application Summary
+                    </span>
+                  </div>
+                  <div className="space-y-1 text-sm text-blue-700 dark:text-blue-300">
+                    {fertilizerDilutionValue && fertilizerDilutionUnit && fertilizerDilutionPerUnit && (
+                      <div>
+                        <span className="font-medium">Dilution:</span> {fertilizerDilutionValue} {fertilizerDilutionUnit} per {fertilizerDilutionPerUnit}
+                      </div>
+                    )}
+                    {fertilizerApplicationAmount && fertilizerApplicationUnit && (
+                      <div>
+                        <span className="font-medium">Amount:</span> {fertilizerApplicationAmount} {fertilizerApplicationUnit}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ) : null}
+            </>
+          ) : (
+            <>
+              {/* Simple Text Inputs */}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label
+                    htmlFor="dilution"
+                    className="block text-sm font-medium text-foreground mb-2"
+                  >
+                    Dilution
+                  </label>
+                  <input
+                    id="dilution"
+                    type="text"
+                    placeholder="e.g., 2 Tbsp/gal"
+                    {...register("fertilizeDilution")}
+                    className="w-full p-3 border border-border rounded-lg bg-background text-foreground focus:ring-2 focus:ring-ring focus:border-ring"
+                  />
+                </div>
+                <div>
+                  <label
+                    htmlFor="fertilizeAmount"
+                    className="block text-sm font-medium text-foreground mb-2"
+                  >
+                    Amount *
+                  </label>
+                  <input
+                    id="fertilizeAmount"
+                    type="text"
+                    placeholder="e.g., light application"
+                    {...register("fertilizeAmount")}
+                    className="w-full p-3 border border-border rounded-lg bg-background text-foreground focus:ring-2 focus:ring-ring focus:border-ring"
+                  />
+                  {errors.fertilizeAmount && (
+                    <p className="mt-1 text-sm text-red-600" role="alert">
+                      {errors.fertilizeAmount.message}
+                    </p>
+                  )}
+                </div>
+              </div>
+            </>
+          )}
           {selectedFertilizer && (
             <div className="p-3 bg-muted/50 dark:bg-muted/30 border border-border rounded-lg">
               <div className="flex items-center gap-2 mb-2">
@@ -1045,11 +1360,7 @@ export function CareLogForm({
       </Card>
     );
   }
-  const sortedPlants = [...plants].sort((a, b) => {
-    const nameA = a.name || a.varietyName;
-    const nameB = b.name || b.varietyName;
-    return nameA.localeCompare(nameB);
-  });
+  // Plants are now organized by groups instead of individual plant sorting
   return (
     <Card className="border-border shadow-sm">
       <CardHeader className="pb-3">
@@ -1079,120 +1390,88 @@ export function CareLogForm({
             <CardContent className="pt-0 space-y-4">
               <div className="grid grid-cols-1 gap-4">
                 <div>
-                  {isBulkMode ? (
-                    <div className="space-y-3">
-                      <div className="flex items-center justify-between">
-                        <label className="block text-sm font-medium text-foreground">
-                          Bulk Care for Multiple Plants *
-                        </label>
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          onClick={() => {
-                            setIsBulkMode(false);
-                            setSelectedPlantIds([]);
-                          }}
-                        >
-                          Switch to Single Plant
-                        </Button>
-                      </div>
-                      
-                      <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                        <div className="flex items-center gap-2 mb-2">
-                          <span className="text-blue-600 font-medium">
-                            {selectedPlantIds.length} plants selected
-                          </span>
-                        </div>
-                        <div className="grid gap-2 max-h-32 overflow-y-auto">
-                          {selectedPlantIds.map(plantId => {
-                            const plant = plants.find(p => p.id === plantId);
-                            if (!plant) return null;
-                            return (
-                              <div key={plantId} className="flex items-center justify-between bg-white p-2 rounded border">
-                                <span className="text-sm">
-                                  {plant.name ? `${plant.name} (${plant.varietyName})` : plant.varietyName}
-                                  {plant.location && ` - ${plant.location}`}
-                                </span>
-                                <Button
-                                  type="button"
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => {
-                                    const newIds = selectedPlantIds.filter(id => id !== plantId);
-                                    setSelectedPlantIds(newIds);
-                                    if (newIds.length === 0) {
-                                      setIsBulkMode(false);
-                                    } else if (selectedPlantId === plantId) {
-                                      setValue("plantId", newIds[0], { shouldValidate: true });
-                                    }
-                                  }}
-                                  className="h-6 w-6 p-0 text-red-500 hover:text-red-700"
-                                >
-                                  ×
-                                </Button>
-                              </div>
-                            );
-                          })}
-                        </div>
-                        {selectedPlantIds.length > 0 && (
-                          <p className="text-xs text-blue-600 mt-2">
-                            Primary plant: {plants.find(p => p.id === selectedPlantId)?.name || 'Unknown'}
-                            <br />
-                            Care activity will be applied to all selected plants
-                          </p>
-                        )}
-                      </div>
-                      
-                      {/* Hidden input to maintain form validation */}
-                      <input
-                        type="hidden"
-                        {...register("plantId")}
-                        value={selectedPlantIds.length > 0 ? selectedPlantId : ""}
-                      />
-                    </div>
-                  ) : (
-                    <div>
-                      <div className="flex items-center justify-between mb-2">
-                        <label
-                          htmlFor="plant-select"
-                          className="block text-sm font-medium text-foreground"
-                        >
-                          Plant *
-                        </label>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => setIsBulkMode(true)}
-                          className="text-xs"
-                        >
-                          Select Multiple Plants
-                        </Button>
-                      </div>
-                      <select
-                        id="plant-select"
-                        {...register("plantId")}
-                        className="w-full p-3 border border-border rounded-lg bg-background text-foreground focus:ring-2 focus:ring-ring focus:border-ring"
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <label
+                        htmlFor="group-select"
+                        className="block text-sm font-medium text-foreground"
                       >
-                        <option value="">Choose a plant...</option>
-                        {sortedPlants.map((plant) => (
-                          <option key={plant.id} value={plant.id}>
-                            {plant.name
-                              ? `${plant.name} (${plant.varietyName})`
-                              : plant.varietyName}
-                            {plant.location && ` - ${plant.location}`}
-                          </option>
-                        ))}
-                      </select>
-                      {errors.plantId && (
-                        <p className="mt-1 text-sm text-red-600" role="alert">
-                          {errors.plantId.message}
-                        </p>
+                        Plant Section *
+                      </label>
+                      {selectedGroup && selectedGroup.plants.length > 1 && (
+                        <span className="text-xs text-muted-foreground">
+                          {selectedGroup.plants.length} plants in this section
+                        </span>
                       )}
                     </div>
-                  )}
+                    <select
+                      id="group-select"
+                      {...register("groupId")}
+                      className="w-full p-3 border border-border rounded-lg bg-background text-foreground focus:ring-2 focus:ring-ring focus:border-ring"
+                    >
+                      <option value="">Choose a plant section...</option>
+                      {plantGroups.map((group) => (
+                        <option key={group.id} value={group.id}>
+                          {group.varietyName} ({group.plants.length} plant{group.plants.length > 1 ? 's' : ''})
+                          {group.container && ` - ${group.container}`}
+                        </option>
+                      ))}
+                    </select>
+                    {errors.groupId && (
+                      <p className="mt-1 text-sm text-red-600" role="alert">
+                        {errors.groupId.message}
+                      </p>
+                    )}
+                  </div>
                 </div>
+                
+                {/* Planted Date Information */}
+                {selectedGroup && selectedGroup.plants.length > 0 && (
+                  <div className="bg-muted/50 rounded-lg p-3 border">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Info className="h-4 w-4 text-muted-foreground" />
+                      <span className="text-sm font-medium text-foreground">Plant Information</span>
+                    </div>
+                    <div className="space-y-1 text-sm text-muted-foreground">
+                      <div>
+                        <span className="font-medium">Planted:</span> {
+                          (() => {
+                            const plant = selectedGroup.plants[0];
+                            const plantingDate = plant.plantedDate;
+                            
+                            if (plantingDate) {
+                              try {
+                                return format(new Date(plantingDate), 'MMM d, yyyy');
+                              } catch (e) {
+                                console.error('Date format error:', e, plantingDate);
+                                return `Invalid date: ${plantingDate}`;
+                              }
+                            }
+                            return 'Date not available';
+                          })()
+                        }
+                      </div>
+                      <div>
+                        <span className="font-medium">Days since planted:</span> {
+                          (() => {
+                            const plant = selectedGroup.plants[0];
+                            const plantingDate = plant.plantedDate;
+                            
+                            if (plantingDate) {
+                              try {
+                                return Math.floor((new Date().getTime() - new Date(plantingDate).getTime()) / (1000 * 60 * 60 * 24));
+                              } catch (e) {
+                                return 'Invalid date';
+                              }
+                            }
+                            return 'N/A';
+                          })()
+                        } days
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 <div>
                   <label
                     htmlFor="type"
@@ -1267,6 +1546,40 @@ export function CareLogForm({
                     Last Week
                   </Button>
                 </div>
+                
+                {/* Apply to all grouped plants checkbox */}
+                {selectedGroup && otherSameVarietyPlantIds.length > 0 && (
+                  <div className="mt-4 p-3 bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-lg">
+                    <div className="flex items-start gap-3">
+                      <input
+                        type="checkbox"
+                        id="apply-to-all-group"
+                        checked={applyToAllGroupPlants}
+                        onChange={(e) => setApplyToAllGroupPlants(e.target.checked)}
+                        className="mt-1 rounded border-blue-300 text-blue-600 focus:ring-blue-500"
+                      />
+                      <div className="flex-1">
+                        <label
+                          htmlFor="apply-to-all-group"
+                          className="block text-sm font-medium text-blue-900 dark:text-blue-100 cursor-pointer"
+                        >
+                          Apply to all {selectedGroup.varietyName} plants
+                        </label>
+                        <p className="text-xs text-blue-700 dark:text-blue-300 mt-1">
+                          This will log the same care activity for all {totalSameVarietyPlants} {selectedGroup.varietyName} plants across all groups
+                        </p>
+                        <div className="text-xs text-blue-600 dark:text-blue-400 mt-1">
+                          • Current group: {selectedPlantIds.length} plant{selectedPlantIds.length > 1 ? 's' : ''}
+                          {otherSameVarietyGroups.length > 0 && (
+                            <span>
+                              <br />• Other groups: {otherSameVarietyPlantIds.length} plant{otherSameVarietyPlantIds.length > 1 ? 's' : ''} in {otherSameVarietyGroups.length} additional group{otherSameVarietyGroups.length > 1 ? 's' : ''}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             </CardContent>
           </Card>
@@ -1336,7 +1649,7 @@ export function CareLogForm({
             )}
             <Button
               type="submit"
-              disabled={!isValid || isLoading || isSubmitting}
+              disabled={isLoading || isSubmitting}
               className="flex-1"
               size="lg"
             >
@@ -1356,10 +1669,10 @@ export function CareLogForm({
         </form>
 
         {/* Supplemental Watering Card - shown after partial watering */}
-        {showSupplementalWatering && partialWateringAnalysis && lastSubmittedData && (
+        {showSupplementalWatering && partialWateringAnalysis && lastSubmittedData && selectedGroup?.plants[0] && (
           <div className="mt-4">
             <SupplementalWateringCard
-              plant={plants.find(p => p.id === lastSubmittedData.plantId)!}
+              plant={selectedGroup.plants[0]}
               analysis={partialWateringAnalysis}
               onSupplementAdded={handleSupplementalWatering}
               onSkip={() => {
@@ -1379,10 +1692,10 @@ export function CareLogForm({
         )}
 
         {/* Section Apply Card - shown after successful submission */}
-        {showSectionApply && sectionApplyOption && lastSubmittedData && (
+        {showSectionApply && sectionApplyOption && lastSubmittedData && selectedGroup?.plants[0] && (
           <div className="mt-4">
             <SectionApplyCard
-              targetPlant={plants.find(p => p.id === lastSubmittedData.plantId)!}
+              targetPlant={selectedGroup.plants[0]}
               allPlants={plants}
               sectionOption={sectionApplyOption}
               activityType={lastSubmittedData.type}

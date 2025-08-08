@@ -13,10 +13,24 @@ import toast from "react-hot-toast";
 import SoilMixtureSelector from "./SoilMixtureSelector";
 import ReminderPreferencesSection from "@/components/plant/ReminderPreferencesSection";
 import { useFirebasePlants } from "@/hooks/useFirebasePlants";
+import { useFirebaseCareActivities } from "@/hooks/useFirebaseCareActivities";
 import { LoadingSpinner } from "../ui/LoadingSpinner";
-import { PlantSection } from "@/types";
+import { PlantSection, CareActivityDetails, VolumeUnit } from "@/types";
 import { Logger } from "@/utils/logger";
 
+
+const careHistorySchema = z.object({
+  lastWatered: z.string().optional(),
+  lastWaterAmount: z.number().optional(),
+  lastWaterUnit: z.enum(["ml", "fl-oz", "cups", "liters", "gallons"]).optional(),
+  lastFertilized: z.string().optional(),
+  lastFertilizerProduct: z.string().optional(),
+  lastFertilizerDilution: z.string().optional(),
+  lightingHours: z.number().min(0).max(24).optional(),
+  lightingIntensity: z.string().optional(),
+  lastObservation: z.string().optional(),
+  lastObservationDate: z.string().optional(),
+});
 
 const plantSchema = z.object({
   varietyId: z.string().min(1, "Please select a variety"),
@@ -40,6 +54,8 @@ const plantSchema = z.object({
   setupType: z.enum(["multiple-containers", "same-container"]),
   soilMix: z.string().min(1, "Please select a soil mixture"),
   notes: z.string().optional(),
+  enableCareHistory: z.boolean().optional(),
+  careHistory: careHistorySchema.optional(),
 });
 
 type PlantFormData = z.infer<typeof plantSchema>;
@@ -59,6 +75,7 @@ export function PlantRegistrationForm({
   onCancel,
 }: PlantRegistrationFormProps) {
   const { createPlant } = useFirebasePlants();
+  const { logActivity } = useFirebaseCareActivities();
 
   const [varieties, setVarieties] = useState<VarietyRecord[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -90,9 +107,11 @@ export function PlantRegistrationForm({
       selectedBedId: "",
       quantity: 1,
       setupType: "multiple-containers",
-      plantedDate: new Date().toISOString().split("T")[0],
+      plantedDate: new Date().toLocaleDateString('en-CA'),
       notes: "",
       sectionMode: "simple",
+      enableCareHistory: false,
+      careHistory: {},
     },
   });
 
@@ -229,9 +248,104 @@ export function PlantRegistrationForm({
       }
 
       // Wait for all plants to be created
-      await Promise.all(plantPromises);
+      const plantResults = await Promise.all(plantPromises);
 
-      toast.success(`Successfully registered ${data.quantity} plant(s)! 🌱`);
+      // Create care history if enabled
+      if (data.enableCareHistory && data.careHistory) {
+        const carePromises = [];
+        
+        for (let i = 0; i < plantResults.length; i++) {
+          const plantId = plantResults[i];
+          const history = data.careHistory;
+          
+          // Add last watering activity
+          if (history.lastWatered) {
+            const waterDetails: CareActivityDetails = {
+              type: "water",
+              waterAmount: history.lastWaterAmount || 0,
+              waterUnit: (history.lastWaterUnit as VolumeUnit) || "fl-oz",
+              notes: "Backfilled during plant registration",
+            };
+            
+            carePromises.push(
+              logActivity({
+                plantId,
+                type: "water",
+                date: new Date(history.lastWatered),
+                details: waterDetails,
+              })
+            );
+          }
+          
+          // Add last fertilization activity
+          if (history.lastFertilized) {
+            const fertilizerDetails: CareActivityDetails = {
+              type: "fertilize",
+              product: history.lastFertilizerProduct || "",
+              dilution: history.lastFertilizerDilution || "",
+              applicationMethod: "soil-drench",
+              notes: "Backfilled during plant registration",
+            };
+            
+            carePromises.push(
+              logActivity({
+                plantId,
+                type: "fertilize",
+                date: new Date(history.lastFertilized),
+                details: fertilizerDetails,
+              })
+            );
+          }
+          
+          // Add lighting activity if specified
+          if (history.lightingHours) {
+            const lightingDetails: CareActivityDetails = {
+              type: "lighting",
+              lightLevel: history.lightingHours,
+              notes: `Set to ${history.lightingHours} hours${history.lightingIntensity ? ` at ${history.lightingIntensity} intensity` : ""}. Backfilled during plant registration.`,
+            };
+            
+            carePromises.push(
+              logActivity({
+                plantId,
+                type: "lighting",
+                date: new Date(), // Use current date for lighting setup
+                details: lightingDetails,
+              })
+            );
+          }
+          
+          // Add last observation if specified
+          if (history.lastObservation && history.lastObservationDate) {
+            const observationDetails: CareActivityDetails = {
+              type: "observe",
+              observations: history.lastObservation,
+              healthAssessment: "good", // Default assessment
+              notes: "Backfilled during plant registration",
+            };
+            
+            carePromises.push(
+              logActivity({
+                plantId,
+                type: "observe",
+                date: new Date(history.lastObservationDate),
+                details: observationDetails,
+              })
+            );
+          }
+        }
+        
+        // Create all care activities
+        if (carePromises.length > 0) {
+          await Promise.all(carePromises);
+          toast.success(`Successfully registered ${data.quantity} plant(s) with care history! 🌱`);
+        } else {
+          toast.success(`Successfully registered ${data.quantity} plant(s)! 🌱`);
+        }
+      } else {
+        toast.success(`Successfully registered ${data.quantity} plant(s)! 🌱`);
+      }
+
       reset();
       onSuccess?.();
     } catch (error) {
@@ -576,6 +690,189 @@ export function PlantRegistrationForm({
                 false
               )}
             </div>
+
+            {/* Care History Section - Only show if planting date is not today */}
+            {(() => {
+              const plantedDate = watch("plantedDate");
+              const today = new Date().toISOString().split("T")[0];
+              const isBackdating = plantedDate && plantedDate !== today;
+              
+              if (!isBackdating) return null;
+              
+              return (
+            <div className="space-y-4 p-4 bg-gradient-to-br from-purple-500/5 to-purple-500/10 rounded-lg border border-purple-500/20">
+              <div className="flex items-center justify-between">
+                <h3 className="font-semibold text-foreground flex items-center gap-2">
+                  <span className="text-lg">🔄</span>
+                  Recent Care History
+                </h3>
+                <div className="flex items-center space-x-2">
+                  <input
+                    type="checkbox"
+                    id="enable-care-history"
+                    {...register("enableCareHistory")}
+                    className="w-4 h-4 text-purple-500 border-border focus:ring-purple-500"
+                  />
+                  <label htmlFor="enable-care-history" className="text-sm font-medium text-foreground cursor-pointer">
+                    Add recent care activities
+                  </label>
+                </div>
+              </div>
+              
+              <p className="text-sm text-muted-foreground">
+                Enable this to add your most recent care activities (watering, fertilizing, etc.) so the system can calculate the correct care schedule.
+              </p>
+
+              {watch("enableCareHistory") && (
+                <div className="space-y-4 p-4 bg-background/50 rounded-lg border border-border">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {/* Last Watering */}
+                    <div className="space-y-2">
+                      <h4 className="font-medium text-foreground flex items-center gap-2">
+                        <span>💧</span>
+                        Last Watering
+                      </h4>
+                      <div className="space-y-2">
+                        <div>
+                          <label className="text-xs font-medium text-muted-foreground">Date</label>
+                          <Input
+                            type="date"
+                            {...register("careHistory.lastWatered")}
+                            className="text-sm"
+                          />
+                        </div>
+                        <div className="flex gap-2">
+                          <div className="flex-1">
+                            <label className="text-xs font-medium text-muted-foreground">Amount</label>
+                            <Input
+                              type="number"
+                              step="0.1"
+                              {...register("careHistory.lastWaterAmount", { valueAsNumber: true })}
+                              placeholder="8"
+                              className="text-sm"
+                            />
+                          </div>
+                          <div className="flex-1">
+                            <label className="text-xs font-medium text-muted-foreground">Unit</label>
+                            <select
+                              {...register("careHistory.lastWaterUnit")}
+                              className="w-full p-2 text-sm border border-border rounded bg-background text-foreground focus:ring-2 focus:ring-accent focus:border-accent"
+                            >
+                              <option value="fl-oz">fl oz</option>
+                              <option value="ml">ml</option>
+                              <option value="cups">cups</option>
+                              <option value="liters">liters</option>
+                              <option value="gallons">gallons</option>
+                            </select>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Last Fertilizing */}
+                    <div className="space-y-2">
+                      <h4 className="font-medium text-foreground flex items-center gap-2">
+                        <span>🌱</span>
+                        Last Fertilizing
+                      </h4>
+                      <div className="space-y-2">
+                        <div>
+                          <label className="text-xs font-medium text-muted-foreground">Date</label>
+                          <Input
+                            type="date"
+                            {...register("careHistory.lastFertilized")}
+                            className="text-sm"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-xs font-medium text-muted-foreground">Product</label>
+                          <Input
+                            {...register("careHistory.lastFertilizerProduct")}
+                            placeholder="e.g., General Hydroponics MaxiGro"
+                            className="text-sm"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-xs font-medium text-muted-foreground">Dilution</label>
+                          <Input
+                            {...register("careHistory.lastFertilizerDilution")}
+                            placeholder="e.g., 1/2 tsp per gallon"
+                            className="text-sm"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {/* Lighting Setup */}
+                    <div className="space-y-2">
+                      <h4 className="font-medium text-foreground flex items-center gap-2">
+                        <span>💡</span>
+                        Current Lighting
+                      </h4>
+                      <div className="space-y-2">
+                        <div>
+                          <label className="text-xs font-medium text-muted-foreground">Hours per day</label>
+                          <Input
+                            type="number"
+                            min="0"
+                            max="24"
+                            step="0.5"
+                            {...register("careHistory.lightingHours", { valueAsNumber: true })}
+                            placeholder="14"
+                            className="text-sm"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-xs font-medium text-muted-foreground">Intensity/Type</label>
+                          <Input
+                            {...register("careHistory.lightingIntensity")}
+                            placeholder="e.g., 100% LED, 6500K"
+                            className="text-sm"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Last Observation */}
+                    <div className="space-y-2">
+                      <h4 className="font-medium text-foreground flex items-center gap-2">
+                        <span>👀</span>
+                        Last Observation
+                      </h4>
+                      <div className="space-y-2">
+                        <div>
+                          <label className="text-xs font-medium text-muted-foreground">Date</label>
+                          <Input
+                            type="date"
+                            {...register("careHistory.lastObservationDate")}
+                            className="text-sm"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-xs font-medium text-muted-foreground">Notes</label>
+                          <textarea
+                            {...register("careHistory.lastObservation")}
+                            placeholder="e.g., Plant looks healthy, good color, new growth visible"
+                            rows={3}
+                            className="w-full p-2 text-sm border border-border rounded bg-background text-foreground focus:ring-2 focus:ring-accent focus:border-accent resize-none"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="p-3 bg-purple-50 dark:bg-purple-950/20 rounded-lg border border-purple-200 dark:border-purple-800">
+                    <p className="text-xs text-purple-700 dark:text-purple-300">
+                      💡 <strong>Tip:</strong> Adding recent care history helps the system calculate when your plant needs attention next, so you get accurate scheduling right away.
+                    </p>
+                  </div>
+                </div>
+              )}
+            </div>
+              );
+            })()}
 
             {/* Action Buttons */}
             <div className="flex gap-3 pt-6 border-t border-border">

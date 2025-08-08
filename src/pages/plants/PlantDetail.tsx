@@ -225,6 +225,20 @@ const PlantDetail: React.FC = () => {
             >
               Update Stage
             </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => navigate(`/plants/${plant.id}/edit`)}
+            >
+              Edit Plant
+            </Button>
+            <Button
+              onClick={handleLogCare}
+              className="bg-primary hover:bg-primary/90"
+              size="sm"
+            >
+              Log Care
+            </Button>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

@@ -7,7 +7,8 @@ import { Button } from "@/components/ui/Button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { useDynamicStage } from "@/hooks/useDynamicStage";
-import { differenceInDays } from "date-fns";
+import { useLastCareActivities } from "@/hooks/useLastCareActivities";
+import { differenceInDays, formatDistanceToNow } from "date-fns";
 import { QuickActionButtons, QuickActionType } from "@/components/shared/QuickActionButtons";
 
 interface PlantGroupCardProps {
@@ -31,6 +32,7 @@ const PlantGroupCard = memo(({ group, onBulkLogActivity, onRemoveFromView }: Pla
   const plantAge = useMemo(() => differenceInDays(new Date(), representativePlant.plantedDate), [representativePlant.plantedDate]);
   
   const calculatedStage = useDynamicStage(representativePlant);
+  const { activities: lastCareActivities, loading: careActivitiesLoading } = useLastCareActivities(representativePlant.id);
 
   const handlePlantClick = useCallback(() => {
     navigate(`/plants/${representativePlant.id}`);
@@ -63,29 +65,29 @@ const PlantGroupCard = memo(({ group, onBulkLogActivity, onRemoveFromView }: Pla
   return (
     <Card className="hover:shadow-lg transition-shadow">
       <CardHeader>
-        <div className="flex justify-between items-start">
-          <div className="flex-1">
-            <CardTitle className="text-lg flex items-center justify-between">
-              <span className="truncate">{group.varietyName}</span>
-              <div className="flex items-center gap-2">
-                <StatusBadge status="healthy" size="sm" />
-                {onRemoveFromView && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={handleRemoveFromView}
-                    className="h-6 w-6 p-0 text-muted-foreground hover:text-destructive"
-                    title="Remove from view"
-                  >
-                    ✕
-                  </Button>
-                )}
-              </div>
+        <div className="flex items-start gap-3">
+          <div className="flex-1 min-w-0">
+            <CardTitle className="text-lg">
+              <span className="truncate block">{group.varietyName}</span>
             </CardTitle>
             {hasMultiplePlants && (
               <div className="text-sm text-muted-foreground mt-1">
                 {group.plants.length} plants
               </div>
+            )}
+          </div>
+          <div className="flex items-center gap-2 flex-shrink-0">
+            <StatusBadge status="healthy" size="sm" />
+            {onRemoveFromView && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleRemoveFromView}
+                className="h-6 w-6 p-0 text-muted-foreground hover:text-destructive"
+                title="Remove from view"
+              >
+                ✕
+              </Button>
             )}
           </div>
         </div>
@@ -126,6 +128,41 @@ const PlantGroupCard = memo(({ group, onBulkLogActivity, onRemoveFromView }: Pla
                 )}
               </div>
             </div>
+          </div>
+
+          {/* Last Care Activities */}
+          <div className="border-t border-border pt-3">
+            <div className="text-xs font-medium text-muted-foreground mb-2">Recent Care</div>
+            {careActivitiesLoading ? (
+              <div className="text-xs text-muted-foreground">Loading...</div>
+            ) : (
+              <div className="grid grid-cols-2 gap-2 text-xs">
+                <div className="flex items-center gap-1">
+                  <span className="text-blue-500">💧</span>
+                  <div className="flex flex-col">
+                    <span className="font-medium">Watering</span>
+                    <span className="text-muted-foreground">
+                      {lastCareActivities.watering 
+                        ? formatDistanceToNow(lastCareActivities.watering.date, { addSuffix: true })
+                        : "Never"
+                      }
+                    </span>
+                  </div>
+                </div>
+                <div className="flex items-center gap-1">
+                  <span className="text-green-500">🌱</span>
+                  <div className="flex flex-col">
+                    <span className="font-medium">Fertilizing</span>
+                    <span className="text-muted-foreground">
+                      {lastCareActivities.fertilizing
+                        ? formatDistanceToNow(lastCareActivities.fertilizing.date, { addSuffix: true })
+                        : "Never"
+                      }
+                    </span>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Quick Actions */}

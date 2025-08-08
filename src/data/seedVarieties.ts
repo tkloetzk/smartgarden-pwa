@@ -52,6 +52,20 @@ export const seedVarieties: SeedVariety[] = [
       maturation: 37, // [cite: 345]
     },
     protocols: {
+      lighting: {
+        vegetative: {
+          ppfd: { min: 200, max: 300, unit: "µmol/m²/s" },
+          photoperiod: { hours: 12, maxHours: 16 },
+          dli: { min: 8.6, max: 17.3, unit: "mol/m²/day" },
+          notes: ["Increased PPFD for better leaf development and flavor"],
+        },
+        maturation: {
+          ppfd: { min: 200, max: 300, unit: "µmol/m²/s" },
+          photoperiod: { hours: 12, maxHours: 14 },
+          dli: { min: 8.6, max: 15.1, unit: "mol/m²/day" },
+          notes: ["Maintain consistent lighting for continued harvest"],
+        },
+      },
       watering: {
         germination: {
           trigger: { moistureLevel: "3-4" }, // [cite: 167]
@@ -121,7 +135,7 @@ export const seedVarieties: SeedVariety[] = [
         vegetative: {
           trigger: { moistureLevel: "<4" }, // [cite: 169]
           target: { moistureLevel: "6" }, // [cite: 169]
-          volume: { amount: "~1 gal/week for bed", frequency: "As needed" }, // [cite: 169]
+          volume: { amount: "8-12 oz per container", frequency: "every 2-3 days" }, // Updated frequency
         },
       },
       fertilization: {
@@ -235,6 +249,31 @@ export const seedVarieties: SeedVariety[] = [
               frequencyDays: 7,
               repeatCount: 4,
             },
+            {
+              taskName: "Calcium Supplementation (Crown Initiation)",
+              details: {
+                product: "Calcium chloride or calcium sulfate",
+                dilution: "1 tsp/gal",
+                method: "foliar-spray",
+              },
+              startDays: 35, // During early crown formation
+              frequencyDays: 7,
+              repeatCount: 2,
+            },
+          ],
+        },
+        maturation: {
+          schedule: [
+            {
+              taskName: "Reduced Fertilization (Final 3-4 weeks)",
+              details: {
+                product: "Fish + Seaweed blend",
+                dilution: "¼ strength",
+              },
+              startDays: 67, // 3-4 weeks before 90-day harvest
+              frequencyDays: 14,
+              repeatCount: 2,
+            },
           ],
         },
       },
@@ -250,7 +289,74 @@ export const seedVarieties: SeedVariety[] = [
       vegetative: 42, // [cite: 154]
       maturation: 120, // [cite: 257]
     },
-    protocols: {},
+    protocols: {
+      fertilization: {
+        seedling: {
+          schedule: [
+            {
+              taskName: "Light Nitrogen Feed",
+              details: {
+                product: "Fish Emulsion",
+                dilution: "1 tbsp/gal",
+                amount: "1-2 fl oz",
+                method: "soil-drench",
+              },
+              startDays: 21,
+              frequencyDays: 14,
+              repeatCount: 2,
+            },
+          ],
+          notes: ["Light feeding to establish strong roots and foliage."],
+        },
+        vegetative: {
+          schedule: [
+            {
+              taskName: "Balanced Growth Feed",
+              details: {
+                product: "Balanced Liquid Fertilizer",
+                dilution: "1 tsp/gal",
+                amount: "2-4 fl oz",
+                method: "soil-drench",
+              },
+              startDays: 7,
+              frequencyDays: 14,
+              repeatCount: 3,
+            },
+            {
+              taskName: "Potassium Boost (Pre-Bulbing)",
+              details: {
+                product: "Wood ash or potassium sulfate",
+                amount: "1-2 tsp/container",
+                method: "top-dress",
+              },
+              startDays: 92, // 2 weeks before typical 106-day bulbing trigger
+              frequencyDays: 0,
+              repeatCount: 1,
+            },
+          ],
+          notes: [
+            "Regular balanced feeding during active growth.",
+            "Light potassium boost 2 weeks before bulbing triggers helps with bulb development.",
+          ],
+        },
+        maturation: {
+          schedule: [
+            {
+              taskName: "Low-Nitrogen Bulb Development",
+              details: {
+                product: "Bone Meal",
+                amount: "1 tsp/container",
+                method: "top-dress",
+              },
+              startDays: 7,
+              frequencyDays: 21,
+              repeatCount: 2,
+            },
+          ],
+          notes: ["Reduce nitrogen to encourage bulb development and storage quality."],
+        },
+      },
+    },
   },
   {
     name: "White Sweet Spanish Onions",
@@ -262,7 +368,74 @@ export const seedVarieties: SeedVariety[] = [
       vegetative: 42, // [cite: 154]
       maturation: 120, // [cite: 257]
     },
-    protocols: {},
+    protocols: {
+      fertilization: {
+        seedling: {
+          schedule: [
+            {
+              taskName: "Light Nitrogen Feed",
+              details: {
+                product: "Fish Emulsion",
+                dilution: "1 tbsp/gal",
+                amount: "1-2 fl oz",
+                method: "soil-drench",
+              },
+              startDays: 21,
+              frequencyDays: 14,
+              repeatCount: 2,
+            },
+          ],
+          notes: ["Light feeding to establish strong roots and foliage."],
+        },
+        vegetative: {
+          schedule: [
+            {
+              taskName: "Balanced Growth Feed",
+              details: {
+                product: "Balanced Liquid Fertilizer",
+                dilution: "1 tsp/gal",
+                amount: "2-4 fl oz",
+                method: "soil-drench",
+              },
+              startDays: 7,
+              frequencyDays: 14,
+              repeatCount: 3,
+            },
+            {
+              taskName: "Potassium Boost (Pre-Bulbing)",
+              details: {
+                product: "Wood ash or potassium sulfate",
+                amount: "1-2 tsp/container",
+                method: "top-dress",
+              },
+              startDays: 92, // 2 weeks before typical 106-day bulbing trigger
+              frequencyDays: 0,
+              repeatCount: 1,
+            },
+          ],
+          notes: [
+            "Regular balanced feeding during active growth.",
+            "Light potassium boost 2 weeks before bulbing triggers helps with bulb development.",
+          ],
+        },
+        maturation: {
+          schedule: [
+            {
+              taskName: "Low-Nitrogen Bulb Development",
+              details: {
+                product: "Bone Meal",
+                amount: "1 tsp/container",
+                method: "top-dress",
+              },
+              startDays: 7,
+              frequencyDays: 21,
+              repeatCount: 2,
+            },
+          ],
+          notes: ["Reduce nitrogen to encourage bulb development and storage quality."],
+        },
+      },
+    },
   },
   {
     name: "Garlic",
@@ -860,9 +1033,22 @@ export const seedVarieties: SeedVariety[] = [
           ],
         },
         podSetMaturation: {
-          schedule: [],
+          schedule: [
+            {
+              taskName: "Weekly Kelp Foliar Spray",
+              details: {
+                product: "Liquid kelp",
+                dilution: "1 tsp/quart",
+                method: "foliar-spray",
+              },
+              startDays: 50,
+              frequencyDays: 7,
+              repeatCount: 4,
+            },
+          ],
           notes: [
-            "Minimal feeding during harvest - focus on consistent watering.",
+            "Weekly kelp foliar spray during pod development for enhanced nutrient uptake.",
+            "Focus on consistent watering for pod filling.",
           ],
         },
       },
@@ -1040,8 +1226,8 @@ export const seedVarieties: SeedVariety[] = [
           },
           volume: {
             amount:
-              "5-gal: 20-30 oz (590-890 mL), 2-gal hanging: 8-10 oz (235-300 mL)",
-            frequency: "3-4x/week",
+              "5-gal: 15-20 oz (445-590 mL), 2-gal hanging: 6-8 oz (180-235 mL)",
+            frequency: "every 3-4 days",
             perPlant: true,
           },
           notes: [
@@ -1057,8 +1243,8 @@ export const seedVarieties: SeedVariety[] = [
           },
           volume: {
             amount:
-              "5-gal: 25-35 oz (740-1030 mL), 2-gal hanging: 10-13 oz (300-385 mL)",
-            frequency: "3-5x/week",
+              "5-gal: 15-20 oz (445-590 mL), 2-gal hanging: 6-8 oz (180-235 mL)",
+            frequency: "every 3-4 days",
             perPlant: true,
           },
           notes: [
@@ -1074,8 +1260,8 @@ export const seedVarieties: SeedVariety[] = [
           },
           volume: {
             amount:
-              "5-gal: 30-35 oz (890-1030 mL), 2-gal hanging: 10-13 oz (300-385 mL)",
-            frequency: "4-5x/week",
+              "5-gal: 15-20 oz (445-590 mL), 2-gal hanging: 6-8 oz (180-235 mL)",
+            frequency: "every 3-4 days",
             perPlant: true,
           },
           notes: [
@@ -1091,8 +1277,8 @@ export const seedVarieties: SeedVariety[] = [
           },
           volume: {
             amount:
-              "5-gal: 30-35 oz (890-1030 mL), 2-gal hanging: 10-13 oz (300-385 mL)",
-            frequency: "4-5x/week",
+              "5-gal: 15-20 oz (445-590 mL), 2-gal hanging: 6-8 oz (180-235 mL)",
+            frequency: "every 3-4 days",
             perPlant: true,
           },
         },
@@ -1105,8 +1291,8 @@ export const seedVarieties: SeedVariety[] = [
           },
           volume: {
             amount:
-              "5-gal: 25-35 oz (740-1030 mL), 2-gal hanging: 10-13 oz (300-385 mL)",
-            frequency: "3-5x/week",
+              "5-gal: 15-20 oz (445-590 mL), 2-gal hanging: 6-8 oz (180-235 mL)",
+            frequency: "every 3-4 days",
             perPlant: true,
           },
           notes: [
@@ -1424,6 +1610,13 @@ export const seedVarieties: SeedVariety[] = [
                 method: "top-dress",
               },
               startDays: 0,
+              frequencyDays: 0,
+              repeatCount: 1,
+            },
+            {
+              taskName: "Apply 4-4-4 Granular",
+              details: { product: "4-4-4 granular fertilizer" },
+              startDays: 14,
               frequencyDays: 0,
               repeatCount: 1,
             },
@@ -1851,7 +2044,7 @@ export const seedVarieties: SeedVariety[] = [
         rootDevelopment: {
           trigger: { moistureLevel: "3-4" },
           target: { moistureLevel: "6-7" },
-          volume: { amount: "24-28 oz", frequency: "every 3-4 days" },
+          volume: { amount: "24-28 oz", frequency: "every 2-3 days" },
           notes: ["Maintain consistent moisture"],
         },
         maturation: {
@@ -1862,6 +2055,23 @@ export const seedVarieties: SeedVariety[] = [
         },
       },
       fertilization: {
+        seedling: {
+          schedule: [
+            {
+              taskName: "Light Fish Emulsion Feed",
+              details: {
+                product: "Fish Emulsion",
+                dilution: "1 tsp/gal",
+                amount: "2-3 fl oz",
+                method: "soil-drench",
+              },
+              startDays: 7,
+              frequencyDays: 0,
+              repeatCount: 1,
+            },
+          ],
+          notes: ["Light feeding to establish healthy seedlings before root development."],
+        },
         vegetative: {
           schedule: [
             {
@@ -1891,12 +2101,31 @@ export const seedVarieties: SeedVariety[] = [
               details: {
                 product: "Liquid kelp or fish + seaweed",
                 dilution: "1 tbsp/gal",
+                amount: "3-4 fl oz",
+                method: "soil-drench",
               },
               startDays: 42,
               frequencyDays: 14,
               repeatCount: 2,
             },
           ],
+        },
+        maturation: {
+          schedule: [
+            {
+              taskName: "Final Kelp Feed",
+              details: {
+                product: "Liquid Kelp",
+                dilution: "1 tsp/gal",
+                amount: "2-3 fl oz",
+                method: "soil-drench",
+              },
+              startDays: 7,
+              frequencyDays: 0,
+              repeatCount: 1,
+            },
+          ],
+          notes: ["Light feeding to support final root development and storage quality."],
         },
       },
       environment: {
@@ -2001,9 +2230,9 @@ export const seedVarieties: SeedVariety[] = [
           target: { moistureLevel: "minimal" },
           volume: {
             amount: "12-20 oz (350-590 mL)/plant",
-            frequency: "1x/week then stop completely 3-7 days pre-harvest",
+            frequency: "1x/week then stop completely 7-10 days pre-harvest",
           },
-          notes: ["Final phase preparation"],
+          notes: ["Extended final dry-down period for improved storage quality"],
         },
       },
       fertilization: {

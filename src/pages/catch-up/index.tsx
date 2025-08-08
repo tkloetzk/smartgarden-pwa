@@ -1,5 +1,5 @@
 // src/pages/catch-up/index.tsx
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/Button";
 import { Card, CardContent } from "@/components/ui/Card";
@@ -7,7 +7,7 @@ import { useFirebasePlants } from "@/hooks/useFirebasePlants";
 import { useFirebaseAuth } from "@/hooks/useFirebaseAuth";
 import { FirebaseCareSchedulingService } from "@/services/firebaseCareSchedulingService";
 import { FirebaseCareActivityService } from "@/services/firebase/careActivityService";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Filter, X } from "lucide-react";
 import { UpcomingTask } from "@/types";
 
 export const CatchUpPage = () => {
@@ -16,6 +16,9 @@ export const CatchUpPage = () => {
   const { user } = useFirebaseAuth();
   const [upcomingTasks, setUpcomingTasks] = useState<UpcomingTask[]>([]);
   const [tasksLoading, setTasksLoading] = useState(true);
+  const [activityFilter, setActivityFilter] = useState<string>("all");
+  const [varietyFilter, setVarietyFilter] = useState<string>("all");
+  const [showFilters, setShowFilters] = useState(false);
 
   // Load upcoming tasks
   useEffect(() => {
@@ -46,6 +49,46 @@ export const CatchUpPage = () => {
     loadTasks();
   }, [plants, user?.uid]);
 
+  // Filtered tasks and filter options
+  const filteredTasks = useMemo(() => {
+    let filtered = upcomingTasks;
+    
+    if (activityFilter !== "all") {
+      filtered = filtered.filter(task => task.task.toLowerCase().includes(activityFilter.toLowerCase()));
+    }
+    
+    if (varietyFilter !== "all") {
+      filtered = filtered.filter(task => task.plantName === varietyFilter);
+    }
+    
+    return filtered;
+  }, [upcomingTasks, activityFilter, varietyFilter]);
+
+  // Get all possible activity types (not just from current tasks)
+  const activityTypes = useMemo(() => {
+    const types = new Set<string>();
+    
+    // Add types from current tasks
+    upcomingTasks.forEach(task => {
+      if (task.task.toLowerCase().includes("water")) types.add("water");
+      else if (task.task.toLowerCase().includes("fertiliz")) types.add("fertilize");
+      else if (task.task.toLowerCase().includes("observ")) types.add("observe");
+      else if (task.task.toLowerCase().includes("prune")) types.add("prune");
+      else types.add("other");
+    });
+    
+    // Always include common activity types even if no current tasks
+    const commonTypes = ["water", "fertilize", "observe", "prune"];
+    commonTypes.forEach(type => types.add(type));
+    
+    return Array.from(types).sort();
+  }, [upcomingTasks]);
+
+  const varietyTypes = useMemo(() => {
+    const varieties = new Set(upcomingTasks.map(task => task.plantName));
+    return Array.from(varieties).sort();
+  }, [upcomingTasks]);
+
   if (loading || tasksLoading) {
     return (
       <div className="min-h-screen bg-background p-4">
@@ -55,9 +98,14 @@ export const CatchUpPage = () => {
               <ArrowLeft className="h-4 w-4 mr-2" />
               Back to Dashboard
             </Button>
-            <h1 className="text-2xl font-bold text-foreground">
-              Catch-Up Tasks
-            </h1>
+            <div>
+              <h1 className="text-2xl font-bold text-foreground">
+                Catch-Up Tasks
+              </h1>
+              <p className="text-muted-foreground">
+                Loading your plant care tasks...
+              </p>
+            </div>
           </div>
           <div className="space-y-4">
             {[1, 2, 3].map((i) => (
@@ -89,7 +137,102 @@ export const CatchUpPage = () => {
           </div>
         </div>
 
-        {upcomingTasks.length === 0 ? (
+        {/* Filter Controls */}
+        {upcomingTasks.length > 1 && (
+          <div className="mb-6">
+            <div className="flex items-center gap-4 mb-4">
+              <Button
+                variant="outline"
+                onClick={() => setShowFilters(!showFilters)}
+                size="sm"
+                className="flex items-center gap-2"
+              >
+                <Filter className="h-4 w-4" />
+                Filters
+                {(activityFilter !== "all" || varietyFilter !== "all") && (
+                  <span className="ml-1 px-1.5 py-0.5 bg-blue-500 text-white text-xs rounded-full">
+                    {[activityFilter !== "all" ? 1 : 0, varietyFilter !== "all" ? 1 : 0].reduce((a, b) => a + b)}
+                  </span>
+                )}
+              </Button>
+              
+              {(activityFilter !== "all" || varietyFilter !== "all") && (
+                <Button
+                  variant="ghost"
+                  onClick={() => {
+                    setActivityFilter("all");
+                    setVarietyFilter("all");
+                  }}
+                  size="sm"
+                  className="flex items-center gap-1"
+                >
+                  <X className="h-3 w-3" />
+                  Clear Filters
+                </Button>
+              )}
+              
+              <span className="text-sm text-muted-foreground">
+                Showing {filteredTasks.length} of {upcomingTasks.length} tasks
+              </span>
+            </div>
+
+            {showFilters && (
+              <Card className="mb-4">
+                <CardContent className="p-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-foreground mb-2">
+                        Activity Type
+                      </label>
+                      <select
+                        value={activityFilter}
+                        onChange={(e) => setActivityFilter(e.target.value)}
+                        className="w-full p-2 border border-border rounded-lg bg-background text-foreground"
+                      >
+                        <option value="all">All Activities</option>
+                        {activityTypes.map(type => (
+                          <option key={type} value={type}>
+                            {type.charAt(0).toUpperCase() + type.slice(1)}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    
+                    <div>
+                      <label className="block text-sm font-medium text-foreground mb-2">
+                        Plant Variety
+                      </label>
+                      <select
+                        value={varietyFilter}
+                        onChange={(e) => setVarietyFilter(e.target.value)}
+                        className="w-full p-2 border border-border rounded-lg bg-background text-foreground"
+                      >
+                        <option value="all">All Varieties</option>
+                        {varietyTypes.map(variety => (
+                          <option key={variety} value={variety}>
+                            {variety}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+          </div>
+        )}
+
+        {tasksLoading ? (
+          <Card>
+            <CardContent className="text-center py-8">
+              <div className="text-4xl mb-4">⏳</div>
+              <h3 className="text-lg font-semibold mb-2">Loading Tasks...</h3>
+              <p className="text-muted-foreground">
+                Checking your plants for care activities that need attention.
+              </p>
+            </CardContent>
+          </Card>
+        ) : filteredTasks.length === 0 && upcomingTasks.length === 0 ? (
           <Card>
             <CardContent className="text-center py-8">
               <div className="text-4xl mb-4">✅</div>
@@ -99,13 +242,19 @@ export const CatchUpPage = () => {
               </p>
             </CardContent>
           </Card>
+        ) : filteredTasks.length === 0 ? (
+          <Card>
+            <CardContent className="text-center py-8">
+              <div className="text-4xl mb-4">🔍</div>
+              <h3 className="text-lg font-semibold mb-2">No Matching Tasks</h3>
+              <p className="text-muted-foreground">
+                No tasks match your current filters. Try adjusting your filter criteria.
+              </p>
+            </CardContent>
+          </Card>
         ) : (
           <div className="space-y-4">
-            <p className="text-sm text-muted-foreground mb-4">
-              Found {upcomingTasks.length} task{upcomingTasks.length !== 1 ? 's' : ''} requiring attention
-            </p>
-            
-            {upcomingTasks.map((task) => (
+            {filteredTasks.map((task) => (
               <Card key={task.id} className="border-orange-200 bg-orange-50 dark:border-orange-800 dark:bg-orange-950/30">
                 <CardContent className="p-4">
                   <div className="flex items-start justify-between">
@@ -132,19 +281,117 @@ export const CatchUpPage = () => {
                     </div>
                     
                     <div className="flex gap-2 ml-4">
-                      <Button
-                        onClick={() => navigate(`/log-care/${task.plantId}`)}
-                        size="sm"
-                      >
-                        Log Care
-                      </Button>
-                      <Button
-                        variant="outline"
-                        onClick={() => navigate(`/plants/${task.plantId}`)}
-                        size="sm"
-                      >
-                        View Plant
-                      </Button>
+                      {task.plantId.startsWith('group_') || task.plantId.startsWith('section_') ? (
+                        // For grouped tasks, show bulk care logging option
+                        <>
+                          <Button
+                            onClick={() => {
+                              // Find plants that match the group key
+                              const groupPlants = plants?.filter(plant => {
+                                const plantedDateStr = plant.plantedDate.toISOString().split('T')[0];
+                                const location = plant.location || 'unknown';
+                                const soilMix = plant.soilMix || 'default';
+                                const hasSection = plant.section || plant.structuredSection;
+                                
+                                let expectedGroupKey: string;
+                                if (hasSection) {
+                                  expectedGroupKey = `section_${plant.container}_${plant.varietyName}_${plant.section || 'section'}_${plantedDateStr}`;
+                                } else {
+                                  expectedGroupKey = `group_${plant.varietyName}_${plant.container}_${plantedDateStr}_${location}_${soilMix}`;
+                                }
+                                
+                                return task.plantId === expectedGroupKey;
+                              });
+                              
+                              if (groupPlants && groupPlants.length > 0) {
+                                // Navigate to log care page with first plant pre-selected and activity type
+                                const activityType = task.type === 'observe' ? 'observe' : 
+                                                   task.type === 'water' ? 'water' : 
+                                                   task.type === 'fertilize' ? 'fertilize' : 
+                                                   task.type === 'pruning' ? 'pruning' : 'observe';
+                                
+                                const params = new URLSearchParams();
+                                params.set('plantId', groupPlants[0].id);
+                                params.set('activityType', activityType);
+                                params.set('groupTask', 'true'); // Indicate this is for a group
+                                navigate(`/log-care?${params.toString()}`);
+                              } else {
+                                console.error('Could not find plants for group:', task.plantId);
+                                console.log('Available plants:', plants?.map(p => ({
+                                  id: p.id,
+                                  varietyName: p.varietyName,
+                                  container: p.container,
+                                  section: p.section,
+                                  plantedDate: p.plantedDate.toISOString().split('T')[0]
+                                })));
+                                alert('Could not find plants for this group. Please try logging care for individual plants.');
+                              }
+                            }}
+                            size="sm"
+                          >
+                            Log Group Care
+                          </Button>
+                          <Button
+                            variant="outline"
+                            onClick={() => {
+                              // Find plants that match the group key
+                              const groupPlants = plants?.filter(plant => {
+                                const plantedDateStr = plant.plantedDate.toISOString().split('T')[0];
+                                const location = plant.location || 'unknown';
+                                const soilMix = plant.soilMix || 'default';
+                                const hasSection = plant.section || plant.structuredSection;
+                                
+                                let expectedGroupKey: string;
+                                if (hasSection) {
+                                  expectedGroupKey = `section_${plant.container}_${plant.varietyName}_${plant.section || 'section'}_${plantedDateStr}`;
+                                } else {
+                                  expectedGroupKey = `group_${plant.varietyName}_${plant.container}_${plantedDateStr}_${location}_${soilMix}`;
+                                }
+                                
+                                return task.plantId === expectedGroupKey;
+                              });
+                              
+                              if (groupPlants && groupPlants.length > 0) {
+                                // Navigate to the first plant's detail page
+                                navigate(`/plants/${groupPlants[0].id}`);
+                              } else {
+                                console.error('Could not find plants for group:', task.plantId);
+                                alert('Could not find plants for this group.');
+                              }
+                            }}
+                            size="sm"
+                          >
+                            View Group
+                          </Button>
+                        </>
+                      ) : (
+                        // For individual plant tasks, use existing navigation
+                        <>
+                          <Button
+                            onClick={() => {
+                              const activityType = task.type === 'observe' ? 'observe' : 
+                                                 task.type === 'water' ? 'water' : 
+                                                 task.type === 'fertilize' ? 'fertilize' : 
+                                                 task.type === 'pruning' ? 'pruning' : 'observe';
+                              
+                              const params = new URLSearchParams();
+                              params.set('plantId', task.plantId);
+                              params.set('activityType', activityType);
+                              navigate(`/log-care?${params.toString()}`);
+                            }}
+                            size="sm"
+                          >
+                            Log Care
+                          </Button>
+                          <Button
+                            variant="outline"
+                            onClick={() => navigate(`/plants/${task.plantId}`)}
+                            size="sm"
+                          >
+                            View Plant
+                          </Button>
+                        </>
+                      )}
                     </div>
                   </div>
                 </CardContent>

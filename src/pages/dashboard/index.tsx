@@ -36,7 +36,16 @@ export const Dashboard = () => {
   const [containerGroups, setContainerGroups] = useState<ContainerGroup[]>([]);
   const [plantsNeedingCatchUp, setPlantsNeedingCatchUp] = useState(0);
   const [careStatusLoading, setCareStatusLoading] = useState(true);
-  const [hiddenGroups, setHiddenGroups] = useState<Set<string>>(new Set());
+  const [hiddenGroups, setHiddenGroups] = useState<Set<string>>(() => {
+    // Load hidden groups from localStorage on initialization
+    try {
+      const saved = localStorage.getItem('hiddenPlantGroups');
+      return saved ? new Set(JSON.parse(saved)) : new Set();
+    } catch (error) {
+      console.warn('Failed to load hidden groups from localStorage:', error);
+      return new Set();
+    }
+  });
 
   const {
     getUpcomingFertilizationTasks,
@@ -91,6 +100,15 @@ export const Dashboard = () => {
 
     loadCatchUpCount();
   }, [plants, user?.uid]);
+
+  // Save hidden groups to localStorage whenever it changes
+  useEffect(() => {
+    try {
+      localStorage.setItem('hiddenPlantGroups', JSON.stringify([...hiddenGroups]));
+    } catch (error) {
+      console.warn('Failed to save hidden groups to localStorage:', error);
+    }
+  }, [hiddenGroups]);
 
   // Initialize database
   useEffect(() => {
@@ -305,27 +323,43 @@ export const Dashboard = () => {
           <Card
             className={`cursor-pointer transition-all duration-200 ${
               careStatusLoading
-                ? "border-gray-200 bg-gray-50"
+                ? "border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-gray-800"
                 : plantsNeedingCatchUp > 0
-                ? "border-orange-200 bg-orange-50 hover:bg-orange-100"
-                : "border-green-200 bg-green-50 hover:bg-green-100"
+                ? "border-orange-200 bg-orange-50 hover:bg-orange-100 dark:border-orange-800 dark:bg-orange-950/30 dark:hover:bg-orange-950/50"
+                : "border-green-200 bg-green-50 hover:bg-green-100 dark:border-green-800 dark:bg-green-950/30 dark:hover:bg-green-950/50"
             }`}
             onClick={careStatusLoading ? undefined : handleCatchUpClick}
           >
             <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-muted-foreground">
+                  <p className={`text-sm font-medium ${
+                    careStatusLoading 
+                      ? "text-gray-600 dark:text-gray-400"
+                      : plantsNeedingCatchUp > 0
+                      ? "text-orange-800 dark:text-orange-200"
+                      : "text-green-800 dark:text-green-200"
+                  }`}>
                     Plant Care Status
                   </p>
                   {careStatusLoading ? (
-                    <p className="text-2xl font-bold">⏳</p>
+                    <p className="text-2xl font-bold text-gray-700 dark:text-gray-300">⏳</p>
                   ) : (
-                    <p className="text-2xl font-bold">
+                    <p className={`text-2xl font-bold ${
+                      plantsNeedingCatchUp > 0
+                        ? "text-orange-900 dark:text-orange-100"
+                        : "text-green-900 dark:text-green-100"
+                    }`}>
                       {plantsNeedingCatchUp === 0 ? "✅" : plantsNeedingCatchUp}
                     </p>
                   )}
-                  <p className="text-xs text-muted-foreground">
+                  <p className={`text-xs ${
+                    careStatusLoading
+                      ? "text-gray-500 dark:text-gray-400"
+                      : plantsNeedingCatchUp > 0
+                      ? "text-orange-700 dark:text-orange-300"
+                      : "text-green-700 dark:text-green-300"
+                  }`}>
                     {careStatusLoading
                       ? "Checking plants..."
                       : plantsNeedingCatchUp === 0
