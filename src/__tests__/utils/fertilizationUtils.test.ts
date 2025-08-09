@@ -6,6 +6,7 @@ import {
   getMethodDisplay,
   getMethodIcon,
   requiresWater,
+  getWaterAmountForMethod,
 } from "@/utils/fertilizationUtils";
 
 describe("fertilizationUtils", () => {
@@ -100,35 +101,59 @@ describe("fertilizationUtils", () => {
   });
 
   describe("requiresWater", () => {
-    it("should return true only for soil-drench method", () => {
+    it("should return true for all known fertilizer application methods", () => {
       expect(requiresWater("soil-drench")).toBe(true);
+      expect(requiresWater("foliar-spray")).toBe(true);
+      expect(requiresWater("top-dress")).toBe(true);
+      expect(requiresWater("side-dress")).toBe(true);
     });
 
-    it("should return false for all other known methods", () => {
-      expect(requiresWater("foliar-spray")).toBe(false);
-      expect(requiresWater("top-dress")).toBe(false);
-      expect(requiresWater("side-dress")).toBe(false);
-      expect(requiresWater("mix-in-soil")).toBe(false);
-    });
-
-    it("should return false for unknown methods", () => {
-      expect(requiresWater("unknown-method")).toBe(false);
-      expect(requiresWater("")).toBe(false);
-      expect(requiresWater("custom-method")).toBe(false);
+    it("should return true for unknown methods (all fertilizers need water)", () => {
+      expect(requiresWater("unknown-method")).toBe(true);
+      expect(requiresWater("")).toBe(true);
+      expect(requiresWater("custom-method")).toBe(true);
     });
 
     it("should handle ApplicationMethod type correctly", () => {
       const soilDrenchMethod: ApplicationMethod = "soil-drench";
       const foliarMethod: ApplicationMethod = "foliar-spray";
+      const topDressMethod: ApplicationMethod = "top-dress";
+      const sideDressMethod: ApplicationMethod = "side-dress";
 
       expect(requiresWater(soilDrenchMethod)).toBe(true);
-      expect(requiresWater(foliarMethod)).toBe(false);
+      expect(requiresWater(foliarMethod)).toBe(true);
+      expect(requiresWater(topDressMethod)).toBe(true);
+      expect(requiresWater(sideDressMethod)).toBe(true);
     });
 
-    it("should be case-sensitive", () => {
-      expect(requiresWater("Soil-Drench")).toBe(false);
-      expect(requiresWater("SOIL-DRENCH")).toBe(false);
-      expect(requiresWater("soil-DRENCH")).toBe(false);
+    it("should return true regardless of case (all methods need water)", () => {
+      expect(requiresWater("Soil-Drench")).toBe(true);
+      expect(requiresWater("SOIL-DRENCH")).toBe(true);
+      expect(requiresWater("soil-DRENCH")).toBe(true);
+    });
+  });
+
+  describe("getWaterAmountForMethod", () => {
+    it("should return appropriate water amounts for different methods", () => {
+      expect(getWaterAmountForMethod("soil-drench")).toEqual({ amount: 250, unit: "ml" });
+      expect(getWaterAmountForMethod("foliar-spray")).toEqual({ amount: 100, unit: "ml" });
+      expect(getWaterAmountForMethod("top-dress")).toEqual({ amount: 200, unit: "ml" });
+      expect(getWaterAmountForMethod("side-dress")).toEqual({ amount: 200, unit: "ml" });
+    });
+
+    it("should use provided fertilizer amount when available", () => {
+      expect(getWaterAmountForMethod("soil-drench", 500)).toEqual({ amount: 500, unit: "ml" });
+      expect(getWaterAmountForMethod("foliar-spray", 50)).toEqual({ amount: 50, unit: "ml" });
+      expect(getWaterAmountForMethod("top-dress", 300)).toEqual({ amount: 300, unit: "ml" });
+    });
+
+    it("should handle unknown methods with default amount", () => {
+      expect(getWaterAmountForMethod("unknown-method")).toEqual({ amount: 150, unit: "ml" });
+      expect(getWaterAmountForMethod("")).toEqual({ amount: 150, unit: "ml" });
+    });
+
+    it("should use provided amount for unknown methods too", () => {
+      expect(getWaterAmountForMethod("unknown-method", 400)).toEqual({ amount: 400, unit: "ml" });
     });
   });
 
@@ -139,7 +164,7 @@ describe("fertilizationUtils", () => {
       expect(getMethodDescription("")).toBe(
         "Follow fertilizer package instructions"
       );
-      expect(requiresWater("")).toBe(false);
+      expect(requiresWater("")).toBe(true);
     });
 
     it("should handle all functions consistently with special characters", () => {
@@ -149,7 +174,7 @@ describe("fertilizationUtils", () => {
       expect(getMethodDescription(specialInput)).toBe(
         "Follow fertilizer package instructions"
       );
-      expect(requiresWater(specialInput)).toBe(false);
+      expect(requiresWater(specialInput)).toBe(true);
     });
 
     it("should handle all ApplicationMethod values consistently", () => {
@@ -174,7 +199,7 @@ describe("fertilizationUtils", () => {
       expect(getMethodDescription("side-dress")).toBe(
         "Apply fertilizer around the base of the plant, avoiding direct contact with stems"
       );
-      expect(requiresWater("side-dress")).toBe(false);
+      expect(requiresWater("side-dress")).toBe(true);
     });
   });
 });

@@ -46,6 +46,27 @@ export const getMethodDescription = (method: ApplicationMethod | string) => {
   }
 };
 
-export const requiresWater = (method: ApplicationMethod | string): boolean => {
-  return method === "soil-drench";
+export const requiresWater = (_method: ApplicationMethod | string): boolean => {
+  // All fertilizer application methods require water
+  // Liquid methods: soil-drench and foliar-spray use water directly
+  // Granular methods: top-dress and side-dress need to be watered in
+  return true;
+};
+
+export const getWaterAmountForMethod = (method: ApplicationMethod | string, fertilizerAmount?: number): { amount: number; unit: string } => {
+  // Default water amounts based on application method
+  switch (method) {
+    case "soil-drench":
+      // Soil drench typically uses more water to thoroughly wet soil
+      return { amount: fertilizerAmount || 250, unit: "ml" };
+    case "foliar-spray":
+      // Foliar spray uses less water as it's applied to leaves
+      return { amount: fertilizerAmount || 100, unit: "ml" };
+    case "top-dress":
+    case "side-dress":
+      // Granular fertilizers need water to activate and wash into soil
+      return { amount: fertilizerAmount || 200, unit: "ml" };
+    default:
+      return { amount: fertilizerAmount || 150, unit: "ml" };
+  }
 };

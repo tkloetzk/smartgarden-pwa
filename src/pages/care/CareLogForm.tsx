@@ -27,7 +27,8 @@ import {
   Info,
   Clock,
 } from "lucide-react";
-import { getMethodDisplay } from "@/utils/fertilizationUtils";
+import { getMethodDisplay, requiresWater, getWaterAmountForMethod } from "@/utils/fertilizationUtils";
+import { getTodayDateString } from "@/utils/dateUtils";
 import { ApplicationMethod } from "@/types";
 import { FertilizationScheduleItem } from "@/types";
 import { format, subDays } from "date-fns";
@@ -199,7 +200,7 @@ export function CareLogForm({
     defaultValues: {
       groupId: "",
       type: activityTypeFromParams,
-      date: new Date().toISOString().split("T")[0],
+      date: getTodayDateString(),
       waterValue: null,
       waterUnit: "oz",
     },
@@ -475,6 +476,40 @@ export function CareLogForm({
           date: new Date(lastSubmittedData.date),
           details: details as CareActivityDetails,
         });
+        
+        // If this is a fertilizer activity that requires water, also log a watering activity
+        if (lastSubmittedData.type === "fertilize" && selectedFertilizer?.method && requiresWater(selectedFertilizer.method)) {
+          try {
+            // Calculate appropriate water amount based on application method
+            const providedAmount = lastSubmittedData.fertilizerApplicationAmount && 
+                                  lastSubmittedData.fertilizerApplicationUnit === "ml" ? 
+                                  lastSubmittedData.fertilizerApplicationAmount : undefined;
+            
+            const { amount: waterAmount, unit: waterUnit } = getWaterAmountForMethod(
+              selectedFertilizer.method, 
+              providedAmount
+            );
+            
+            const waterDetails: CareActivityDetails = {
+              type: "water",
+              amount: {
+                value: waterAmount,
+                unit: waterUnit as any,
+              },
+              notes: `Watered in fertilizer (${getMethodDisplay(selectedFertilizer.method)})`,
+            };
+            
+            await logActivity({
+              plantId: plantId,
+              type: "water",
+              date: new Date(lastSubmittedData.date),
+              details: waterDetails,
+            });
+          } catch (waterError) {
+            console.error(`Failed to log water activity for fertilizer on plant ${plantId}:`, waterError);
+            // Don't fail the main fertilizer activity if water logging fails
+          }
+        }
 
         results.push({
           plantId,
@@ -695,6 +730,44 @@ export function CareLogForm({
               date: new Date(data.date),
               details: bulkDetails,
             });
+            
+            // If this is a fertilizer activity that requires water, also log a watering activity
+            if (data.type === "fertilize" && selectedFertilizer?.method && requiresWater(selectedFertilizer.method)) {
+              try {
+                // Calculate appropriate water amount based on application method
+                const providedAmount = data.fertilizerApplicationAmount && 
+                                      data.fertilizerApplicationUnit === "ml" ? 
+                                      data.fertilizerApplicationAmount : undefined;
+                
+                const { amount: waterAmount, unit: waterUnit } = getWaterAmountForMethod(
+                  selectedFertilizer.method, 
+                  providedAmount
+                );
+                
+                const waterDetails: CareActivityDetails = {
+                  type: "water",
+                  amount: {
+                    value: waterAmount,
+                    unit: waterUnit as any,
+                  },
+                  sectionBased: bulkDetails.sectionBased,
+                  sectionId: bulkDetails.sectionId,
+                  plantsInSection: bulkDetails.plantsInSection,
+                  notes: `Watered in fertilizer (${getMethodDisplay(selectedFertilizer.method)})`,
+                };
+                
+                await logActivity({
+                  plantId,
+                  type: "water",
+                  date: new Date(data.date),
+                  details: waterDetails,
+                });
+              } catch (waterError) {
+                console.error(`Failed to log water activity for fertilizer on plant ${plantId}:`, waterError);
+                // Don't fail the main fertilizer activity if water logging fails
+              }
+            }
+            
             successCount++;
           } catch (error) {
             console.error(`Failed to log activity for plant ${plantId}:`, error);
@@ -703,9 +776,15 @@ export function CareLogForm({
         }
         
         if (errorCount === 0) {
-          const message = applyToAllGroupPlants && otherSameVarietyPlantIds.length > 0 ? 
+          let message = applyToAllGroupPlants && otherSameVarietyPlantIds.length > 0 ? 
             `✅ Care activity logged for ${successCount} ${selectedGroup?.varietyName} plants!` :
             `✅ Care activity logged for ${successCount} plants!`;
+          
+          // Add water logging notification for fertilizer activities
+          if (data.type === "fertilize" && selectedFertilizer?.method) {
+            message += ` Watering activities also logged automatically.`;
+          }
+          
           toast.success(message, {
             duration: 4000,
             style: {
@@ -1325,8 +1404,8 @@ export function CareLogForm({
                     Water Required
                   </p>
                   <p className="text-blue-700 dark:text-blue-300 mt-1">
-                    This application method requires water. Consider combining
-                    with regular watering if due soon to prevent overwatering.
+                    This application method requires water. A watering activity will be 
+                    automatically logged along with the fertilizer application.
                   </p>
                 </div>
               </div>

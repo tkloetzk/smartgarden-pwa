@@ -17,7 +17,7 @@ import { useFirebaseCareActivities } from "@/hooks/useFirebaseCareActivities";
 import { LoadingSpinner } from "../ui/LoadingSpinner";
 import { PlantSection, CareActivityDetails, VolumeUnit } from "@/types";
 import { Logger } from "@/utils/logger";
-
+import { getTodayDateString } from "@/utils/dateUtils";
 
 const careHistorySchema = z.object({
   lastWatered: z.string().optional(),
@@ -107,7 +107,7 @@ export function PlantRegistrationForm({
       selectedBedId: "",
       quantity: 1,
       setupType: "multiple-containers",
-      plantedDate: new Date().toLocaleDateString('en-CA'),
+      plantedDate: getTodayDateString(),
       notes: "",
       sectionMode: "simple",
       enableCareHistory: false,
@@ -694,7 +694,7 @@ export function PlantRegistrationForm({
             {/* Care History Section - Only show if planting date is not today */}
             {(() => {
               const plantedDate = watch("plantedDate");
-              const today = new Date().toISOString().split("T")[0];
+              const today = getTodayDateString();
               const isBackdating = plantedDate && plantedDate !== today;
               
               if (!isBackdating) return null;

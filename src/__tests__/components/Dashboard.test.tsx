@@ -558,8 +558,8 @@ describe("Dashboard", () => {
           expect(screen.getByText(/Cherry Tomato/i)).toBeInTheDocument();
           
           // Should hide other plants (if filtering is implemented)
-          const basilElements = screen.queryAllByText(/Basil/i);
-          const pepperElements = screen.queryAllByText(/Bell Pepper/i);
+          screen.queryAllByText(/Basil/i);
+          screen.queryAllByText(/Bell Pepper/i);
           
           // If filtering works, these should be reduced or hidden
           // If no filtering, at least verify search input works
@@ -740,7 +740,7 @@ describe("Dashboard", () => {
       // Verify UI state after bulk action
       await waitFor(() => {
         // Should show success indication or updated task counts
-        const successElements = [
+        [
           ...screen.queryAllByText(/success/i),
           ...screen.queryAllByText(/logged/i),
           ...screen.queryAllByText(/complete/i),

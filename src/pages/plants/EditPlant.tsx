@@ -16,6 +16,7 @@ import { useFirebasePlants } from "@/hooks/useFirebasePlants";
 import { LoadingSpinner } from "@/components/ui/LoadingSpinner";
 import { PlantSection, PlantRecord } from "@/types";
 import { ArrowLeft } from "lucide-react";
+import { dateToLocalDateString } from "@/utils/dateUtils";
 
 const plantEditSchema = z.object({
   varietyId: z.string().min(1, "Please select a variety"),
@@ -93,7 +94,7 @@ export default function EditPlant() {
           // Pre-fill form with existing plant data
           setValue("varietyId", foundPlant.varietyId);
           setValue("name", foundPlant.name || "");
-          setValue("plantedDate", foundPlant.plantedDate.toISOString().split("T")[0]);
+          setValue("plantedDate", dateToLocalDateString(foundPlant.plantedDate));
           setValue("location", foundPlant.location === "Outdoor");
           setValue("selectedBedId", foundPlant.structuredSection?.bedId || "");
           setValue("section", foundPlant.section || "");
