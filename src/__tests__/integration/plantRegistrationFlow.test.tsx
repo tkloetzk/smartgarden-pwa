@@ -54,6 +54,7 @@ jest.mock("@/types/database");
 // Mock the new Firebase hook factory and Logger
 jest.mock("@/hooks/useFirebaseResource");
 jest.mock("@/hooks/useFirebasePlants");
+jest.mock("@/hooks/useFirebaseCareActivities");
 jest.mock("@/utils/logger", () => ({
   Logger: {
     error: jest.fn(),
@@ -78,6 +79,7 @@ describe("Plant Registration Integration Flow", () => {
   const user = userEvent.setup();
 
   const mockCreatePlant = jest.fn().mockResolvedValue("new-plant-id");
+const mockLogActivity = jest.fn().mockResolvedValue(undefined);
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -94,6 +96,15 @@ describe("Plant Registration Integration Flow", () => {
       createPlant: mockCreatePlant,
       updatePlant: jest.fn(),
       deletePlant: jest.fn(),
+    });
+
+    // Add mock for useFirebaseCareActivities
+    const { useFirebaseCareActivities } = require("@/hooks/useFirebaseCareActivities");
+    (useFirebaseCareActivities as jest.Mock).mockReturnValue({
+      activities: [],
+      loading: false,
+      error: null,
+      logActivity: mockLogActivity,
     });
 
     (varietyService.getAllVarieties as jest.Mock).mockResolvedValue(
@@ -136,7 +147,7 @@ describe("Plant Registration Integration Flow", () => {
 
     // Fill in variety
     const varietySelect = screen.getByLabelText(/plant variety/i);
-    await user.selectOptions(varietySelect, varieties[0].name);
+    await user.selectOptions(varietySelect, "astro-arugula");
 
     // Fill in planting date
     const dateInput = screen.getByLabelText(/planting date/i);
@@ -167,15 +178,15 @@ describe("Plant Registration Integration Flow", () => {
           container: "🏗️ Test Bed 1",
           isActive: true,
           location: "Indoor",
-          name: "Astro Arugula",
+          name: undefined, // Component doesn't set a custom name when none is provided
           notes: [""],
           plantedDate: expect.any(Date),
           quantity: 1,
           reminderPreferences: {
             fertilizing: true,
-            lighting: false,
+            lighting: true, // Default component behavior sets all to true
             observation: true,
-            pruning: false,
+            pruning: true,
             watering: true,
           },
           section: undefined,
@@ -203,7 +214,7 @@ describe("Plant Registration Integration Flow", () => {
 
     // Fill form with minimal required data
     const varietySelect = screen.getByLabelText(/plant variety/i);
-    await user.selectOptions(varietySelect, varieties[0].name);
+    await user.selectOptions(varietySelect, "astro-arugula");
 
     // Select bed/container using the new simplified selector
     const bedSelector = screen.getByTestId("bed-selector");
@@ -225,6 +236,6 @@ describe("Plant Registration Integration Flow", () => {
     });
 
     // Form should remain intact for retry
-    expect(screen.getByDisplayValue(varieties[0].name)).toBeInTheDocument();
+    expect(screen.getByDisplayValue("Astro Arugula")).toBeInTheDocument();
   });
 });

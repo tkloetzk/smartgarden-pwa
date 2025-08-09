@@ -4,18 +4,42 @@ import BulkActivityModal from "@/components/plant/BulkActivityModal";
 import { useFirebaseCareActivities } from "@/hooks/useFirebaseCareActivities";
 import { useFirebasePlants } from "@/hooks/useFirebasePlants";
 import toast from "react-hot-toast";
-// Mock the hooks and toast
+// Mock the hooks, toast, and services
 jest.mock("@/hooks/useFirebaseCareActivities");
 jest.mock("@/hooks/useFirebasePlants");
 jest.mock("react-hot-toast");
+jest.mock("@/services/partialWateringService");
+jest.mock("@/types/database");
 
 const mockLogActivity = jest.fn();
+const mockAnalyzeWateringAmount = jest.fn();
+const mockGetVariety = jest.fn();
 
 describe("BulkActivityModal", () => {
   const user = userEvent.setup();
 
   beforeEach(() => {
     jest.clearAllMocks();
+    
+    // Mock PartialWateringService
+    const { PartialWateringService } = require("@/services/partialWateringService");
+    PartialWateringService.prototype.analyzeWateringAmount = mockAnalyzeWateringAmount.mockResolvedValue({
+      analysis: "adequate",
+      suggestions: [],
+      details: {
+        plantSize: "medium",
+        soilType: "standard",
+        season: "growing"
+      }
+    });
+    
+    // Mock database getVariety
+    const { varietyService } = require("@/types/database");
+    varietyService.getVariety = mockGetVariety.mockResolvedValue({
+      id: "cherry-tomato",
+      name: "Cherry Tomato",
+      category: "tomatoes"
+    });
     (useFirebaseCareActivities as jest.Mock).mockReturnValue({
       logActivity: mockLogActivity,
     });
@@ -146,7 +170,7 @@ describe("BulkActivityModal", () => {
     it("handles empty amount input gracefully", async () => {
       render(<BulkActivityModal {...defaultProps} activityType="water" />);
 
-      const amountInput = screen.getByLabelText(/Amount \(oz\)/i);
+      const amountInput = screen.getByLabelText(/Water Amount/i);
       await user.clear(amountInput);
 
       const submitButton = screen.getByRole("button", {
@@ -169,7 +193,7 @@ describe("BulkActivityModal", () => {
     it("handles negative amount values", async () => {
       render(<BulkActivityModal {...defaultProps} activityType="water" />);
 
-      const amountInput = screen.getByLabelText(/Amount \(oz\)/i);
+      const amountInput = screen.getByLabelText(/Water Amount/i);
       await user.clear(amountInput);
       await user.type(amountInput, "-5");
 
@@ -201,11 +225,11 @@ describe("BulkActivityModal", () => {
     );
 
     // Fill form
-    const amountInput = screen.getByLabelText(/Amount \(oz\)/i);
+    const amountInput = screen.getByLabelText(/Water Amount/i);
     await user.clear(amountInput);
     await user.type(amountInput, "30");
 
-    const notesInput = screen.getByLabelText(/Notes/i);
+    const notesInput = screen.getByLabelText(/Notes \(optional\)/i);
     await user.type(notesInput, "Morning watering");
 
     // Submit
