@@ -1,5 +1,5 @@
 // src/pages/dashboard/index.tsx - Cleaned up version
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/Button";
 import { Card, CardContent } from "@/components/ui/Card";
 import { OfflineIndicator } from "@/components/ui/OfflineIndicator";
@@ -46,6 +46,7 @@ export const Dashboard = () => {
       return new Set();
     }
   });
+  const [activityLoggedTrigger, setActivityLoggedTrigger] = useState(0);
 
   const {
     getUpcomingFertilizationTasks,
@@ -99,7 +100,7 @@ export const Dashboard = () => {
     };
 
     loadCatchUpCount();
-  }, [plants, user?.uid]);
+  }, [plants, user?.uid, activityLoggedTrigger]);
 
   // Save hidden groups to localStorage whenever it changes
   useEffect(() => {
@@ -268,6 +269,11 @@ export const Dashboard = () => {
     setSelectedPlantIds([]);
     setSelectedGroup(null);
   };
+
+  const handleActivityLogged = useCallback(() => {
+    // Trigger refresh for all components that need to update after activity logging
+    setActivityLoggedTrigger(prev => prev + 1);
+  }, []);
 
   useEffect(() => {
     if (!loading && plants) {
@@ -500,6 +506,7 @@ export const Dashboard = () => {
                       group={group}
                       onBulkLogActivity={handleBulkLogActivity}
                       onRemoveFromView={handleRemoveFromView}
+                      refreshTrigger={activityLoggedTrigger}
                     />
                   ))}
                 </div>
@@ -524,6 +531,7 @@ export const Dashboard = () => {
         plantCount={selectedPlantIds.length}
         varietyName={selectedGroup?.varietyName || ""}
         containerMates={selectedContainerMates}
+        onActivityLogged={handleActivityLogged}
       />
     </>
   );

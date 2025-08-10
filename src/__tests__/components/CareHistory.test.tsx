@@ -139,4 +139,90 @@ describe("CareHistory", () => {
     expect(screen.queryByRole("button", { name: /fertilizing/i })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /observations/i })).not.toBeInTheDocument();
   });
+
+  // REGRESSION TEST: This would have caught the grouping issue
+  it("displays all individual plant activities without grouping", () => {
+    renderComponent(
+      <CareHistory careHistory={mockCareHistory} plantId="plant-1" />,
+      { withRouter: false }
+    );
+
+    // Should display all 3 activities as individual items (looking for specific activity titles)
+    expect(screen.getByText(/Watering \(100 ml\)/i)).toBeInTheDocument();
+    expect(screen.getByText(/Watering \(150 ml\)/i)).toBeInTheDocument(); 
+    expect(screen.getByText(/Fertilized with Test Fertilizer/i)).toBeInTheDocument();
+    
+    // Should NOT show any grouped activity indicators
+    expect(screen.queryByText(/Bulk Activity/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/plants\)/i)).not.toBeInTheDocument(); // Like "Watered 6 plants"
+    
+    // All activities should be visible (not hidden by broken grouping)
+    expect(screen.getByText(/Watering \(100 ml\)/i)).toBeInTheDocument();
+    expect(screen.getByText(/Watering \(150 ml\)/i)).toBeInTheDocument();
+    expect(screen.getByText(/Fertilized with Test Fertilizer/i)).toBeInTheDocument();
+  });
+
+  it("maintains activity order and count after any processing", () => {
+    renderComponent(
+      <CareHistory careHistory={mockCareHistory} plantId="plant-1" />,
+      { withRouter: false }
+    );
+
+    // Verify that all 3 activities are present
+    expect(screen.getByText("(3 activities)")).toBeInTheDocument();
+    
+    // Verify activities are displayed as clickable items
+    expect(screen.getByText(/Watering \(100 ml\)/i)).toBeInTheDocument();
+    expect(screen.getByText(/Watering \(150 ml\)/i)).toBeInTheDocument(); 
+    expect(screen.getByText(/Fertilized with Test Fertilizer/i)).toBeInTheDocument();
+  });
+
+  it("shows individual activity details when expanded", async () => {
+    const user = userEvent.setup();
+    
+    renderComponent(
+      <CareHistory careHistory={mockCareHistory} plantId="plant-1" />,
+      { withRouter: false }
+    );
+
+    // Find and click the first activity to expand it (clicking on the container div)
+    const firstActivityTitle = screen.getByText(/Watering \(150 ml\)/i); // Most recent first
+    const activityContainer = firstActivityTitle.closest('div[class*="cursor-pointer"]');
+    expect(activityContainer).toBeInTheDocument();
+    
+    await user.click(activityContainer!);
+    
+    // Should show expanded details (this would fail if activities weren't rendering)
+    expect(screen.getByText(/Amount:/i)).toBeInTheDocument();
+  });
+
+  it("filters work correctly and show expected number of results", async () => {
+    const user = userEvent.setup();
+    
+    renderComponent(
+      <CareHistory careHistory={mockCareHistory} plantId="plant-1" />,
+      { withRouter: false }
+    );
+
+    // Filter by watering - should show 2 activities
+    await user.click(screen.getByRole("button", { name: /watering/i }));
+    
+    // Should still show 2 watering activities (not 0 due to broken grouping)
+    const wateringActivities = screen.getAllByText(/Watering \(/);
+    expect(wateringActivities).toHaveLength(2);
+    
+    // Filter by fertilizing - should show 1 activity
+    await user.click(screen.getByRole("button", { name: /fertilizing/i }));
+    
+    const fertilizeActivities = screen.getAllByText(/Fertilized/);
+    expect(fertilizeActivities).toHaveLength(1);
+    
+    // Back to all - should show all 3
+    await user.click(screen.getByRole("button", { name: /all activities/i }));
+    
+    // Verify all activities are back
+    expect(screen.getByText(/Watering \(100 ml\)/i)).toBeInTheDocument();
+    expect(screen.getByText(/Watering \(150 ml\)/i)).toBeInTheDocument(); 
+    expect(screen.getByText(/Fertilized with Test Fertilizer/i)).toBeInTheDocument();
+  });
 });

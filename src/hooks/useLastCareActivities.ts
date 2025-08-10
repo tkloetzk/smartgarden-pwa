@@ -1,5 +1,5 @@
 // src/hooks/useLastCareActivities.ts
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useFirebaseAuth } from "./useFirebaseAuth";
 import { FirebaseCareActivityService } from "@/services/firebase/careActivityService";
 import { CareRecord } from "@/types";
@@ -15,6 +15,7 @@ export function useLastCareActivities(plantId: string) {
     fertilizing: null,
   });
   const [loading, setLoading] = useState(true);
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
   const { user } = useFirebaseAuth();
 
   useEffect(() => {
@@ -48,7 +49,11 @@ export function useLastCareActivities(plantId: string) {
     };
 
     fetchLastActivities();
-  }, [plantId, user?.uid]);
+  }, [plantId, user?.uid, refreshTrigger]);
 
-  return { activities, loading };
+  const refetch = useCallback(() => {
+    setRefreshTrigger(prev => prev + 1);
+  }, []);
+
+  return { activities, loading, refetch };
 }

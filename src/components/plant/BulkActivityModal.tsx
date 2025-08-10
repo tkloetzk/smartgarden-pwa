@@ -10,6 +10,7 @@ import { seedVarieties } from "@/data/seedVarieties";
 import { CareActivityDetails } from "@/types";
 import { CareActivityType, ApplicationMethod, VolumeUnit } from "@/types";
 import { PartialWateringService } from "@/services/partialWateringService";
+import { requiresWater, getWaterAmountForMethod, getMethodDisplay } from "@/utils/fertilizationUtils";
 
 interface BulkActivityModalProps {
   isOpen: boolean;
@@ -25,6 +26,7 @@ interface BulkActivityModalProps {
     location: string;
     plantCount: number;
   }>;
+  onActivityLogged?: () => void;
 }
 
 interface FertilizerOption {
@@ -59,6 +61,7 @@ const BulkActivityModal = ({
   plantCount,
   varietyName,
   containerMates = [],
+  onActivityLogged,
 }: BulkActivityModalProps) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [amount, setAmount] = useState("20");
@@ -238,13 +241,22 @@ const BulkActivityModal = ({
 
       const promises = allPlantIds.map(async (plantId) => {
         // Create a proper Date object for the selected date
-        const activityDate = new Date(selectedDate);
         const now = new Date();
-        activityDate.setHours(
-          now.getHours(),
-          now.getMinutes(),
-          now.getSeconds()
-        );
+        const todayString = now.toISOString().split("T")[0];
+        
+        // If the selected date is today, use current date/time to avoid timezone issues
+        let activityDate: Date;
+        if (selectedDate === todayString) {
+          activityDate = now;
+        } else {
+          // For other dates, create a local date and set current time
+          activityDate = new Date(selectedDate + "T00:00:00");
+          activityDate.setHours(
+            now.getHours(),
+            now.getMinutes(),
+            now.getSeconds()
+          );
+        }
 
         // Build the details object with required type field
         const details: CareActivityDetails = {
@@ -315,6 +327,62 @@ const BulkActivityModal = ({
 
       await Promise.all(promises);
 
+      // Handle automatic water logging for fertilizer activities
+      if (activityType === "fertilize" && applicationMethod) {
+        if (requiresWater(applicationMethod)) {
+          // Calculate water amount based on fertilizer method and amount
+          const providedAmount = amount && waterUnit === "ml" ? parseFloat(amount) : undefined;
+          const { amount: waterAmount, unit: waterUnitType } = getWaterAmountForMethod(
+            applicationMethod, 
+            providedAmount
+          );
+
+          // Create water logging promises for all plants
+          const waterPromises = allPlantIds.map(plantId => {
+            // Create a proper Date object for the selected date (same as main activity)
+            const now = new Date();
+            const todayString = now.toISOString().split("T")[0];
+            
+            // If the selected date is today, use current date/time to avoid timezone issues
+            let waterActivityDate: Date;
+            if (selectedDate === todayString) {
+              waterActivityDate = now;
+            } else {
+              // For other dates, create a local date and set current time
+              waterActivityDate = new Date(selectedDate + "T00:00:00");
+              waterActivityDate.setHours(
+                now.getHours(),
+                now.getMinutes(),
+                now.getSeconds()
+              );
+            }
+
+            const waterDetails: CareActivityDetails = {
+              type: "water",
+              waterAmount: waterAmount,
+              waterUnit: waterUnitType as VolumeUnit,
+              notes: `Watered in fertilizer (${getMethodDisplay(applicationMethod)})`,
+            };
+
+            const waterActivityRecord = {
+              plantId,
+              type: "water" as CareActivityType,
+              date: waterActivityDate,
+              details: waterDetails,
+            };
+
+            return logActivity(waterActivityRecord);
+          });
+
+          try {
+            await Promise.all(waterPromises);
+          } catch (waterError) {
+            console.error("Failed to log automatic water activities:", waterError);
+            // Don't fail the main operation if water logging fails
+          }
+        }
+      }
+
       // Handle plant deactivation for thinning
       if (activityType === "thin" && finalCount) {
         const finalCountNum = parseInt(finalCount);
@@ -344,15 +412,25 @@ const BulkActivityModal = ({
         const totalPlantsAffected = allPlantIds.length;
         const containerMateCount = selectedContainerMates.length;
         
+        // Create base success message
+        let baseMessage = "";
         if (containerMateCount > 0) {
-          toast.success(
-            `Activity logged for ${varietyName} and ${containerMateCount} other section${containerMateCount > 1 ? 's' : ''} in container! (${totalPlantsAffected} plants total) 🌱`
-          );
+          baseMessage = `Activity logged for ${varietyName} and ${containerMateCount} other section${containerMateCount > 1 ? 's' : ''} in container! (${totalPlantsAffected} plants total) 🌱`;
         } else {
-          toast.success(
-            `Activity logged for all ${plantCount} ${varietyName} plants! 🌱`
-          );
+          baseMessage = `Activity logged for all ${plantCount} ${varietyName} plants! 🌱`;
         }
+        
+        // Add water logging notification for fertilizer activities
+        if (activityType === "fertilize" && applicationMethod) {
+          baseMessage += " Watering activities also logged automatically.";
+        }
+        
+        toast.success(baseMessage);
+      }
+      
+      // Call refresh callback to update dashboard
+      if (onActivityLogged) {
+        onActivityLogged();
       }
       
       onClose();

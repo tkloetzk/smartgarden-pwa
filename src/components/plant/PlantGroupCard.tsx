@@ -1,6 +1,6 @@
 // src/components/plant/PlantGroupCard.tsx
 
-import React, { useState, useCallback, useMemo, memo } from "react";
+import React, { useState, useCallback, useMemo, memo, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { PlantGroup } from "@/utils/plantGrouping";
 import { Button } from "@/components/ui/Button";
@@ -19,9 +19,10 @@ interface PlantGroupCardProps {
     group: PlantGroup
   ) => void;
   onRemoveFromView?: (group: PlantGroup) => void;
+  refreshTrigger?: number;
 }
 
-const PlantGroupCard = memo(({ group, onBulkLogActivity, onRemoveFromView }: PlantGroupCardProps) => {
+const PlantGroupCard = memo(({ group, onBulkLogActivity, onRemoveFromView, refreshTrigger }: PlantGroupCardProps) => {
   const navigate = useNavigate();
   const [showQuickActions, setShowQuickActions] = useState(false);
 
@@ -32,7 +33,7 @@ const PlantGroupCard = memo(({ group, onBulkLogActivity, onRemoveFromView }: Pla
   const plantAge = useMemo(() => differenceInDays(new Date(), representativePlant.plantedDate), [representativePlant.plantedDate]);
   
   const calculatedStage = useDynamicStage(representativePlant);
-  const { activities: lastCareActivities, loading: careActivitiesLoading } = useLastCareActivities(representativePlant.id);
+  const { activities: lastCareActivities, loading: careActivitiesLoading, refetch: refetchCareActivities } = useLastCareActivities(representativePlant.id);
 
   const handlePlantClick = useCallback(() => {
     navigate(`/plants/${representativePlant.id}`);
@@ -61,6 +62,12 @@ const PlantGroupCard = memo(({ group, onBulkLogActivity, onRemoveFromView }: Pla
     }
   }, [onRemoveFromView, group]);
 
+  // Trigger refresh when refreshTrigger changes (indicates new activity was logged)
+  useEffect(() => {
+    if (refreshTrigger && refreshTrigger > 0) {
+      refetchCareActivities();
+    }
+  }, [refreshTrigger, refetchCareActivities]);
 
   return (
     <Card className="hover:shadow-lg transition-shadow">

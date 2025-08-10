@@ -14,6 +14,7 @@ import Layout from "./components/Layout";
 import CatchUpPage from "./pages/catch-up";
 import { ServiceRegistry } from "./services/serviceRegistry";
 import { DataInspection } from "./pages/admin/DataInspection";
+import { CareActivityGroupingTest } from "./pages/admin/CareActivityGroupingTest";
 
 const App = () => {
   const { user, loading } = useFirebaseAuth();
@@ -50,6 +51,7 @@ const App = () => {
         <Route path="/log-care/:plantId" element={<LogCare />} />
         <Route path="/catch-up" element={<CatchUpPage />} />
         <Route path="/admin/data-inspection" element={<DataInspection />} />
+        <Route path="/admin/grouping-test" element={<CareActivityGroupingTest />} />
       </Routes>
     </Layout>
   );
