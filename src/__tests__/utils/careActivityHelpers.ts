@@ -23,6 +23,8 @@ export const getTaskTypeIcon = (taskType: CareActivityType): string => {
       return "✂️";
     case "thin":
       return "🌿";
+    case "moisture":
+      return "🌡️";
     default:
       return "📋";
   }
@@ -50,6 +52,8 @@ export const getTaskTypeColor = (taskType: CareActivityType): string => {
       return "bg-red-50 border-red-200 text-red-700";
     case "thin":
       return "bg-emerald-50 border-emerald-200 text-emerald-700";
+    case "moisture":
+      return "bg-cyan-50 border-cyan-200 text-cyan-700";
     default:
       return "bg-gray-50 border-gray-200 text-gray-700";
   }
@@ -77,6 +81,8 @@ export const getTaskTypeLabel = (taskType: CareActivityType): string => {
       return "Pruning/Trimming";
     case "thin":
       return "Thinning";
+    case "moisture":
+      return "Moisture Check";
     default:
       return "Care Activity";
   }

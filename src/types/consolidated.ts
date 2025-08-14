@@ -62,7 +62,8 @@ export type CareActivityType =
   | "note"
   | "lighting"
   | "pruning"
-  | "thin";
+  | "thin"
+  | "moisture";
 
 // Application Methods - Consolidated from core.ts and scheduling.ts
 export type ApplicationMethod =
@@ -127,7 +128,7 @@ export interface Weight {
 
 export interface MoistureReading {
   before: number;
-  after: number;
+  after?: number;
   scale: "1-10" | "visual";
 }
 
@@ -436,7 +437,7 @@ export interface CareActivityDetails {
   waterUnit?: VolumeUnit;
   moistureLevel?: {
     before: number;
-    after: number;
+    after?: number;
     scale: "1-10" | "visual";
   };
   method?: WateringMethod;

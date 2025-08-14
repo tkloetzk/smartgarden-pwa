@@ -9,17 +9,26 @@ export default defineConfig({
     registerType: "autoUpdate",
     workbox: {
       globPatterns: ["**/*.{js,css,html,ico,png,svg,jpg,jpeg}"],
-      runtimeCaching: [{
-        urlPattern: /^https:\/\/.*\.(png|jpg|jpeg|svg|gif)$/,
-        handler: "CacheFirst",
-        options: {
-          cacheName: "images",
-          expiration: {
-            maxEntries: 100,
-            maxAgeSeconds: 60 * 60 * 24 * 30 // 30 days
+      // Skip caching Firebase URLs to ensure real-time updates work
+      navigateFallbackDenylist: [/^\/api\//, /firestore\.googleapis\.com/],
+      runtimeCaching: [
+        {
+          urlPattern: /^https:\/\/.*\.(png|jpg|jpeg|svg|gif)$/,
+          handler: "CacheFirst",
+          options: {
+            cacheName: "images",
+            expiration: {
+              maxEntries: 100,
+              maxAgeSeconds: 60 * 60 * 24 * 30 // 30 days
+            }
           }
+        },
+        {
+          // Explicitly exclude Firebase Firestore from caching
+          urlPattern: /^https:\/\/firestore\.googleapis\.com\//,
+          handler: "NetworkOnly"
         }
-      }]
+      ]
     }
   })],
   resolve: {

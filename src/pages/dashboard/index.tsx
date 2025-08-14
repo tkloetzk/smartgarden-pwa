@@ -72,7 +72,7 @@ export const Dashboard = () => {
       setCareStatusLoading(true);
       try {
         // TODO: Add retroactive analysis back later
-        console.log("🔧 Skipping retroactive analysis for now...");
+        // Skip retroactive analysis for now
 
         // Get upcoming tasks using the Firebase care scheduling service
         const getLastActivityByType = async (plantId: string, type: any) => {
@@ -274,6 +274,19 @@ export const Dashboard = () => {
     // Trigger refresh for all components that need to update after activity logging
     setActivityLoggedTrigger(prev => prev + 1);
   }, []);
+
+  // Listen for care activity logged events from other parts of the app
+  useEffect(() => {
+    const handleCareActivityLogged = () => {
+      handleActivityLogged();
+    };
+
+    window.addEventListener('care-activity-logged', handleCareActivityLogged as EventListener);
+    
+    return () => {
+      window.removeEventListener('care-activity-logged', handleCareActivityLogged as EventListener);
+    };
+  }, [handleActivityLogged]);
 
   useEffect(() => {
     if (!loading && plants) {

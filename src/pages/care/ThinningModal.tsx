@@ -64,10 +64,11 @@ const ThinningModal = ({
             <Input
               id="final-count"
               type="number"
+              min="1"
+              step="1"
               value={finalCount}
               onChange={(e) => setFinalCount(parseInt(e.target.value))}
               max={plant.currentPlantCount || plant.originalPlantCount || 1}
-              min={1}
             />
           </div>
 

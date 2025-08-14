@@ -245,9 +245,9 @@ describe("careActivityGrouping", () => {
     it("returns true for grouped activities", () => {
       const groupedActivity = {
         id: "group-1",
-        type: "water",
+        type: "water" as const,
         date: new Date(),
-        details: { type: "water" },
+        details: { type: "water" as const },
         plantIds: ["plant-1", "plant-2"],
         plantCount: 2,
         isGrouped: true,

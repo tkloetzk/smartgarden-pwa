@@ -9,12 +9,10 @@ import { initializeDatabase } from "@/db/seedData";
 jest.mock("@/pages/care/CareLogForm", () => ({
   CareLogForm: ({ 
     preselectedPlantId, 
-    preselectedActivityType, 
-    isGroupTask 
+    preselectedActivityType
   }: { 
     preselectedPlantId?: string;
     preselectedActivityType?: string;
-    isGroupTask?: boolean;
   }) => (
     <div data-testid="care-log-form">
       {preselectedPlantId && (
@@ -22,9 +20,6 @@ jest.mock("@/pages/care/CareLogForm", () => ({
       )}
       {preselectedActivityType && (
         <div data-testid="pre-selected-activity-type">{preselectedActivityType}</div>
-      )}
-      {isGroupTask && (
-        <div data-testid="is-group-task">true</div>
       )}
     </div>
   ),
@@ -86,7 +81,6 @@ describe("LogCare", () => {
     );
 
     expect(screen.getByText("Record care activities for grouped plants")).toBeInTheDocument();
-    expect(screen.getByTestId("is-group-task")).toHaveTextContent("true");
   });
 
   it("displays regular message when groupTask=false or absent", () => {
@@ -97,7 +91,6 @@ describe("LogCare", () => {
     );
 
     expect(screen.getByText("Record care activities for your plants")).toBeInTheDocument();
-    expect(screen.queryByTestId("is-group-task")).not.toBeInTheDocument();
   });
 
   it("handles all URL parameters together", () => {
@@ -114,7 +107,6 @@ describe("LogCare", () => {
 
     expect(screen.getByTestId("pre-selected-plant-id")).toHaveTextContent(testPlantId);
     expect(screen.getByTestId("pre-selected-activity-type")).toHaveTextContent(activityType);
-    expect(screen.getByTestId("is-group-task")).toHaveTextContent("true");
     expect(screen.getByText("Record care activities for grouped plants")).toBeInTheDocument();
   });
 });

@@ -134,13 +134,10 @@ const BulkActivityModal = ({
         return;
       }
 
-      console.log("🌱 Plant variety name:", plant.varietyName);
-
       // ✅ SIMPLE: Find variety directly from seedVarieties by name
       const variety = seedVarieties.find((v) => v.name === plant.varietyName);
 
       if (!variety?.protocols?.fertilization) {
-        console.log("No fertilization protocols found for:", plant.varietyName);
         setAvailableFertilizers([]);
         return;
       }
@@ -433,6 +430,18 @@ const BulkActivityModal = ({
         onActivityLogged();
       }
       
+      // Small delay to ensure Firebase propagation, then trigger global event
+      setTimeout(() => {
+        window.dispatchEvent(new CustomEvent('care-activity-logged', {
+          detail: { 
+            plantIds, 
+            activityType, 
+            timestamp: Date.now(),
+            source: 'bulk-modal'
+          }
+        }));
+      }, 500); // 500ms delay to allow Firebase to propagate
+      
       onClose();
     } catch (error) {
       console.error("Failed to log bulk activity:", error);
@@ -472,6 +481,8 @@ const BulkActivityModal = ({
                   <Input
                     id="bulk-amount"
                     type="number"
+                    min="1"
+                    step="1"
                     value={amount}
                     onChange={(e) => setAmount(e.target.value)}
                     placeholder="20"
@@ -766,6 +777,8 @@ const BulkActivityModal = ({
                 <Input
                   id="final-count"
                   type="number"
+                  min="1"
+                  step="1"
                   value={finalCount}
                   onChange={(e) => setFinalCount(e.target.value)}
                   placeholder={`e.g., ${Math.floor(plantCount / 2)} (remove overcrowded plants)`}

@@ -65,9 +65,12 @@ const PlantGroupCard = memo(({ group, onBulkLogActivity, onRemoveFromView, refre
   // Trigger refresh when refreshTrigger changes (indicates new activity was logged)
   useEffect(() => {
     if (refreshTrigger && refreshTrigger > 0) {
-      refetchCareActivities();
+      // Small delay to ensure Firebase propagation before refetching
+      setTimeout(() => {
+        refetchCareActivities();
+      }, 100);
     }
-  }, [refreshTrigger, refetchCareActivities]);
+  }, [refreshTrigger, refetchCareActivities, representativePlant.id]);
 
   return (
     <Card className="hover:shadow-lg transition-shadow">

@@ -22,6 +22,8 @@ const CareActivityItem: React.FC<CareActivityItemProps> = ({ activity }) => {
         return "🌾";
       case "transplant":
         return "🏺";
+      case "moisture":
+        return "🌡️";
       default:
         return "📋";
     }
@@ -73,6 +75,10 @@ const CareActivityItem: React.FC<CareActivityItemProps> = ({ activity }) => {
       }
       case "transplant": {
         return `Transplanted to ${details.toContainer || "new container"}`;
+      }
+      case "moisture": {
+        const moistureLevel = details.moistureLevel?.before || "unknown";
+        return `Moisture Check (${moistureLevel}/10)`;
       }
       default:
         return "Care Activity";
@@ -143,8 +149,10 @@ const CareActivityItem: React.FC<CareActivityItemProps> = ({ activity }) => {
                   Moisture Reading:
                 </span>
                 <div className="text-sm">
-                  Before: {details.moistureLevel.before}/10 → After:{" "}
-                  {details.moistureLevel.after}/10
+                  Before: {details.moistureLevel.before}/10
+                  {details.moistureLevel.after && (
+                    <> → After: {details.moistureLevel.after}/10</>
+                  )}
                 </div>
               </div>
             )}
@@ -288,6 +296,24 @@ const CareActivityItem: React.FC<CareActivityItemProps> = ({ activity }) => {
             <div>
               <span className="font-medium text-muted-foreground">Reason:</span>
               <div className="text-sm">{details.reason || "Not specified"}</div>
+            </div>
+          </div>
+        );
+      }
+
+      case "moisture": {
+        return (
+          <div className="space-y-2">
+            <div>
+              <span className="font-medium text-muted-foreground">
+                Moisture Level:
+              </span>
+              <div className="text-sm">
+                {details.moistureLevel?.before || "Not specified"}/10
+              </div>
+            </div>
+            <div className="text-xs text-muted-foreground">
+              Scale: 1 = Completely dry, 5 = Optimal, 10 = Waterlogged
             </div>
           </div>
         );

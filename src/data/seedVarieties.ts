@@ -88,7 +88,11 @@ export const seedVarieties: SeedVariety[] = [
           schedule: [
             {
               taskName: "Light Fish Emulsion",
-              details: { product: "Fish Emulsion", dilution: "1-2 Tbsp/gal" }, // [cite: 168]
+              details: { 
+                product: "Fish Emulsion", 
+                dilution: "1-2 Tbsp/gal",
+                method: "soil-drench"
+              }, // [cite: 168]
               startDays: 14, // After true leaves appear [cite: 168]
               frequencyDays: 14,
               repeatCount: 1,
@@ -99,7 +103,11 @@ export const seedVarieties: SeedVariety[] = [
           schedule: [
             {
               taskName: "Regular Fish Emulsion",
-              details: { product: "Fish Emulsion", dilution: "1-2 Tbsp/gal" }, // [cite: 168]
+              details: { 
+                product: "Fish Emulsion", 
+                dilution: "1-2 Tbsp/gal",
+                method: "soil-drench"
+              }, // [cite: 168]
               startDays: 28,
               frequencyDays: 14,
               repeatCount: 2,
@@ -143,7 +151,11 @@ export const seedVarieties: SeedVariety[] = [
           schedule: [
             {
               taskName: "Light Fish Emulsion",
-              details: { product: "Fish emulsion", dilution: "2 Tbsp/gal" }, // [cite: 169]
+              details: { 
+                product: "Fish emulsion", 
+                dilution: "2 Tbsp/gal",
+                method: "soil-drench"
+              }, // [cite: 169]
               startDays: 14,
               frequencyDays: 14,
               repeatCount: 1,
@@ -154,7 +166,11 @@ export const seedVarieties: SeedVariety[] = [
           schedule: [
             {
               taskName: "Regular Fish Emulsion",
-              details: { product: "Fish emulsion", dilution: "2 Tbsp/gal" }, // [cite: 169]
+              details: { 
+                product: "Fish emulsion", 
+                dilution: "2 Tbsp/gal",
+                method: "soil-drench"
+              }, // [cite: 169]
               startDays: 28,
               frequencyDays: 14,
               repeatCount: 2,
@@ -201,6 +217,7 @@ export const seedVarieties: SeedVariety[] = [
               details: {
                 product: "Fish emulsion/fish+kelp blend",
                 dilution: "0.5-1 Tbsp/gal",
+                method: "soil-drench"
               }, // [cite: 172]
               startDays: 25,
               frequencyDays: 14,
@@ -1226,7 +1243,7 @@ export const seedVarieties: SeedVariety[] = [
           },
           volume: {
             amount:
-              "5-gal: 15-20 oz (445-590 mL), 2-gal hanging: 6-8 oz (180-235 mL)",
+              "5-gal: 10-15 oz (295-445 mL), 2-gal hanging: 6-8 oz (180-235 mL)",
             frequency: "every 3-4 days",
             perPlant: true,
           },
@@ -1243,7 +1260,7 @@ export const seedVarieties: SeedVariety[] = [
           },
           volume: {
             amount:
-              "5-gal: 15-20 oz (445-590 mL), 2-gal hanging: 6-8 oz (180-235 mL)",
+              "5-gal: 10-15 oz (295-445 mL), 2-gal hanging: 6-8 oz (180-235 mL)",
             frequency: "every 3-4 days",
             perPlant: true,
           },
@@ -1260,7 +1277,7 @@ export const seedVarieties: SeedVariety[] = [
           },
           volume: {
             amount:
-              "5-gal: 15-20 oz (445-590 mL), 2-gal hanging: 6-8 oz (180-235 mL)",
+              "5-gal: 10-15 oz (295-445 mL), 2-gal hanging: 6-8 oz (180-235 mL)",
             frequency: "every 3-4 days",
             perPlant: true,
           },
@@ -1277,7 +1294,7 @@ export const seedVarieties: SeedVariety[] = [
           },
           volume: {
             amount:
-              "5-gal: 15-20 oz (445-590 mL), 2-gal hanging: 6-8 oz (180-235 mL)",
+              "5-gal: 10-15 oz (295-445 mL), 2-gal hanging: 6-8 oz (180-235 mL)",
             frequency: "every 3-4 days",
             perPlant: true,
           },
@@ -1291,7 +1308,7 @@ export const seedVarieties: SeedVariety[] = [
           },
           volume: {
             amount:
-              "5-gal: 15-20 oz (445-590 mL), 2-gal hanging: 6-8 oz (180-235 mL)",
+              "5-gal: 10-15 oz (295-445 mL), 2-gal hanging: 6-8 oz (180-235 mL)",
             frequency: "every 3-4 days",
             perPlant: true,
           },

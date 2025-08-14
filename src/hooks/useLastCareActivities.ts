@@ -19,41 +19,43 @@ export function useLastCareActivities(plantId: string) {
   const { user } = useFirebaseAuth();
 
   useEffect(() => {
-    const fetchLastActivities = async () => {
-      if (!user?.uid || !plantId) {
-        setLoading(false);
-        return;
-      }
+    if (!user?.uid || !plantId) {
+      setLoading(false);
+      return;
+    }
 
-      try {
-        setLoading(true);
+    setLoading(true);
+
+    // Use real-time subscription to get live updates
+    const unsubscribe = FirebaseCareActivityService.subscribeToPlantActivities(
+      plantId,
+      user.uid,
+      (allActivities) => {
+        // Find the most recent activity of each type
+        const waterActivities = allActivities.filter(a => a.type === "water");
+        const fertilizeActivities = allActivities.filter(a => a.type === "fertilize");
         
-        const [lastWatering, lastFertilizing] = await Promise.all([
-          FirebaseCareActivityService.getLastActivityByType(plantId, user.uid, "water"),
-          FirebaseCareActivityService.getLastActivityByType(plantId, user.uid, "fertilize"),
-        ]);
-
+        const lastWatering = waterActivities.length > 0 ? waterActivities[0] : null;
+        const lastFertilizing = fertilizeActivities.length > 0 ? fertilizeActivities[0] : null;
+        
         setActivities({
           watering: lastWatering,
           fertilizing: lastFertilizing,
         });
-      } catch (error) {
-        console.error("Failed to fetch last care activities:", error);
-        setActivities({
-          watering: null,
-          fertilizing: null,
-        });
-      } finally {
         setLoading(false);
-      }
-    };
+      },
+      10 // Limit to last 10 activities to find recent water/fertilize
+    );
 
-    fetchLastActivities();
+    return () => {
+      unsubscribe();
+    };
   }, [plantId, user?.uid, refreshTrigger]);
 
   const refetch = useCallback(() => {
+    // Force a re-subscription by incrementing the refresh trigger
     setRefreshTrigger(prev => prev + 1);
-  }, []);
+  }, [plantId]);
 
   return { activities, loading, refetch };
 }

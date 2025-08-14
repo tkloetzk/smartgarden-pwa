@@ -28,7 +28,7 @@ import {
   Clock,
 } from "lucide-react";
 import { getMethodDisplay, requiresWater, getWaterAmountForMethod } from "@/utils/fertilizationUtils";
-import { getTodayDateString } from "@/utils/dateUtils";
+import { getTodayDateString, createLocalDateFromString, createDateForCareLogging } from "@/utils/dateUtils";
 import { ApplicationMethod } from "@/types";
 import { FertilizationScheduleItem } from "@/types";
 import { format, subDays } from "date-fns";
@@ -43,11 +43,11 @@ import { PartialWateringService, PartialWateringAnalysis } from "@/services/part
 
 const careFormSchema = z.object({
   groupId: z.string().min(1, "Please select a plant section"),
-  type: z.enum(["water", "fertilize", "observe", "photo", "note", "pruning"]),
+  type: z.enum(["water", "fertilize", "observe", "photo", "note", "pruning", "moisture"]),
   date: z
     .string()
     .min(1, "Date is required")
-    .refine((date) => new Date(date) <= new Date(), {
+    .refine((date) => createLocalDateFromString(date) <= new Date(), {
       message: "Date cannot be in the future.",
     }),
   notes: z.string().optional(),
@@ -72,8 +72,7 @@ interface CareLogFormProps {
   onSuccess?: () => void;
   onCancel?: () => void;
   preselectedPlantId?: string;
-  preselectedActivityType?: "water" | "fertilize" | "observe" | "pruning";
-  isGroupTask?: boolean;
+  preselectedActivityType?: "water" | "fertilize" | "observe" | "pruning" | "moisture";
 }
 
 interface FertilizerProduct {
@@ -147,7 +146,6 @@ export function CareLogForm({
   onCancel,
   preselectedPlantId,
   preselectedActivityType,
-  isGroupTask = false,
 }: CareLogFormProps) {
   const { plants, loading: plantsLoading } = useFirebasePlants();
   const { logActivity } = useFirebaseCareActivities();
@@ -173,7 +171,7 @@ export function CareLogForm({
   // Bulk mode state removed - now using groups exclusively
   const [showSupplementalWatering, setShowSupplementalWatering] = useState(false);
   const [partialWateringAnalysis, setPartialWateringAnalysis] = useState<PartialWateringAnalysis | null>(null);
-  const [applyToAllGroupPlants, setApplyToAllGroupPlants] = useState(isGroupTask);
+  const [applyToAllGroupPlants, setApplyToAllGroupPlants] = useState(false);
   const [useStructuredFertilizer, setUseStructuredFertilizer] = useState(true);
 
   // Handle both single plant ID and bulk plant IDs from URL params
@@ -183,7 +181,7 @@ export function CareLogForm({
     preselectedPlantId || searchParams.get("plantId") || "";
   const activityTypeFromParams =
     preselectedActivityType ||
-    (searchParams.get("type") as "water" | "fertilize" | "observe" | "pruning") ||
+    (searchParams.get("type") as "water" | "fertilize" | "observe" | "pruning" | "moisture") ||
     "water";
 
   const {
@@ -220,12 +218,29 @@ export function CareLogForm({
   const selectedGroup = plantGroups.find(group => group.id === selectedGroupId);
   const selectedPlantIds = selectedGroup ? selectedGroup.plants.map(p => p.id) : [];
   
-  // Find all other groups with the same variety for the "Apply to all grouped plants" option
+  // Find all other groups with the same variety AND same base container for the "Apply to all grouped plants" option
   const otherSameVarietyGroups = selectedGroup ? 
-    plantGroups.filter(group => 
-      group.id !== selectedGroup.id && 
-      group.varietyName === selectedGroup.varietyName
-    ) : [];
+    plantGroups.filter(group => {
+      if (group.id === selectedGroup.id) return false;
+      
+      // Must have same variety name
+      if (group.varietyName !== selectedGroup.varietyName) return false;
+      
+      // Must have same base container (remove section info like "Row X, Column Y")
+      const getBaseContainer = (container: string) => {
+        return container.replace(/ - Row \d+, Column \d+/, '')
+                      .replace(/ - Section .+$/, '')
+                      .replace(/ - R\d+C\d+/, '')
+                      .replace(/ - \d+,\d+/, '');
+      };
+      
+      const selectedBaseContainer = getBaseContainer(selectedGroup.container);
+      const groupBaseContainer = getBaseContainer(group.container);
+      
+      // Only include if they have the same base container AND same planting date
+      return groupBaseContainer === selectedBaseContainer && 
+             group.plantedDate.getTime() === selectedGroup.plantedDate.getTime();
+    }) : [];
   const otherSameVarietyPlantIds = otherSameVarietyGroups.flatMap(group => group.plants.map(p => p.id));
   const totalSameVarietyPlants = selectedPlantIds.length + otherSameVarietyPlantIds.length;
 
@@ -318,7 +333,7 @@ export function CareLogForm({
                     name: item.details.product,
                     dilution: item.details.dilution,
                     amount: item.details.amount,
-                    method: item.details.method,
+                    method: item.details.method || "soil-drench", // Default to soil-drench if not specified
                   })
                 );
               setAvailableFertilizers(products);
@@ -330,6 +345,8 @@ export function CareLogForm({
             } else {
               setAvailableFertilizers([]);
             }
+          } else {
+            setAvailableFertilizers([]);
           }
         }
       } catch (error) {
@@ -446,10 +463,10 @@ export function CareLogForm({
             value: lastSubmittedData.waterValue!,
             unit: lastSubmittedData.waterUnit!,
           };
-          if (showDetailedTracking && lastSubmittedData.moistureBefore && lastSubmittedData.moistureAfter) {
+          if (showDetailedTracking && lastSubmittedData.moistureBefore) {
             details.moistureLevel = {
               before: lastSubmittedData.moistureBefore,
-              after: lastSubmittedData.moistureAfter,
+              ...(lastSubmittedData.moistureAfter && { after: lastSubmittedData.moistureAfter }),
               scale: "1-10",
             };
           }
@@ -468,12 +485,20 @@ export function CareLogForm({
           if (selectedFertilizer?.method) {
             details.applicationMethod = selectedFertilizer.method;
           }
+        } else if (lastSubmittedData.type === "moisture") {
+          // Moisture tracking - log the current moisture level
+          if (lastSubmittedData.moistureBefore) {
+            details.moistureLevel = {
+              before: lastSubmittedData.moistureBefore,
+              scale: "1-10",
+            };
+          }
         }
 
         await logActivity({
           plantId: plantId,
           type: lastSubmittedData.type,
-          date: new Date(lastSubmittedData.date),
+          date: createDateForCareLogging(lastSubmittedData.date),
           details: details as CareActivityDetails,
         });
         
@@ -502,7 +527,7 @@ export function CareLogForm({
             await logActivity({
               plantId: plantId,
               type: "water",
-              date: new Date(lastSubmittedData.date),
+              date: createDateForCareLogging(lastSubmittedData.date),
               details: waterDetails,
             });
           } catch (waterError) {
@@ -624,10 +649,10 @@ export function CareLogForm({
           value: data.waterValue!,
           unit: data.waterUnit!,
         };
-        if (showDetailedTracking && data.moistureBefore && data.moistureAfter) {
+        if (showDetailedTracking && data.moistureBefore) {
           details.moistureLevel = {
             before: data.moistureBefore,
-            after: data.moistureAfter,
+            ...(data.moistureAfter && { after: data.moistureAfter }),
             scale: "1-10",
           };
         }
@@ -692,6 +717,14 @@ export function CareLogForm({
         if (selectedFertilizer?.method) {
           details.applicationMethod = selectedFertilizer.method;
         }
+      } else if (data.type === "moisture") {
+        // Moisture tracking - log the current moisture level
+        if (data.moistureBefore) {
+          details.moistureLevel = {
+            before: data.moistureBefore,
+            scale: "1-10",
+          };
+        }
       }
 
       // Now all submissions are "bulk" since we're working with groups
@@ -727,7 +760,7 @@ export function CareLogForm({
             await logActivity({
               plantId,
               type: data.type,
-              date: new Date(data.date),
+              date: createDateForCareLogging(data.date),
               details: bulkDetails,
             });
             
@@ -759,7 +792,7 @@ export function CareLogForm({
                 await logActivity({
                   plantId,
                   type: "water",
-                  date: new Date(data.date),
+                  date: createDateForCareLogging(data.date),
                   details: waterDetails,
                 });
               } catch (waterError) {
@@ -960,7 +993,8 @@ export function CareLogForm({
               <input
                 id="waterValue"
                 type="number"
-                step="0.1"
+                min="1"
+                step="1"
                 placeholder="Amount"
                 {...register("waterValue", { valueAsNumber: true })}
                 className="w-full p-3 border border-border rounded-lg bg-background text-foreground focus:ring-2 focus:ring-ring focus:border-ring"
@@ -1003,7 +1037,7 @@ export function CareLogForm({
               </div>
               <div>
                 <label className="block text-sm font-medium text-foreground mb-2">
-                  Moisture After (1-10)
+                  Moisture After (1-10) - Optional
                 </label>
                 <input
                   type="number"
@@ -1013,6 +1047,9 @@ export function CareLogForm({
                   {...register("moistureAfter", { valueAsNumber: true })}
                   className="w-full p-3 border border-border rounded-lg bg-background text-foreground focus:ring-2 focus:ring-ring focus:border-ring"
                 />
+                <p className="text-xs text-muted-foreground mt-1">
+                  Leave empty if you want to track moisture separately
+                </p>
               </div>
             </div>
           )}
@@ -1416,12 +1453,56 @@ export function CareLogForm({
     );
   };
 
+  const renderMoistureFields = () => {
+    return (
+      <Card className="border-border shadow-sm">
+        <CardHeader className="pb-3">
+          <CardTitle className="flex items-center gap-2 text-base">
+            🌡️ Moisture Check
+          </CardTitle>
+          <p className="text-xs text-muted-foreground">
+            Track soil moisture level without watering
+          </p>
+        </CardHeader>
+        <CardContent className="pt-0 space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-foreground mb-2">
+              Current Moisture Level (1-10) *
+            </label>
+            <input
+              type="number"
+              min={1}
+              max={10}
+              step={1}
+              placeholder="1-10 (1=dry, 10=saturated)"
+              {...register("moistureBefore", { 
+                required: "Moisture level is required for moisture tracking",
+                valueAsNumber: true 
+              })}
+              className="w-full p-3 border border-border rounded-lg bg-background text-foreground focus:ring-2 focus:ring-ring focus:border-ring"
+            />
+            {errors.moistureBefore && (
+              <p className="mt-1 text-sm text-red-600" role="alert">
+                {errors.moistureBefore.message}
+              </p>
+            )}
+            <p className="text-xs text-muted-foreground mt-1">
+              Scale: 1 = Completely dry, 5 = Optimal, 10 = Waterlogged
+            </p>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  };
+
   const renderActivitySpecificFields = () => {
     switch (activityType) {
       case "water":
         return renderWateringFields();
       case "fertilize":
         return renderFertilizingFields();
+      case "moisture":
+        return renderMoistureFields();
       default:
         return null;
     }
@@ -1566,6 +1647,7 @@ export function CareLogForm({
                     <option value="water">💧 Watering</option>
                     <option value="fertilize">🌱 Fertilizing</option>
                     <option value="observe">👁️ Health Check</option>
+                    <option value="moisture">🌡️ Moisture Check</option>
                     <option value="photo">📸 Photo Log</option>
                     <option value="note">📝 General Note</option>
                     <option value="pruning">✂️ Pruning</option>

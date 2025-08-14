@@ -60,8 +60,29 @@ export const findContainerMates = (
   targetPlantGroup: PlantGroup,
   allPlantGroups: PlantGroup[]
 ): PlantGroup[] => {
+  // Extract base container name for both target and other groups
+  const getBaseContainerName = (container: string) => {
+    let containerName = container || "Unassigned Container";
+    
+    // Remove section information to get base container name
+    const sectionPatterns = [
+      / - Row \d+, Column \d+/,
+      / - Section .+$/,
+      / - R\d+C\d+/,
+      / - \d+,\d+/
+    ];
+    
+    for (const pattern of sectionPatterns) {
+      containerName = containerName.replace(pattern, '');
+    }
+    
+    return containerName;
+  };
+
+  const targetBaseContainer = getBaseContainerName(targetPlantGroup.container);
+  
   return allPlantGroups.filter((group) => 
     group.id !== targetPlantGroup.id && 
-    group.container === targetPlantGroup.container
+    getBaseContainerName(group.container) === targetBaseContainer
   );
 };

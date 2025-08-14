@@ -20,9 +20,14 @@ const LogCare = () => {
       <CareLogForm
         preselectedPlantId={plantId || undefined}
         preselectedActivityType={activityType || undefined}
-        isGroupTask={isGroupTask}
         onSuccess={() => {
-          console.log("Care activity logged successfully");
+          // Small delay to ensure Firebase propagation, then trigger refresh event
+          setTimeout(() => {
+            const event = new CustomEvent('care-activity-logged', {
+              detail: { plantId, activityType, timestamp: Date.now(), source: 'LogCare' }
+            });
+            window.dispatchEvent(event);
+          }, 500); // 500ms delay to allow Firebase to propagate
         }}
       />
     </div>

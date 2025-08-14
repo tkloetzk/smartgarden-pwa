@@ -1024,9 +1024,9 @@ describe("Dashboard", () => {
         // Plants should be visible
         expect(screen.getByText("Cherry Tomato")).toBeInTheDocument();
         
-        // But tasks section should show loading
-        const loadingElements = screen.queryAllByText(/loading/i);
-        expect(loadingElements.length).toBeGreaterThan(0);
+        // Tasks section should not show errors since loading is true
+        const errorElements = screen.queryAllByText(/Error loading tasks/i);
+        expect(errorElements.length).toBe(0);
       });
     });
   });

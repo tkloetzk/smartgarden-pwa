@@ -14,6 +14,7 @@ export interface PlantGroup {
   container: string;
   soilMix?: string;
   location: string;
+  section?: string;
   plants: PlantRecord[];
   setupType: "multiple-containers" | "same-container";
 }
@@ -21,7 +22,7 @@ export interface PlantGroup {
 // Generate cache key based on plant data
 const generateCacheKey = (plants: PlantRecord[]): string => {
   return plants
-    .map(p => `${p.id}-${p.varietyId}-${p.plantedDate.getTime()}-${p.container}-${p.location}`)
+    .map(p => `${p.id}-${p.varietyId}-${p.plantedDate.getTime()}-${p.container}-${p.location}-${p.section || "no-section"}`)
     .sort()
     .join('|');
 };
@@ -48,9 +49,12 @@ export const groupPlantsByConditions = (
 
   plants.forEach((plant) => {
     // Create a key based on matching criteria
+    // Use full container name to distinguish between sections like "Row 3, Column 1" vs "Row 3, Column 2"
     const key = `${plant.varietyId}-${
       plant.plantedDate.toISOString().split("T")[0]
-    }-${plant.container}-${plant.soilMix || "no-soil"}-${plant.location}`;
+    }-${plant.container}-${plant.soilMix || "no-soil"}-${plant.location}-${plant.section || "no-section"}`;
+
+    // Debug logging removed
 
     if (!groupMap.has(key)) {
       groupMap.set(key, []);
@@ -69,13 +73,14 @@ export const groupPlantsByConditions = (
     groups.push({
       id: `group-${
         templatePlant.varietyId
-      }-${templatePlant.plantedDate.getTime()}`,
+      }-${templatePlant.plantedDate.getTime()}-${templatePlant.section || "no-section"}`,
       varietyId: templatePlant.varietyId,
       varietyName: templatePlant.varietyName,
       plantedDate: templatePlant.plantedDate,
       container: templatePlant.container,
       soilMix: templatePlant.soilMix,
       location: templatePlant.location,
+      section: templatePlant.section,
       plants: plantsInGroup.sort(
         (a, b) => a.name?.localeCompare(b.name || "") || 0
       ),
@@ -85,6 +90,7 @@ export const groupPlantsByConditions = (
 
   const result = groups.sort((a, b) => a.varietyName.localeCompare(b.varietyName));
   
+  // Debug logging removed
   
   // Cache the result
   groupingCache.set(cacheKey, result);

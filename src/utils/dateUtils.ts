@@ -82,3 +82,28 @@ export function dateToLocalDateString(date: Date): string {
   const day = String(date.getDate()).padStart(2, '0');
   return `${year}-${month}-${day}`;
 }
+
+/**
+ * Create a Date object from a YYYY-MM-DD string using local timezone
+ * This avoids timezone issues that occur when using new Date("YYYY-MM-DD") 
+ * which interprets the string as UTC midnight
+ */
+export function createLocalDateFromString(dateString: string): Date {
+  const [year, month, day] = dateString.split('-').map(Number);
+  return new Date(year, month - 1, day);
+}
+
+/**
+ * Create a date for care logging - if it's today, use current time; otherwise use midnight
+ */
+export function createDateForCareLogging(dateString: string): Date {
+  const today = getTodayDateString();
+  
+  if (dateString === today) {
+    // If logging care for today, use current timestamp
+    return new Date();
+  } else {
+    // If logging care for a past date, use midnight of that date
+    return createLocalDateFromString(dateString);
+  }
+}
