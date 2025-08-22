@@ -1,6 +1,6 @@
 import { screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { renderComponent, useTestLifecycle } from "../utils/testSetup";
+import { renderComponent } from "../test-utils";
 import CareHistory from "@/components/plant/CareHistory";
 import { CareRecord } from "@/types/database";
 
@@ -12,7 +12,6 @@ jest.mock("react-router-dom", () => ({
 }));
 
 describe("CareHistory", () => {
-  useTestLifecycle();
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -224,5 +223,139 @@ describe("CareHistory", () => {
     expect(screen.getByText(/Watering \(100 ml\)/i)).toBeInTheDocument();
     expect(screen.getByText(/Watering \(150 ml\)/i)).toBeInTheDocument(); 
     expect(screen.getByText(/Fertilized with Test Fertilizer/i)).toBeInTheDocument();
+  });
+
+  describe("Delete Care Entry", () => {
+    it("shows delete button when care activity is expanded", async () => {
+      const mockOnDeleteActivity = jest.fn();
+      const user = userEvent.setup();
+      
+      renderComponent(
+        <CareHistory 
+          careHistory={mockCareHistory} 
+          plantId="plant-1" 
+          onDeleteActivity={mockOnDeleteActivity}
+        />,
+        { withRouter: false }
+      );
+
+      // Expand the first activity to show details
+      const firstActivity = screen.getByText(/Watering \(150 ml\)/i);
+      const activityContainer = firstActivity.closest('div[class*="cursor-pointer"]');
+      await user.click(activityContainer!);
+
+      // Should show delete button in expanded view
+      expect(screen.getByRole("button", { name: /delete/i })).toBeInTheDocument();
+    });
+
+    it("calls onDeleteActivity when delete button is clicked and confirmed", async () => {
+      const mockOnDeleteActivity = jest.fn();
+      const user = userEvent.setup();
+      
+      renderComponent(
+        <CareHistory 
+          careHistory={mockCareHistory} 
+          plantId="plant-1" 
+          onDeleteActivity={mockOnDeleteActivity}
+        />,
+        { withRouter: false }
+      );
+
+      // Expand the first activity
+      const firstActivity = screen.getByText(/Watering \(150 ml\)/i);
+      const activityContainer = firstActivity.closest('div[class*="cursor-pointer"]');
+      await user.click(activityContainer!);
+
+      // Click delete button
+      const deleteButton = screen.getByRole("button", { name: /delete/i });
+      await user.click(deleteButton);
+
+      // Click confirm delete
+      const confirmButton = screen.getByRole("button", { name: /confirm delete/i });
+      await user.click(confirmButton);
+
+      // Should call the callback with the activity ID
+      expect(mockOnDeleteActivity).toHaveBeenCalledWith("3");
+    });
+
+    it("shows confirmation dialog before deleting", async () => {
+      const mockOnDeleteActivity = jest.fn();
+      const user = userEvent.setup();
+      
+      renderComponent(
+        <CareHistory 
+          careHistory={mockCareHistory} 
+          plantId="plant-1" 
+          onDeleteActivity={mockOnDeleteActivity}
+        />,
+        { withRouter: false }
+      );
+
+      // Expand and try to delete
+      const firstActivity = screen.getByText(/Watering \(150 ml\)/i);
+      const activityContainer = firstActivity.closest('div[class*="cursor-pointer"]');
+      await user.click(activityContainer!);
+      
+      const deleteButton = screen.getByRole("button", { name: /delete/i });
+      await user.click(deleteButton);
+
+      // Should show confirmation dialog
+      expect(screen.getByText(/are you sure you want to delete this care activity/i)).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: /confirm delete/i })).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: /cancel/i })).toBeInTheDocument();
+    });
+
+    it("does not delete when cancel is clicked in confirmation", async () => {
+      const mockOnDeleteActivity = jest.fn();
+      const user = userEvent.setup();
+      
+      renderComponent(
+        <CareHistory 
+          careHistory={mockCareHistory} 
+          plantId="plant-1" 
+          onDeleteActivity={mockOnDeleteActivity}
+        />,
+        { withRouter: false }
+      );
+
+      // Expand, delete, and cancel
+      const firstActivity = screen.getByText(/Watering \(150 ml\)/i);
+      const activityContainer = firstActivity.closest('div[class*="cursor-pointer"]');
+      await user.click(activityContainer!);
+      
+      await user.click(screen.getByRole("button", { name: /delete/i }));
+      await user.click(screen.getByRole("button", { name: /cancel/i }));
+
+      // Should not call delete callback
+      expect(mockOnDeleteActivity).not.toHaveBeenCalled();
+      
+      // Confirmation dialog should be closed
+      expect(screen.queryByText(/are you sure you want to delete this care activity/i)).not.toBeInTheDocument();
+    });
+
+    it("deletes when confirm is clicked in confirmation dialog", async () => {
+      const mockOnDeleteActivity = jest.fn();
+      const user = userEvent.setup();
+      
+      renderComponent(
+        <CareHistory 
+          careHistory={mockCareHistory} 
+          plantId="plant-1" 
+          onDeleteActivity={mockOnDeleteActivity}
+        />,
+        { withRouter: false }
+      );
+
+      // Expand, delete, and confirm
+      const firstActivity = screen.getByText(/Watering \(150 ml\)/i);
+      const activityContainer = firstActivity.closest('div[class*="cursor-pointer"]');
+      await user.click(activityContainer!);
+      
+      await user.click(screen.getByRole("button", { name: /delete/i }));
+      await user.click(screen.getByRole("button", { name: /confirm delete/i }));
+
+      // Should call delete callback with correct ID
+      expect(mockOnDeleteActivity).toHaveBeenCalledWith("3");
+    });
   });
 });

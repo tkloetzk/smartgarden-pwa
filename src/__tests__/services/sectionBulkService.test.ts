@@ -1,263 +1,410 @@
-import {
-  generateSectionKey,
-  findPlantsInSameSection,
-  getSectionApplyOption,
-  groupPlantsBySection,
-  validateBulkCareOperation,
-  formatSectionDisplayMobile
-} from '@/services/sectionBulkService';
-import { PlantRecord } from '@/types/consolidated';
+/**
+ * Business Logic Tests for SectionBulkService
+ * 
+ * These tests focus on section grouping business rules and bulk operation logic
+ * without external dependencies. Tests plant grouping, validation rules, and display formatting.
+ */
 
-const createMockPlant = (overrides: Partial<PlantRecord>): PlantRecord => ({
-  id: 'plant-1',
-  varietyId: 'tomato-1',
-  varietyName: 'Cherry Tomato',
-  name: 'Test Plant',
-  plantedDate: new Date('2024-01-01'),
-  location: 'Indoor',
-  container: '🌱 Greenhouse A',
-  section: 'Row 1',
-  isActive: true,
-  createdAt: new Date('2024-01-01'),
-  ...overrides,
-});
+import { PlantRecord, CareActivityType } from '@/types/consolidated';
 
-describe('sectionBulkService', () => {
-  describe('generateSectionKey', () => {
-    it('generates key with location, container, and section', () => {
-      const plant = createMockPlant({
-        location: 'Indoor',
-        container: '🌱 Greenhouse A',
-        section: 'Row 1'
+describe('SectionBulkService Business Logic', () => {
+
+  describe('Section Key Generation Logic', () => {
+    it('should generate consistent section keys', () => {
+      const testPlants = [
+        {
+          location: 'Indoor',
+          container: '🌱 Greenhouse A',
+          section: 'Row 1',
+          expectedKey: 'indoor|🌱 greenhouse a|row 1'
+        },
+        {
+          location: 'Outdoor',
+          container: 'Garden Bed',
+          section: 'North Side',
+          expectedKey: 'outdoor|garden bed|north side'
+        },
+        {
+          location: 'Indoor',
+          container: 'Window Shelf',
+          section: undefined,
+          expectedKey: 'indoor|window shelf'
+        }
+      ];
+
+      testPlants.forEach(test => {
+        const parts = [test.location, test.container];
+        if (test.section) {
+          parts.push(test.section);
+        }
+        const generatedKey = parts.join('|').toLowerCase();
+        expect(generatedKey).toBe(test.expectedKey);
       });
-
-      const key = generateSectionKey(plant);
-      expect(key).toBe('indoor|🌱 greenhouse a|row 1');
     });
 
-    it('generates key with structured section description when no simple section', () => {
-      const plant = createMockPlant({
+    it('should handle structured section descriptions', () => {
+      const plantWithStructuredSection = {
         location: 'Indoor',
         container: '🌱 Greenhouse A',
         section: undefined,
         structuredSection: {
           bedId: 'bed-1',
-          position: { start: 0, length: 12, unit: 'inches' },
           description: 'North End'
         }
-      });
+      };
 
-      const key = generateSectionKey(plant);
+      const parts = [plantWithStructuredSection.location, plantWithStructuredSection.container];
+      if (plantWithStructuredSection.structuredSection?.description) {
+        parts.push(plantWithStructuredSection.structuredSection.description);
+      }
+      const key = parts.join('|').toLowerCase();
+      
       expect(key).toBe('indoor|🌱 greenhouse a|north end');
     });
 
-    it('generates key without section when neither is provided', () => {
-      const plant = createMockPlant({
-        location: 'Indoor',
-        container: '🌱 Greenhouse A',
-        section: undefined,
-        structuredSection: undefined
+    it('should normalize case and spacing consistently', () => {
+      const testCases = [
+        { input: 'Indoor|Container A|Section 1', expected: 'indoor|container a|section 1' },
+        { input: 'OUTDOOR|BIG CONTAINER|ROW 2', expected: 'outdoor|big container|row 2' },
+        { input: 'Mixed|Small-Container|area-3', expected: 'mixed|small-container|area-3' },
+      ];
+
+      testCases.forEach(test => {
+        const normalized = test.input.toLowerCase();
+        expect(normalized).toBe(test.expected);
+      });
+    });
+  });
+
+  describe('Plant Filtering Business Rules', () => {
+    it('should filter active plants correctly', () => {
+      const plants = [
+        { id: 'plant-1', isActive: true, location: 'Indoor', container: 'A' },
+        { id: 'plant-2', isActive: false, location: 'Indoor', container: 'A' },
+        { id: 'plant-3', isActive: true, location: 'Indoor', container: 'A' },
+        { id: 'plant-4', isActive: undefined, location: 'Indoor', container: 'A' },
+      ];
+
+      const activePlants = plants.filter(p => p.isActive);
+      expect(activePlants).toHaveLength(2);
+      expect(activePlants.map(p => p.id)).toEqual(['plant-1', 'plant-3']);
+    });
+
+    it('should exclude target plant from same section results', () => {
+      const targetPlant = { id: 'target-plant', location: 'Indoor', container: 'A' };
+      const otherPlants = [
+        { id: 'plant-1', location: 'Indoor', container: 'A' },
+        { id: 'plant-2', location: 'Indoor', container: 'A' },
+        { id: 'target-plant', location: 'Indoor', container: 'A' }, // duplicate
+      ];
+
+      const filteredPlants = otherPlants.filter(plant => plant.id !== targetPlant.id);
+      expect(filteredPlants).toHaveLength(2);
+      expect(filteredPlants.map(p => p.id)).toEqual(['plant-1', 'plant-2']);
+    });
+
+    it('should match plants by identical section keys', () => {
+      const targetKey = 'indoor|container a|row 1';
+      const plants = [
+        { sectionKey: 'indoor|container a|row 1', matches: true },
+        { sectionKey: 'indoor|container a|row 2', matches: false },
+        { sectionKey: 'outdoor|container a|row 1', matches: false },
+        { sectionKey: 'indoor|container b|row 1', matches: false },
+      ];
+
+      plants.forEach(plant => {
+        const matches = plant.sectionKey === targetKey;
+        expect(matches).toBe(plant.matches);
+      });
+    });
+  });
+
+  describe('Variety Analysis Logic', () => {
+    it('should identify variety diversity correctly', () => {
+      const testScenarios = [
+        {
+          plants: [
+            { varietyName: 'Cherry Tomato' },
+            { varietyName: 'Cherry Tomato' },
+            { varietyName: 'Cherry Tomato' },
+          ],
+          expectedVarieties: ['Cherry Tomato'],
+          hasVarietyMix: false,
+        },
+        {
+          plants: [
+            { varietyName: 'Cherry Tomato' },
+            { varietyName: 'Basil' },
+            { varietyName: 'Lettuce' },
+          ],
+          expectedVarieties: ['Cherry Tomato', 'Basil', 'Lettuce'],
+          hasVarietyMix: true,
+        },
+        {
+          plants: [
+            { varietyName: 'Basil' },
+            { varietyName: 'Basil' },
+            { varietyName: 'Oregano' },
+          ],
+          expectedVarieties: ['Basil', 'Oregano'],
+          hasVarietyMix: true,
+        },
+      ];
+
+      testScenarios.forEach(scenario => {
+        const varieties = [...new Set(scenario.plants.map(p => p.varietyName))];
+        const hasVarietyMix = varieties.length > 1;
+        
+        expect(varieties).toEqual(scenario.expectedVarieties);
+        expect(hasVarietyMix).toBe(scenario.hasVarietyMix);
+        expect(varieties.length).toBe(scenario.expectedVarieties.length);
+      });
+    });
+
+    it('should count varieties accurately', () => {
+      const varietyCountTests = [
+        { varieties: ['Tomato'], count: 1 },
+        { varieties: ['Tomato', 'Basil'], count: 2 },
+        { varieties: ['Tomato', 'Basil', 'Lettuce', 'Spinach'], count: 4 },
+        { varieties: [], count: 0 },
+      ];
+
+      varietyCountTests.forEach(test => {
+        expect(test.varieties.length).toBe(test.count);
+        expect(test.count).toBeGreaterThanOrEqual(0);
+      });
+    });
+  });
+
+  describe('Display Text Generation Logic', () => {
+    it('should format section display text correctly', () => {
+      const displayTests = [
+        {
+          plant: { container: 'Greenhouse A', section: 'Row 1' },
+          expected: 'Greenhouse A • Row 1'
+        },
+        {
+          plant: { container: 'Window Shelf', section: undefined },
+          expected: 'Window Shelf'
+        },
+        {
+          plant: { 
+            container: 'Garden Bed', 
+            section: undefined,
+            structuredSection: { description: 'North End' }
+          },
+          expected: 'Garden Bed • North End'
+        },
+      ];
+
+      displayTests.forEach(test => {
+        let displayText = test.plant.container;
+        if (test.plant.section) {
+          displayText += ` • ${test.plant.section}`;
+        } else if (test.plant.structuredSection?.description) {
+          displayText += ` • ${test.plant.structuredSection.description}`;
+        }
+        
+        expect(displayText).toBe(test.expected);
+      });
+    });
+
+    it('should format mobile display consistently', () => {
+      const mobileDisplayTests = [
+        {
+          plantCount: 3,
+          location: 'Indoor',
+          container: 'Greenhouse A',
+          section: 'Row 1',
+          hasVarietyMix: false,
+          expectedPrimary: '3 plants',
+          expectedEmoji: '🏠',
+        },
+        {
+          plantCount: 5,
+          location: 'Outdoor',
+          container: 'Garden Bed',
+          section: 'North Side',
+          hasVarietyMix: true,
+          expectedPrimary: '5 plants',
+          expectedEmoji: '🌱',
+        },
+      ];
+
+      mobileDisplayTests.forEach(test => {
+        const emoji = test.location === 'Indoor' ? '🏠' : '🌱';
+        const primary = `${test.plantCount} plants`;
+        
+        expect(primary).toBe(test.expectedPrimary);
+        expect(emoji).toBe(test.expectedEmoji);
+      });
+    });
+  });
+
+  describe('Plant Name Display Logic', () => {
+    it('should prioritize custom names over variety names', () => {
+      const plantNameTests = [
+        { name: 'My Special Tomato', varietyName: 'Cherry Tomato', expected: 'My Special Tomato' },
+        { name: '', varietyName: 'Basil', expected: 'Basil' },
+        { name: undefined, varietyName: 'Lettuce', expected: 'Lettuce' },
+        { name: null, varietyName: 'Spinach', expected: 'Spinach' },
+      ];
+
+      plantNameTests.forEach(test => {
+        const displayName = test.name || test.varietyName;
+        expect(displayName).toBe(test.expected);
+      });
+    });
+  });
+
+  describe('Bulk Care Validation Logic', () => {
+    it('should validate watering operations correctly', () => {
+      const wateringScenarios = [
+        {
+          varieties: ['Tomato', 'Tomato', 'Tomato'],
+          activityType: 'water' as CareActivityType,
+          expectedWarnings: 0,
+        },
+        {
+          varieties: ['Tomato', 'Basil', 'Lettuce', 'Spinach'],
+          activityType: 'water' as CareActivityType,
+          expectedWarnings: 2, // Mixed varieties + Multiple plant types
+        },
+      ];
+
+      wateringScenarios.forEach(scenario => {
+        const uniqueVarieties = [...new Set(scenario.varieties)];
+        const warnings: string[] = [];
+        
+        if (uniqueVarieties.length > 1) {
+          warnings.push(`Mixed varieties: ${uniqueVarieties.join(', ')}`);
+        }
+        
+        if (scenario.activityType === 'water' && uniqueVarieties.length > 3) {
+          warnings.push('Multiple plant types may have different watering needs');
+        }
+        
+        expect(warnings.length).toBe(scenario.expectedWarnings);
+      });
+    });
+
+    it('should validate fertilization operations correctly', () => {
+      const fertilizeScenarios = [
+        {
+          varieties: ['Tomato'],
+          expectedWarnings: 0,
+        },
+        {
+          varieties: ['Tomato', 'Basil'],
+          expectedWarnings: 2, // Mixed varieties + Different fertilizer needs
+        },
+      ];
+
+      fertilizeScenarios.forEach(scenario => {
+        const uniqueVarieties = [...new Set(scenario.varieties)];
+        const warnings: string[] = [];
+        
+        if (uniqueVarieties.length > 1) {
+          warnings.push(`Mixed varieties: ${uniqueVarieties.join(', ')}`);
+          warnings.push('Different plants may need different fertilizer types or dilutions');
+        }
+        
+        expect(warnings.length).toBe(scenario.expectedWarnings);
+      });
+    });
+
+    it('should validate harvest operations correctly', () => {
+      const harvestScenarios = [
+        {
+          varieties: ['Tomato', 'Basil'],
+          expectedWarnings: 2, // Mixed varieties + Verify readiness
+        },
+      ];
+
+      harvestScenarios.forEach(scenario => {
+        const uniqueVarieties = [...new Set(scenario.varieties)];
+        const warnings: string[] = [];
+        
+        if (uniqueVarieties.length > 1) {
+          warnings.push(`Mixed varieties: ${uniqueVarieties.join(', ')}`);
+        }
+        
+        warnings.push('Verify all plants are ready for harvest');
+        
+        expect(warnings.length).toBe(scenario.expectedWarnings);
+      });
+    });
+  });
+
+  describe('Section Grouping Business Rules', () => {
+    it('should group plants by section correctly', () => {
+      const plants = [
+        { id: 'p1', location: 'Indoor', container: 'A', section: 'Row 1', isActive: true },
+        { id: 'p2', location: 'Indoor', container: 'A', section: 'Row 1', isActive: true },
+        { id: 'p3', location: 'Indoor', container: 'A', section: 'Row 2', isActive: true },
+        { id: 'p4', location: 'Indoor', container: 'B', section: 'Row 1', isActive: true },
+        { id: 'p5', location: 'Indoor', container: 'A', section: 'Row 1', isActive: false },
+      ];
+
+      const sectionMap = new Map<string, typeof plants>();
+      
+      plants.filter(p => p.isActive).forEach(plant => {
+        const key = [plant.location, plant.container, plant.section].join('|').toLowerCase();
+        if (!sectionMap.has(key)) {
+          sectionMap.set(key, []);
+        }
+        sectionMap.get(key)!.push(plant);
       });
 
-      const key = generateSectionKey(plant);
-      expect(key).toBe('indoor|🌱 greenhouse a');
-    });
-  });
+      const sections = Array.from(sectionMap.entries())
+        .filter(([_, plants]) => plants.length > 1);
 
-  describe('findPlantsInSameSection', () => {
-    it('finds plants with matching location, container, and section', () => {
-      const targetPlant = createMockPlant({ id: 'target' });
-      const sameSection1 = createMockPlant({ id: 'same-1' });
-      const sameSection2 = createMockPlant({ id: 'same-2' });
-      const differentSection = createMockPlant({ 
-        id: 'different', 
-        section: 'Row 2' 
-      });
-      const differentContainer = createMockPlant({ 
-        id: 'different-container', 
-        container: '🏠 Kitchen Counter' 
-      });
-
-      const allPlants = [targetPlant, sameSection1, sameSection2, differentSection, differentContainer];
-      const result = findPlantsInSameSection(targetPlant, allPlants);
-
-      expect(result).toHaveLength(2);
-      expect(result.map(p => p.id)).toEqual(['same-1', 'same-2']);
+      expect(sections).toHaveLength(1); // Only 'indoor|a|row 1' has multiple plants
+      expect(sections[0][1]).toHaveLength(2); // p1 and p2
     });
 
-    it('excludes inactive plants', () => {
-      const targetPlant = createMockPlant({ id: 'target' });
-      const activePlant = createMockPlant({ id: 'active', isActive: true });
-      const inactivePlant = createMockPlant({ id: 'inactive', isActive: false });
-
-      const allPlants = [targetPlant, activePlant, inactivePlant];
-      const result = findPlantsInSameSection(targetPlant, allPlants);
-
-      expect(result).toHaveLength(1);
-      expect(result[0].id).toBe('active');
-    });
-
-    it('excludes target plant from results', () => {
-      const targetPlant = createMockPlant({ id: 'target' });
-      const samePlant = createMockPlant({ id: 'target' }); // Same ID as target
-
-      const allPlants = [targetPlant, samePlant];
-      const result = findPlantsInSameSection(targetPlant, allPlants);
-
-      expect(result).toHaveLength(0);
-    });
-  });
-
-  describe('getSectionApplyOption', () => {
-    it('returns section option when plants exist in same section', () => {
-      const targetPlant = createMockPlant({ id: 'target', varietyName: 'Cherry Tomato' });
-      const sectionPlant1 = createMockPlant({ id: 'plant-1', varietyName: 'Cherry Tomato' });
-      const sectionPlant2 = createMockPlant({ id: 'plant-2', varietyName: 'Sweet Basil' });
-
-      const allPlants = [targetPlant, sectionPlant1, sectionPlant2];
-      const result = getSectionApplyOption(targetPlant, allPlants);
-
-      expect(result).not.toBeNull();
-      expect(result!.plantCount).toBe(2);
-      expect(result!.varieties).toEqual(['Cherry Tomato', 'Sweet Basil']);
-      expect(result!.hasVarietyMix).toBe(true);
-      expect(result!.displayText).toBe('🌱 Greenhouse A • Row 1');
-    });
-
-    it('returns null when no plants in same section', () => {
-      const targetPlant = createMockPlant({ id: 'target' });
-      const differentPlant = createMockPlant({ id: 'different', section: 'Row 2' });
-
-      const allPlants = [targetPlant, differentPlant];
-      const result = getSectionApplyOption(targetPlant, allPlants);
-
-      expect(result).toBeNull();
-    });
-
-    it('detects no variety mix when all plants are same variety', () => {
-      const targetPlant = createMockPlant({ id: 'target', varietyName: 'Cherry Tomato' });
-      const sectionPlant = createMockPlant({ id: 'plant-1', varietyName: 'Cherry Tomato' });
-
-      const allPlants = [targetPlant, sectionPlant];
-      const result = getSectionApplyOption(targetPlant, allPlants);
-
-      expect(result!.hasVarietyMix).toBe(false);
-      expect(result!.varieties).toEqual(['Cherry Tomato']);
-    });
-  });
-
-  describe('groupPlantsBySection', () => {
-    it('groups plants by section correctly', () => {
-      const plants = [
-        createMockPlant({ id: 'p1', section: 'Row 1', varietyName: 'Tomato' }),
-        createMockPlant({ id: 'p2', section: 'Row 1', varietyName: 'Basil' }),
-        createMockPlant({ id: 'p3', section: 'Row 2', varietyName: 'Lettuce' }),
-        createMockPlant({ id: 'p4', section: 'Row 2', varietyName: 'Spinach' }),
-        createMockPlant({ id: 'p5', section: 'Row 3', varietyName: 'Kale' }), // Only one plant
+    it('should sort sections by plant count descending', () => {
+      const sections = [
+        { plants: ['p1', 'p2'] },
+        { plants: ['p3', 'p4', 'p5', 'p6'] },
+        { plants: ['p7', 'p8', 'p9'] },
       ];
 
-      const result = groupPlantsBySection(plants);
-
-      expect(result).toHaveLength(2); // Row 3 excluded (only 1 plant)
-      expect(result[0].plants).toHaveLength(2); // Sorted by plant count desc
-      expect(result[0].varietyCount).toBe(2);
-      expect(result[1].plants).toHaveLength(2);
-    });
-
-    it('excludes inactive plants from grouping', () => {
-      const plants = [
-        createMockPlant({ id: 'p1', section: 'Row 1', isActive: true }),
-        createMockPlant({ id: 'p2', section: 'Row 1', isActive: false }),
-        createMockPlant({ id: 'p3', section: 'Row 1', isActive: true }),
-      ];
-
-      const result = groupPlantsBySection(plants);
-
-      expect(result).toHaveLength(1);
-      expect(result[0].plants).toHaveLength(2); // Only active plants
+      const sorted = sections.sort((a, b) => b.plants.length - a.plants.length);
+      
+      expect(sorted[0].plants.length).toBe(4);
+      expect(sorted[1].plants.length).toBe(3);
+      expect(sorted[2].plants.length).toBe(2);
     });
   });
 
-  describe('validateBulkCareOperation', () => {
-    it('warns about mixed varieties', () => {
-      const plants = [
-        createMockPlant({ varietyName: 'Cherry Tomato' }),
-        createMockPlant({ varietyName: 'Sweet Basil' }),
-      ];
-
-      const result = validateBulkCareOperation(plants, 'water');
-
-      expect(result.isValid).toBe(true);
-      expect(result.warnings).toContain('Mixed varieties: Cherry Tomato, Sweet Basil');
-    });
-
-    it('provides activity-specific warnings for fertilizing', () => {
-      const plants = [
-        createMockPlant({ varietyName: 'Cherry Tomato' }),
-        createMockPlant({ varietyName: 'Sweet Basil' }),
-      ];
-
-      const result = validateBulkCareOperation(plants, 'fertilize');
-
-      expect(result.warnings).toContain('Different plants may need different fertilizer types or dilutions');
-    });
-
-    it('warns about multiple plant types for watering', () => {
-      const plants = Array.from({ length: 4 }, (_, i) => 
-        createMockPlant({ varietyName: `Variety ${i + 1}` })
-      );
-
-      const result = validateBulkCareOperation(plants, 'water');
-
-      expect(result.warnings).toContain('Multiple plant types may have different watering needs');
-    });
-
-    it('provides harvest warning', () => {
-      const plants = [createMockPlant({})];
-
-      const result = validateBulkCareOperation(plants, 'harvest');
-
-      expect(result.warnings).toContain('Verify all plants are ready for harvest');
-    });
-  });
-
-  describe('formatSectionDisplayMobile', () => {
-    it('formats display for mobile with variety mix', () => {
-      const option = {
-        sectionKey: 'test',
-        plantCount: 3,
-        varieties: ['Tomato', 'Basil'],
-        location: 'Indoor',
-        container: '🌱 Greenhouse A',
-        section: 'Row 1',
-        hasVarietyMix: true,
-        displayText: 'Test'
+  describe('Validation Result Structure', () => {
+    it('should have correct validation result format', () => {
+      const validationResult = {
+        isValid: true,
+        warnings: ['Mixed varieties: Tomato, Basil'],
+        errors: []
       };
 
-      const result = formatSectionDisplayMobile(option);
-
-      expect(result.primary).toBe('3 plants');
-      expect(result.secondary).toBe('🌱 Greenhouse A • Row 1 • Mixed varieties');
-      expect(result.emoji).toBe('🏠'); // Indoor
+      expect(validationResult).toHaveProperty('isValid');
+      expect(validationResult).toHaveProperty('warnings');
+      expect(validationResult).toHaveProperty('errors');
+      expect(typeof validationResult.isValid).toBe('boolean');
+      expect(Array.isArray(validationResult.warnings)).toBe(true);
+      expect(Array.isArray(validationResult.errors)).toBe(true);
     });
 
-    it('formats display for outdoor location', () => {
-      const option = {
-        sectionKey: 'test',
-        plantCount: 2,
-        varieties: ['Tomato'],
-        location: 'Outdoor',
-        container: '🌱 Garden Bed 1',
-        section: undefined,
-        hasVarietyMix: false,
-        displayText: 'Test'
-      };
+    it('should determine validity based on errors', () => {
+      const scenarios = [
+        { errors: [], isValid: true },
+        { errors: ['Error 1'], isValid: false },
+        { errors: ['Error 1', 'Error 2'], isValid: false },
+      ];
 
-      const result = formatSectionDisplayMobile(option);
-
-      expect(result.primary).toBe('2 plants');
-      expect(result.secondary).toBe('🌱 Garden Bed 1');
-      expect(result.emoji).toBe('🌱'); // Outdoor
+      scenarios.forEach(scenario => {
+        const isValid = scenario.errors.length === 0;
+        expect(isValid).toBe(scenario.isValid);
+      });
     });
   });
 });

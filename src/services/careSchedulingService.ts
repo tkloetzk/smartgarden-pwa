@@ -4,6 +4,7 @@ import {
   careService,
   varietyService,
   PlantRecord,
+  CareActivityRecord,
 } from "@/types/database";
 import { GrowthStage, CareActivityType, UpcomingTask } from "@/types";
 import { calculateCurrentStageWithVariety } from "@/utils/growthStage";
@@ -16,6 +17,7 @@ import {
   ensureDateObject,
 } from "@/utils/dateUtils";
 import { Logger } from "@/utils/logger";
+import { WateringResolver } from "@/utils/wateringResolver";
 
 interface TaskConfig {
   type: CareActivityType;
@@ -142,7 +144,10 @@ export class CareSchedulingService {
     
     // For watering tasks, check if last watering was partial and extend threshold
     if (taskType === "water") {
-      const lastActivity = await careService.getLastActivityByType(plant.id, "water");
+      const lastActivity = await WateringResolver.getLastWateringActivity(
+        plant.id, 
+        (plantId: string, type: CareActivityType) => careService.getLastActivityByType(plantId, type)
+      );
       if (lastActivity?.details.isPartialWatering) {
         thresholdDays = 7; // Show partial watering follow-up tasks for up to a week
       }
@@ -177,10 +182,20 @@ export class CareSchedulingService {
     activityType: CareActivityType,
     fallbackInterval: number
   ): Promise<Date> {
-    const lastActivity = await careService.getLastActivityByType(
-      plant.id,
-      activityType
-    );
+    let lastActivity: CareActivityRecord | null = null;
+
+    // For watering tasks, consider both watering and water-based fertilizing
+    if (activityType === "water") {
+      lastActivity = await WateringResolver.getLastWateringActivity(
+        plant.id, 
+        (plantId: string, type: CareActivityType) => careService.getLastActivityByType(plantId, type)
+      );
+    } else {
+      lastActivity = await careService.getLastActivityByType(
+        plant.id,
+        activityType
+      );
+    }
 
     if (lastActivity) {
       const lastActivityDate = ensureDateObject(lastActivity.date);

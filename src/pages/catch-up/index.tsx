@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/Button";
 import { Card, CardContent } from "@/components/ui/Card";
 import { useFirebasePlants } from "@/hooks/useFirebasePlants";
 import { useFirebaseAuth } from "@/hooks/useFirebaseAuth";
+import { useScheduledTasks } from "@/hooks/useScheduledTasks";
 import { FirebaseCareSchedulingService } from "@/services/firebaseCareSchedulingService";
 import { FirebaseCareActivityService } from "@/services/firebase/careActivityService";
 import { ArrowLeft, Filter, X } from "lucide-react";
@@ -14,6 +15,7 @@ export const CatchUpPage = () => {
   const navigate = useNavigate();
   const { plants, loading } = useFirebasePlants();
   const { user } = useFirebaseAuth();
+  const { getUpcomingFertilizationTasks } = useScheduledTasks();
   const [upcomingTasks, setUpcomingTasks] = useState<UpcomingTask[]>([]);
   const [tasksLoading, setTasksLoading] = useState(true);
   const [activityFilter, setActivityFilter] = useState<string>("all");
@@ -33,12 +35,148 @@ export const CatchUpPage = () => {
           return FirebaseCareActivityService.getLastActivityByType(plantId, user.uid, type);
         };
         
-        const tasks = await FirebaseCareSchedulingService.getUpcomingTasks(
+        // Get standard care tasks (watering, observation)
+        const careTasks = await FirebaseCareSchedulingService.getUpcomingTasks(
           plants,
           getLastActivityByType
         );
         
-        setUpcomingTasks(tasks);
+        // Get fertilization tasks from scheduled tasks hook (get all tasks for filtering/grouping)
+        const allFertilizationTasks = getUpcomingFertilizationTasks ? getUpcomingFertilizationTasks(365) : [];
+        
+        // Apply the same filtering logic as dashboard - get most relevant tasks per plant
+        const tasksByPlant = new Map<string, any[]>();
+        allFertilizationTasks.forEach(task => {
+          if (!tasksByPlant.has(task.plantId)) {
+            tasksByPlant.set(task.plantId, []);
+          }
+          tasksByPlant.get(task.plantId)!.push(task);
+        });
+
+        // Get most relevant fertilization tasks per plant (same logic as dashboard)
+        const relevantFertilizationTasks: any[] = [];
+        const now = new Date();
+        
+        tasksByPlant.forEach((tasks, _plantId) => {
+          if (tasks.length === 0) return;
+          
+          const sortedTasks = [...tasks].sort((a, b) => a.dueDate.getTime() - b.dueDate.getTime());
+          const overdueTasks = sortedTasks.filter(task => task.dueDate.getTime() < now.getTime());
+          const upcomingTasks = sortedTasks.filter(task => task.dueDate.getTime() >= now.getTime());
+          
+          // Add the most recent overdue task (if any)
+          if (overdueTasks.length > 0) {
+            const mostRecentOverdue = overdueTasks[overdueTasks.length - 1];
+            relevantFertilizationTasks.push(mostRecentOverdue);
+          }
+          
+          // Add the next upcoming task if no overdue tasks
+          if (overdueTasks.length === 0 && upcomingTasks.length > 0) {
+            relevantFertilizationTasks.push(upcomingTasks[0]);
+          }
+        });
+
+        // Apply the EXACT SAME grouping logic as the dashboard
+        const groupedTasks = new Map<string, any>();
+        
+        relevantFertilizationTasks.forEach(task => {
+          // Find the plant for this task to get variety info
+          const plant = plants.find(p => p.id === task.plantId);
+          if (!plant) return;
+          
+          // Create a unique key for grouping identical tasks (same as dashboard)
+          const dueDateStr = task.dueDate.toDateString();
+          const groupKey = `${plant.varietyName}-${task.taskName}-${task.details.product}-${dueDateStr}`;
+          
+          if (groupedTasks.has(groupKey)) {
+            // Add this plant to the existing group
+            const existingTask = groupedTasks.get(groupKey);
+            existingTask.plantIds.push(task.plantId);
+            existingTask.plantCount = existingTask.plantIds.length;
+            existingTask.affectedPlants.push({
+              id: plant.id,
+              name: plant.name,
+              varietyName: plant.varietyName
+            });
+          } else {
+            // Create a new grouped task
+            groupedTasks.set(groupKey, {
+              ...task,
+              id: `grouped-catchup-${groupKey}`, // Use different ID to avoid conflicts
+              plantIds: [task.plantId], // Array of all plant IDs in this group
+              plantCount: 1,
+              varietyName: plant.varietyName,
+              affectedPlants: [{
+                id: plant.id,
+                name: plant.name,
+                varietyName: plant.varietyName
+              }]
+            });
+          }
+        });
+
+        const finalGroupedTasks = Array.from(groupedTasks.values());
+        
+        // Convert grouped fertilization tasks to UpcomingTask format
+        const convertedFertilizationTasks: UpcomingTask[] = finalGroupedTasks.map(task => {
+          const isOverdue = task.dueDate < now;
+          const daysDiff = Math.ceil((task.dueDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+          
+          const dueIn = isOverdue 
+            ? `Overdue by ${Math.abs(daysDiff)} day${Math.abs(daysDiff) !== 1 ? 's' : ''}`
+            : daysDiff === 0 
+            ? 'Due today'
+            : daysDiff === 1
+            ? 'Due tomorrow'
+            : `Due in ${daysDiff} day${daysDiff !== 1 ? 's' : ''}`;
+            
+          const priority = isOverdue 
+            ? 'overdue' as const
+            : daysDiff <= 1 
+            ? 'high' as const
+            : daysDiff <= 3
+            ? 'medium' as const
+            : 'low' as const;
+            
+          // Use the first plant to get plant age for stage calculation
+          const firstPlant = plants.find(p => p.id === task.plantIds[0]);
+          const plantAge = Math.floor((now.getTime() - (firstPlant?.plantedDate?.getTime() || now.getTime())) / (1000 * 60 * 60 * 24));
+          let plantStage: string = 'vegetative'; // fallback
+          
+          if (plantAge >= 91) { // 155 days is definitely in ongoing production (starts at 91 days)
+            plantStage = 'ongoing-production';
+          } else if (plantAge >= 84) {
+            plantStage = 'fruiting';
+          } else if (plantAge >= 56) {
+            plantStage = 'flowering';
+          } else if (plantAge >= 28) {
+            plantStage = 'vegetative';
+          }
+          
+          // Create a grouped task name and plant name
+          const groupedPlantName = task.plantCount > 1 
+            ? `${task.plantCount} ${task.varietyName}` 
+            : firstPlant?.name || 'Unknown Plant';
+            
+          return {
+            id: task.id,
+            plantId: task.plantIds[0], // Use first plant ID for navigation
+            plantName: groupedPlantName,
+            task: task.taskName,
+            type: 'fertilize',
+            dueDate: task.dueDate,
+            dueIn,
+            priority,
+            category: 'fertilizing' as const,
+            plantStage: plantStage as any, // Use calculated stage
+          };
+        });
+        
+        // Combine all tasks and sort by due date
+        const allTasks = [...careTasks, ...convertedFertilizationTasks];
+        allTasks.sort((a, b) => a.dueDate.getTime() - b.dueDate.getTime());
+        
+        setUpcomingTasks(allTasks);
       } catch (error) {
         console.error("Failed to load tasks:", error);
       } finally {
@@ -47,7 +185,7 @@ export const CatchUpPage = () => {
     };
 
     loadTasks();
-  }, [plants, user?.uid]);
+  }, [plants, user?.uid]); // Remove getUpcomingFertilizationTasks to prevent infinite loop
 
   // Filtered tasks and filter options
   const filteredTasks = useMemo(() => {

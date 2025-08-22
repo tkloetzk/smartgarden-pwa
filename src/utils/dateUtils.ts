@@ -107,3 +107,16 @@ export function createDateForCareLogging(dateString: string): Date {
     return createLocalDateFromString(dateString);
   }
 }
+
+export function formatDaysAgo(date: Date): string {
+  const now = new Date();
+  const days = differenceInDays(now, date);
+  
+  if (days === 0) {
+    return "Today";
+  } else if (days === 1) {
+    return "Yesterday";
+  } else {
+    return `${days} days ago`;
+  }
+}

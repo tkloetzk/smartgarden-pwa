@@ -25,14 +25,14 @@
             <div class='fl pad1y space-right2'>
                 <span class="strong">0% </span>
                 <span class="quiet">Statements</span>
-                <span class='fraction'>0/58</span>
+                <span class='fraction'>0/60</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
                 <span class="strong">0% </span>
                 <span class="quiet">Branches</span>
-                <span class='fraction'>0/18</span>
+                <span class='fraction'>0/20</span>
             </div>
         
             
@@ -46,7 +46,7 @@
             <div class='fl pad1y space-right2'>
                 <span class="strong">0% </span>
                 <span class="quiet">Lines</span>
-                <span class='fraction'>0/51</span>
+                <span class='fraction'>0/53</span>
             </div>
         
             
@@ -300,7 +300,9 @@
 <a name='L235'></a><a href='#L235'>235</a>
 <a name='L236'></a><a href='#L236'>236</a>
 <a name='L237'></a><a href='#L237'>237</a>
-<a name='L238'></a><a href='#L238'>238</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
+<a name='L238'></a><a href='#L238'>238</a>
+<a name='L239'></a><a href='#L239'>239</a>
+<a name='L240'></a><a href='#L240'>240</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -432,17 +434,21 @@
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -453,8 +459,6 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -610,8 +614,8 @@ const PlantInfo = <span class="cstat-no" title="statement not covered" >React.me
   }, [plant.plantedDate]);
 &nbsp;
   const stageDisplay = <span class="cstat-no" title="statement not covered" >useMemo(<span class="fstat-no" title="function not covered" >() =</span>&gt; {</span>
-<span class="cstat-no" title="statement not covered" >    return calculatedStage?.currentStage || 'Unknown';</span>
-  }, [calculatedStage?.currentStage]);
+<span class="cstat-no" title="statement not covered" >    return calculatedStage || 'Unknown';</span>
+  }, [calculatedStage]);
 &nbsp;
 <span class="cstat-no" title="statement not covered" >  return (</span>
     &lt;div 
@@ -664,17 +668,21 @@ const PlantGroupCard = <span class="cstat-no" title="statement not covered" >Rea
 &nbsp;
   // Memoized bulk action handler
   const handleBulkAction = <span class="cstat-no" title="statement not covered" >useCallback(<span class="fstat-no" title="function not covered" >(</span></span>
-    activityType: "water" | "fertilize" | "observe"
+    activityType: QuickActionType | "more"
   ) =&gt; {
-<span class="cstat-no" title="statement not covered" >    onBulkLogActivity(plantIds, activityType, group);</span>
+<span class="cstat-no" title="statement not covered" >    <span class="missing-if-branch" title="if path not taken" >I</span>if (activityType !== "more") {</span>
+<span class="cstat-no" title="statement not covered" >      onBulkLogActivity(plantIds, activityType, group);</span>
+    }
 <span class="cstat-no" title="statement not covered" >    setShowBulkActions(false);</span>
   }, [onBulkLogActivity, plantIds, group]);
 &nbsp;
   // Memoized individual action handler
   const handleIndividualAction = <span class="cstat-no" title="statement not covered" >useCallback(<span class="fstat-no" title="function not covered" >(</span></span>
-    activityType: "water" | "fertilize" | "observe"
+    activityType: QuickActionType | "more"
   ) =&gt; {
-<span class="cstat-no" title="statement not covered" >    onBulkLogActivity([currentPlant.id], activityType, group);</span>
+<span class="cstat-no" title="statement not covered" >    <span class="missing-if-branch" title="if path not taken" >I</span>if (activityType !== "more") {</span>
+<span class="cstat-no" title="statement not covered" >      onBulkLogActivity([currentPlant.id], activityType, group);</span>
+    }
 <span class="cstat-no" title="statement not covered" >    setShowIndividualActions(false);</span>
   }, [onBulkLogActivity, currentPlant.id, group]);
 &nbsp;
@@ -694,8 +702,8 @@ const PlantGroupCard = <span class="cstat-no" title="statement not covered" >Rea
       &lt;CardHeader className="pb-3"&gt;
         &lt;div className="flex items-center justify-between"&gt;
           &lt;CardTitle className="text-lg flex items-center gap-2"&gt;
-            &lt;span className="text-2xl"&gt;{group.icon}&lt;/span&gt;
-            {group.title}
+            &lt;span className="text-2xl"&gt;🌱&lt;/span&gt;
+            {group.varietyName}
             &lt;span className="text-sm font-normal text-muted-foreground"&gt;
               ({group.plants.length} plants)
             &lt;/span&gt;
@@ -748,7 +756,6 @@ const PlantGroupCard = <span class="cstat-no" title="statement not covered" >Rea
             &lt;/p&gt;
             &lt;QuickActionButtons
               onAction={handleBulkAction}
-              plantStage={calculatedStage?.currentStage}
             /&gt;
           &lt;/div&gt;
         )}
@@ -761,7 +768,6 @@ const PlantGroupCard = <span class="cstat-no" title="statement not covered" >Rea
             &lt;/p&gt;
             &lt;QuickActionButtons
               onAction={handleIndividualAction}
-              plantStage={calculatedStage?.currentStage}
             /&gt;
           &lt;/div&gt;
         )}
@@ -781,7 +787,7 @@ const PlantGroupCard = <span class="cstat-no" title="statement not covered" >Rea
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2025-07-15T18:41:54.746Z
+                at 2025-08-21T02:00:20.066Z
             </div>
         <script src="../../../prettify.js"></script>
         <script>

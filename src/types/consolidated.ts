@@ -491,6 +491,15 @@ export interface CareActivityRecord extends BaseRecord {
   type: CareActivityType;
   date: Date;
   details: CareActivityDetails;
+  
+  // Legacy property aliases for backward compatibility
+  activityType?: CareActivityType; // alias for type
+  activityDate?: Date; // alias for date
+  
+  // Additional metadata
+  notes?: string;
+  stage?: GrowthStage;
+  plantAge?: number;
 }
 
 export interface TaskBypassRecord extends BaseRecord {

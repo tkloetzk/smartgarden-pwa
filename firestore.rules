@@ -24,7 +24,10 @@ service cloud.firestore {
     match /careActivities/{activityId} {
       // ✅ CORRECTED: This single 'read' rule covers both 'get' and 'list'
       allow read: if isOwner(resource.data.userId);
-      allow write: if isOwner(request.resource.data.userId);
+      // Allow create/update when the userId in the data matches the authenticated user
+      allow create, update: if isOwner(request.resource.data.userId);
+      // Allow delete when the userId in the existing document matches the authenticated user
+      allow delete: if isOwner(resource.data.userId);
     }
     
     // Scheduled Tasks - users can only access their own tasks

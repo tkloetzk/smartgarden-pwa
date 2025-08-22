@@ -23,7 +23,7 @@ export const initializeDatabase = async (): Promise<void> => {
     console.log("🌱 Initializing database with seed data...");
 
     // Get varieties with proper database IDs and timestamps
-    const varietyRecords = getVarietiesForDatabase();
+    const varietyRecords = await getVarietiesForDatabase();
 
     await db.varieties.bulkAdd(varietyRecords);
 

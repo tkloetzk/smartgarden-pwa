@@ -17,6 +17,8 @@ import { LoadingSpinner } from "@/components/ui/LoadingSpinner";
 import { PlantSection, PlantRecord } from "@/types";
 import { ArrowLeft } from "lucide-react";
 import { dateToLocalDateString } from "@/utils/dateUtils";
+import { FirebasePlantService } from "@/services/firebase/plantService";
+import { useFirebaseAuth } from "@/hooks/useFirebaseAuth";
 
 const plantEditSchema = z.object({
   varietyId: z.string().min(1, "Please select a variety"),
@@ -42,6 +44,7 @@ export default function EditPlant() {
   const { plantId } = useParams<{ plantId: string }>();
   const navigate = useNavigate();
   const { plants, updatePlant, loading: plantsLoading } = useFirebasePlants();
+  const { user } = useFirebaseAuth();
   
   const [plant, setPlant] = useState<PlantRecord | null>(null);
   const [varieties, setVarieties] = useState<VarietyRecord[]>([]);
@@ -133,7 +136,7 @@ export default function EditPlant() {
   }, [plantId, plants, plantsLoading, navigate, setValue]);
 
   const handleFormSubmit = async (data: PlantEditFormData) => {
-    if (!plant) return;
+    if (!plant || !user) return;
 
     try {
       setIsLoading(true);
@@ -154,6 +157,16 @@ export default function EditPlant() {
       };
 
       await updatePlant(plant.id, updatedPlantData);
+      
+      // Regenerate scheduled tasks with the updated plant data
+      try {
+        const finalPlantRecord = { ...updatedPlantData, id: plant.id };
+        await FirebasePlantService.regenerateTasksForPlant(finalPlantRecord, user.uid);
+        console.log(`✅ Tasks regenerated for updated plant ${plant.id}`);
+      } catch (taskError) {
+        console.error("Failed to regenerate tasks:", taskError);
+        // Don't fail the plant update if task regeneration fails
+      }
       
       toast.success("Plant updated successfully! 🌱");
       navigate(`/plants/${plant.id}`);

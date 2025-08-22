@@ -10,6 +10,7 @@ import {
   CheckCircle2,
 } from "lucide-react";
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { ScheduledTask } from "@/services/ProtocolTranspilerService";
 import FertilizationTaskCard from "@/components/fertilization/FertilizationTaskCard";
 import { QuickCompletionValues } from "@/services/smartDefaultsService";
@@ -25,15 +26,49 @@ const FertilizationDashboardSection: React.FC<
   FertilizationDashboardSectionProps
 > = ({ tasks, onTaskComplete, onTaskBypass, onTaskLogActivity }) => {
   const [isExpanded, setIsExpanded] = useState(true);
+  const [showAllUpcoming, setShowAllUpcoming] = useState(false);
+  const navigate = useNavigate();
 
-  if (tasks.length === 0) return null;
+  const now = new Date();
+  const todayStart = new Date();
+  todayStart.setHours(0, 0, 0, 0); // Start of today
+  
+  const tomorrow = new Date(todayStart);
+  tomorrow.setDate(tomorrow.getDate() + 1); // Start of tomorrow
+  
+  const threeDaysFromNow = new Date(todayStart);
+  threeDaysFromNow.setDate(threeDaysFromNow.getDate() + 4); // Start of day 4 (so we include up to end of day 3)
+  
+  const fourteenDaysAgo = new Date(todayStart);
+  fourteenDaysAgo.setDate(fourteenDaysAgo.getDate() - 14); // Start of 14 days ago for overdue tasks
 
-  const overdueTasks = tasks.filter((task) => task.dueDate < new Date());
-  const todayTasks = tasks.filter((task) => {
-    const today = new Date();
-    return task.dueDate.toDateString() === today.toDateString();
+  const threeDaysAgo = new Date(todayStart);
+  threeDaysAgo.setDate(threeDaysAgo.getDate() - 3); // Start of 3 days ago for recent overdue
+
+  // Filter tasks to show relevant ones within an extended window for fertilization
+  const relevantTasks = tasks.filter((task) => {
+    const taskDate = new Date(task.dueDate);
+    taskDate.setHours(0, 0, 0, 0); // Normalize to start of day for comparison
+    
+    // For overdue tasks, show up to 14 days back (to catch missed fertilization)
+    // For future tasks, show up to 3 days ahead (normal window)
+    if (taskDate < todayStart) {
+      // Overdue task - show if within 14 days
+      return taskDate >= fourteenDaysAgo;
+    } else {
+      // Future task - show if within 3 days
+      return taskDate < threeDaysFromNow;
+    }
   });
-  const upcomingTasks = tasks.filter((task) => task.dueDate > new Date());
+
+  // Don't render if no relevant tasks
+  if (relevantTasks.length === 0) return null;
+
+  const overdueTasks = relevantTasks.filter((task) => task.dueDate < now);
+  const todayTasks = relevantTasks.filter((task) => {
+    return task.dueDate.toDateString() === now.toDateString();
+  });
+  const upcomingTasks = relevantTasks.filter((task) => task.dueDate >= tomorrow);
 
   const getPriorityCount = () => {
     const overdue = overdueTasks.length;
@@ -42,6 +77,19 @@ const FertilizationDashboardSection: React.FC<
   };
 
   const { overdue, today } = getPriorityCount();
+
+  // Enhanced task handlers that navigate to log-care with plant ID pre-filled
+  const handleTaskCardClick = (task: ScheduledTask) => {
+    // For grouped tasks, use the first plant ID, or fall back to single plantId
+    const plantId = (task as any).plantIds?.[0] || task.plantId;
+    navigate(`/log-care/${plantId}?type=fertilize&product=${encodeURIComponent(task.details.product)}`);
+  };
+
+  const handleViewAllUpcoming = () => {
+    setShowAllUpcoming(!showAllUpcoming);
+  };
+
+  const upcomingTasksToShow = showAllUpcoming ? upcomingTasks : upcomingTasks.slice(0, 3);
 
   return (
     <Card className="mb-6">
@@ -54,8 +102,13 @@ const FertilizationDashboardSection: React.FC<
             <Beaker className="h-5 w-5 text-green-600" />
             <span>🌱 Fertilization Tasks</span>
             <Badge variant="secondary" className="ml-2">
-              {tasks.length}
+              {relevantTasks.length}
             </Badge>
+            {tasks.length > relevantTasks.length && (
+              <span className="text-xs text-muted-foreground ml-1">
+                ({tasks.length - relevantTasks.length} more in schedule)
+              </span>
+            )}
           </CardTitle>
           <div className="flex items-center gap-2">
             {overdue > 0 && (
@@ -92,13 +145,14 @@ const FertilizationDashboardSection: React.FC<
               </div>
               <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                 {overdueTasks.map((task) => (
-                  <FertilizationTaskCard
-                    key={task.id}
-                    task={task}
-                    onComplete={onTaskComplete}
-                    onBypass={onTaskBypass}
-                    onLogActivity={onTaskLogActivity}
-                  />
+                  <div key={task.id} onClick={() => handleTaskCardClick(task)} className="cursor-pointer">
+                    <FertilizationTaskCard
+                      task={task}
+                      onComplete={onTaskComplete}
+                      onBypass={onTaskBypass}
+                      onLogActivity={onTaskLogActivity}
+                    />
+                  </div>
                 ))}
               </div>
             </div>
@@ -115,13 +169,14 @@ const FertilizationDashboardSection: React.FC<
               </div>
               <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                 {todayTasks.map((task) => (
-                  <FertilizationTaskCard
-                    key={task.id}
-                    task={task}
-                    onComplete={onTaskComplete}
-                    onBypass={onTaskBypass}
-                    onLogActivity={onTaskLogActivity}
-                  />
+                  <div key={task.id} onClick={() => handleTaskCardClick(task)} className="cursor-pointer">
+                    <FertilizationTaskCard
+                      task={task}
+                      onComplete={onTaskComplete}
+                      onBypass={onTaskBypass}
+                      onLogActivity={onTaskLogActivity}
+                    />
+                  </div>
                 ))}
               </div>
             </div>
@@ -133,25 +188,33 @@ const FertilizationDashboardSection: React.FC<
               <div className="flex items-center gap-2 mb-3">
                 <CheckCircle2 className="h-4 w-4 text-green-600" />
                 <h4 className="font-medium text-green-600">
-                  Upcoming ({upcomingTasks.slice(0, 3).length}
-                  {upcomingTasks.length > 3 ? "+" : ""})
+                  Upcoming ({upcomingTasksToShow.length}
+                  {!showAllUpcoming && upcomingTasks.length > 3 ? ` of ${upcomingTasks.length}` : ""})
                 </h4>
               </div>
               <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                {upcomingTasks.slice(0, 3).map((task) => (
-                  <FertilizationTaskCard
-                    key={task.id}
-                    task={task}
-                    onComplete={onTaskComplete}
-                    onBypass={onTaskBypass}
-                    onLogActivity={onTaskLogActivity}
-                    showQuickActions={false}
-                  />
+                {upcomingTasksToShow.map((task) => (
+                  <div key={task.id} onClick={() => handleTaskCardClick(task)} className="cursor-pointer">
+                    <FertilizationTaskCard
+                      task={task}
+                      onComplete={onTaskComplete}
+                      onBypass={onTaskBypass}
+                      onLogActivity={onTaskLogActivity}
+                      showQuickActions={false}
+                    />
+                  </div>
                 ))}
               </div>
               {upcomingTasks.length > 3 && (
-                <Button variant="outline" className="w-full mt-3">
-                  View All {upcomingTasks.length} Upcoming Tasks
+                <Button 
+                  variant="outline" 
+                  className="w-full mt-3"
+                  onClick={handleViewAllUpcoming}
+                >
+                  {showAllUpcoming 
+                    ? `Show Less (${upcomingTasks.slice(0, 3).length} of ${upcomingTasks.length})`
+                    : `View All ${upcomingTasks.length} Upcoming Tasks`
+                  }
                 </Button>
               )}
             </div>

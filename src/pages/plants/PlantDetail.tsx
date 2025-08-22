@@ -5,6 +5,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/Button";
 import { LoadingSpinner } from "@/components/ui/LoadingSpinner";
 import { FirebasePlantService } from "@/services/firebase/plantService";
+import { FirebaseCareActivityService } from "@/services/firebase/careActivityService";
 import { useFirebaseAuth } from "@/hooks/useFirebaseAuth";
 import { useFirebaseCareActivities } from "@/hooks/useFirebaseCareActivities";
 import { PlantRecord, GrowthStage } from "@/types";
@@ -31,6 +32,7 @@ const PlantDetail: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [showReminderSettings, setShowReminderSettings] = useState(false);
   const [isStageModalOpen, setIsStageModalOpen] = useState(false);
+  const [isRegeneratingTasks, setIsRegeneratingTasks] = useState(false);
 
   useEffect(() => {
     if (!plantId) {
@@ -147,6 +149,31 @@ const PlantDetail: React.FC = () => {
     navigate(`/log-care?${params.toString()}`);
   };
 
+  const handleDeleteActivity = async (activityId: string) => {
+    try {
+      await FirebaseCareActivityService.deleteCareActivity(activityId);
+      toast.success("Care activity deleted successfully");
+    } catch (error) {
+      console.error("Failed to delete care activity:", error);
+      toast.error("Failed to delete care activity");
+    }
+  };
+
+  const handleRegenerateTasks = async () => {
+    if (!plant || !user) return;
+    
+    try {
+      setIsRegeneratingTasks(true);
+      await FirebasePlantService.regenerateTasksForPlant(plant, user.uid);
+      toast.success("Tasks regenerated successfully! 🌱 Check your dashboard for fertilization reminders.");
+    } catch (error) {
+      console.error("Failed to regenerate tasks:", error);
+      toast.error("Failed to regenerate tasks. Please try again.");
+    } finally {
+      setIsRegeneratingTasks(false);
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -233,6 +260,15 @@ const PlantDetail: React.FC = () => {
               Edit Plant
             </Button>
             <Button
+              variant="outline"
+              size="sm"
+              onClick={handleRegenerateTasks}
+              disabled={isRegeneratingTasks}
+              className="text-xs"
+            >
+              {isRegeneratingTasks ? "Regenerating..." : "🔄 Regenerate Tasks"}
+            </Button>
+            <Button
               onClick={handleLogCare}
               className="bg-primary hover:bg-primary/90"
               size="sm"
@@ -257,7 +293,11 @@ const PlantDetail: React.FC = () => {
             }}
           />
 
-          <CareHistory plantId={plant.id} careHistory={careHistory} />
+          <CareHistory 
+            plantId={plant.id} 
+            careHistory={careHistory} 
+            onDeleteActivity={handleDeleteActivity}
+          />
         </div>
       </div>
 

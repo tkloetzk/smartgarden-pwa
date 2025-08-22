@@ -23,30 +23,30 @@
         <div class='clearfix'>
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">31.57% </span>
+                <span class="strong">100% </span>
                 <span class="quiet">Statements</span>
-                <span class='fraction'>6/19</span>
+                <span class='fraction'>19/19</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">0% </span>
+                <span class="strong">100% </span>
                 <span class="quiet">Branches</span>
-                <span class='fraction'>0/3</span>
+                <span class='fraction'>3/3</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">0% </span>
+                <span class="strong">100% </span>
                 <span class="quiet">Functions</span>
-                <span class='fraction'>0/1</span>
+                <span class='fraction'>1/1</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">33.33% </span>
+                <span class="strong">100% </span>
                 <span class="quiet">Lines</span>
-                <span class='fraction'>6/18</span>
+                <span class='fraction'>18/18</span>
             </div>
         
             
@@ -61,7 +61,7 @@
             </div>
         </template>
     </div>
-    <div class='status-line low'></div>
+    <div class='status-line high'></div>
     <pre><table class="coverage">
 <tr><td class="line-count quiet"><a name='L1'></a><a href='#L1'>1</a>
 <a name='L2'></a><a href='#L2'>2</a>
@@ -145,41 +145,41 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">16x</span>
+<span class="cline-any cline-yes">16x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">15x</span>
+<span class="cline-any cline-yes">15x</span>
+<span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">14x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">13x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">12x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">12x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">11x</span>
+<span class="cline-any cline-yes">4x</span>
+<span class="cline-any cline-yes">3x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -200,46 +200,46 @@ export class StageManagementService {
    * @param newStage - The new GrowthStage confirmed by the user.
    * @param userId - The ID of the current user.
    */
-<span class="fstat-no" title="function not covered" >  static </span>async confirmNewStage(
+  static async confirmNewStage(
     plantId: string,
     newStage: GrowthStage,
     userId: string
   ): Promise&lt;void&gt; {
-    const plant = <span class="cstat-no" title="statement not covered" >await FirebasePlantService.getPlant(plantId, userId);</span>
-<span class="cstat-no" title="statement not covered" >    <span class="missing-if-branch" title="if path not taken" >I</span>if (!plant) <span class="cstat-no" title="statement not covered" >throw new Error("Plant not found during stage update.");</span></span>
+    const plant = await FirebasePlantService.getPlant(plantId, userId);
+    if (!plant) throw new Error("Plant not found during stage update.");
 &nbsp;
-    const variety = <span class="cstat-no" title="statement not covered" >await varietyService.getVariety(plant.varietyId);</span>
-<span class="cstat-no" title="statement not covered" >    <span class="missing-if-branch" title="if path not taken" >I</span>if (!variety)</span>
-<span class="cstat-no" title="statement not covered" >      throw new Error("Variety information could not be loaded for the plant.");</span>
+    const variety = await varietyService.getVariety(plant.varietyId);
+    if (!variety)
+      throw new Error("Variety information could not be loaded for the plant.");
 &nbsp;
     // 1. Update the plant record
-<span class="cstat-no" title="statement not covered" >    await FirebasePlantService.updatePlant(plantId, {</span>
+    await FirebasePlantService.updatePlant(plantId, {
       confirmedStage: newStage,
       stageConfirmedDate: new Date(),
       updatedAt: new Date(),
     });
 &nbsp;
     // 2. Delete all future pending tasks for this plant.
-<span class="cstat-no" title="statement not covered" >    await FirebaseScheduledTaskService.deletePendingTasksForPlant(</span>
+    await FirebaseScheduledTaskService.deletePendingTasksForPlant(
       plantId,
       userId
     ); // ✅ Pass userId
 &nbsp;
     // 3. Recalculate and create new tasks from this new anchor date.
-    const updatedPlant = <span class="cstat-no" title="statement not covered" >{</span>
+    const updatedPlant = {
       ...plant,
       confirmedStage: newStage,
       stageConfirmedDate: new Date(),
     };
-    const newTasks = <span class="cstat-no" title="statement not covered" >await ProtocolTranspilerService.transpileProtocolFromStage(</span>
+    const newTasks = await ProtocolTranspilerService.transpileProtocolFromStage(
       updatedPlant,
       variety,
       newStage
     );
 &nbsp;
-<span class="cstat-no" title="statement not covered" >    <span class="missing-if-branch" title="if path not taken" >I</span>if (newTasks.length &gt; 0) {</span>
-<span class="cstat-no" title="statement not covered" >      await FirebaseScheduledTaskService.createMultipleTasks(newTasks, userId);</span>
-<span class="cstat-no" title="statement not covered" >      toast.success(`${newTasks.length} new care tasks have been scheduled.`);</span>
+    if (newTasks.length &gt; 0) {
+      await FirebaseScheduledTaskService.createMultipleTasks(newTasks, userId);
+      toast.success(`${newTasks.length} new care tasks have been scheduled.`);
     }
   }
 }
@@ -250,7 +250,7 @@ export class StageManagementService {
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2025-07-15T18:41:54.746Z
+                at 2025-08-21T02:00:20.066Z
             </div>
         <script src="../../prettify.js"></script>
         <script>

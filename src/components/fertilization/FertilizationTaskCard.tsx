@@ -125,6 +125,12 @@ export const FertilizationTaskCard: React.FC<FertilizationTaskCardProps> = ({
             <CardTitle className="flex items-center gap-2 text-lg">
               <Beaker className="h-5 w-5 text-green-600" />
               {task.taskName}
+              {/* Show plant count for grouped tasks */}
+              {(task as any).plantCount > 1 && (
+                <Badge variant="outline" className="ml-2 text-xs">
+                  {(task as any).plantCount} {(task as any).varietyName || 'plants'}
+                </Badge>
+              )}
             </CardTitle>
             <div className="flex items-center gap-2 mt-1">
               {status.icon}
@@ -132,6 +138,21 @@ export const FertilizationTaskCard: React.FC<FertilizationTaskCardProps> = ({
                 {status.text}
               </span>
             </div>
+            {/* Show affected plants for grouped tasks */}
+            {(task as any).affectedPlants && (task as any).affectedPlants.length > 1 && (
+              <div className="mt-2 text-xs text-muted-foreground">
+                <span className="font-medium">Plants: </span>
+                {(task as any).affectedPlants.slice(0, 3).map((plant: any, index: number) => (
+                  <span key={plant.id}>
+                    {plant.name}
+                    {index < Math.min(2, (task as any).affectedPlants.length - 1) ? ', ' : ''}
+                  </span>
+                ))}
+                {(task as any).affectedPlants.length > 3 && (
+                  <span> +{(task as any).affectedPlants.length - 3} more</span>
+                )}
+              </div>
+            )}
           </div>
           <Badge
             variant={
@@ -212,7 +233,9 @@ export const FertilizationTaskCard: React.FC<FertilizationTaskCardProps> = ({
               size="sm"
             >
               <CheckCircle2 className="h-4 w-4 mr-2" />
-              Quick: {task.details.product}
+              {(task as any).plantCount > 1 
+                ? `Apply to ${(task as any).plantCount} plants` 
+                : `Quick: ${task.details.product}`}
             </Button>
 
             <Button

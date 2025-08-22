@@ -23,30 +23,30 @@
         <div class='clearfix'>
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">30.76% </span>
+                <span class="strong">100% </span>
                 <span class="quiet">Statements</span>
-                <span class='fraction'>4/13</span>
+                <span class='fraction'>13/13</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">0% </span>
+                <span class="strong">100% </span>
                 <span class="quiet">Branches</span>
-                <span class='fraction'>0/1</span>
+                <span class='fraction'>1/1</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">16.66% </span>
+                <span class="strong">100% </span>
                 <span class="quiet">Functions</span>
-                <span class='fraction'>1/6</span>
+                <span class='fraction'>6/6</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">30.76% </span>
+                <span class="strong">100% </span>
                 <span class="quiet">Lines</span>
-                <span class='fraction'>4/13</span>
+                <span class='fraction'>13/13</span>
             </div>
         
             
@@ -61,7 +61,7 @@
             </div>
         </template>
     </div>
-    <div class='status-line low'></div>
+    <div class='status-line high'></div>
     <pre><table class="coverage">
 <tr><td class="line-count quiet"><a name='L1'></a><a href='#L1'>1</a>
 <a name='L2'></a><a href='#L2'>2</a>
@@ -112,7 +112,7 @@
 <a name='L47'></a><a href='#L47'>47</a>
 <a name='L48'></a><a href='#L48'>48</a>
 <a name='L49'></a><a href='#L49'>49</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">17x</span>
+<span class="cline-any cline-yes">27x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -121,42 +121,42 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">17x</span>
+<span class="cline-any cline-yes">27x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">17x</span>
+<span class="cline-any cline-yes">27x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">7x</span>
+<span class="cline-any cline-yes">3x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">7x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">4x</span>
+<span class="cline-any cline-yes">3x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">3x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">3x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">9x</span>
+<span class="cline-any cline-yes">3x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">50x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">2x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span></td><td class="text"><pre class="prettyprint lang-js">// src/services/firebase/authService.ts
@@ -172,39 +172,39 @@ import {
 import { auth } from "./config"; // Correctly points to the real config
 &nbsp;
 export class FirebaseAuthService {
-<span class="fstat-no" title="function not covered" >  static </span>async signIn(email: string, password: string): Promise&lt;User&gt; {
-    const result = <span class="cstat-no" title="statement not covered" >await signInWithEmailAndPassword(auth, email, password);</span>
-<span class="cstat-no" title="statement not covered" >    return result.user;</span>
+  static async signIn(email: string, password: string): Promise&lt;User&gt; {
+    const result = await signInWithEmailAndPassword(auth, email, password);
+    return result.user;
   }
 &nbsp;
-<span class="fstat-no" title="function not covered" >  static </span>async signUp(
+  static async signUp(
     email: string,
     password: string,
     displayName?: string
   ): Promise&lt;User&gt; {
-    const result = <span class="cstat-no" title="statement not covered" >await createUserWithEmailAndPassword(auth, email, password);</span>
+    const result = await createUserWithEmailAndPassword(auth, email, password);
 &nbsp;
-<span class="cstat-no" title="statement not covered" >    <span class="missing-if-branch" title="if path not taken" >I</span>if (displayName) {</span>
-<span class="cstat-no" title="statement not covered" >      await updateProfile(result.user, { displayName });</span>
+    if (displayName) {
+      await updateProfile(result.user, { displayName });
     }
 &nbsp;
-<span class="cstat-no" title="statement not covered" >    return result.user;</span>
+    return result.user;
   }
 &nbsp;
-<span class="fstat-no" title="function not covered" >  static </span>async signOut(): Promise&lt;void&gt; {
-<span class="cstat-no" title="statement not covered" >    await signOut(auth);</span>
+  static async signOut(): Promise&lt;void&gt; {
+    await signOut(auth);
   }
 &nbsp;
-<span class="fstat-no" title="function not covered" >  static </span>async resetPassword(email: string): Promise&lt;void&gt; {
-<span class="cstat-no" title="statement not covered" >    await sendPasswordResetEmail(auth, email);</span>
+  static async resetPassword(email: string): Promise&lt;void&gt; {
+    await sendPasswordResetEmail(auth, email);
   }
 &nbsp;
   static onAuthStateChanged(callback: (user: User | null) =&gt; void): () =&gt; void {
     return onAuthStateChanged(auth, callback);
   }
 &nbsp;
-<span class="fstat-no" title="function not covered" >  static </span>getCurrentUser(): User | null {
-<span class="cstat-no" title="statement not covered" >    return auth.currentUser;</span>
+  static getCurrentUser(): User | null {
+    return auth.currentUser;
   }
 }
 &nbsp;</pre></td></tr></table></pre>
@@ -214,7 +214,7 @@ export class FirebaseAuthService {
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2025-07-15T18:41:54.746Z
+                at 2025-08-21T02:00:20.066Z
             </div>
         <script src="../../../prettify.js"></script>
         <script>

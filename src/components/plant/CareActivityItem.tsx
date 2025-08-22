@@ -1,14 +1,32 @@
 // src/components/plant/CareActivityItem.tsx
 import React, { useState } from "react";
 import { CareRecord } from "@/types";
-import { formatDateTime } from "@/utils/dateUtils";
+import { formatDateTime, formatDaysAgo } from "@/utils/dateUtils";
+import { Button } from "@/components/ui/Button";
 
 interface CareActivityItemProps {
   activity: CareRecord;
+  onDeleteActivity?: (activityId: string) => void;
 }
 
-const CareActivityItem: React.FC<CareActivityItemProps> = ({ activity }) => {
+const CareActivityItem: React.FC<CareActivityItemProps> = ({ activity, onDeleteActivity }) => {
   const [isExpanded, setIsExpanded] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+
+  const handleDeleteClick = () => {
+    setShowDeleteConfirm(true);
+  };
+
+  const handleDeleteConfirm = () => {
+    if (onDeleteActivity) {
+      onDeleteActivity(activity.id);
+    }
+    setShowDeleteConfirm(false);
+  };
+
+  const handleDeleteCancel = () => {
+    setShowDeleteConfirm(false);
+  };
 
   const getActivityIcon = (type: string): string => {
     switch (type) {
@@ -339,7 +357,7 @@ const CareActivityItem: React.FC<CareActivityItemProps> = ({ activity }) => {
                   {getActivityTitle(activity)}
                 </h4>
                 <p className="text-xs text-muted-foreground mt-1">
-                  {formatDateTime(activity.date)}
+                  {formatDateTime(activity.date)} • {formatDaysAgo(activity.date)}
                 </p>
               </div>
               <svg
@@ -375,6 +393,45 @@ const CareActivityItem: React.FC<CareActivityItemProps> = ({ activity }) => {
                 <div className="text-sm text-foreground mt-1">
                   {activity.details.notes}
                 </div>
+              </div>
+            )}
+
+            {/* Delete button and confirmation dialog */}
+            {onDeleteActivity && (
+              <div className="mt-3 pt-3 border-t border-border">
+                {!showDeleteConfirm ? (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleDeleteClick}
+                    className="text-destructive border-destructive hover:bg-destructive hover:text-destructive-foreground"
+                  >
+                    Delete
+                  </Button>
+                ) : (
+                  <div className="space-y-3">
+                    <p className="text-sm text-muted-foreground">
+                      Are you sure you want to delete this care activity? This action cannot be undone.
+                    </p>
+                    <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handleDeleteCancel}
+                      >
+                        Cancel
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handleDeleteConfirm}
+                        className="text-destructive border-destructive hover:bg-destructive hover:text-destructive-foreground"
+                      >
+                        Confirm Delete
+                      </Button>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </div>

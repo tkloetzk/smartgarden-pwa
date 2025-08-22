@@ -1,6 +1,6 @@
 import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { renderComponent } from '../utils/testSetup';
+import { renderComponent } from '../test-utils';
 import SectionApplyCard from '@/components/care/SectionApplyCard';
 import { PlantRecord, CareActivityType } from '@/types/consolidated';
 import { SectionApplyOption, BulkCareResult } from '@/services/sectionBulkService';

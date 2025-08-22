@@ -11,6 +11,7 @@ import {
   ensureDateObject,
 } from "@/utils/dateUtils";
 import { Logger } from "@/utils/logger";
+import { WateringResolver } from "@/utils/wateringResolver";
 import { seedVarieties, SeedVariety } from "@/data/seedVarieties";
 import { CareRecord } from "@/types";
 
@@ -188,7 +189,10 @@ export class FirebaseCareSchedulingService {
     
     // For watering tasks, check if last watering was partial and extend threshold
     if (taskType === "water") {
-      const lastActivity = await getLastActivityByType(plant.id, "water");
+      const lastActivity = await WateringResolver.getLastWateringActivity(
+        plant.id, 
+        getLastActivityByType
+      );
       if (lastActivity?.details.isPartialWatering) {
         thresholdDays = 7; // Show partial watering follow-up tasks for up to a week
       }
@@ -223,34 +227,16 @@ export class FirebaseCareSchedulingService {
     fallbackInterval: number,
     getLastActivityByType: (plantId: string, type: CareActivityType) => Promise<CareRecord | null>
   ): Promise<Date> {
-    const lastActivity = await getLastActivityByType(plant.id, activityType);
+    let lastActivity: CareRecord | null = null;
 
-    // For watering tasks, also check if recent fertilizer applications should count as watering
+    // For watering tasks, consider both watering and water-based fertilizing
     if (activityType === "water") {
-      const lastFertilizerActivity = await getLastActivityByType(plant.id, "fertilize");
-      
-      if (lastFertilizerActivity) {
-        console.log(`🔍 Checking fertilizer for plant ${plant.id}:`, {
-          fertilizerDate: lastFertilizerActivity.date,
-          amount: lastFertilizerActivity.details?.amount,
-          shouldCount: this.shouldFertilizerCountAsWatering(lastFertilizerActivity)
-        });
-      }
-      
-      // If we have a recent fertilizer activity that involved significant water
-      if (lastFertilizerActivity && this.shouldFertilizerCountAsWatering(lastFertilizerActivity)) {
-        const fertilizerDate = ensureDateObject(lastFertilizerActivity.date);
-        
-        // Use the more recent of water or fertilizer activity
-        if (!lastActivity || fertilizerDate > ensureDateObject(lastActivity.date)) {
-          console.log(`✅ Using fertilizer date for watering schedule: ${fertilizerDate}`);
-          return await DynamicSchedulingService.getNextDueDateForTask(
-            plant.id,
-            activityType,
-            fertilizerDate
-          );
-        }
-      }
+      lastActivity = await WateringResolver.getLastWateringActivity(
+        plant.id, 
+        getLastActivityByType
+      );
+    } else {
+      lastActivity = await getLastActivityByType(plant.id, activityType);
     }
 
     if (lastActivity) {
@@ -268,70 +254,6 @@ export class FirebaseCareSchedulingService {
     }
   }
 
-  /**
-   * Determines if a fertilizer application should count as watering based on water volume
-   */
-  private static shouldFertilizerCountAsWatering(fertilizerActivity: CareRecord): boolean {
-    const details = fertilizerActivity.details;
-    
-    // Check if there's an application amount that indicates significant water volume
-    if (details?.amount) {
-      // Handle both string format "20 fl oz" and object format { value: 20, unit: "fl oz" }
-      let amount: number;
-      let unit: string;
-      
-      if (typeof details.amount === 'string') {
-        // Parse string format like "20 fl oz"
-        const match = details.amount.match(/^(\d+(?:\.\d+)?)\s*(.+)$/);
-        if (match) {
-          amount = parseFloat(match[1]);
-          unit = match[2].toLowerCase();
-        } else {
-          console.log(`❌ Could not parse fertilizer amount: "${details.amount}"`);
-          return false;
-        }
-      } else if (typeof details.amount === 'object' && details.amount.value && details.amount.unit) {
-        // Handle object format
-        amount = details.amount.value;
-        unit = details.amount.unit.toLowerCase();
-      } else {
-        console.log(`❌ Fertilizer amount format not recognized:`, details.amount);
-        return false;
-      }
-      
-      // Convert to fluid ounces for consistent comparison
-      let fluidOunces = 0;
-      if (unit === 'fl oz' || unit === 'oz') {
-        fluidOunces = amount;
-      } else if (unit === 'cup' || unit === 'cups') {
-        fluidOunces = amount * 8; // 8 fl oz per cup
-      } else if (unit === 'gallon' || unit === 'gal') {
-        fluidOunces = amount * 128; // 128 fl oz per gallon
-      } else if (unit === 'liter' || unit === 'l') {
-        fluidOunces = amount * 33.814; // ~33.8 fl oz per liter
-      }
-      
-      console.log(`🧪 Fertilizer analysis: ${amount} ${unit} = ${fluidOunces} fl oz (threshold: 4 fl oz)`);
-      
-      // Consider it watering if application is >= 4 fl oz (significant liquid fertilizer application)
-      const shouldCount = fluidOunces >= 4;
-      console.log(`${shouldCount ? '✅' : '❌'} Fertilizer ${shouldCount ? 'counts' : 'does not count'} as watering`);
-      return shouldCount;
-    }
-    
-    // Check for legacy text-based notes that might indicate watering
-    const notes = details?.notes?.toLowerCase() || '';
-    const waterKeywords = ['watered', 'liquid', 'solution', 'drench', 'oz', 'cup', 'gallon', 'ml', 'liter'];
-    const hasWaterKeywords = waterKeywords.some(keyword => notes.includes(keyword));
-    
-    if (hasWaterKeywords) {
-      console.log(`✅ Fertilizer counts as watering based on notes: "${notes}"`);
-    } else {
-      console.log(`❌ No sufficient liquid volume or water keywords found`);
-    }
-    
-    return hasWaterKeywords;
-  }
 
   private static filterTasksByPreferences(
     plant: PlantRecord,

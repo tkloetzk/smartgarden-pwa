@@ -10,9 +10,10 @@ import { useNavigate } from "react-router-dom";
 interface CareHistoryProps {
   careHistory: CareRecord[];
   plantId: string;
+  onDeleteActivity?: (activityId: string) => void;
 }
 
-const CareHistory: React.FC<CareHistoryProps> = ({ plantId, careHistory }) => {
+const CareHistory: React.FC<CareHistoryProps> = ({ plantId, careHistory, onDeleteActivity }) => {
   const navigate = useNavigate();
 
   const [showAll, setShowAll] = useState(false);
@@ -116,7 +117,11 @@ const CareHistory: React.FC<CareHistoryProps> = ({ plantId, careHistory }) => {
             {/* Activities list */}
             <div className="space-y-3">
               {displayedHistory.map((activity) => (
-                <CareActivityItem key={activity.id} activity={activity} />
+                <CareActivityItem 
+                  key={activity.id} 
+                  activity={activity} 
+                  onDeleteActivity={onDeleteActivity}
+                />
               ))}
             </div>
 

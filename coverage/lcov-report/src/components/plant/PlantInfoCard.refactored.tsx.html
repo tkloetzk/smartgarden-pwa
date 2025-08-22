@@ -25,28 +25,28 @@
             <div class='fl pad1y space-right2'>
                 <span class="strong">0% </span>
                 <span class="quiet">Statements</span>
-                <span class='fraction'>0/29</span>
+                <span class='fraction'>0/28</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
                 <span class="strong">0% </span>
                 <span class="quiet">Branches</span>
-                <span class='fraction'>0/12</span>
+                <span class='fraction'>0/14</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
                 <span class="strong">0% </span>
                 <span class="quiet">Functions</span>
-                <span class='fraction'>0/9</span>
+                <span class='fraction'>0/10</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
                 <span class="strong">0% </span>
                 <span class="quiet">Lines</span>
-                <span class='fraction'>0/29</span>
+                <span class='fraction'>0/28</span>
             </div>
         
             
@@ -212,7 +212,6 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -255,6 +254,7 @@
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -340,15 +340,14 @@
  * Demonstrates use of ActionCard, ToggleSection, and ActionButtonGroup
  */
 &nbsp;
-<span class="cstat-no" title="statement not covered" >import React, { useState, useEffect } from "react";</span>
+<span class="cstat-no" title="statement not covered" >import { useState, useEffect } from "react";</span>
 <span class="cstat-no" title="statement not covered" >import { Calendar, MapPin, Package, Droplets } from "lucide-react";</span>
 <span class="cstat-no" title="statement not covered" >import { ActionCard } from "@/components/ui/ActionCard";</span>
 <span class="cstat-no" title="statement not covered" >import { ToggleSection, ShowHideSection } from "@/components/ui/ToggleSection";</span>
 <span class="cstat-no" title="statement not covered" >import { QuickActionButtons } from "@/components/ui/ActionButtonGroup";</span>
 import { PlantRecord, VarietyRecord } from "@/types/database";
 <span class="cstat-no" title="statement not covered" >import { varietyService } from "@/types/database";</span>
-<span class="cstat-no" title="statement not covered" >import { getDaysPlanted } from "@/utils/dateHelpers";</span>
-<span class="cstat-no" title="statement not covered" >import { formatDate } from "date-fns";</span>
+<span class="cstat-no" title="statement not covered" >import { formatDate, differenceInDays } from "date-fns";</span>
 &nbsp;
 interface PlantInfoCardProps {
   plant: PlantRecord;
@@ -384,7 +383,7 @@ interface PlantInfoCardProps {
 <span class="cstat-no" title="statement not covered" >    setShowActions(false); </span>// Close actions after selection
   };
 &nbsp;
-  const daysPlanted = <span class="cstat-no" title="statement not covered" >getDaysPlanted(plant.plantedDate);</span>
+  const daysPlanted = <span class="cstat-no" title="statement not covered" >differenceInDays(new Date(), new Date(plant.plantedDate));</span>
   const plantedDate = <span class="cstat-no" title="statement not covered" >formatDate(new Date(plant.plantedDate), "PPP");</span>
 &nbsp;
   // Get watering protocol if available
@@ -392,7 +391,7 @@ interface PlantInfoCardProps {
 &nbsp;
 <span class="cstat-no" title="statement not covered" >  return (</span>
     &lt;ActionCard
-      title={plant.name}
+      title={plant.name || plant.varietyName}
       icon={&lt;Calendar className="h-4 w-4" /&gt;}
       badge={variety ? { text: variety.name, variant: "secondary" } : undefined}
       onClick={onClick}
@@ -427,19 +426,20 @@ interface PlantInfoCardProps {
             showText="Show Guide"
             hideText="Hide Guide"
             icon={&lt;Droplets className="h-4 w-4" /&gt;}
+            onToggle={<span class="fstat-no" title="function not covered" >() =</span>&gt; {}}
             hiddenContent={
               &lt;div className="space-y-2 text-sm"&gt;
                 &lt;div className="flex justify-between"&gt;
                   &lt;span className="text-muted-foreground"&gt;Trigger:&lt;/span&gt;
-                  &lt;span&gt;Water at moisture: {wateringProtocol.trigger.moistureLevel}&lt;/span&gt;
+                  &lt;span&gt;Water at moisture: {wateringProtocol.trigger?.moistureLevel}&lt;/span&gt;
                 &lt;/div&gt;
                 &lt;div className="flex justify-between"&gt;
                   &lt;span className="text-muted-foreground"&gt;Target:&lt;/span&gt;
-                  &lt;span&gt;Target moisture: {wateringProtocol.target.moistureLevel}&lt;/span&gt;
+                  &lt;span&gt;Target moisture: {wateringProtocol.target?.moistureLevel}&lt;/span&gt;
                 &lt;/div&gt;
                 &lt;div className="flex justify-between"&gt;
                   &lt;span className="text-muted-foreground"&gt;Amount:&lt;/span&gt;
-                  &lt;span&gt;{wateringProtocol.volume.amount} {wateringProtocol.volume.frequency}&lt;/span&gt;
+                  &lt;span&gt;{wateringProtocol.volume?.amount} {wateringProtocol.volume?.frequency}&lt;/span&gt;
                 &lt;/div&gt;
               &lt;/div&gt;
             }
@@ -478,7 +478,7 @@ interface PlantInfoCardProps {
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2025-07-15T18:41:54.746Z
+                at 2025-08-21T02:00:20.066Z
             </div>
         <script src="../../../prettify.js"></script>
         <script>

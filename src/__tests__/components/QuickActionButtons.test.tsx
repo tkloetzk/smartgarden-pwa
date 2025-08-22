@@ -3,13 +3,10 @@ import userEvent from "@testing-library/user-event";
 import { QuickActionButtons, QuickActionType } from "@/components/shared/QuickActionButtons";
 
 // Use unified test utilities
-import { renderComponent, useTestLifecycle } from "../utils/testSetup";
+import { renderComponent } from "../test-utils";
 
 describe("QuickActionButtons", () => {
   const mockOnAction = jest.fn();
-
-  // Use standardized lifecycle management
-  useTestLifecycle();
 
   beforeEach(() => {
     jest.clearAllMocks();

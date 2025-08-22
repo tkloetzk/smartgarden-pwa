@@ -1,9 +1,11 @@
-import { VarietyRecord } from "@/types/database";
+import { VarietyRecord, CareActivityRecord } from "@/types/database";
 import {
   GrowthStage,
   CategoryWateringConfig,
   isValidStageForCategory,
+  CareActivityType,
 } from "@/types";
+import { requiresWater } from "@/utils/fertilizationUtils";
 
 interface WateringAmount {
   amount: number;
@@ -185,5 +187,109 @@ export class WateringResolver {
     }
 
     return null;
+  }
+
+  /**
+   * Gets the most recent watering activity, considering both direct watering 
+   * and fertilizing activities that include water (like fish emulsion).
+   */
+  static async getLastWateringActivity(
+    plantId: string,
+    getLastActivityByType: (plantId: string, type: CareActivityType) => Promise<CareActivityRecord | null>
+  ): Promise<CareActivityRecord | null> {
+    // Get the last watering activity
+    const lastWatering = await getLastActivityByType(plantId, "water");
+    
+    // Get the last fertilizing activity
+    const lastFertilizing = await getLastActivityByType(plantId, "fertilize");
+    
+    // If there's no fertilizing activity, return the watering activity
+    if (!lastFertilizing) {
+      return lastWatering;
+    }
+    
+    // If there's no watering activity, check if fertilizing counts as watering
+    if (!lastWatering) {
+      return this.doesFertilizingCountAsWatering(lastFertilizing) ? lastFertilizing : null;
+    }
+    
+    // Both exist - return the more recent one, but only if fertilizing counts as watering
+    const fertilizerCountsAsWatering = this.doesFertilizingCountAsWatering(lastFertilizing);
+    
+    if (fertilizerCountsAsWatering && lastFertilizing.date > lastWatering.date) {
+      return lastFertilizing;
+    }
+    
+    return lastWatering;
+  }
+
+  /**
+   * Determines if a fertilizing activity should count as watering.
+   * This checks if the fertilizer application method involves water.
+   */
+  private static doesFertilizingCountAsWatering(activity: CareActivityRecord): boolean {
+    if (activity.type !== "fertilize") {
+      return false;
+    }
+
+    const method = activity.details.applicationMethod;
+    if (!method) {
+      // If no method specified, assume it requires water (conservative approach)
+      return true;
+    }
+
+    // Use the existing fertilizationUtils function
+    return requiresWater(method);
+  }
+
+  /**
+   * Gets the estimated water amount provided by a fertilizing activity.
+   * This is useful for tracking total water intake when fertilizing counts as watering.
+   */
+  static getWaterFromFertilizing(activity: CareActivityRecord): { amount: number; unit: string } | null {
+    if (activity.type !== "fertilize" || !this.doesFertilizingCountAsWatering(activity)) {
+      return null;
+    }
+
+    const method = activity.details.applicationMethod;
+    
+    // If there's a specific amount recorded, try to extract it
+    if (activity.details.amount && typeof activity.details.amount === "object") {
+      return {
+        amount: activity.details.amount.value,
+        unit: activity.details.amount.unit
+      };
+    }
+
+    // Parse string amounts like "250ml" or "1 cup"
+    if (typeof activity.details.amount === "string") {
+      const parsed = this.parseWateringAmount(activity.details.amount);
+      if (parsed) {
+        return parsed;
+      }
+    }
+
+    // Fallback to estimates based on method
+    if (method) {
+      const estimate = this.estimateWaterFromMethod(method);
+      return estimate;
+    }
+
+    // Conservative fallback
+    return { amount: 150, unit: "ml" };
+  }
+
+  private static estimateWaterFromMethod(method: string): { amount: number; unit: string } {
+    switch (method) {
+      case "soil-drench":
+        return { amount: 250, unit: "ml" };
+      case "foliar-spray":
+        return { amount: 100, unit: "ml" };
+      case "top-dress":
+      case "side-dress":
+        return { amount: 200, unit: "ml" };
+      default:
+        return { amount: 150, unit: "ml" };
+    }
   }
 }

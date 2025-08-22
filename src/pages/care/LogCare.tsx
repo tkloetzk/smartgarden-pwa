@@ -6,7 +6,12 @@ const LogCare = () => {
   const [searchParams] = useSearchParams();
   const plantId = searchParams.get("plantId");
   const activityType = searchParams.get("activityType") as "water" | "fertilize" | "observe" | "pruning" | null;
+  const type = searchParams.get("type") as "water" | "fertilize" | "observe" | "pruning" | null;
+  const product = searchParams.get("product");
   const isGroupTask = searchParams.get("groupTask") === "true";
+
+  // Use 'type' parameter if 'activityType' is not provided (for fertilization task navigation)
+  const finalActivityType = activityType || type;
 
   return (
     <div className="container mx-auto px-4 py-6 max-w-4xl">
@@ -19,12 +24,13 @@ const LogCare = () => {
 
       <CareLogForm
         preselectedPlantId={plantId || undefined}
-        preselectedActivityType={activityType || undefined}
+        preselectedActivityType={finalActivityType || undefined}
+        preselectedProduct={product || undefined}
         onSuccess={() => {
           // Small delay to ensure Firebase propagation, then trigger refresh event
           setTimeout(() => {
             const event = new CustomEvent('care-activity-logged', {
-              detail: { plantId, activityType, timestamp: Date.now(), source: 'LogCare' }
+              detail: { plantId, activityType: finalActivityType, timestamp: Date.now(), source: 'LogCare' }
             });
             window.dispatchEvent(event);
           }, 500); // 500ms delay to allow Firebase to propagate

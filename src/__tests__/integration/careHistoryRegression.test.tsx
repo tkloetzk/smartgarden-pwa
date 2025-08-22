@@ -9,12 +9,11 @@
  */
 
 import { screen } from "@testing-library/react";
-import { renderComponent, useTestLifecycle } from "../utils/testSetup";
+import { renderComponent } from "../test-utils";
 import CareHistory from "@/components/plant/CareHistory";
 import { CareRecord } from "@/types/database";
 
 describe("CareHistory Regression Tests", () => {
-  useTestLifecycle();
 
   it("CRITICAL: Individual plant activities are always visible after logging", () => {
     // Simulate a user logging activities for a single plant

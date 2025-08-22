@@ -1125,9 +1125,9 @@ export const seedVarieties: SeedVariety[] = [
       germination: 14,
       establishment: 14,
       vegetative: 28,
-      flowering: 56,
-      fruiting: 91,
-      ongoingProduction: 98,
+      flowering: 28, // Days 56-84 (28 days of flowering)
+      fruiting: 7,   // Days 84-91 (7 days of initial fruiting)
+      ongoingProduction: 639, // Days 91-730 (639 days of ongoing production)
     },
     protocols: {
       lighting: {
@@ -1216,20 +1216,21 @@ export const seedVarieties: SeedVariety[] = [
         ongoingProduction: {
           ppfd: {
             min: 350,
-            max: 400,
+            max: 350,
+            optimal: 350,
             unit: "µmol/m²/s",
           },
           photoperiod: {
             hours: 16,
           },
           dli: {
-            min: 20.2,
-            max: 23,
+            min: 17,
+            max: 25,
             unit: "mol/m²/day",
           },
           notes: [
-            "Monthly flush with pH-adjusted plain water until 20-30% runoff",
-            "Prevents salt buildup from intensive feeding",
+            "Optimized for efficient ongoing production",
+            "Weekly Neptune's Harvest and biweekly 9-15-30 during fruiting",
           ],
         },
       },
@@ -1348,7 +1349,7 @@ export const seedVarieties: SeedVariety[] = [
             {
               taskName: "Apply Neptune's Harvest (½ strength)",
               details: {
-                product: "Neptune's Harvest",
+                product: "Neptune's Harvest Fish + Seaweed",
                 dilution: "½ strength",
               },
               startDays: 28,
@@ -1358,7 +1359,7 @@ export const seedVarieties: SeedVariety[] = [
             {
               taskName: "Apply Neptune's Harvest (full strength)",
               details: {
-                product: "Neptune's Harvest",
+                product: "Neptune's Harvest Fish + Seaweed",
                 dilution: "full strength, 1 Tbsp/gal",
               },
               startDays: 35,
@@ -1381,9 +1382,9 @@ export const seedVarieties: SeedVariety[] = [
               repeatCount: 1,
             },
             {
-              taskName: "Apply Kelp/Sea-Mineral",
+              taskName: "Apply Neptune's Harvest Fish + Seaweed",
               details: {
-                product: "Kelp/sea-mineral",
+                product: "Neptune's Harvest Fish + Seaweed",
                 dilution: "1 Tbsp/gal",
               },
               startDays: 63,
@@ -1406,9 +1407,9 @@ export const seedVarieties: SeedVariety[] = [
         fruiting: {
           schedule: [
             {
-              taskName: "Apply Kelp/Sea-Mineral",
+              taskName: "Apply Neptune's Harvest Fish + Seaweed",
               details: {
-                product: "Kelp/sea-mineral",
+                product: "Neptune's Harvest Fish + Seaweed",
                 dilution: "1 Tbsp/gal",
               },
               startDays: 91,
@@ -1418,7 +1419,8 @@ export const seedVarieties: SeedVariety[] = [
             {
               taskName: "Apply High-K Supplement",
               details: {
-                product: "Fish & Seaweed + high-K supplement",
+                product: "Neptune's Harvest Fish + Seaweed",
+                dilution: "Full strength + potassium boost",
               },
               startDays: 98,
               frequencyDays: 14,
@@ -1429,25 +1431,28 @@ export const seedVarieties: SeedVariety[] = [
         ongoingProduction: {
           schedule: [
             {
-              taskName: "Apply Kelp",
+              taskName: "Apply Neptune's Harvest",
               details: {
-                product: "Kelp",
-                dilution: "1 Tbsp/gal",
+                product: "Neptune's Harvest",
+                dilution: "1 tbsp/gallon",
+                amount: "1-2 quarts per grow bag",
+                method: "soil-drench",
               },
-              startDays: 98,
-              frequencyDays: 28,
-              repeatCount: 26,
+              startDays: 120,
+              frequencyDays: 7,
+              repeatCount: 52, // Weekly for a full year
             },
             {
-              taskName: "Top-dress with Berry-Tone",
+              taskName: "Apply 9-15-30 Fertilizer (during fruiting periods)",
               details: {
-                product: "Berry-Tone",
-                amount: "1 Tbsp/bag",
-                method: "top-dress",
+                product: "9-15-30 fertilizer",
+                dilution: "As directed",
+                amount: "1-2 quarts per grow bag",
+                method: "soil-drench",
               },
-              startDays: 112,
-              frequencyDays: 28,
-              repeatCount: 25,
+              startDays: 127, // Start one week after Neptune's Harvest
+              frequencyDays: 14,
+              repeatCount: 26, // Every other week for a full year
             },
           ],
         },
@@ -1611,7 +1616,7 @@ export const seedVarieties: SeedVariety[] = [
             moistureLevel: "6-7",
           },
           volume: {
-            amount: "monitor with soil moisture meter",
+            amount: "1-2 quarts per grow bag",
             frequency: "as needed",
           },
         },
@@ -1675,16 +1680,31 @@ export const seedVarieties: SeedVariety[] = [
             },
           ],
         },
-        ongoing: {
+        ongoingProduction: {
           schedule: [
             {
-              taskName: "Apply Compost Tea",
+              taskName: "Apply Neptune's Harvest",
               details: {
-                product: "Aerobically brewed compost tea",
+                product: "Neptune's Harvest",
+                dilution: "1 tbsp/gallon",
+                amount: "1-2 quarts per grow bag",
+                method: "soil-drench",
               },
               startDays: 120,
-              frequencyDays: 30,
-              repeatCount: 12,
+              frequencyDays: 7,
+              repeatCount: 52, // Weekly for a full year
+            },
+            {
+              taskName: "Apply 9-15-30 Fertilizer (during fruiting periods)",
+              details: {
+                product: "9-15-30 fertilizer",
+                dilution: "As directed",
+                amount: "1-2 quarts per grow bag",
+                method: "soil-drench",
+              },
+              startDays: 127, // Start one week after Neptune's Harvest
+              frequencyDays: 14,
+              repeatCount: 26, // Every other week for a full year
             },
           ],
         },

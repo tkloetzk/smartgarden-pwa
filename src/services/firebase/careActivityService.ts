@@ -7,7 +7,9 @@ import {
   where,
   orderBy,
   limit,
-  getDocs, // ✅ Add this import
+  getDocs,
+  doc,
+  deleteDoc,
 } from "firebase/firestore";
 import { db } from "./config";
 import {
@@ -151,6 +153,19 @@ export class FirebaseCareActivityService {
     } catch (error) {
       console.error("Failed to get recent activities for plant:", error);
       return [];
+    }
+  }
+
+  /**
+   * Delete a care activity by ID
+   */
+  static async deleteCareActivity(activityId: string): Promise<void> {
+    try {
+      const activityDoc = doc(this.careActivitiesCollection, activityId);
+      await deleteDoc(activityDoc);
+    } catch (error) {
+      console.error("Error deleting care activity:", error);
+      throw new Error("Failed to delete care activity");
     }
   }
 }

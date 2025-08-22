@@ -73,6 +73,7 @@ interface CareLogFormProps {
   onCancel?: () => void;
   preselectedPlantId?: string;
   preselectedActivityType?: "water" | "fertilize" | "observe" | "pruning" | "moisture";
+  preselectedProduct?: string;
 }
 
 interface FertilizerProduct {
@@ -146,6 +147,7 @@ export function CareLogForm({
   onCancel,
   preselectedPlantId,
   preselectedActivityType,
+  preselectedProduct,
 }: CareLogFormProps) {
   const { plants, loading: plantsLoading } = useFirebasePlants();
   const { logActivity } = useFirebaseCareActivities();
@@ -337,7 +339,12 @@ export function CareLogForm({
                   })
                 );
               setAvailableFertilizers(products);
-              if (products.length === 1) {
+              // Pre-select product if provided, otherwise default to first product if only one available
+              if (preselectedProduct && products.some(p => p.name === preselectedProduct)) {
+                setValue("fertilizeType", preselectedProduct);
+                const selectedProduct = products.find(p => p.name === preselectedProduct);
+                setSelectedFertilizer(selectedProduct || null);
+              } else if (products.length === 1) {
                 const firstProduct = products[0];
                 setValue("fertilizeType", firstProduct.name);
                 setSelectedFertilizer(firstProduct);

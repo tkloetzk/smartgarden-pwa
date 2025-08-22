@@ -9,9 +9,7 @@ import { VarietyRecord } from "@/types/database";
 import {
   createMockPlant,
   createMockVariety,
-  createCompleteWateringProtocol,
-  createCompleteFertilizationProtocol,
-} from "../utils/testDataFactories";
+} from "../test-utils";
 
 // Mock the database service and utility
 jest.mock("@/types/database", () => ({
@@ -75,10 +73,10 @@ describe("SmartDefaultsService", () => {
       const plant = createMockPlant();
       const variety = createMockVariety({
         protocols: {
-          watering: createCompleteWateringProtocol({
+          watering: {
             vegetative: { volume: { amount: 20, unit: "oz" } },
-          }),
-          fertilization: createCompleteFertilizationProtocol({
+          },
+          fertilization: {
             vegetative: {
               fertilizer: { product: "Miracle-Gro All Purpose" },
               application: {
@@ -87,7 +85,7 @@ describe("SmartDefaultsService", () => {
                 method: "soil-drench",
               },
             },
-          }),
+          },
         } as VarietyRecord["protocols"],
       });
 
@@ -282,9 +280,9 @@ describe("SmartDefaultsService", () => {
       const variety = createMockVariety({
         category: "herbs",
         protocols: {
-          fertilization: createCompleteFertilizationProtocol({
+          fertilization: {
             vegetative: {}, // Empty fertilization protocol
-          }),
+          },
         } as VarietyRecord["protocols"],
       });
 

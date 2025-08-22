@@ -19,6 +19,9 @@ import {
 } from "../../types";
 import { PlantRecord } from "../../types";
 import { Logger } from "@/utils/logger";
+import { seedVarieties } from "@/data/seedVarieties";
+import { ProtocolTranspilerService } from "../ProtocolTranspilerService";
+import { FirebaseScheduledTaskService } from "./scheduledTaskService";
 
 export class FirebasePlantService {
   private static plantsCollection = collection(db, "plants");
@@ -37,6 +40,59 @@ export class FirebasePlantService {
     };
 
     await updateDoc(plantRef, firebaseUpdates);
+  }
+
+  /**
+   * Regenerate scheduled tasks for an existing plant
+   * Call this when a plant's details change or protocols are updated
+   */
+  static async regenerateTasksForPlant(
+    plantRecord: PlantRecord,
+    userId: string
+  ): Promise<void> {
+    try {
+      console.log(`🔄 Regenerating tasks for plant ${plantRecord.id}...`);
+      
+      // Delete existing pending tasks for this plant
+      await FirebaseScheduledTaskService.deletePendingTasksForPlant(plantRecord.id, userId);
+      
+      // Generate new tasks if the variety has protocols
+      const seedVariety = seedVarieties.find(v => v.name === plantRecord.varietyName);
+      
+      if (seedVariety?.protocols?.fertilization) {
+        // Convert SeedVariety to VarietyRecord format for compatibility
+        // IMPORTANT: Keep the original growthTimeline format to preserve custom stage names
+        // that fertilization protocols reference (e.g., 'establishment', 'ongoingProduction', 'caneEstablishment')
+        const variety = {
+          id: plantRecord.varietyId || 'seed-variety',
+          name: seedVariety.name,
+          normalizedName: seedVariety.name.toLowerCase(),
+          category: seedVariety.category,
+          description: undefined,
+          // Preserve the original extended timeline to maintain custom stage name references
+          growthTimeline: seedVariety.growthTimeline as any,
+          protocols: seedVariety.protocols,
+          isEverbearing: seedVariety.isEverbearing,
+          productiveLifespan: seedVariety.productiveLifespan,
+          isCustom: false,
+          createdAt: new Date(),
+          updatedAt: new Date()
+        };
+
+        const scheduledTasks = await ProtocolTranspilerService.transpilePlantProtocol(
+          plantRecord,
+          variety
+        );
+        
+        if (scheduledTasks.length > 0) {
+          await FirebaseScheduledTaskService.createMultipleTasks(scheduledTasks, userId);
+          console.log(`✅ Regenerated ${scheduledTasks.length} scheduled tasks for plant ${plantRecord.id}`);
+        }
+      }
+    } catch (error) {
+      console.error(`❌ Failed to regenerate tasks for plant ${plantRecord.id}:`, error);
+      throw new Error(`Failed to regenerate tasks: ${(error as Error).message}`);
+    }
   }
 
   static async deletePlant(plantId: string): Promise<void> {
@@ -153,6 +209,52 @@ export class FirebasePlantService {
 
     const firebasePlant = convertPlantToFirebase(plantWithDates, userId);
     const docRef = await addDoc(this.plantsCollection, firebasePlant);
+    
+    // Update the plant with the Firebase-generated ID
+    const finalPlantRecord: PlantRecord = {
+      ...plantWithDates,
+      id: docRef.id,
+    };
+    
+    try {
+      // Generate fertilization tasks if the variety has protocols
+      const seedVariety = seedVarieties.find(v => v.name === plant.varietyName);
+      
+      if (seedVariety?.protocols?.fertilization) {
+        // Convert SeedVariety to VarietyRecord format for compatibility
+        // IMPORTANT: Keep the original growthTimeline format to preserve custom stage names
+        // that fertilization protocols reference (e.g., 'establishment', 'ongoingProduction', 'caneEstablishment')
+        const variety = {
+          id: plant.varietyId || 'seed-variety',
+          name: seedVariety.name,
+          normalizedName: seedVariety.name.toLowerCase(),
+          category: seedVariety.category,
+          description: undefined,
+          // Preserve the original extended timeline to maintain custom stage name references
+          growthTimeline: seedVariety.growthTimeline as any,
+          protocols: seedVariety.protocols,
+          isEverbearing: seedVariety.isEverbearing,
+          productiveLifespan: seedVariety.productiveLifespan,
+          isCustom: false,
+          createdAt: new Date(),
+          updatedAt: new Date()
+        };
+
+        const scheduledTasks = await ProtocolTranspilerService.transpilePlantProtocol(
+          finalPlantRecord,
+          variety
+        );
+        
+        if (scheduledTasks.length > 0) {
+          await FirebaseScheduledTaskService.createMultipleTasks(scheduledTasks, userId);
+          console.log(`✅ Created ${scheduledTasks.length} scheduled tasks for new plant ${docRef.id}`);
+        }
+      }
+    } catch (error) {
+      console.error(`❌ Failed to create tasks for plant ${docRef.id}:`, error);
+      // Don't fail the plant creation if task generation fails
+    }
+    
     return docRef.id;
   }
 }
