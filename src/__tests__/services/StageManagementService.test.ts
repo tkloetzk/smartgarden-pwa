@@ -100,7 +100,7 @@ describe("StageManagementService Business Logic", () => {
         { stage: "flowering", confirmedDate: addDays(plantedDate, 70), minDays: 45, maxDays: 120 },
       ];
 
-      stageConfirmations.forEach(({ stage, confirmedDate, minDays, maxDays }) => {
+      stageConfirmations.forEach(({ confirmedDate, minDays, maxDays }) => {
         const daysSincePlanting = Math.floor((confirmedDate.getTime() - plantedDate.getTime()) / (1000 * 60 * 60 * 24));
         
         // Business rule: stage timing should be within reasonable bounds
@@ -171,7 +171,7 @@ describe("StageManagementService Business Logic", () => {
   describe("Task Management Logic", () => {
     it("should determine which tasks need deletion after stage change", () => {
       const currentStage = "vegetative";
-      const newStage = "flowering";
+      // const newStage = "flowering";
       
       const existingTasks = [
         { id: "1", stage: "vegetative", taskType: "fertilize", status: "pending" },
@@ -199,7 +199,7 @@ describe("StageManagementService Business Logic", () => {
     });
 
     it("should calculate new task generation from confirmed stage", () => {
-      const confirmedStage = "flowering";
+      // const confirmedStage = "flowering";
       const stageConfirmedDate = new Date("2024-02-01");
       
       const varietyProtocol = {
@@ -215,7 +215,7 @@ describe("StageManagementService Business Logic", () => {
       };
 
       // Business logic: generate tasks from confirmed stage onward
-      const newTasks = [];
+      const newTasks: Array<{stage: string, dueDate: Date, taskType: string, product: string}> = [];
       
       // Tasks for current confirmed stage
       if (varietyProtocol.flowering) {
@@ -256,8 +256,11 @@ describe("StageManagementService Business Logic", () => {
     });
 
     it("should handle stage confirmation without protocol data", () => {
-      const confirmedStage = "flowering";
-      const varietyWithoutProtocol = {
+      // const confirmedStage = "flowering";
+      const varietyWithoutProtocol: {
+        name: string;
+        protocols?: { flowering?: any };
+      } = {
         name: "Generic Plant",
         protocols: undefined
       };
@@ -432,12 +435,12 @@ describe("StageManagementService Business Logic", () => {
     });
 
     it("should handle concurrent stage updates gracefully", () => {
-      const plant = {
+      /* const plant = {
         id: "plant-123",
         confirmedStage: "vegetative",
         stageConfirmedDate: new Date("2024-01-15"),
         updatedAt: new Date("2024-01-15"),
-      };
+      }; */
 
       const update1 = {
         newStage: "flowering",

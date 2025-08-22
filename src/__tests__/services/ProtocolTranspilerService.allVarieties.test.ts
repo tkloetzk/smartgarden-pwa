@@ -81,7 +81,7 @@ describe("ProtocolTranspilerService - All Varieties Coverage", () => {
         expect(timeline.germination).toBeGreaterThan(0);
         
         // Validate timeline stage durations are reasonable
-        Object.entries(timeline).forEach(([stage, duration]) => {
+        Object.entries(timeline).forEach(([, duration]) => {
           expect(typeof duration).toBe('number');
           expect(duration).toBeGreaterThan(0);
           expect(duration).toBeLessThan(365); // No stage should last longer than a year

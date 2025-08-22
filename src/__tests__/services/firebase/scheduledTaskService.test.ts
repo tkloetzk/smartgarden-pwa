@@ -178,7 +178,7 @@ describe("ScheduledTaskService Business Logic", () => {
       };
 
       // Business logic for overdue detection
-      const isOverdue = (task: typeof overdueTask) => 
+      const isOverdue = (task: {dueDate: Date, status: "pending" | "completed"}) => 
         task.dueDate.getTime() < now.getTime() && task.status === "pending";
 
       expect(isOverdue(overdueTask)).toBe(true);

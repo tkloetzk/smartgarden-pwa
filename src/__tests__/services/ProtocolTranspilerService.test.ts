@@ -5,8 +5,8 @@
  * without external dependencies. Tests date calculations, stage ordering, and task generation rules.
  */
 
-import { addDays, subDays, differenceInDays } from "date-fns";
-import { PlantRecord, VarietyRecord, GrowthStage } from "@/types";
+import { addDays, differenceInDays } from "date-fns";
+import { GrowthStage } from "@/types";
 
 describe("ProtocolTranspilerService Business Logic", () => {
   

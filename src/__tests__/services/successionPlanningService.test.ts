@@ -174,7 +174,7 @@ describe('SuccessionPlanningService Business Logic', () => {
         large: { min: 8, optimal: 12 },
       };
 
-      Object.entries(spacingRules).forEach(([size, spacing]) => {
+      Object.entries(spacingRules).forEach(([, spacing]) => {
         expect(spacing.optimal).toBeGreaterThan(spacing.min);
         expect(spacing.min).toBeGreaterThan(0);
         expect(typeof spacing.min).toBe('number');
@@ -350,7 +350,7 @@ describe('SuccessionPlanningService Business Logic', () => {
       ];
 
       const candidatePosition = { start: 10, length: 8 }; // Overlaps with Lettuce B
-      const conflicts = [];
+      const conflicts: string[] = [];
 
       existingPlants.forEach(plant => {
         const candidateEnd = candidatePosition.start + candidatePosition.length;

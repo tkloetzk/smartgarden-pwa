@@ -5,7 +5,7 @@
  * No Firebase mocking, no database setup - just pure business logic testing.
  */
 
-import { addDays, subDays, differenceInDays } from "date-fns";
+import { addDays, subDays } from "date-fns";
 import { formatDueIn, calculatePriority } from "@/utils/dateUtils";
 
 // Test the actual business logic functions that the service uses
@@ -311,7 +311,7 @@ describe("CareSchedulingService Business Logic", () => {
         'Prune': 'maintenance',
       };
 
-      Object.entries(taskCategories).forEach(([taskName, expectedCategory]) => {
+      Object.entries(taskCategories).forEach(([, expectedCategory]) => {
         // This tests the business logic of task categorization
         expect(expectedCategory).toMatch(/^(watering|fertilizing|observation|lighting|maintenance)$/);
       });
@@ -331,7 +331,7 @@ describe("CareSchedulingService Business Logic", () => {
         },
       };
 
-      Object.entries(taskConfigs).forEach(([type, config]) => {
+      Object.entries(taskConfigs).forEach(([, config]) => {
         expect(config.dueSoonThreshold).toBeGreaterThan(0);
         expect(config.fallbackInterval).toBeGreaterThan(0);
         expect(['watering', 'fertilizing', 'observation', 'lighting', 'maintenance']).toContain(config.category);

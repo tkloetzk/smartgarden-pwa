@@ -253,9 +253,9 @@ describe("CareActivityService Business Logic", () => {
       ];
 
       // Business logic: get most recent by type
-      const getLastActivityByType = (activities: typeof activities, type: string) => {
-        return activities
-          .filter(activity => activity.type === type)
+      const getLastActivityByType = (activitiesList: typeof activities, type: string) => {
+        return activitiesList
+          .filter((activity) => activity.type === type)
           .sort((a, b) => b.date.getTime() - a.date.getTime())[0] || null;
       };
 

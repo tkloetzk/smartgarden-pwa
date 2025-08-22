@@ -8,9 +8,7 @@
 import { addDays, subDays } from 'date-fns';
 import { 
   PlantRecord, 
-  VarietyRecord, 
   CareActivityRecord,
-  CareActivityType,
   GrowthStage 
 } from '@/types';
 import { ScheduledTask } from '@/services/ProtocolTranspilerService';
@@ -43,7 +41,6 @@ export class PlantBuilder {
     return new PlantBuilder({
       varietyId: TEST_VARIETIES.STRAWBERRY.id,
       varietyName: TEST_VARIETIES.STRAWBERRY.name,
-      category: TEST_VARIETIES.STRAWBERRY.category,
     });
   }
 
@@ -51,7 +48,6 @@ export class PlantBuilder {
     return new PlantBuilder({
       varietyId: TEST_VARIETIES.TOMATO.id,
       varietyName: TEST_VARIETIES.TOMATO.name,
-      category: TEST_VARIETIES.TOMATO.category,
     });
   }
 
@@ -59,7 +55,6 @@ export class PlantBuilder {
     return new PlantBuilder({
       varietyId: TEST_VARIETIES.LETTUCE.id,
       varietyName: TEST_VARIETIES.LETTUCE.name,
-      category: TEST_VARIETIES.LETTUCE.category,
     });
   }
 
@@ -67,7 +62,6 @@ export class PlantBuilder {
     return new PlantBuilder({
       varietyId: 'heritage-raspberry',
       varietyName: 'Heritage Raspberry',
-      category: 'berries',
     });
   }
 
@@ -192,7 +186,7 @@ export class CareActivityBuilder {
         product: 'All-Purpose Fertilizer',
         dilution: '1:10',
         amount: '1 cup',
-        method: 'soil-drench',
+        method: 'soil-drench' as any,
       },
     });
   }
@@ -236,7 +230,7 @@ export class CareActivityBuilder {
     return this.on(date);
   }
 
-  atStage(stage: string, plantAge?: number): CareActivityBuilder {
+  atStage(stage: GrowthStage, plantAge?: number): CareActivityBuilder {
     this.activity.stage = stage;
     if (plantAge !== undefined) {
       this.activity.plantAge = plantAge;
@@ -255,8 +249,9 @@ export class CareActivityBuilder {
     if (this.activity.type === 'water') {
       this.activity.details = {
         ...this.activity.details,
+        type: 'water' as const,
         waterAmount: amount,
-        waterUnit: unit,
+        waterUnit: unit as any,
       };
     }
     return this;
@@ -266,6 +261,7 @@ export class CareActivityBuilder {
     if (this.activity.type === 'fertilize') {
       this.activity.details = {
         ...this.activity.details,
+        type: 'fertilize' as const,
         product,
         dilution: dilution || '1:10',
         amount: amount || this.activity.details?.amount || '1 cup',
@@ -278,8 +274,9 @@ export class CareActivityBuilder {
     if (this.activity.type === 'observe') {
       this.activity.details = {
         ...this.activity.details,
+        type: 'observe' as const,
         observations: observation,
-        healthAssessment: health || 'good',
+        healthAssessment: (health || 'good') as any,
       };
     }
     return this;
@@ -326,7 +323,7 @@ export class TaskBuilder {
         product: 'General Fertilizer',
         dilution: '1:10',
         amount: '1 cup',
-        method: 'soil-drench',
+        method: 'soil-drench' as any,
       },
     });
   }
@@ -340,7 +337,7 @@ export class TaskBuilder {
         product: 'Water',
         dilution: 'none',
         amount: '250ml',
-        method: 'soil-drench',
+        method: 'soil-drench' as any,
       },
     });
   }
@@ -354,7 +351,7 @@ export class TaskBuilder {
         product: 'Neptune\'s Harvest',
         dilution: '1 tbsp/gallon',
         amount: '2 quarts',
-        method: 'soil-drench',
+        method: 'soil-drench' as any,
       },
     });
   }

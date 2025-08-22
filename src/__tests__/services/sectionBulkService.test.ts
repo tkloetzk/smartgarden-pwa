@@ -5,7 +5,7 @@
  * without external dependencies. Tests plant grouping, validation rules, and display formatting.
  */
 
-import { PlantRecord, CareActivityType } from '@/types/consolidated';
+import { CareActivityType } from '@/types/consolidated';
 
 describe('SectionBulkService Business Logic', () => {
 

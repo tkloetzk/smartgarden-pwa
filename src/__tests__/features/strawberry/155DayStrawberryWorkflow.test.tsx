@@ -6,10 +6,9 @@
  */
 
 // Business logic test using consolidated test utilities
-import { PlantRecord } from "@/types";
 import { seedVarieties } from "@/data/seedVarieties";
 import { ProtocolTranspilerService } from "@/services/ProtocolTranspilerService";
-import { PlantBuilder, TEST_DATES } from "../../test-utils";
+import type { PlantRecord } from "@/types";
 
 // Mock Firebase dependencies
 jest.mock("firebase/firestore", () => ({

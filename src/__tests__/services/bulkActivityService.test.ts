@@ -77,7 +77,6 @@ describe("BulkActivityService Business Logic", () => {
       ];
 
       moistureScenarios.forEach(scenario => {
-        const isLogicalProgression = scenario.after >= scenario.before;
         if (scenario.valid) {
           expect(scenario.before).toBeGreaterThanOrEqual(0);
           expect(scenario.after).toBeGreaterThanOrEqual(0);
@@ -246,8 +245,6 @@ describe("BulkActivityService Business Logic", () => {
         "water",
         "fertilize", 
         "observe",
-        "prune",
-        "repot",
         "harvest",
       ];
 

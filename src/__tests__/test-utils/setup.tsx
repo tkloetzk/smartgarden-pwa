@@ -6,7 +6,7 @@
  */
 
 import React from 'react';
-import { render, RenderResult, RenderOptions } from '@testing-library/react';
+import { render, RenderResult } from '@testing-library/react';
 import { MemoryRouter, BrowserRouter } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
@@ -93,11 +93,6 @@ export const createTestQueryClient = (): QueryClient => {
       mutations: {
         retry: false,
       },
-    },
-    logger: {
-      log: () => {},
-      warn: () => {},
-      error: () => {},
     },
   });
 };

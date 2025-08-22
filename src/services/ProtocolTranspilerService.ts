@@ -288,7 +288,7 @@ export class ProtocolTranspilerService {
     if (isExistingPlant) {
       // For existing plants, calculate when tasks should have started relative to planted date
       // Special case: ongoingProduction stage startDays are absolute from planted date, not relative to stage start
-      const taskStartDayFromPlanting = (stage === "ongoing-production" || stage === "ongoingProduction") ? 
+      const taskStartDayFromPlanting = (stage === "ongoing-production") ? 
         scheduleItem.startDays : 
         stageStartDays + scheduleItem.startDays;
       const taskStartDate = new Date(plant.plantedDate.getTime() + taskStartDayFromPlanting * 24 * 60 * 60 * 1000);

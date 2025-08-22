@@ -5,7 +5,7 @@
  * without Firebase mocking. Tests the actual domain logic and workflows.
  */
 
-import { PlantRecord, VarietyRecord } from "@/types";
+import { PlantRecord } from "@/types";
 
 describe("PlantRegistrationService Business Logic", () => {
   
@@ -83,12 +83,12 @@ describe("PlantRegistrationService Business Logic", () => {
 
   describe("Form Data Processing Rules", () => {
     it("should apply correct defaults for missing form fields", () => {
-      const minimalFormData = {
+      /* const minimalFormData = {
         varietyId: "variety-1",
         plantedDate: new Date("2024-01-15"),
         location: "Indoor",
         container: "6-inch pot",
-      };
+      }; */
 
       // Expected defaults
       const expectedDefaults = {
