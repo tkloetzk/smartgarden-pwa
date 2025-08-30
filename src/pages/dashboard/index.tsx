@@ -1,4 +1,3 @@
-// src/pages/dashboard/index.tsx - Refactored with custom hooks
 import { useState, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/Button";
 import { Card, CardContent } from "@/components/ui/Card";
@@ -14,6 +13,8 @@ import {
   initializeDatabase,
   resetDatabaseInitializationFlag,
 } from "@/db/seedData";
+import { seedVarieties } from "@/data/seedVarieties";
+import { TaskManagementService } from "@/services/TaskManagementService";
 import {
   useDashboardData,
   useHiddenGroupsManager,
@@ -23,6 +24,37 @@ import {
 } from "@/hooks/dashboard";
 import { SummaryCards } from "@/components/dashboard/SummaryCards";
 import { PlantGarden } from "@/components/dashboard/PlantGarden";
+
+// Protocol sync function
+async function syncPlantProtocols(plants: any[], userId: string) {
+  try {
+    // Use centralized task management service for bulk regeneration
+
+    await TaskManagementService.bulkRegenerateTasksForPlants(
+      plants,
+      (plantId: string) => {
+        const plant = plants.find(p => p.id === plantId);
+        if (!plant) return undefined;
+        
+        const variety = seedVarieties.find((v) => v.name === plant.varietyName);
+        if (!variety) return undefined;
+        
+        return {
+          ...variety,
+          normalizedName: variety.name.toLowerCase().replace(/\s+/g, "-"),
+          id: variety.name.toLowerCase().replace(/\s+/g, "-"),
+          createdAt: new Date(),
+        };
+      },
+      userId,
+      "dashboard-sync"
+    );
+
+    console.log("🎉 Protocol sync completed successfully");
+  } catch (error) {
+    console.error("❌ Protocol sync failed:", error);
+  }
+}
 
 export const Dashboard = () => {
   const navigate = useNavigate();
@@ -39,23 +71,13 @@ export const Dashboard = () => {
     scheduledTasksError: error,
   } = useDashboardData();
 
-  const {
-    hiddenGroups,
-    hideGroup,
-    restoreAllHidden,
-  } = useHiddenGroupsManager();
+  const { hiddenGroups, hideGroup, restoreAllHidden } =
+    useHiddenGroupsManager();
 
-  const {
-    plantGroups,
-    containerGroups,
-    visiblePlants,
-    visiblePlantsCount,
-  } = useContainerGroups(plants, loading, hiddenGroups);
+  const { plantGroups, containerGroups, visiblePlants, visiblePlantsCount } =
+    useContainerGroups(plants, loading, hiddenGroups);
 
-  const {
-    plantsNeedingCatchUp,
-    careStatusLoading,
-  } = useCareStatus(
+  const { plantsNeedingCatchUp, careStatusLoading } = useCareStatus(
     plants,
     user?.uid,
     activityLoggedTrigger,
@@ -74,30 +96,33 @@ export const Dashboard = () => {
     handleTaskBypass,
     handleTaskLogActivity,
   } = useFertilizationTasks(
-    getUpcomingFertilizationTasks,
     visiblePlants,
     logActivity,
     navigate,
     handleActivityLogged
   );
 
-  // Initialize database
+  // Initialize database and sync protocols
   useEffect(() => {
     const initializeApp = async () => {
       try {
         resetDatabaseInitializationFlag();
         await initializeDatabase();
+
+        // Sync protocols for existing plants
+        if (plants && plants.length > 0 && user?.uid) {
+          await syncPlantProtocols(plants, user.uid);
+        }
       } catch (error) {
         console.error("Database initialization error:", error);
       }
     };
 
     initializeApp();
-  }, []);
+  }, [plants, user?.uid]); // Re-run when plants or user changes
 
   // Navigate to catch-up page
   const handleCatchUpClick = () => {
-    console.log("🔍 Catch-up click handler triggered");
     console.log("📊 Plants needing catch-up:", plantsNeedingCatchUp);
 
     if (plantsNeedingCatchUp === 0) {
@@ -106,7 +131,6 @@ export const Dashboard = () => {
       return;
     }
 
-    console.log("🚀 Navigating to /catch-up");
     try {
       navigate("/catch-up");
     } catch (error) {
@@ -230,9 +254,6 @@ export const Dashboard = () => {
             onCatchUpClick={handleCatchUpClick}
           />
           <SummaryCards.PlantCount visiblePlantsCount={visiblePlantsCount} />
-          <SummaryCards.FertilizationTasks
-            upcomingFertilizationCount={upcomingFertilization.length}
-          />
         </SummaryCards>
 
         {/* Fertilization Tasks Section */}
@@ -263,7 +284,9 @@ export const Dashboard = () => {
           refreshTrigger={activityLoggedTrigger}
         >
           {plants && plants.length === 0 ? (
-            <PlantGarden.Empty onNavigateToAddPlant={() => navigate("/add-plant")} />
+            <PlantGarden.Empty
+              onNavigateToAddPlant={() => navigate("/add-plant")}
+            />
           ) : (
             <>
               <PlantGarden.Header
@@ -282,7 +305,9 @@ export const Dashboard = () => {
               ))}
               {containerGroups.length === 0 && (
                 <div className="text-center py-8 text-muted-foreground">
-                  <p>No plant groups found. Start by adding your first plant!</p>
+                  <p>
+                    No plant groups found. Start by adding your first plant!
+                  </p>
                 </div>
               )}
             </>

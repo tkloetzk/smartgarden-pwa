@@ -13,12 +13,8 @@ export interface GrowthStageInfo {
   description: string;
 }
 
-export interface VarietyTimeline {
-  germination: number;
-  seedling: number;
-  vegetative: number;
-  maturation: number;
-}
+// Use the centralized GrowthTimeline type - keep backward compatibility functions
+// for legacy code that expects specific fields to be present
 
 export function calculateStageFromSeedVarieties(
   plantedDate: Date,
@@ -42,6 +38,7 @@ export function calculateStageFromSeedVarieties(
 
   // Use Object.entries to get both stage and duration at once
   for (const [stage, duration] of Object.entries(variety.growthTimeline)) {
+    if (duration === undefined) continue; // Skip undefined stages
     if (daysSincePlanted < cumulativeDays + duration) {
       return stage as GrowthStage;
     }
@@ -89,6 +86,7 @@ export function calculateCurrentStageWithVariety(
     number
   ][];
 
+  
   Logger.growthStage(
     variety.name,
     `Available stages: ${timelineEntries.map(([stage]) => stage).join(", ")}`
@@ -96,10 +94,10 @@ export function calculateCurrentStageWithVariety(
 
   let cumulativeDays = 0;
 
-  // ✅ FIXED: Iterate through the timeline entries directly
   for (const [stage, stageDuration] of timelineEntries) {
     if (stageDuration === undefined) continue;
 
+    
     Logger.growthStage(
       variety.name,
       `Stage "${stage}": days ${cumulativeDays}-${
@@ -108,11 +106,18 @@ export function calculateCurrentStageWithVariety(
     );
 
     if (daysSinceAnchor < cumulativeDays + stageDuration) {
+      // Map timeline keys to GrowthStage values
+      const growthStageMap: Record<string, GrowthStage> = {
+        ongoingProduction: "ongoing-production",
+      };
+      const mappedStage = growthStageMap[stage] || (stage as GrowthStage);
+      
+      
       Logger.growthStage(
         variety.name,
-        `Plant is in "${stage}" stage (day ${daysSinceAnchor})`
+        `Plant is in "${mappedStage}" stage (day ${daysSinceAnchor})`
       );
-      return stage as GrowthStage;
+      return mappedStage;
     }
     cumulativeDays += stageDuration;
   }
@@ -138,21 +143,24 @@ export function calculateCurrentStageWithVariety(
  */
 export function calculateCurrentStage(
   plantedDate: Date,
-  timeline: VarietyTimeline,
+  timeline: GrowthTimeline,
   currentDate: Date = new Date()
 ): GrowthStage {
   const daysSincePlanting = differenceInDays(currentDate, plantedDate);
 
   if (daysSincePlanting < 0) return "germination";
-  if (daysSincePlanting < timeline.germination) return "germination";
-  if (daysSincePlanting < timeline.germination + timeline.seedling)
-    return "seedling";
-  if (
-    daysSincePlanting <
-    timeline.germination + timeline.seedling + timeline.vegetative
-  )
+
+  // Handle cases where fields might be undefined by providing defaults
+  const germination = timeline.germination || 14;
+  const seedling = timeline.seedling || timeline.establishment || 14;
+  const vegetative = timeline.vegetative || 28;
+  const maturation = timeline.maturation || 60;
+
+  if (daysSincePlanting < germination) return "germination";
+  if (daysSincePlanting < germination + seedling) return "seedling";
+  if (daysSincePlanting < germination + seedling + vegetative)
     return "vegetative";
-  if (daysSincePlanting < timeline.maturation) return "flowering";
+  if (daysSincePlanting < maturation) return "flowering";
 
   return "harvest";
 }
@@ -185,7 +193,7 @@ export function getNextStage(currentStage: GrowthStage): GrowthStage | null {
 
 export function getStageProgress(
   plantedDate: Date,
-  timeline: VarietyTimeline,
+  timeline: GrowthTimeline,
   currentDate: Date = new Date()
 ): number {
   const daysSincePlanting = differenceInDays(currentDate, plantedDate);
@@ -195,22 +203,27 @@ export function getStageProgress(
     currentDate
   );
 
+  // Handle cases where fields might be undefined by providing defaults
+  const germination = timeline.germination || 14;
+  const seedling = timeline.seedling || timeline.establishment || 14;
+  const vegetative = timeline.vegetative || 28;
+  const maturation = timeline.maturation || 60;
+
   let stageStart = 0;
-  let stageEnd = timeline.germination;
+  let stageEnd = germination;
 
   switch (currentStage) {
     case "seedling":
-      stageStart = timeline.germination;
-      stageEnd = timeline.germination + timeline.seedling;
+      stageStart = germination;
+      stageEnd = germination + seedling;
       break;
     case "vegetative":
-      stageStart = timeline.germination + timeline.seedling;
-      stageEnd = timeline.germination + timeline.seedling + timeline.vegetative;
+      stageStart = germination + seedling;
+      stageEnd = germination + seedling + vegetative;
       break;
     case "flowering":
-      stageStart =
-        timeline.germination + timeline.seedling + timeline.vegetative;
-      stageEnd = timeline.maturation;
+      stageStart = germination + seedling + vegetative;
+      stageEnd = maturation;
       break;
     case "maturation":
     case "ongoing-production":
@@ -225,26 +238,31 @@ export function getStageProgress(
 
 export function estimateStageTransition(
   plantedDate: Date,
-  timeline: VarietyTimeline,
+  timeline: GrowthTimeline,
   targetStage: GrowthStage
 ): Date {
+  // Handle cases where fields might be undefined by providing defaults
+  const germination = timeline.germination || 14;
+  const seedling = timeline.seedling || timeline.establishment || 14;
+  const vegetative = timeline.vegetative || 28;
+  const maturation = timeline.maturation || 60;
+
   let daysToTarget = 0;
 
   switch (targetStage) {
     case "seedling":
-      daysToTarget = timeline.germination;
+      daysToTarget = germination;
       break;
     case "vegetative":
-      daysToTarget = timeline.germination + timeline.seedling;
+      daysToTarget = germination + seedling;
       break;
     case "flowering":
-      daysToTarget =
-        timeline.germination + timeline.seedling + timeline.vegetative;
+      daysToTarget = germination + seedling + vegetative;
       break;
     case "maturation":
     case "ongoing-production":
     case "harvest":
-      daysToTarget = timeline.maturation;
+      daysToTarget = maturation;
       break;
   }
 

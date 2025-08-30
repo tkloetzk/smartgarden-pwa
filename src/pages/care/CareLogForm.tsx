@@ -27,23 +27,42 @@ import {
   Info,
   Clock,
 } from "lucide-react";
-import { getMethodDisplay, requiresWater, getWaterAmountForMethod } from "@/utils/fertilizationUtils";
-import { getTodayDateString, createLocalDateFromString, createDateForCareLogging } from "@/utils/dateUtils";
+import {
+  getMethodDisplay,
+  requiresWater,
+  getWaterAmountForMethod,
+} from "@/utils/fertilizationUtils";
+import {
+  getTodayDateString,
+  createLocalDateFromString,
+  createDateForCareLogging,
+} from "@/utils/dateUtils";
 import { ApplicationMethod } from "@/types";
 import { FertilizationScheduleItem } from "@/types";
 import { format, subDays } from "date-fns";
 import toast from "react-hot-toast";
 import SectionApplyCard from "@/components/care/SectionApplyCard";
 import SupplementalWateringCard from "@/components/care/SupplementalWateringCard";
-import { 
+import {
   BulkCareResult,
-  SectionApplyOption 
+  SectionApplyOption,
 } from "@/services/sectionBulkService";
-import { PartialWateringService, PartialWateringAnalysis } from "@/services/partialWateringService";
+import {
+  PartialWateringService,
+  PartialWateringAnalysis,
+} from "@/services/partialWateringService";
 
 const careFormSchema = z.object({
   groupId: z.string().min(1, "Please select a plant section"),
-  type: z.enum(["water", "fertilize", "observe", "photo", "note", "pruning", "moisture"]),
+  type: z.enum([
+    "water",
+    "fertilize",
+    "observe",
+    "photo",
+    "note",
+    "pruning",
+    "moisture",
+  ]),
   date: z
     .string()
     .min(1, "Date is required")
@@ -58,10 +77,16 @@ const careFormSchema = z.object({
   fertilizeAmount: z.string().optional(),
   // New structured fertilizer fields
   fertilizerDilutionValue: z.number().optional(),
-  fertilizerDilutionUnit: z.enum(["tsp", "tbsp", "oz", "ml", "cups"]).optional(),
-  fertilizerDilutionPerUnit: z.enum(["gal", "quart", "liter", "cup"]).optional(),
+  fertilizerDilutionUnit: z
+    .enum(["tsp", "tbsp", "oz", "ml", "cups"])
+    .optional(),
+  fertilizerDilutionPerUnit: z
+    .enum(["gal", "quart", "liter", "cup"])
+    .optional(),
   fertilizerApplicationAmount: z.number().optional(),
-  fertilizerApplicationUnit: z.enum(["oz", "ml", "cups", "gal", "quart", "liter"]).optional(),
+  fertilizerApplicationUnit: z
+    .enum(["oz", "ml", "cups", "gal", "quart", "liter"])
+    .optional(),
   moistureBefore: z.number().min(1).max(10).optional(),
   moistureAfter: z.number().min(1).max(10).optional(),
 });
@@ -72,7 +97,12 @@ interface CareLogFormProps {
   onSuccess?: () => void;
   onCancel?: () => void;
   preselectedPlantId?: string;
-  preselectedActivityType?: "water" | "fertilize" | "observe" | "pruning" | "moisture";
+  preselectedActivityType?:
+    | "water"
+    | "fertilize"
+    | "observe"
+    | "pruning"
+    | "moisture";
   preselectedProduct?: string;
 }
 
@@ -123,6 +153,7 @@ const getProtocolForStage = (
     rootDevelopment: ["rootDevelopment", "tuberDevelopment"],
     fruiting: ["fruiting"],
     maturation: ["maturation", "ongoing-production"], // Map maturation to ongoing production for everbearing plants
+    "ongoing-production": ["ongoingProduction"], // Map kebab-case to camelCase
   } as const;
   const possibleKeys = stageMappings[stage] || [];
   for (const key of possibleKeys) {
@@ -151,7 +182,6 @@ export function CareLogForm({
 }: CareLogFormProps) {
   const { plants, loading: plantsLoading } = useFirebasePlants();
   const { logActivity } = useFirebaseCareActivities();
-  
   // Group plants by sections/containers
   const plantGroups = plants.length > 0 ? groupPlantsByConditions(plants) : [];
   const [isLoading, setIsLoading] = useState(false);
@@ -168,11 +198,15 @@ export function CareLogForm({
   const [backfillReason, setBackfillReason] = useState("");
   const [searchParams] = useSearchParams();
   const [showSectionApply, setShowSectionApply] = useState(false);
-  const [sectionApplyOption, setSectionApplyOption] = useState<SectionApplyOption | null>(null);
-  const [lastSubmittedData, setLastSubmittedData] = useState<CareFormData | null>(null);
+  const [sectionApplyOption, setSectionApplyOption] =
+    useState<SectionApplyOption | null>(null);
+  const [lastSubmittedData, setLastSubmittedData] =
+    useState<CareFormData | null>(null);
   // Bulk mode state removed - now using groups exclusively
-  const [showSupplementalWatering, setShowSupplementalWatering] = useState(false);
-  const [partialWateringAnalysis, setPartialWateringAnalysis] = useState<PartialWateringAnalysis | null>(null);
+  const [showSupplementalWatering, setShowSupplementalWatering] =
+    useState(false);
+  const [partialWateringAnalysis, setPartialWateringAnalysis] =
+    useState<PartialWateringAnalysis | null>(null);
   const [applyToAllGroupPlants, setApplyToAllGroupPlants] = useState(false);
   const [useStructuredFertilizer, setUseStructuredFertilizer] = useState(true);
 
@@ -183,7 +217,12 @@ export function CareLogForm({
     preselectedPlantId || searchParams.get("plantId") || "";
   const activityTypeFromParams =
     preselectedActivityType ||
-    (searchParams.get("type") as "water" | "fertilize" | "observe" | "pruning" | "moisture") ||
+    (searchParams.get("type") as
+      | "water"
+      | "fertilize"
+      | "observe"
+      | "pruning"
+      | "moisture") ||
     "water";
 
   const {
@@ -192,91 +231,151 @@ export function CareLogForm({
     watch,
     formState: { errors, isSubmitting },
     reset,
-    setValue,
     setError,
   } = useForm<CareFormData>({
     resolver: zodResolver(careFormSchema),
     mode: "onChange",
     defaultValues: {
       groupId: "",
-      type: activityTypeFromParams,
+      type: preselectedActivityType || activityTypeFromParams,
       date: getTodayDateString(),
       waterValue: null,
       waterUnit: "oz",
     },
   });
 
-  const activityType = watch("type");
   const selectedGroupId = watch("groupId");
+
+  // Get the selected group and its plants
+  const selectedGroup = plantGroups.find(
+    (group) => group.id === selectedGroupId
+  );
+
+  const activityType = watch("type");
   const selectedFertilizerType = watch("fertilizeType");
   const fertilizerDilutionValue = watch("fertilizerDilutionValue");
   const fertilizerDilutionUnit = watch("fertilizerDilutionUnit");
   const fertilizerDilutionPerUnit = watch("fertilizerDilutionPerUnit");
   const fertilizerApplicationAmount = watch("fertilizerApplicationAmount");
   const fertilizerApplicationUnit = watch("fertilizerApplicationUnit");
-  
-  
-  // Get the selected group and its plants
-  const selectedGroup = plantGroups.find(group => group.id === selectedGroupId);
-  const selectedPlantIds = selectedGroup ? selectedGroup.plants.map(p => p.id) : [];
-  
-  // Find all other groups with the same variety AND same base container for the "Apply to all grouped plants" option
-  const otherSameVarietyGroups = selectedGroup ? 
-    plantGroups.filter(group => {
-      if (group.id === selectedGroup.id) return false;
-      
-      // Must have same variety name
-      if (group.varietyName !== selectedGroup.varietyName) return false;
-      
-      // Must have same base container (remove section info like "Row X, Column Y")
-      const getBaseContainer = (container: string) => {
-        return container.replace(/ - Row \d+, Column \d+/, '')
-                      .replace(/ - Section .+$/, '')
-                      .replace(/ - R\d+C\d+/, '')
-                      .replace(/ - \d+,\d+/, '');
-      };
-      
-      const selectedBaseContainer = getBaseContainer(selectedGroup.container);
-      const groupBaseContainer = getBaseContainer(group.container);
-      
-      // Only include if they have the same base container AND same planting date
-      return groupBaseContainer === selectedBaseContainer && 
-             group.plantedDate.getTime() === selectedGroup.plantedDate.getTime();
-    }) : [];
-  const otherSameVarietyPlantIds = otherSameVarietyGroups.flatMap(group => group.plants.map(p => p.id));
-  const totalSameVarietyPlants = selectedPlantIds.length + otherSameVarietyPlantIds.length;
 
+  const selectedPlantIds = selectedGroup
+    ? selectedGroup.plants.map((p) => p.id)
+    : [];
+
+  // Find all other groups with the same variety AND same base container for the "Apply to all grouped plants" option
+  const otherSameVarietyGroups = selectedGroup
+    ? plantGroups.filter((group) => {
+        if (group.id === selectedGroup.id) return false;
+
+        // Must have same variety name
+        if (group.varietyName !== selectedGroup.varietyName) return false;
+
+        // Must have same base container (remove section info like "Row X, Column Y")
+        const getBaseContainer = (container: string) => {
+          return container
+            .replace(/ - Row \d+, Column \d+/, "")
+            .replace(/ - Section .+$/, "")
+            .replace(/ - R\d+C\d+/, "")
+            .replace(/ - \d+,\d+/, "");
+        };
+
+        const selectedBaseContainer = getBaseContainer(selectedGroup.container);
+        const groupBaseContainer = getBaseContainer(group.container);
+
+        // Only include if they have the same base container AND same planting date
+        return (
+          groupBaseContainer === selectedBaseContainer &&
+          group.plantedDate.getTime() === selectedGroup.plantedDate.getTime()
+        );
+      })
+    : [];
+  const otherSameVarietyPlantIds = otherSameVarietyGroups.flatMap((group) =>
+    group.plants.map((p) => p.id)
+  );
+  const totalSameVarietyPlants =
+    selectedPlantIds.length + otherSameVarietyPlantIds.length;
+
+  // Centralized form initialization - replaces multiple setValue useEffects
   useEffect(() => {
-    if (!plantsLoading && plantGroups.length > 0 && plantIdFromParams) {
-      // Find the group that contains the preselected plant
-      const targetGroup = plantGroups.find(group => 
-        group.plants.some(plant => plant.id === plantIdFromParams)
+    if (plantsLoading) return;
+
+    // Collect all form values that need to be set
+    const formValues: Partial<CareFormData> = {};
+    let hasChanges = false;
+
+    // Set group ID from preselected plant
+    if (plantGroups.length > 0 && plantIdFromParams) {
+      const targetGroup = plantGroups.find((group) =>
+        group.plants.some((plant) => plant.id === plantIdFromParams)
       );
       if (targetGroup) {
-        setValue("groupId", targetGroup.id, { shouldValidate: true });
+        formValues.groupId = targetGroup.id;
+        hasChanges = true;
       }
     }
-  }, [plantsLoading, plantGroups, plantIdFromParams, setValue]);
 
-  // Auto-check apply to all checkbox when group has multiple plants  
+    // Set group ID from bulk params
+    if (isBulkFromParams && plantIdsFromParams && plantGroups.length > 0) {
+      const plantIds = plantIdsFromParams.split(",").filter((id) => id.trim());
+      const targetGroup = plantGroups.find((group) =>
+        plantIds.some((id) => group.plants.some((plant) => plant.id === id))
+      );
+      if (targetGroup) {
+        formValues.groupId = targetGroup.id;
+        hasChanges = true;
+      }
+    }
+
+    // Set preselected activity type
+    if (preselectedActivityType && preselectedActivityType !== watch("type")) {
+      formValues.type = preselectedActivityType;
+      hasChanges = true;
+    }
+
+    // Set preselected fertilizer product (if not already set)
+    if (preselectedProduct && preselectedProduct !== watch("fertilizeType")) {
+      formValues.fertilizeType = preselectedProduct;
+      hasChanges = true;
+    }
+
+    // Set backfill date
+    const backfillParam = searchParams.get("backfill");
+    const dateParam = searchParams.get("date");
+    if (backfillParam === "true" && dateParam) {
+      formValues.date = dateParam;
+      setIsBackfillMode(true);
+      setBackfillReason("Catching up on missed care activity");
+      hasChanges = true;
+    }
+
+    // Apply all changes at once using reset to avoid multiple re-renders
+    if (hasChanges) {
+      reset({
+        ...watch(), // Keep existing values
+        ...formValues, // Override with new values
+      });
+    }
+  }, [
+    plantsLoading,
+    plantGroups,
+    plantIdFromParams,
+    isBulkFromParams,
+    plantIdsFromParams,
+    preselectedActivityType,
+    preselectedProduct,
+    searchParams,
+    reset,
+    watch,
+  ]);
+
+  // Auto-check apply to all checkbox when group has multiple plants
   useEffect(() => {
     if (selectedGroup && selectedGroup.plants.length > 1) {
       setApplyToAllGroupPlants(true);
     }
   }, [selectedGroup]);
 
-  // Initialize from bulk URL parameters - find the group containing the plants
-  useEffect(() => {
-    if (isBulkFromParams && plantIdsFromParams && plantGroups.length > 0) {
-      const plantIds = plantIdsFromParams.split(',').filter(id => id.trim());
-      const targetGroup = plantGroups.find(group => 
-        plantIds.some(id => group.plants.some(plant => plant.id === id))
-      );
-      if (targetGroup) {
-        setValue("groupId", targetGroup.id, { shouldValidate: true });
-      }
-    }
-  }, [isBulkFromParams, plantIdsFromParams, plantGroups, setValue]);
 
   useEffect(() => {
     const loadPlantData = async () => {
@@ -294,7 +393,9 @@ export function CareLogForm({
         let variety = await varietyService.getVariety(plant.varietyId);
         if (!variety) {
           // Fallback to seedVarieties data for Firebase plants
-          const seedVariety = seedVarieties.find(v => v.name === plant.varietyName);
+          const seedVariety = seedVarieties.find(
+            (v) => v.name === plant.varietyName
+          );
           if (seedVariety) {
             variety = {
               id: plant.varietyId,
@@ -308,7 +409,7 @@ export function CareLogForm({
             } as VarietyRecord;
           }
         }
-        
+
         setPlantVariety(variety || null);
         if (variety) {
           const stage = calculateCurrentStageWithVariety(
@@ -324,12 +425,12 @@ export function CareLogForm({
               variety.protocols.fertilization,
               stage
             );
-            
+
             if (
               fertilizingProtocol?.schedule &&
               Array.isArray(fertilizingProtocol.schedule)
             ) {
-              const products: FertilizerProduct[] =
+              const allProducts: FertilizerProduct[] =
                 fertilizingProtocol.schedule.map(
                   (item: FertilizationScheduleItem) => ({
                     name: item.details.product,
@@ -338,17 +439,39 @@ export function CareLogForm({
                     method: item.details.method || "soil-drench", // Default to soil-drench if not specified
                   })
                 );
+
+              // Deduplicate fertilizer products by name, keeping the first occurrence
+              const seenProducts = new Map<string, FertilizerProduct>();
+              allProducts.forEach((product) => {
+                if (!seenProducts.has(product.name)) {
+                  seenProducts.set(product.name, product);
+                }
+              });
+              const products = Array.from(seenProducts.values());
+
               setAvailableFertilizers(products);
               // Pre-select product if provided, otherwise default to first product if only one available
-              if (preselectedProduct && products.some(p => p.name === preselectedProduct)) {
-                setValue("fertilizeType", preselectedProduct);
-                const selectedProduct = products.find(p => p.name === preselectedProduct);
-                setSelectedFertilizer(selectedProduct || null);
+              let selectedProduct: FertilizerProduct | null = null;
+              let fertilizerToSet: string | undefined;
+
+              if (
+                preselectedProduct &&
+                products.some((p) => p.name === preselectedProduct)
+              ) {
+                selectedProduct = products.find((p) => p.name === preselectedProduct) || null;
+                fertilizerToSet = preselectedProduct;
               } else if (products.length === 1) {
-                const firstProduct = products[0];
-                setValue("fertilizeType", firstProduct.name);
-                setSelectedFertilizer(firstProduct);
+                selectedProduct = products[0];
+                fertilizerToSet = products[0].name;
               }
+
+              if (fertilizerToSet && fertilizerToSet !== watch("fertilizeType")) {
+                reset({
+                  ...watch(),
+                  fertilizeType: fertilizerToSet,
+                });
+              }
+              setSelectedFertilizer(selectedProduct);
             } else {
               setAvailableFertilizers([]);
             }
@@ -362,7 +485,7 @@ export function CareLogForm({
       }
     };
     loadPlantData();
-  }, [selectedGroup, plants, activityType, setValue]);
+  }, [selectedGroup, plants, activityType, preselectedProduct, reset, watch]);
 
   useEffect(() => {
     if (selectedFertilizerType) {
@@ -370,31 +493,47 @@ export function CareLogForm({
         (f) => f.name === selectedFertilizerType
       );
       setSelectedFertilizer(fertilizer || null);
+      
       if (fertilizer) {
-        if (fertilizer.dilution) {
-          setValue("fertilizeDilution", fertilizer.dilution);
+        const formUpdates: Partial<CareFormData> = {};
+        let hasUpdates = false;
+
+        if (fertilizer.dilution && fertilizer.dilution !== watch("fertilizeDilution")) {
+          formUpdates.fertilizeDilution = fertilizer.dilution;
+          hasUpdates = true;
         }
-        if (fertilizer.amount) {
-          setValue("fertilizeAmount", fertilizer.amount);
+        if (fertilizer.amount && fertilizer.amount !== watch("fertilizeAmount")) {
+          formUpdates.fertilizeAmount = fertilizer.amount;
+          hasUpdates = true;
+        }
+
+        if (hasUpdates) {
+          reset({
+            ...watch(),
+            ...formUpdates,
+          });
         }
       }
     } else {
       setSelectedFertilizer(null);
     }
-  }, [selectedFertilizerType, availableFertilizers, setValue]);
+  }, [selectedFertilizerType, availableFertilizers, reset, watch]);
 
   // Check for container-wide apply options when group is selected
   useEffect(() => {
     if (selectedGroup && plants.length > 0) {
       // Find other groups in the same container
-      const sameContainerGroups = plantGroups.filter(group => 
-        group.id !== selectedGroup.id && 
-        group.container === selectedGroup.container &&
-        group.varietyName === selectedGroup.varietyName
+      const sameContainerGroups = plantGroups.filter(
+        (group) =>
+          group.id !== selectedGroup.id &&
+          group.container === selectedGroup.container &&
+          group.varietyName === selectedGroup.varietyName
       );
-      
+
       if (sameContainerGroups.length > 0) {
-        const otherPlantIds = sameContainerGroups.flatMap(group => group.plants.map(p => p.id));
+        const otherPlantIds = sameContainerGroups.flatMap((group) =>
+          group.plants.map((p) => p.id)
+        );
         setSectionApplyOption({
           sectionKey: `${selectedGroup.container}_${selectedGroup.varietyName}`,
           plantCount: otherPlantIds.length,
@@ -412,37 +551,31 @@ export function CareLogForm({
     }
   }, [selectedGroup, plantGroups]);
 
-  useEffect(() => {
-    const backfillParam = searchParams.get("backfill");
-    const dateParam = searchParams.get("date");
-
-    if (backfillParam === "true" && dateParam) {
-      setIsBackfillMode(true);
-      setValue("date", dateParam);
-      setBackfillReason("Catching up on missed care activity");
-    }
-  }, [searchParams, setValue]);
 
   // Handle bulk care submission for section apply
-  const handleBulkCareSubmission = async (plantIds: string[]): Promise<BulkCareResult[]> => {
+  const handleBulkCareSubmission = async (
+    plantIds: string[]
+  ): Promise<BulkCareResult[]> => {
     if (!lastSubmittedData) {
-      throw new Error('No previous submission data available');
+      throw new Error("No previous submission data available");
     }
 
     const results: BulkCareResult[] = [];
-    
+
     // Generate a unique section ID for this bulk application
-    const sectionId = `section_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    const sectionId = `section_${Date.now()}_${Math.random()
+      .toString(36)
+      .substr(2, 9)}`;
 
     for (const plantId of plantIds) {
       try {
-        const plant = plants.find(p => p.id === plantId);
+        const plant = plants.find((p) => p.id === plantId);
         if (!plant) {
           results.push({
             plantId,
-            plantName: 'Unknown Plant',
+            plantName: "Unknown Plant",
             success: false,
-            error: 'Plant not found'
+            error: "Plant not found",
           });
           continue;
         }
@@ -454,7 +587,7 @@ export function CareLogForm({
           sectionId: sectionId,
           plantsInSection: plantIds.length,
         };
-        
+
         // Only set notes if it has a valid value
         if (lastSubmittedData.notes) {
           details.notes = lastSubmittedData.notes;
@@ -473,7 +606,9 @@ export function CareLogForm({
           if (showDetailedTracking && lastSubmittedData.moistureBefore) {
             details.moistureLevel = {
               before: lastSubmittedData.moistureBefore,
-              ...(lastSubmittedData.moistureAfter && { after: lastSubmittedData.moistureAfter }),
+              ...(lastSubmittedData.moistureAfter && {
+                after: lastSubmittedData.moistureAfter,
+              }),
               scale: "1-10",
             };
           }
@@ -508,29 +643,38 @@ export function CareLogForm({
           date: createDateForCareLogging(lastSubmittedData.date),
           details: details as CareActivityDetails,
         });
-        
+
         // If this is a fertilizer activity that requires water, also log a watering activity
-        if (lastSubmittedData.type === "fertilize" && selectedFertilizer?.method && requiresWater(selectedFertilizer.method)) {
+        if (
+          lastSubmittedData.type === "fertilize" &&
+          selectedFertilizer?.method &&
+          requiresWater(selectedFertilizer.method)
+        ) {
           try {
             // Calculate appropriate water amount based on application method
-            const providedAmount = lastSubmittedData.fertilizerApplicationAmount && 
-                                  lastSubmittedData.fertilizerApplicationUnit === "ml" ? 
-                                  lastSubmittedData.fertilizerApplicationAmount : undefined;
-            
-            const { amount: waterAmount, unit: waterUnit } = getWaterAmountForMethod(
-              selectedFertilizer.method, 
-              providedAmount
-            );
-            
+            const providedAmount =
+              lastSubmittedData.fertilizerApplicationAmount &&
+              lastSubmittedData.fertilizerApplicationUnit === "ml"
+                ? lastSubmittedData.fertilizerApplicationAmount
+                : undefined;
+
+            const { amount: waterAmount, unit: waterUnit } =
+              getWaterAmountForMethod(
+                selectedFertilizer.method,
+                providedAmount
+              );
+
             const waterDetails: CareActivityDetails = {
               type: "water",
               amount: {
                 value: waterAmount,
                 unit: waterUnit as any,
               },
-              notes: `Watered in fertilizer (${getMethodDisplay(selectedFertilizer.method)})`,
+              notes: `Watered in fertilizer (${getMethodDisplay(
+                selectedFertilizer.method
+              )})`,
             };
-            
+
             await logActivity({
               plantId: plantId,
               type: "water",
@@ -538,7 +682,10 @@ export function CareLogForm({
               details: waterDetails,
             });
           } catch (waterError) {
-            console.error(`Failed to log water activity for fertilizer on plant ${plantId}:`, waterError);
+            console.error(
+              `Failed to log water activity for fertilizer on plant ${plantId}:`,
+              waterError
+            );
             // Don't fail the main fertilizer activity if water logging fails
           }
         }
@@ -546,30 +693,29 @@ export function CareLogForm({
         results.push({
           plantId,
           plantName: plant.name || plant.varietyName,
-          success: true
+          success: true,
         });
-
       } catch (error) {
-        const plant = plants.find(p => p.id === plantId);
+        const plant = plants.find((p) => p.id === plantId);
         results.push({
           plantId,
-          plantName: plant?.name || plant?.varietyName || 'Unknown Plant',
+          plantName: plant?.name || plant?.varietyName || "Unknown Plant",
           success: false,
-          error: error instanceof Error ? error.message : 'Unknown error'
+          error: error instanceof Error ? error.message : "Unknown error",
         });
       }
     }
 
     // Show summary toast
-    const successCount = results.filter(r => r.success).length;
+    const successCount = results.filter((r) => r.success).length;
     const totalCount = results.length;
-    
+
     if (successCount === totalCount) {
       toast.success(`✓ Applied to all ${totalCount} plants in section`);
     } else if (successCount > 0) {
       toast.success(`✓ Applied to ${successCount} of ${totalCount} plants`);
     } else {
-      toast.error('Failed to apply to section plants');
+      toast.error("Failed to apply to section plants");
     }
 
     // Auto-hide section apply after completion
@@ -585,7 +731,8 @@ export function CareLogForm({
 
   // Handle supplemental watering addition
   const handleSupplementalWatering = async (amount: number, unit: string) => {
-    if (!lastSubmittedData || !partialWateringAnalysis || !selectedGroup) return;
+    if (!lastSubmittedData || !partialWateringAnalysis || !selectedGroup)
+      return;
 
     try {
       const details: Partial<CareActivityDetails> = {
@@ -630,10 +777,14 @@ export function CareLogForm({
 
     // Manual validation for structured fertilizer inputs
     if (data.type === "fertilize" && useStructuredFertilizer) {
-      if (!data.fertilizerApplicationAmount || !data.fertilizerApplicationUnit) {
+      if (
+        !data.fertilizerApplicationAmount ||
+        !data.fertilizerApplicationUnit
+      ) {
         setError("fertilizerApplicationAmount", {
           type: "manual",
-          message: "Application amount and unit are required when using structured fertilizer inputs.",
+          message:
+            "Application amount and unit are required when using structured fertilizer inputs.",
         });
         return;
       }
@@ -645,7 +796,7 @@ export function CareLogForm({
       const details: Partial<CareActivityDetails> = {
         type: data.type,
       };
-      
+
       // Only set notes if it has a valid value
       if (data.notes) {
         details.notes = data.notes;
@@ -673,7 +824,7 @@ export function CareLogForm({
               data.waterValue!,
               data.waterUnit!
             );
-            
+
             // Enhance details with partial watering info
             details.recommendedAmount = analysis.recommendedAmount;
             details.isPartialWatering = analysis.isPartial;
@@ -681,14 +832,14 @@ export function CareLogForm({
 
             // Show user feedback if partial and offer supplemental watering
             if (analysis.isPartial) {
-              toast(analysis.message, { 
+              toast(analysis.message, {
                 duration: 6000,
-                icon: '⚠️',
+                icon: "⚠️",
                 style: {
-                  background: '#FEF3C7',
-                  color: '#92400E',
-                  border: '1px solid #FCD34D'
-                }
+                  background: "#FEF3C7",
+                  color: "#92400E",
+                  border: "1px solid #FCD34D",
+                },
               });
 
               // Show supplemental watering option
@@ -706,20 +857,29 @@ export function CareLogForm({
         if (data.fertilizeType) {
           details.product = data.fertilizeType;
         }
-        
+
         // Handle structured fertilizer inputs
-        if (useStructuredFertilizer && data.fertilizerDilutionValue && data.fertilizerDilutionUnit && data.fertilizerDilutionPerUnit) {
+        if (
+          useStructuredFertilizer &&
+          data.fertilizerDilutionValue &&
+          data.fertilizerDilutionUnit &&
+          data.fertilizerDilutionPerUnit
+        ) {
           details.dilution = `${data.fertilizerDilutionValue} ${data.fertilizerDilutionUnit}/${data.fertilizerDilutionPerUnit}`;
         } else if (data.fertilizeDilution) {
           details.dilution = data.fertilizeDilution;
         }
-        
-        if (useStructuredFertilizer && data.fertilizerApplicationAmount && data.fertilizerApplicationUnit) {
+
+        if (
+          useStructuredFertilizer &&
+          data.fertilizerApplicationAmount &&
+          data.fertilizerApplicationUnit
+        ) {
           details.amount = `${data.fertilizerApplicationAmount} ${data.fertilizerApplicationUnit}`;
         } else if (data.fertilizeAmount) {
           details.amount = data.fertilizeAmount;
         }
-        
+
         // Only set applicationMethod if it has a valid value
         if (selectedFertilizer?.method) {
           details.applicationMethod = selectedFertilizer.method;
@@ -737,25 +897,27 @@ export function CareLogForm({
       // Now all submissions are "bulk" since we're working with groups
       if (selectedPlantIds.length > 0) {
         // Determine which plants to apply care to
-        const targetPlantIds = applyToAllGroupPlants ? 
-          [...selectedPlantIds, ...otherSameVarietyPlantIds] : 
-          selectedPlantIds;
-        
+        const targetPlantIds = applyToAllGroupPlants
+          ? [...selectedPlantIds, ...otherSameVarietyPlantIds]
+          : selectedPlantIds;
+
         // Handle group submission with section tracking
-        const sectionId = `section_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        const sectionId = `section_${Date.now()}_${Math.random()
+          .toString(36)
+          .substr(2, 9)}`;
         let successCount = 0;
         let errorCount = 0;
-        
+
         for (const plantId of targetPlantIds) {
           try {
             // Create section-aware details for bulk mode
             const bulkDetails: CareActivityDetails = {
-              ...details as CareActivityDetails,
+              ...(details as CareActivityDetails),
               sectionBased: true,
               sectionId: sectionId,
               plantsInSection: selectedPlantIds.length,
             };
-            
+
             // For watering, store the total section amount
             if (data.type === "water" && data.waterValue) {
               bulkDetails.totalSectionAmount = {
@@ -770,20 +932,27 @@ export function CareLogForm({
               date: createDateForCareLogging(data.date),
               details: bulkDetails,
             });
-            
+
             // If this is a fertilizer activity that requires water, also log a watering activity
-            if (data.type === "fertilize" && selectedFertilizer?.method && requiresWater(selectedFertilizer.method)) {
+            if (
+              data.type === "fertilize" &&
+              selectedFertilizer?.method &&
+              requiresWater(selectedFertilizer.method)
+            ) {
               try {
                 // Calculate appropriate water amount based on application method
-                const providedAmount = data.fertilizerApplicationAmount && 
-                                      data.fertilizerApplicationUnit === "ml" ? 
-                                      data.fertilizerApplicationAmount : undefined;
-                
-                const { amount: waterAmount, unit: waterUnit } = getWaterAmountForMethod(
-                  selectedFertilizer.method, 
-                  providedAmount
-                );
-                
+                const providedAmount =
+                  data.fertilizerApplicationAmount &&
+                  data.fertilizerApplicationUnit === "ml"
+                    ? data.fertilizerApplicationAmount
+                    : undefined;
+
+                const { amount: waterAmount, unit: waterUnit } =
+                  getWaterAmountForMethod(
+                    selectedFertilizer.method,
+                    providedAmount
+                  );
+
                 const waterDetails: CareActivityDetails = {
                   type: "water",
                   amount: {
@@ -793,9 +962,11 @@ export function CareLogForm({
                   sectionBased: bulkDetails.sectionBased,
                   sectionId: bulkDetails.sectionId,
                   plantsInSection: bulkDetails.plantsInSection,
-                  notes: `Watered in fertilizer (${getMethodDisplay(selectedFertilizer.method)})`,
+                  notes: `Watered in fertilizer (${getMethodDisplay(
+                    selectedFertilizer.method
+                  )})`,
                 };
-                
+
                 await logActivity({
                   plantId,
                   type: "water",
@@ -803,55 +974,69 @@ export function CareLogForm({
                   details: waterDetails,
                 });
               } catch (waterError) {
-                console.error(`Failed to log water activity for fertilizer on plant ${plantId}:`, waterError);
+                console.error(
+                  `Failed to log water activity for fertilizer on plant ${plantId}:`,
+                  waterError
+                );
                 // Don't fail the main fertilizer activity if water logging fails
               }
             }
-            
+
             successCount++;
           } catch (error) {
-            console.error(`Failed to log activity for plant ${plantId}:`, error);
+            console.error(
+              `Failed to log activity for plant ${plantId}:`,
+              error
+            );
             errorCount++;
           }
         }
-        
+
         if (errorCount === 0) {
-          let message = applyToAllGroupPlants && otherSameVarietyPlantIds.length > 0 ? 
-            `✅ Care activity logged for ${successCount} ${selectedGroup?.varietyName} plants!` :
-            `✅ Care activity logged for ${successCount} plants!`;
-          
+          let message =
+            applyToAllGroupPlants && otherSameVarietyPlantIds.length > 0
+              ? `✅ Care activity logged for ${successCount} ${selectedGroup?.varietyName} plants!`
+              : `✅ Care activity logged for ${successCount} plants!`;
+
           // Add water logging notification for fertilizer activities
           if (data.type === "fertilize" && selectedFertilizer?.method) {
             message += ` Watering activities also logged automatically.`;
           }
-          
+
           toast.success(message, {
             duration: 4000,
             style: {
-              background: '#10B981',
-              color: 'white',
-            }
+              background: "#10B981",
+              color: "white",
+            },
           });
-          
+
           // Reset form on successful submission
           reset();
-          
+
           // Call success callback if provided
           onSuccess?.();
         } else if (successCount > 0) {
-          toast.success(`⚠️ Care activity logged for ${successCount} plants (${errorCount} failed)`, {
-            duration: 5000,
-            style: {
-              background: '#F59E0B',
-              color: 'white',
+          toast.success(
+            `⚠️ Care activity logged for ${successCount} plants (${errorCount} failed)`,
+            {
+              duration: 5000,
+              style: {
+                background: "#F59E0B",
+                color: "white",
+              },
             }
-          });
+          );
         } else {
           throw new Error("Failed to log activity for all plants");
         }
-        
+
         // Show section apply option if available and not showing supplemental watering
-        if (sectionApplyOption && sectionApplyOption.plantCount > 0 && !showSupplementalWatering) {
+        if (
+          sectionApplyOption &&
+          sectionApplyOption.plantCount > 0 &&
+          !showSupplementalWatering
+        ) {
           setLastSubmittedData(data);
           setShowSectionApply(true);
         } else if (!showSupplementalWatering) {
@@ -870,9 +1055,9 @@ export function CareLogForm({
       toast.error(`❌ Failed to log activity: ${errorMessage}`, {
         duration: 6000,
         style: {
-          background: '#EF4444',
-          color: 'white',
-        }
+          background: "#EF4444",
+          color: "white",
+        },
       });
     } finally {
       setIsLoading(false);
@@ -1215,9 +1400,12 @@ export function CareLogForm({
                   <button
                     type="button"
                     onClick={() => {
-                      setValue("fertilizerDilutionValue", 1);
-                      setValue("fertilizerDilutionUnit", "tbsp");
-                      setValue("fertilizerDilutionPerUnit", "gal");
+                      reset({
+                        ...watch(),
+                        fertilizerDilutionValue: 1,
+                        fertilizerDilutionUnit: "tbsp",
+                        fertilizerDilutionPerUnit: "gal",
+                      });
                     }}
                     className="text-xs px-2 py-1 bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200 rounded hover:bg-green-200 dark:hover:bg-green-800"
                   >
@@ -1226,9 +1414,12 @@ export function CareLogForm({
                   <button
                     type="button"
                     onClick={() => {
-                      setValue("fertilizerDilutionValue", 2);
-                      setValue("fertilizerDilutionUnit", "tbsp");
-                      setValue("fertilizerDilutionPerUnit", "gal");
+                      reset({
+                        ...watch(),
+                        fertilizerDilutionValue: 2,
+                        fertilizerDilutionUnit: "tbsp",
+                        fertilizerDilutionPerUnit: "gal",
+                      });
                     }}
                     className="text-xs px-2 py-1 bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200 rounded hover:bg-green-200 dark:hover:bg-green-800"
                   >
@@ -1237,9 +1428,12 @@ export function CareLogForm({
                   <button
                     type="button"
                     onClick={() => {
-                      setValue("fertilizerDilutionValue", 1);
-                      setValue("fertilizerDilutionUnit", "tsp");
-                      setValue("fertilizerDilutionPerUnit", "quart");
+                      reset({
+                        ...watch(),
+                        fertilizerDilutionValue: 1,
+                        fertilizerDilutionUnit: "tsp",
+                        fertilizerDilutionPerUnit: "quart",
+                      });
                     }}
                     className="text-xs px-2 py-1 bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200 rounded hover:bg-green-200 dark:hover:bg-green-800"
                   >
@@ -1262,7 +1456,9 @@ export function CareLogForm({
                     type="number"
                     step="0.1"
                     placeholder="1"
-                    {...register("fertilizerDilutionValue", { valueAsNumber: true })}
+                    {...register("fertilizerDilutionValue", {
+                      valueAsNumber: true,
+                    })}
                     className="p-3 border border-border rounded-lg bg-background text-foreground focus:ring-2 focus:ring-ring focus:border-ring"
                   />
                   <select
@@ -1276,7 +1472,9 @@ export function CareLogForm({
                     <option value="ml">ml</option>
                     <option value="cups">cups</option>
                   </select>
-                  <span className="flex items-center justify-center text-foreground">per</span>
+                  <span className="flex items-center justify-center text-foreground">
+                    per
+                  </span>
                   <select
                     {...register("fertilizerDilutionPerUnit")}
                     className="p-3 border border-border rounded-lg bg-background text-foreground focus:ring-2 focus:ring-ring focus:border-ring"
@@ -1288,11 +1486,14 @@ export function CareLogForm({
                     <option value="cup">cup</option>
                   </select>
                 </div>
-                {fertilizerDilutionValue && fertilizerDilutionUnit && fertilizerDilutionPerUnit && (
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Dilution: {fertilizerDilutionValue} {fertilizerDilutionUnit} per {fertilizerDilutionPerUnit}
-                  </p>
-                )}
+                {fertilizerDilutionValue &&
+                  fertilizerDilutionUnit &&
+                  fertilizerDilutionPerUnit && (
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Dilution: {fertilizerDilutionValue}{" "}
+                      {fertilizerDilutionUnit} per {fertilizerDilutionPerUnit}
+                    </p>
+                  )}
               </div>
 
               {/* Structured Application Amount */}
@@ -1305,7 +1506,9 @@ export function CareLogForm({
                     type="number"
                     step="0.1"
                     placeholder="0.5"
-                    {...register("fertilizerApplicationAmount", { valueAsNumber: true })}
+                    {...register("fertilizerApplicationAmount", {
+                      valueAsNumber: true,
+                    })}
                     className="p-3 border border-border rounded-lg bg-background text-foreground focus:ring-2 focus:ring-ring focus:border-ring"
                   />
                   <select
@@ -1323,7 +1526,8 @@ export function CareLogForm({
                 </div>
                 {fertilizerApplicationAmount && fertilizerApplicationUnit && (
                   <p className="text-xs text-muted-foreground mt-1">
-                    Amount: {fertilizerApplicationAmount} {fertilizerApplicationUnit}
+                    Amount: {fertilizerApplicationAmount}{" "}
+                    {fertilizerApplicationUnit}
                   </p>
                 )}
                 {errors.fertilizerApplicationAmount && (
@@ -1334,7 +1538,10 @@ export function CareLogForm({
               </div>
 
               {/* Structured Input Preview */}
-              {(fertilizerDilutionValue && fertilizerDilutionUnit && fertilizerDilutionPerUnit) || (fertilizerApplicationAmount && fertilizerApplicationUnit) ? (
+              {(fertilizerDilutionValue &&
+                fertilizerDilutionUnit &&
+                fertilizerDilutionPerUnit) ||
+              (fertilizerApplicationAmount && fertilizerApplicationUnit) ? (
                 <div className="p-3 bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-lg">
                   <div className="flex items-center gap-2 mb-2">
                     <Info className="h-4 w-4 text-blue-600" />
@@ -1343,16 +1550,23 @@ export function CareLogForm({
                     </span>
                   </div>
                   <div className="space-y-1 text-sm text-blue-700 dark:text-blue-300">
-                    {fertilizerDilutionValue && fertilizerDilutionUnit && fertilizerDilutionPerUnit && (
-                      <div>
-                        <span className="font-medium">Dilution:</span> {fertilizerDilutionValue} {fertilizerDilutionUnit} per {fertilizerDilutionPerUnit}
-                      </div>
-                    )}
-                    {fertilizerApplicationAmount && fertilizerApplicationUnit && (
-                      <div>
-                        <span className="font-medium">Amount:</span> {fertilizerApplicationAmount} {fertilizerApplicationUnit}
-                      </div>
-                    )}
+                    {fertilizerDilutionValue &&
+                      fertilizerDilutionUnit &&
+                      fertilizerDilutionPerUnit && (
+                        <div>
+                          <span className="font-medium">Dilution:</span>{" "}
+                          {fertilizerDilutionValue} {fertilizerDilutionUnit} per{" "}
+                          {fertilizerDilutionPerUnit}
+                        </div>
+                      )}
+                    {fertilizerApplicationAmount &&
+                      fertilizerApplicationUnit && (
+                        <div>
+                          <span className="font-medium">Amount:</span>{" "}
+                          {fertilizerApplicationAmount}{" "}
+                          {fertilizerApplicationUnit}
+                        </div>
+                      )}
                   </div>
                 </div>
               ) : null}
@@ -1448,8 +1662,9 @@ export function CareLogForm({
                     Water Required
                   </p>
                   <p className="text-blue-700 dark:text-blue-300 mt-1">
-                    This application method requires water. A watering activity will be 
-                    automatically logged along with the fertilizer application.
+                    This application method requires water. A watering activity
+                    will be automatically logged along with the fertilizer
+                    application.
                   </p>
                 </div>
               </div>
@@ -1482,9 +1697,9 @@ export function CareLogForm({
               max={10}
               step={1}
               placeholder="1-10 (1=dry, 10=saturated)"
-              {...register("moistureBefore", { 
+              {...register("moistureBefore", {
                 required: "Moisture level is required for moisture tracking",
-                valueAsNumber: true 
+                valueAsNumber: true,
               })}
               className="w-full p-3 border border-border rounded-lg bg-background text-foreground focus:ring-2 focus:ring-ring focus:border-ring"
             />
@@ -1579,7 +1794,8 @@ export function CareLogForm({
                       <option value="">Choose a plant section...</option>
                       {plantGroups.map((group) => (
                         <option key={group.id} value={group.id}>
-                          {group.varietyName} ({group.plants.length} plant{group.plants.length > 1 ? 's' : ''})
+                          {group.varietyName} ({group.plants.length} plant
+                          {group.plants.length > 1 ? "s" : ""})
                           {group.container && ` - ${group.container}`}
                         </option>
                       ))}
@@ -1591,49 +1807,61 @@ export function CareLogForm({
                     )}
                   </div>
                 </div>
-                
+
                 {/* Planted Date Information */}
                 {selectedGroup && selectedGroup.plants.length > 0 && (
                   <div className="bg-muted/50 rounded-lg p-3 border">
                     <div className="flex items-center gap-2 mb-2">
                       <Info className="h-4 w-4 text-muted-foreground" />
-                      <span className="text-sm font-medium text-foreground">Plant Information</span>
+                      <span className="text-sm font-medium text-foreground">
+                        Plant Information
+                      </span>
                     </div>
                     <div className="space-y-1 text-sm text-muted-foreground">
                       <div>
-                        <span className="font-medium">Planted:</span> {
-                          (() => {
-                            const plant = selectedGroup.plants[0];
-                            const plantingDate = plant.plantedDate;
-                            
-                            if (plantingDate) {
-                              try {
-                                return format(new Date(plantingDate), 'MMM d, yyyy');
-                              } catch (e) {
-                                console.error('Date format error:', e, plantingDate);
-                                return `Invalid date: ${plantingDate}`;
-                              }
+                        <span className="font-medium">Planted:</span>{" "}
+                        {(() => {
+                          const plant = selectedGroup.plants[0];
+                          const plantingDate = plant.plantedDate;
+
+                          if (plantingDate) {
+                            try {
+                              return format(
+                                new Date(plantingDate),
+                                "MMM d, yyyy"
+                              );
+                            } catch (e) {
+                              console.error(
+                                "Date format error:",
+                                e,
+                                plantingDate
+                              );
+                              return `Invalid date: ${plantingDate}`;
                             }
-                            return 'Date not available';
-                          })()
-                        }
+                          }
+                          return "Date not available";
+                        })()}
                       </div>
                       <div>
-                        <span className="font-medium">Days since planted:</span> {
-                          (() => {
-                            const plant = selectedGroup.plants[0];
-                            const plantingDate = plant.plantedDate;
-                            
-                            if (plantingDate) {
-                              try {
-                                return Math.floor((new Date().getTime() - new Date(plantingDate).getTime()) / (1000 * 60 * 60 * 24));
-                              } catch (e) {
-                                return 'Invalid date';
-                              }
+                        <span className="font-medium">Days since planted:</span>{" "}
+                        {(() => {
+                          const plant = selectedGroup.plants[0];
+                          const plantingDate = plant.plantedDate;
+
+                          if (plantingDate) {
+                            try {
+                              return Math.floor(
+                                (new Date().getTime() -
+                                  new Date(plantingDate).getTime()) /
+                                  (1000 * 60 * 60 * 24)
+                              );
+                            } catch (e) {
+                              return "Invalid date";
                             }
-                            return 'N/A';
-                          })()
-                        } days
+                          }
+                          return "N/A";
+                        })()}{" "}
+                        days
                       </div>
                     </div>
                   </div>
@@ -1692,10 +1920,10 @@ export function CareLogForm({
                     variant="outline"
                     size="sm"
                     onClick={() =>
-                      setValue(
-                        "date",
-                        format(subDays(new Date(), 1), "yyyy-MM-dd")
-                      )
+                      reset({
+                        ...watch(),
+                        date: format(subDays(new Date(), 1), "yyyy-MM-dd")
+                      })
                     }
                   >
                     Yesterday
@@ -1705,16 +1933,16 @@ export function CareLogForm({
                     variant="outline"
                     size="sm"
                     onClick={() =>
-                      setValue(
-                        "date",
-                        format(subDays(new Date(), 7), "yyyy-MM-dd")
-                      )
+                      reset({
+                        ...watch(),
+                        date: format(subDays(new Date(), 7), "yyyy-MM-dd")
+                      })
                     }
                   >
                     Last Week
                   </Button>
                 </div>
-                
+
                 {/* Apply to all grouped plants checkbox */}
                 {selectedGroup && otherSameVarietyPlantIds.length > 0 && (
                   <div className="mt-4 p-3 bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-lg">
@@ -1723,7 +1951,9 @@ export function CareLogForm({
                         type="checkbox"
                         id="apply-to-all-group"
                         checked={applyToAllGroupPlants}
-                        onChange={(e) => setApplyToAllGroupPlants(e.target.checked)}
+                        onChange={(e) =>
+                          setApplyToAllGroupPlants(e.target.checked)
+                        }
                         className="mt-1 rounded border-blue-300 text-blue-600 focus:ring-blue-500"
                       />
                       <div className="flex-1">
@@ -1734,13 +1964,23 @@ export function CareLogForm({
                           Apply to all {selectedGroup.varietyName} plants
                         </label>
                         <p className="text-xs text-blue-700 dark:text-blue-300 mt-1">
-                          This will log the same care activity for all {totalSameVarietyPlants} {selectedGroup.varietyName} plants across all groups
+                          This will log the same care activity for all{" "}
+                          {totalSameVarietyPlants} {selectedGroup.varietyName}{" "}
+                          plants across all groups
                         </p>
                         <div className="text-xs text-blue-600 dark:text-blue-400 mt-1">
-                          • Current group: {selectedPlantIds.length} plant{selectedPlantIds.length > 1 ? 's' : ''}
+                          • Current group: {selectedPlantIds.length} plant
+                          {selectedPlantIds.length > 1 ? "s" : ""}
                           {otherSameVarietyGroups.length > 0 && (
                             <span>
-                              <br />• Other groups: {otherSameVarietyPlantIds.length} plant{otherSameVarietyPlantIds.length > 1 ? 's' : ''} in {otherSameVarietyGroups.length} additional group{otherSameVarietyGroups.length > 1 ? 's' : ''}
+                              <br />• Other groups:{" "}
+                              {otherSameVarietyPlantIds.length} plant
+                              {otherSameVarietyPlantIds.length > 1
+                                ? "s"
+                                : ""}{" "}
+                              in {otherSameVarietyGroups.length} additional
+                              group
+                              {otherSameVarietyGroups.length > 1 ? "s" : ""}
                             </span>
                           )}
                         </div>
@@ -1837,42 +2077,48 @@ export function CareLogForm({
         </form>
 
         {/* Supplemental Watering Card - shown after partial watering */}
-        {showSupplementalWatering && partialWateringAnalysis && lastSubmittedData && selectedGroup?.plants[0] && (
-          <div className="mt-4">
-            <SupplementalWateringCard
-              plant={selectedGroup.plants[0]}
-              analysis={partialWateringAnalysis}
-              onSupplementAdded={handleSupplementalWatering}
-              onSkip={() => {
-                setShowSupplementalWatering(false);
-                setPartialWateringAnalysis(null);
-                // Show section apply if available, otherwise finish
-                if (sectionApplyOption && sectionApplyOption.plantCount > 0) {
-                  setShowSectionApply(true);
-                } else {
-                  reset();
-                  onSuccess?.();
-                }
-              }}
-              disabled={isLoading}
-            />
-          </div>
-        )}
+        {showSupplementalWatering &&
+          partialWateringAnalysis &&
+          lastSubmittedData &&
+          selectedGroup?.plants[0] && (
+            <div className="mt-4">
+              <SupplementalWateringCard
+                plant={selectedGroup.plants[0]}
+                analysis={partialWateringAnalysis}
+                onSupplementAdded={handleSupplementalWatering}
+                onSkip={() => {
+                  setShowSupplementalWatering(false);
+                  setPartialWateringAnalysis(null);
+                  // Show section apply if available, otherwise finish
+                  if (sectionApplyOption && sectionApplyOption.plantCount > 0) {
+                    setShowSectionApply(true);
+                  } else {
+                    reset();
+                    onSuccess?.();
+                  }
+                }}
+                disabled={isLoading}
+              />
+            </div>
+          )}
 
         {/* Section Apply Card - shown after successful submission */}
-        {showSectionApply && sectionApplyOption && lastSubmittedData && selectedGroup?.plants[0] && (
-          <div className="mt-4">
-            <SectionApplyCard
-              targetPlant={selectedGroup.plants[0]}
-              allPlants={plants}
-              sectionOption={sectionApplyOption}
-              activityType={lastSubmittedData.type}
-              activityLabel={getActivityLabel(lastSubmittedData.type)}
-              onApplyToSection={handleBulkCareSubmission}
-              disabled={isLoading}
-            />
-          </div>
-        )}
+        {showSectionApply &&
+          sectionApplyOption &&
+          lastSubmittedData &&
+          selectedGroup?.plants[0] && (
+            <div className="mt-4">
+              <SectionApplyCard
+                targetPlant={selectedGroup.plants[0]}
+                allPlants={plants}
+                sectionOption={sectionApplyOption}
+                activityType={lastSubmittedData.type}
+                activityLabel={getActivityLabel(lastSubmittedData.type)}
+                onApplyToSection={handleBulkCareSubmission}
+                disabled={isLoading}
+              />
+            </div>
+          )}
       </CardContent>
     </Card>
   );

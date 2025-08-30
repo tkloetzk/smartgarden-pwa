@@ -1,5 +1,53 @@
-// Add to utils/fertilizationUtils.ts
 import { ApplicationMethod } from "@/types";
+
+/**
+ * Gets the most relevant fertilization tasks for a single plant
+ * Prioritizes overdue tasks, then upcoming tasks
+ */
+export const getRelevantFertilizationTasksForPlant = (
+  allTasks: any[],
+  currentDate: Date
+) => {
+  if (allTasks.length === 0) return [];
+
+  const now = currentDate.getTime();
+
+  // Sort tasks by due date
+  const sortedTasks = [...allTasks].sort(
+    (a, b) => a.dueDate.getTime() - b.dueDate.getTime()
+  );
+
+  // Find the most relevant task(s):
+  // 1. If there's an overdue task, show the most recent overdue one
+  // 2. Otherwise, show the next upcoming task
+
+  const overdueTasks = sortedTasks.filter(
+    (task) => task.dueDate.getTime() < now
+  );
+  const upcomingTasks = sortedTasks.filter(
+    (task) => task.dueDate.getTime() >= now
+  );
+
+  const relevantTasks = [];
+
+  // Add the most recent overdue task (if any)
+  if (overdueTasks.length > 0) {
+    const mostRecentOverdue = overdueTasks[overdueTasks.length - 1];
+    relevantTasks.push(mostRecentOverdue);
+  }
+
+  // Add the next upcoming task (if any and no overdue, or if there's a significant gap)
+  if (upcomingTasks.length > 0) {
+    const nextUpcoming = upcomingTasks[0];
+
+    // If there's no overdue task, or if the upcoming task is close, include it
+    if (overdueTasks.length === 0) {
+      relevantTasks.push(nextUpcoming);
+    }
+  }
+
+  return relevantTasks;
+};
 
 export const getMethodIcon = (method: ApplicationMethod | string) => {
   switch (method) {

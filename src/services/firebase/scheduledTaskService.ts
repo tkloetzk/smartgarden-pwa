@@ -113,12 +113,15 @@ export class FirebaseScheduledTaskService {
     callback: (tasks: ScheduledTask[]) => void,
     errorCallback: (error: Error) => void // Add an error callback
   ) {
+    console.log("👀 Subscribing to tasks for user:", userId);
     const q = query(
       this.tasksCollection,
       where("userId", "==", userId),
       where("status", "==", "pending"),
       orderBy("dueDate", "asc")
     );
+
+    console.log("!q", q);
 
     return onSnapshot(
       q,

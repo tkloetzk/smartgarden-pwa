@@ -17,10 +17,11 @@ export const useDashboardData = (): DashboardData => {
   const { plants, loading } = useFirebasePlants();
   const { user, signOut } = useFirebaseAuth();
   const { logActivity } = useFirebaseCareActivities();
-  const {
-    getUpcomingFertilizationTasks,
-    error: scheduledTasksError,
-  } = useScheduledTasks();
+
+  const scheduledTasksResult = useScheduledTasks();
+
+  const { getUpcomingFertilizationTasks, error: scheduledTasksError } =
+    scheduledTasksResult;
 
   return {
     plants,

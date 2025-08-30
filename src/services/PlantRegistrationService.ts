@@ -1,12 +1,9 @@
 // src/services/PlantRegistrationService.ts
 import { PlantRecord } from "@/types";
-import {
-  ProtocolTranspilerService,
-  ScheduledTask,
-} from "./ProtocolTranspilerService";
+import { ScheduledTask } from "./ProtocolTranspilerService";
 import { plantService, varietyService } from ".";
 import { generateUUID } from "@/utils/cn";
-import { FirebaseScheduledTaskService } from "./firebase/scheduledTaskService";
+import { TaskManagementService } from "./TaskManagementService";
 
 // We'll need to add this to the database later
 const scheduledTasksStore: ScheduledTask[] = []; // Temporary storage until database is updated
@@ -27,20 +24,12 @@ export class PlantRegistrationService {
       }
 
       if (variety.protocols?.fertilization) {
-        const scheduledTasks =
-          await ProtocolTranspilerService.transpilePlantProtocol(
-            plantData,
-            variety
-          );
-        
-        // Save tasks to Firebase instead of temporary store
-        if (scheduledTasks.length > 0) {
-          await FirebaseScheduledTaskService.createMultipleTasks(scheduledTasks, userId);
-          console.log(`✅ Created ${scheduledTasks.length} scheduled tasks for plant ${plantData.id}`);
-        }
-        
-        // Keep temporary store for backward compatibility during migration
-        scheduledTasksStore.push(...scheduledTasks);
+        await TaskManagementService.generateTasksForPlant(
+          plantData,
+          variety,
+          userId,
+          "plant-registration"
+        );
       }
     } catch (error) {
       // In the rollback, use the original plantData.id
@@ -127,36 +116,11 @@ export class PlantRegistrationService {
 
   /**
    * Regenerate scheduled tasks for an existing plant
-   * This is useful when protocols are updated or plant details change
+   * Delegates to Firebase Plant Service to avoid duplication
    */
   static async regenerateTasksForPlant(plantData: PlantRecord, userId: string): Promise<void> {
-    try {
-      console.log(`🔄 Regenerating tasks for plant ${plantData.id}...`);
-      
-      // Delete existing pending tasks for this plant
-      await FirebaseScheduledTaskService.deletePendingTasksForPlant(plantData.id, userId);
-      
-      const variety = await varietyService.getVariety(plantData.varietyId);
-      if (!variety) {
-        throw new Error(`Variety not found: ${plantData.varietyId}`);
-      }
-
-      if (variety.protocols?.fertilization) {
-        const scheduledTasks =
-          await ProtocolTranspilerService.transpilePlantProtocol(
-            plantData,
-            variety
-          );
-        
-        // Save new tasks to Firebase
-        if (scheduledTasks.length > 0) {
-          await FirebaseScheduledTaskService.createMultipleTasks(scheduledTasks, userId);
-          console.log(`✅ Regenerated ${scheduledTasks.length} scheduled tasks for plant ${plantData.id}`);
-        }
-      }
-    } catch (error) {
-      console.error(`❌ Failed to regenerate tasks for plant ${plantData.id}:`, error);
-      throw new Error(`Failed to regenerate tasks: ${(error as Error).message}`);
-    }
+    // Delegate to Firebase Plant Service to avoid duplicate implementation
+    const { FirebasePlantService } = await import("./firebase/plantService");
+    await FirebasePlantService.regenerateTasksForPlant(plantData, userId);
   }
 }

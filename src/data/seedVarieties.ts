@@ -1,6 +1,6 @@
-import { PlantCategory } from "@/types";
-
 import {
+  PlantCategory,
+  GrowthTimeline,
   StageSpecificWateringProtocol,
   StageSpecificLightingProtocol,
   StageSpecificFertilizationProtocol,
@@ -9,6 +9,7 @@ import {
   ContainerRequirements,
   SuccessionProtocol,
 } from "@/types";
+import { FERTILIZER_PRODUCTS } from "@/constants/fertilizers";
 
 export interface ComprehensivePlantProtocols {
   lighting?: StageSpecificLightingProtocol;
@@ -24,12 +25,101 @@ export interface ComprehensivePlantProtocols {
 export interface SeedVariety {
   name: string;
   category: PlantCategory;
-  growthTimeline: {
-    [stageName: string]: number; // ← Allow any stage names
-  };
+  growthTimeline: GrowthTimeline; // ← Use strict type instead of any
   protocols?: ComprehensivePlantProtocols;
   isEverbearing?: boolean;
   productiveLifespan?: number; // Days before replacement recommended
+}
+
+/**
+ * Validates a growth timeline for consistency and common errors
+ * All timeline values should represent DURATION in days, not absolute start dates
+ */
+export function validateGrowthTimeline(variety: SeedVariety): string[] {
+  const errors: string[] = [];
+  const timeline = variety.growthTimeline;
+  
+  // Check for required starting stage (plants can start from various propagation methods)
+  const possibleStartingStages = ['germination', 'establishment', 'caneEstablishment', 'slipProduction', 'seedling'];
+  const hasStartingStage = possibleStartingStages.some(stage => timeline[stage as keyof GrowthTimeline] !== undefined);
+  
+  if (!hasStartingStage) {
+    errors.push(`${variety.name}: Missing a starting stage. Plants should have at least one of: ${possibleStartingStages.join(', ')}`);
+  }
+  
+  // Validate that all values are positive durations
+  Object.entries(timeline).forEach(([stage, duration]) => {
+    if (duration !== undefined) {
+      if (duration <= 0) {
+        errors.push(`${variety.name}: Stage '${stage}' must be positive duration (got ${duration})`);
+      }
+      
+      // Flag suspiciously long durations (except for ongoing production stages)
+      const longTermStages = ['ongoingProduction', 'ongoing', 'dormancy'];
+      if (duration > 365 && !longTermStages.includes(stage)) {
+        errors.push(`${variety.name}: Stage '${stage}' duration seems too long (${duration} days). Did you mean to use absolute days instead of duration?`);
+      }
+      
+      // Flag suspiciously short durations for certain stages
+      if ((stage === 'ongoingProduction' || stage === 'ongoing') && duration < 30) {
+        errors.push(`${variety.name}: Stage '${stage}' duration seems too short (${duration} days). This should be the total duration of ongoing production.`);
+      }
+    }
+  });
+  
+  // Validate total lifecycle makes sense
+  const totalDuration = Object.values(timeline).reduce((sum, duration) => (sum || 0) + (duration || 0), 0) || 0;
+  if (variety.productiveLifespan && Math.abs(totalDuration - variety.productiveLifespan) > variety.productiveLifespan * 0.1) {
+    errors.push(`${variety.name}: Total timeline duration (${totalDuration}) doesn't match productive lifespan (${variety.productiveLifespan}). Difference: ${Math.abs(totalDuration - variety.productiveLifespan)} days`);
+  }
+  
+  // Check for common stage name inconsistencies  
+  if (timeline.seedling && timeline.establishment) {
+    errors.push(`${variety.name}: Has both 'seedling' and 'establishment' stages. These usually represent the same growth phase.`);
+  }
+  
+  // Provide guidance based on plant category
+  if (!hasStartingStage) {
+    let suggestion = "";
+    switch (variety.category) {
+      case "berries":
+        suggestion = " Berries typically start from 'establishment' (bare root) or 'caneEstablishment'.";
+        break;
+      case "root-vegetables":
+        suggestion = " Root vegetables typically start from 'germination' (seed) or 'seedling' (transplant).";
+        break;
+      case "herbs":
+        suggestion = " Herbs can start from 'germination' (seed), 'establishment' (cutting), or 'seedling' (transplant).";
+        break;
+      case "flowers":
+        suggestion = " Flowers typically start from 'germination' (seed) or 'establishment' (bulb/transplant).";
+        break;
+      default:
+        suggestion = " Most plants start from 'germination' (seed) or 'establishment' (transplant/cutting).";
+    }
+    errors[errors.length - 1] += suggestion;
+  }
+  
+  return errors;
+}
+
+/**
+ * Validates all seed varieties and logs errors
+ */
+export function validateAllVarieties(): string[] {
+  const allErrors: string[] = [];
+  
+  seedVarieties.forEach(variety => {
+    const errors = validateGrowthTimeline(variety);
+    allErrors.push(...errors);
+  });
+  
+  if (allErrors.length > 0) {
+    console.error('Growth timeline validation errors:');
+    allErrors.forEach(error => console.error(`  - ${error}`));
+  }
+  
+  return allErrors;
 }
 
 /**
@@ -44,7 +134,7 @@ export const seedVarieties: SeedVariety[] = [
     name: "Astro Arugula",
     category: "leafy-greens",
     isEverbearing: true,
-    productiveLifespan: 56, // Approx. 8-week lifecycle [cite: 346]
+    productiveLifespan: 72, // Full cycle: 7+14+14+37 days from seed to mature harvest
     growthTimeline: {
       germination: 7, // [cite: 167]
       seedling: 14, // [cite: 168]
@@ -89,7 +179,7 @@ export const seedVarieties: SeedVariety[] = [
             {
               taskName: "Light Fish Emulsion",
               details: { 
-                product: "Fish Emulsion", 
+                product: FERTILIZER_PRODUCTS.FISH_EMULSION, 
                 dilution: "1-2 Tbsp/gal",
                 method: "soil-drench"
               }, // [cite: 168]
@@ -104,7 +194,7 @@ export const seedVarieties: SeedVariety[] = [
             {
               taskName: "Regular Fish Emulsion",
               details: { 
-                product: "Fish Emulsion", 
+                product: FERTILIZER_PRODUCTS.FISH_EMULSION, 
                 dilution: "1-2 Tbsp/gal",
                 method: "soil-drench"
               }, // [cite: 168]
@@ -187,9 +277,9 @@ export const seedVarieties: SeedVariety[] = [
     productiveLifespan: 60, // [cite: 173]
     growthTimeline: {
       germination: 10, // [cite: 172]
-      seedling: 20, // "Days 10-25/30" [cite: 172]
-      vegetative: 20, // "Days 25/30 - 40/45" [cite: 172]
-      maturation: 60, // "full heads 45-60 days" [cite: 173]
+      seedling: 15, // "Days 10-25" [cite: 172] 
+      vegetative: 15, // "Days 25 - 40" [cite: 172]
+      maturation: 20, // "full heads at 45-60 days" - final 20 days of maturation
     },
     protocols: {
       watering: {
@@ -236,7 +326,7 @@ export const seedVarieties: SeedVariety[] = [
       germination: 7, // [cite: 194]
       seedling: 17, // "Days 7-24" [cite: 194]
       vegetative: 31, // "Days 25-55" [cite: 195]
-      maturation: 90, // "Main head 90-110 days" [cite: 197]
+      maturation: 40, // Time from head formation to harvest
     },
     protocols: {
       fertilization: {
@@ -302,9 +392,9 @@ export const seedVarieties: SeedVariety[] = [
     productiveLifespan: 120, // [cite: 257]
     growthTimeline: {
       germination: 14, // [cite: 256]
-      seedling: 42, // ~8 weeks from seed [cite: 256]
-      vegetative: 42, // [cite: 154]
-      maturation: 120, // [cite: 257]
+      seedling: 28, // ~4 weeks germination to transplant [cite: 256]
+      vegetative: 56, // ~8 weeks bulb development [cite: 154]
+      maturation: 22, // Final maturation period to harvest-ready
     },
     protocols: {
       fertilization: {
@@ -313,7 +403,7 @@ export const seedVarieties: SeedVariety[] = [
             {
               taskName: "Light Nitrogen Feed",
               details: {
-                product: "Fish Emulsion",
+                product: FERTILIZER_PRODUCTS.FISH_EMULSION,
                 dilution: "1 tbsp/gal",
                 amount: "1-2 fl oz",
                 method: "soil-drench",
@@ -381,9 +471,9 @@ export const seedVarieties: SeedVariety[] = [
     productiveLifespan: 120, // [cite: 257]
     growthTimeline: {
       germination: 14, // [cite: 256]
-      seedling: 42, // ~8 weeks from seed [cite: 256]
-      vegetative: 42, // [cite: 154]
-      maturation: 120, // [cite: 257]
+      seedling: 28, // ~4 weeks germination to transplant [cite: 256]
+      vegetative: 56, // ~8 weeks bulb development [cite: 154]
+      maturation: 22, // Final maturation period to harvest-ready
     },
     protocols: {
       fertilization: {
@@ -392,7 +482,7 @@ export const seedVarieties: SeedVariety[] = [
             {
               taskName: "Light Nitrogen Feed",
               details: {
-                product: "Fish Emulsion",
+                product: FERTILIZER_PRODUCTS.FISH_EMULSION,
                 dilution: "1 tbsp/gal",
                 amount: "1-2 fl oz",
                 method: "soil-drench",
@@ -459,10 +549,10 @@ export const seedVarieties: SeedVariety[] = [
     category: "root-vegetables",
     productiveLifespan: 270, // ~9 months [cite: 248]
     growthTimeline: {
-      germination: 30, // Fall planting assumes a dormant period
-      seedling: 120, // "Early Growth/Seedling"
-      vegetative: 90, // "Bulb Development/Vegetative" [cite: 243]
-      maturation: 270, // [cite: 248]
+      establishment: 30, // Fall planting establishment period
+      dormancy: 90, // Winter dormancy period
+      vegetative: 90, // Spring bulb development [cite: 243]
+      maturation: 60, // Final bulb sizing to harvest
     },
     protocols: {},
   },
@@ -472,9 +562,10 @@ export const seedVarieties: SeedVariety[] = [
     productiveLifespan: 730, // Perennial [cite: 375]
     growthTimeline: {
       germination: 21, // [cite: 233]
-      seedling: 40, //
+      seedling: 40, // Growth to transplant size
       vegetative: 180, // "6-12 months to mature" [cite: 233]
-      maturation: 365,
+      maturation: 365, // First year maturation
+      ongoingProduction: 124, // Remaining productive period
     },
     protocols: {},
   },
@@ -485,8 +576,9 @@ export const seedVarieties: SeedVariety[] = [
     growthTimeline: {
       germination: 14, // [cite: 201]
       seedling: 28, // 4-6 weeks to transplant [cite: 294]
-      vegetative: 48, //
-      maturation: 90, // [cite: 203]
+      vegetative: 48, // Growth to harvest size
+      maturation: 90, // Initial harvest readiness [cite: 203]
+      ongoingProduction: 550, // Ongoing production for remainder of 2-year cycle
     },
     protocols: {},
   },
@@ -496,10 +588,10 @@ export const seedVarieties: SeedVariety[] = [
     isEverbearing: true,
     productiveLifespan: 90,
     growthTimeline: {
-      germination: 28, // [cite: 301]
-      seedling: 21, //
-      vegetative: 41, //
-      maturation: 90, // [cite: 302]
+      germination: 21, // [cite: 301] 
+      seedling: 21, // ~3 weeks to transplant size
+      vegetative: 28, // Growth to harvest size
+      maturation: 20, // Initial harvest period
     },
     protocols: {},
   },
@@ -507,12 +599,12 @@ export const seedVarieties: SeedVariety[] = [
     name: "Greek Dwarf Basil",
     category: "herbs",
     isEverbearing: true,
-    productiveLifespan: 60,
+    productiveLifespan: 140, // Full cycle from seed to end of productive season
     growthTimeline: {
       germination: 10, // [cite: 221]
       seedling: 28, // 2-4 weeks [cite: 221]
       vegetative: 42, // 4-6 weeks [cite: 221]
-      maturation: 60, //
+      maturation: 60, // Initial harvest and ongoing production period
     },
     protocols: {},
   },
@@ -524,7 +616,8 @@ export const seedVarieties: SeedVariety[] = [
       germination: 14, // [cite: 211]
       seedling: 21, // 2-3 weeks [cite: 211]
       vegetative: 84, // 6-12 weeks [cite: 212]
-      maturation: 120,
+      maturation: 120, // Initial harvest readiness
+      ongoingProduction: 491, // Ongoing production for remainder of 2-year cycle
     },
     protocols: {},
   },
@@ -532,13 +625,13 @@ export const seedVarieties: SeedVariety[] = [
     name: "Boston Pickling Cucumber",
     category: "fruiting-plants",
     isEverbearing: false,
-    productiveLifespan: 70,
+    productiveLifespan: 84, // Extended to match growth timeline
     growthTimeline: {
       germination: 7,
       seedling: 14,
       vegetative: 21,
-      flowering: 42,
-      fruitingHarvesting: 50,
+      flowering: 14, // Duration of flowering stage
+      fruiting: 28, // Duration of harvesting period
     },
     protocols: {
       lighting: {
@@ -792,13 +885,13 @@ export const seedVarieties: SeedVariety[] = [
     name: "Sugar Snap Peas",
     category: "fruiting-plants",
     isEverbearing: true,
-    productiveLifespan: 56,
+    productiveLifespan: 90, // Extended to allow for full harvest season
     growthTimeline: {
-      germinationEmergence: 10,
+      germination: 10, // Standardized name
       seedling: 14,
-      vegetativeVining: 21,
-      flowerBudFormation: 50,
-      podSetMaturation: 60,
+      vegetative: 21, // Standardized name for vining growth
+      flowering: 25, // Duration of flower formation
+      fruiting: 20, // Pod set and development period
     },
     protocols: {
       lighting: {
@@ -1027,7 +1120,7 @@ export const seedVarieties: SeedVariety[] = [
             {
               taskName: "Boost phosphorus with Bone Meal",
               details: {
-                product: "Bone meal",
+                product: FERTILIZER_PRODUCTS.BONE_MEAL,
                 method: "top-dress",
               },
               startDays: 42,
@@ -1324,7 +1417,7 @@ export const seedVarieties: SeedVariety[] = [
             {
               taskName: "Mix in Bone Meal at planting",
               details: {
-                product: "Bone meal",
+                product: FERTILIZER_PRODUCTS.BONE_MEAL,
                 amount: "1 Tbsp/5gal",
                 method: "mix-in-soil",
               },
@@ -1335,7 +1428,7 @@ export const seedVarieties: SeedVariety[] = [
             {
               taskName: "Apply Fish + Seaweed",
               details: {
-                product: "Neptune's Harvest Fish + Seaweed",
+                product: FERTILIZER_PRODUCTS.NEPTUNES_HARVEST_FISH_SEAWEED,
                 dilution: "½ strength, 0.5 Tbsp/gal",
               },
               startDays: 14,
@@ -1349,7 +1442,7 @@ export const seedVarieties: SeedVariety[] = [
             {
               taskName: "Apply Neptune's Harvest (½ strength)",
               details: {
-                product: "Neptune's Harvest Fish + Seaweed",
+                product: FERTILIZER_PRODUCTS.NEPTUNES_HARVEST_FISH_SEAWEED,
                 dilution: "½ strength",
               },
               startDays: 28,
@@ -1359,7 +1452,7 @@ export const seedVarieties: SeedVariety[] = [
             {
               taskName: "Apply Neptune's Harvest (full strength)",
               details: {
-                product: "Neptune's Harvest Fish + Seaweed",
+                product: FERTILIZER_PRODUCTS.NEPTUNES_HARVEST_FISH_SEAWEED,
                 dilution: "full strength, 1 Tbsp/gal",
               },
               startDays: 35,
@@ -1384,7 +1477,7 @@ export const seedVarieties: SeedVariety[] = [
             {
               taskName: "Apply Neptune's Harvest Fish + Seaweed",
               details: {
-                product: "Neptune's Harvest Fish + Seaweed",
+                product: FERTILIZER_PRODUCTS.NEPTUNES_HARVEST_FISH_SEAWEED,
                 dilution: "1 Tbsp/gal",
               },
               startDays: 63,
@@ -1394,7 +1487,7 @@ export const seedVarieties: SeedVariety[] = [
             {
               taskName: "Top-dress with Bone Meal",
               details: {
-                product: "Bone meal",
+                product: FERTILIZER_PRODUCTS.BONE_MEAL,
                 amount: "½ Tbsp/bag",
                 method: "top-dress",
               },
@@ -1409,7 +1502,7 @@ export const seedVarieties: SeedVariety[] = [
             {
               taskName: "Apply Neptune's Harvest Fish + Seaweed",
               details: {
-                product: "Neptune's Harvest Fish + Seaweed",
+                product: FERTILIZER_PRODUCTS.NEPTUNES_HARVEST_FISH_SEAWEED,
                 dilution: "1 Tbsp/gal",
               },
               startDays: 91,
@@ -1419,7 +1512,7 @@ export const seedVarieties: SeedVariety[] = [
             {
               taskName: "Apply High-K Supplement",
               details: {
-                product: "Neptune's Harvest Fish + Seaweed",
+                product: FERTILIZER_PRODUCTS.NEPTUNES_HARVEST_FISH_SEAWEED,
                 dilution: "Full strength + potassium boost",
               },
               startDays: 98,
@@ -1433,7 +1526,7 @@ export const seedVarieties: SeedVariety[] = [
             {
               taskName: "Apply Neptune's Harvest",
               details: {
-                product: "Neptune's Harvest",
+                product: FERTILIZER_PRODUCTS.NEPTUNES_HARVEST_FISH_SEAWEED,
                 dilution: "1 tbsp/gallon",
                 amount: "1-2 quarts per grow bag",
                 method: "soil-drench",
@@ -1445,7 +1538,7 @@ export const seedVarieties: SeedVariety[] = [
             {
               taskName: "Apply 9-15-30 Fertilizer (during fruiting periods)",
               details: {
-                product: "9-15-30 fertilizer",
+                product: FERTILIZER_PRODUCTS.FERTILIZER_9_15_30,
                 dilution: "As directed",
                 amount: "1-2 quarts per grow bag",
                 method: "soil-drench",
@@ -1491,12 +1584,12 @@ export const seedVarieties: SeedVariety[] = [
     name: "Caroline Raspberries",
     category: "berries",
     isEverbearing: true,
-    productiveLifespan: 1095,
+    productiveLifespan: 1095, // 3 years productive lifespan
     growthTimeline: {
-      caneEstablishment: 0,
-      vegetative: 21,
-      floweringFruiting: 63,
-      ongoing: 120,
+      caneEstablishment: 30, // 30 days for bare root canes to establish
+      vegetative: 60, // Extended vegetative growth period
+      floweringFruiting: 90, // Combined flowering and fruiting period
+      ongoingProduction: 915, // Remaining productive period (1095-30-60-90)
     },
     protocols: {
       lighting: {
@@ -1649,7 +1742,7 @@ export const seedVarieties: SeedVariety[] = [
             {
               taskName: "Apply Fish Emulsion",
               details: {
-                product: "Fish Emulsion",
+                product: FERTILIZER_PRODUCTS.FISH_EMULSION,
                 dilution: "1-2 tbsp/gallon",
               },
               startDays: 21,
@@ -1685,7 +1778,7 @@ export const seedVarieties: SeedVariety[] = [
             {
               taskName: "Apply Neptune's Harvest",
               details: {
-                product: "Neptune's Harvest",
+                product: FERTILIZER_PRODUCTS.NEPTUNES_HARVEST_FISH_SEAWEED,
                 dilution: "1 tbsp/gallon",
                 amount: "1-2 quarts per grow bag",
                 method: "soil-drench",
@@ -1697,7 +1790,7 @@ export const seedVarieties: SeedVariety[] = [
             {
               taskName: "Apply 9-15-30 Fertilizer (during fruiting periods)",
               details: {
-                product: "9-15-30 fertilizer",
+                product: FERTILIZER_PRODUCTS.FERTILIZER_9_15_30,
                 dilution: "As directed",
                 amount: "1-2 quarts per grow bag",
                 method: "soil-drench",
@@ -1910,7 +2003,7 @@ export const seedVarieties: SeedVariety[] = [
             {
               taskName: "Apply Diluted Fish Emulsion",
               details: {
-                product: "Fish Emulsion",
+                product: FERTILIZER_PRODUCTS.FISH_EMULSION,
                 dilution: "0.5-1 Tbsp/gal",
               },
               startDays: 21, // Week 3
@@ -2097,7 +2190,7 @@ export const seedVarieties: SeedVariety[] = [
             {
               taskName: "Light Fish Emulsion Feed",
               details: {
-                product: "Fish Emulsion",
+                product: FERTILIZER_PRODUCTS.FISH_EMULSION,
                 dilution: "1 tsp/gal",
                 amount: "2-3 fl oz",
                 method: "soil-drench",
@@ -2377,7 +2470,7 @@ export const seedVarieties: SeedVariety[] = [
       budding: 21, // 3 weeks bud formation
       flowering: 56, // 8 weeks flowering period
       dormancy: 120, // 4-month dormancy (winter)
-      maturation: 365, // Full cycle including dormancy
+      ongoingProduction: 1502, // Multi-year productive period
     },
     protocols: {
       watering: {
@@ -2440,7 +2533,7 @@ export const seedVarieties: SeedVariety[] = [
       budding: 14, // 2 weeks bud formation
       flowering: 21, // 3 weeks flowering period
       dormancy: 182, // 6-month dormancy
-      maturation: 365, // Full cycle
+      ongoingProduction: 704, // Multi-year productive period
     },
     protocols: {
       watering: {
@@ -2500,9 +2593,9 @@ export const seedVarieties: SeedVariety[] = [
       germination: 7, // 1 week
       seedling: 14, // 2 weeks
       vegetative: 42, // 6 weeks
-      budding: 14, // 2 weeks
-      flowering: 21, // 3 weeks
-      maturation: 120, // Full cycle
+      budding: 21, // 3 weeks
+      flowering: 28, // 4 weeks bloom period
+      maturation: 8, // Seed development period
     },
     protocols: {
       watering: {

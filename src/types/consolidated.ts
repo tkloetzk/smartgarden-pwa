@@ -1,6 +1,6 @@
 /**
  * Consolidated Type Definitions for SmartGarden App
- * 
+ *
  * This file consolidates all type definitions from multiple files to eliminate
  * duplication and provide a single source of truth for all types.
  */
@@ -37,11 +37,7 @@ type BerryStage =
   | "fruiting"
   | "harvest"
   | "ongoing-production";
-type FlowerStage =
-  | BaseGrowthStage
-  | "budding"
-  | "flowering"
-  | "dormancy";
+type FlowerStage = BaseGrowthStage | "budding" | "flowering" | "dormancy";
 
 export type GrowthStage =
   | RootVegetableStage
@@ -169,7 +165,12 @@ export interface BedReference {
     width: number;
     unit: PositionUnit;
   };
-  type: "raised-bed" | "container" | "ground-bed" | "greenhouse-bench" | "other";
+  type:
+    | "raised-bed"
+    | "container"
+    | "ground-bed"
+    | "greenhouse-bench"
+    | "other";
   orientation?: OrientationDirection;
   referencePoint?: string;
 }
@@ -189,11 +190,31 @@ export interface PlantSection {
 // ============================================================================
 
 export interface GrowthTimeline {
-  germination: number;
-  seedling: number;
-  vegetative: number;
-  maturation: number;
-  rootDevelopment?: number;
+  // Starting stages (plants can begin from different propagation methods)
+  germination?: number; // From seed
+  establishment?: number; // From bare root, transplant, or runner
+  caneEstablishment?: number; // From bare root canes (berries)
+  slipProduction?: number; // From tuber sprouting (sweet potatoes)
+  seedling?: number; // From established seedling/transplant
+
+  // Growth stages (all represent DURATION in days)
+  vegetative?: number;
+  vegetativeGrowth?: number; // Alternative name for vegetative
+  flowering?: number;
+  fruiting?: number;
+  maturation?: number;
+  rootDevelopment?: number; // For root vegetables
+  tuberDevelopment?: number; // For tuber crops
+  budding?: number; // For flowers
+  dormancy?: number; // For perennials
+
+  // Production stages
+  ongoingProduction?: number; // Continuous harvest period
+  floweringFruiting?: number; // Combined flowering/fruiting
+  ongoing?: number; // Alternative to ongoingProduction
+
+  // Allow custom stages for specialized varieties
+  [customStage: string]: number | undefined;
 }
 
 export interface FertilizerDetails {
@@ -218,30 +239,45 @@ export interface FertilizationScheduleItem {
 }
 
 export interface VarietyProtocols {
-  watering?: Partial<Record<
-    GrowthStage,
-    {
-      trigger?: { moistureLevel?: string | number };
-      target?: { moistureLevel?: string | number };
-      volume?: { amount?: string | number; frequency?: string; perPlant?: boolean };
-    }
-  >>;
-  fertilization?: Partial<Record<
-    GrowthStage,
-    {
-      schedule?: FertilizationScheduleItem[];
-      notes?: string[];
-    }
-  >>;
-  lighting?: Partial<Record<
-    GrowthStage,
-    {
-      ppfd?: { min: number; max: number; optimal?: number; unit: string };
-      photoperiod?: { hours: number; maxHours?: number; minHours?: number; constraint?: string };
-      dli?: { min: number; max: number; unit: string };
-      notes?: string[];
-    }
-  >>;
+  watering?: Partial<
+    Record<
+      GrowthStage,
+      {
+        trigger?: { moistureLevel?: string | number };
+        target?: { moistureLevel?: string | number };
+        volume?: {
+          amount?: string | number;
+          frequency?: string;
+          perPlant?: boolean;
+        };
+      }
+    >
+  >;
+  fertilization?: Partial<
+    Record<
+      GrowthStage,
+      {
+        schedule?: FertilizationScheduleItem[];
+        notes?: string[];
+      }
+    >
+  >;
+  lighting?: Partial<
+    Record<
+      GrowthStage,
+      {
+        ppfd?: { min: number; max: number; optimal?: number; unit: string };
+        photoperiod?: {
+          hours: number;
+          maxHours?: number;
+          minHours?: number;
+          constraint?: string;
+        };
+        dli?: { min: number; max: number; unit: string };
+        notes?: string[];
+      }
+    >
+  >;
   environment?: EnvironmentalProtocol;
   soilMixture?: SoilMixture;
   container?: ContainerRequirements;
@@ -420,18 +456,18 @@ export interface BedRecord extends BaseRecord, BedReference {
 
 export interface CareActivityDetails {
   type: CareActivityType;
-  
+
   // Section-based activity tracking
   sectionBased?: boolean;
   sectionId?: string; // Unique identifier for this section application
   totalSectionAmount?: { value: number; unit: VolumeUnit }; // Total amount applied to entire section
   plantsInSection?: number; // Number of plants this was applied to
-  
+
   // Watering adequacy tracking
   recommendedAmount?: { value: number; unit: VolumeUnit }; // What was recommended
   isPartialWatering?: boolean; // True if less than 80% of recommended amount
   wateringCompleteness?: number; // Percentage of recommended amount (0-1)
-  
+
   // Watering details
   waterAmount?: number;
   waterUnit?: VolumeUnit;
@@ -491,11 +527,11 @@ export interface CareActivityRecord extends BaseRecord {
   type: CareActivityType;
   date: Date;
   details: CareActivityDetails;
-  
+
   // Legacy property aliases for backward compatibility
   activityType?: CareActivityType; // alias for type
   activityDate?: Date; // alias for date
-  
+
   // Additional metadata
   notes?: string;
   stage?: GrowthStage;
@@ -560,6 +596,7 @@ export interface UpcomingTask {
   plantStage: GrowthStage;
   canBypass?: boolean;
   quickCompleteOptions?: QuickCompleteOption[];
+  product?: string; // For fertilization tasks
 }
 
 export interface TaskGroup {

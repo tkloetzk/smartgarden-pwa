@@ -42,6 +42,7 @@ export const CareStatusCard = ({
               </p>
             ) : (
               <p
+                data-testid="care-status-subtext"
                 className={`text-2xl font-bold ${
                   plantsNeedingCatchUp > 0
                     ? "text-orange-900 dark:text-orange-100"
@@ -68,11 +69,7 @@ export const CareStatusCard = ({
             </p>
           </div>
           <div className="text-2xl">
-            {careStatusLoading
-              ? "🔄"
-              : plantsNeedingCatchUp > 0
-              ? "⚠️"
-              : "🌱"}
+            {careStatusLoading ? "🔄" : plantsNeedingCatchUp > 0 ? "⚠️" : "🌱"}
           </div>
         </div>
       </CardContent>

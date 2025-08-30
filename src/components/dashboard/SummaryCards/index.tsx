@@ -1,7 +1,6 @@
 import { ReactNode } from "react";
 import { CareStatusCard } from "./CareStatusCard";
 import { PlantCountCard } from "./PlantCountCard";
-import { FertilizationTasksCard } from "./FertilizationTasksCard";
 
 interface SummaryCardsProps {
   children: ReactNode;
@@ -18,6 +17,5 @@ export const SummaryCards = ({ children }: SummaryCardsProps) => {
 // Compound component pattern - attach sub-components
 SummaryCards.CareStatus = CareStatusCard;
 SummaryCards.PlantCount = PlantCountCard;
-SummaryCards.FertilizationTasks = FertilizationTasksCard;
 
-export { CareStatusCard, PlantCountCard, FertilizationTasksCard };
+export { CareStatusCard, PlantCountCard };

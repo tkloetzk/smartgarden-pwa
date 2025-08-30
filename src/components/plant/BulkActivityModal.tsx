@@ -157,6 +157,7 @@ const BulkActivityModal = ({
       let cumulativeDays = 0;
 
       for (const [stage, duration] of Object.entries(variety.growthTimeline)) {
+        if (duration === undefined) continue; // Skip undefined stages
         if (daysSincePlanted < cumulativeDays + duration) {
           currentStage = stage;
           break;

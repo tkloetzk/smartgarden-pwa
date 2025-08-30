@@ -10,6 +10,7 @@ import { FirebaseCareSchedulingService } from "@/services/firebaseCareScheduling
 import { FirebaseCareActivityService } from "@/services/firebase/careActivityService";
 import { ArrowLeft, Filter, X } from "lucide-react";
 import { UpcomingTask } from "@/types";
+import { getRelevantFertilizationTasksForPlant } from "@/utils/fertilizationUtils";
 
 export const CatchUpPage = () => {
   const navigate = useNavigate();
@@ -32,62 +33,57 @@ export const CatchUpPage = () => {
 
       try {
         const getLastActivityByType = async (plantId: string, type: any) => {
-          return FirebaseCareActivityService.getLastActivityByType(plantId, user.uid, type);
+          return FirebaseCareActivityService.getLastActivityByType(
+            plantId,
+            user.uid,
+            type
+          );
         };
-        
+
         // Get standard care tasks (watering, observation)
         const careTasks = await FirebaseCareSchedulingService.getUpcomingTasks(
           plants,
           getLastActivityByType
         );
-        
+
         // Get fertilization tasks from scheduled tasks hook (get all tasks for filtering/grouping)
-        const allFertilizationTasks = getUpcomingFertilizationTasks ? getUpcomingFertilizationTasks(365) : [];
-        
+        const allFertilizationTasks = getUpcomingFertilizationTasks
+          ? getUpcomingFertilizationTasks(365)
+          : [];
+
         // Apply the same filtering logic as dashboard - get most relevant tasks per plant
         const tasksByPlant = new Map<string, any[]>();
-        allFertilizationTasks.forEach(task => {
+        allFertilizationTasks.forEach((task) => {
           if (!tasksByPlant.has(task.plantId)) {
             tasksByPlant.set(task.plantId, []);
           }
           tasksByPlant.get(task.plantId)!.push(task);
         });
 
-        // Get most relevant fertilization tasks per plant (same logic as dashboard)
+        // Get most relevant fertilization tasks per plant using the same utility as dashboard
         const relevantFertilizationTasks: any[] = [];
         const now = new Date();
-        
+
         tasksByPlant.forEach((tasks, _plantId) => {
-          if (tasks.length === 0) return;
-          
-          const sortedTasks = [...tasks].sort((a, b) => a.dueDate.getTime() - b.dueDate.getTime());
-          const overdueTasks = sortedTasks.filter(task => task.dueDate.getTime() < now.getTime());
-          const upcomingTasks = sortedTasks.filter(task => task.dueDate.getTime() >= now.getTime());
-          
-          // Add the most recent overdue task (if any)
-          if (overdueTasks.length > 0) {
-            const mostRecentOverdue = overdueTasks[overdueTasks.length - 1];
-            relevantFertilizationTasks.push(mostRecentOverdue);
-          }
-          
-          // Add the next upcoming task if no overdue tasks
-          if (overdueTasks.length === 0 && upcomingTasks.length > 0) {
-            relevantFertilizationTasks.push(upcomingTasks[0]);
-          }
+          const plantRelevantTasks = getRelevantFertilizationTasksForPlant(
+            tasks,
+            now
+          );
+          relevantFertilizationTasks.push(...plantRelevantTasks);
         });
 
         // Apply the EXACT SAME grouping logic as the dashboard
         const groupedTasks = new Map<string, any>();
-        
-        relevantFertilizationTasks.forEach(task => {
+
+        relevantFertilizationTasks.forEach((task) => {
           // Find the plant for this task to get variety info
-          const plant = plants.find(p => p.id === task.plantId);
+          const plant = plants.find((p) => p.id === task.plantId);
           if (!plant) return;
-          
+
           // Create a unique key for grouping identical tasks (same as dashboard)
           const dueDateStr = task.dueDate.toDateString();
           const groupKey = `${plant.varietyName}-${task.taskName}-${task.details.product}-${dueDateStr}`;
-          
+
           if (groupedTasks.has(groupKey)) {
             // Add this plant to the existing group
             const existingTask = groupedTasks.get(groupKey);
@@ -96,7 +92,7 @@ export const CatchUpPage = () => {
             existingTask.affectedPlants.push({
               id: plant.id,
               name: plant.name,
-              varietyName: plant.varietyName
+              varietyName: plant.varietyName,
             });
           } else {
             // Create a new grouped task
@@ -106,76 +102,90 @@ export const CatchUpPage = () => {
               plantIds: [task.plantId], // Array of all plant IDs in this group
               plantCount: 1,
               varietyName: plant.varietyName,
-              affectedPlants: [{
-                id: plant.id,
-                name: plant.name,
-                varietyName: plant.varietyName
-              }]
+              affectedPlants: [
+                {
+                  id: plant.id,
+                  name: plant.name,
+                  varietyName: plant.varietyName,
+                },
+              ],
             });
           }
         });
 
         const finalGroupedTasks = Array.from(groupedTasks.values());
-        
+
         // Convert grouped fertilization tasks to UpcomingTask format
-        const convertedFertilizationTasks: UpcomingTask[] = finalGroupedTasks.map(task => {
-          const isOverdue = task.dueDate < now;
-          const daysDiff = Math.ceil((task.dueDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
-          
-          const dueIn = isOverdue 
-            ? `Overdue by ${Math.abs(daysDiff)} day${Math.abs(daysDiff) !== 1 ? 's' : ''}`
-            : daysDiff === 0 
-            ? 'Due today'
-            : daysDiff === 1
-            ? 'Due tomorrow'
-            : `Due in ${daysDiff} day${daysDiff !== 1 ? 's' : ''}`;
-            
-          const priority = isOverdue 
-            ? 'overdue' as const
-            : daysDiff <= 1 
-            ? 'high' as const
-            : daysDiff <= 3
-            ? 'medium' as const
-            : 'low' as const;
-            
-          // Use the first plant to get plant age for stage calculation
-          const firstPlant = plants.find(p => p.id === task.plantIds[0]);
-          const plantAge = Math.floor((now.getTime() - (firstPlant?.plantedDate?.getTime() || now.getTime())) / (1000 * 60 * 60 * 24));
-          let plantStage: string = 'vegetative'; // fallback
-          
-          if (plantAge >= 91) { // 155 days is definitely in ongoing production (starts at 91 days)
-            plantStage = 'ongoing-production';
-          } else if (plantAge >= 84) {
-            plantStage = 'fruiting';
-          } else if (plantAge >= 56) {
-            plantStage = 'flowering';
-          } else if (plantAge >= 28) {
-            plantStage = 'vegetative';
-          }
-          
-          // Create a grouped task name and plant name
-          const groupedPlantName = task.plantCount > 1 
-            ? `${task.plantCount} ${task.varietyName}` 
-            : firstPlant?.name || 'Unknown Plant';
-            
-          return {
-            id: task.id,
-            plantId: task.plantIds[0], // Use first plant ID for navigation
-            plantName: groupedPlantName,
-            task: task.taskName,
-            type: 'fertilize',
-            dueDate: task.dueDate,
-            dueIn,
-            priority,
-            category: 'fertilizing' as const,
-            plantStage: plantStage as any, // Use calculated stage
-          };
-        });
-        
+        const convertedFertilizationTasks: UpcomingTask[] =
+          finalGroupedTasks.map((task) => {
+            const isOverdue = task.dueDate < now;
+            const daysDiff = Math.ceil(
+              (task.dueDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)
+            );
+
+            const dueIn = isOverdue
+              ? `Overdue by ${Math.abs(daysDiff)} day${
+                  Math.abs(daysDiff) !== 1 ? "s" : ""
+                }`
+              : daysDiff === 0
+              ? "Due today"
+              : daysDiff === 1
+              ? "Due tomorrow"
+              : `Due in ${daysDiff} day${daysDiff !== 1 ? "s" : ""}`;
+
+            const priority = isOverdue
+              ? ("overdue" as const)
+              : daysDiff <= 1
+              ? ("high" as const)
+              : daysDiff <= 3
+              ? ("medium" as const)
+              : ("low" as const);
+
+            // Use the first plant to get plant age for stage calculation
+            const firstPlant = plants.find((p) => p.id === task.plantIds[0]);
+            const plantAge = Math.floor(
+              (now.getTime() -
+                (firstPlant?.plantedDate?.getTime() || now.getTime())) /
+                (1000 * 60 * 60 * 24)
+            );
+            let plantStage: string = "vegetative"; // fallback
+
+            if (plantAge >= 91) {
+              // 155 days is definitely in ongoing production (starts at 91 days)
+              plantStage = "ongoing-production";
+            } else if (plantAge >= 84) {
+              plantStage = "fruiting";
+            } else if (plantAge >= 56) {
+              plantStage = "flowering";
+            } else if (plantAge >= 28) {
+              plantStage = "vegetative";
+            }
+
+            // Create a grouped task name and plant name
+            const groupedPlantName =
+              task.plantCount > 1
+                ? `${task.plantCount} ${task.varietyName}`
+                : firstPlant?.name || "Unknown Plant";
+
+            return {
+              id: task.id,
+              plantId: task.plantIds[0], // Use first plant ID for navigation
+              plantName: groupedPlantName,
+              task: task.taskName,
+              type: "fertilize",
+              dueDate: task.dueDate,
+              dueIn,
+              priority,
+              category: "fertilizing" as const,
+              plantStage: plantStage as any, // Use calculated stage
+              product: task.details?.product, // Include product for fertilization tasks
+            };
+          });
+
         // Combine all tasks and sort by due date
         const allTasks = [...careTasks, ...convertedFertilizationTasks];
         allTasks.sort((a, b) => a.dueDate.getTime() - b.dueDate.getTime());
-        
+
         setUpcomingTasks(allTasks);
       } catch (error) {
         console.error("Failed to load tasks:", error);
@@ -185,45 +195,48 @@ export const CatchUpPage = () => {
     };
 
     loadTasks();
-  }, [plants, user?.uid]); // Remove getUpcomingFertilizationTasks to prevent infinite loop
+  }, [plants, user?.uid, getUpcomingFertilizationTasks]);
 
   // Filtered tasks and filter options
   const filteredTasks = useMemo(() => {
     let filtered = upcomingTasks;
-    
+
     if (activityFilter !== "all") {
-      filtered = filtered.filter(task => task.task.toLowerCase().includes(activityFilter.toLowerCase()));
+      filtered = filtered.filter((task) =>
+        task.task.toLowerCase().includes(activityFilter.toLowerCase())
+      );
     }
-    
+
     if (varietyFilter !== "all") {
-      filtered = filtered.filter(task => task.plantName === varietyFilter);
+      filtered = filtered.filter((task) => task.plantName === varietyFilter);
     }
-    
+
     return filtered;
   }, [upcomingTasks, activityFilter, varietyFilter]);
 
   // Get all possible activity types (not just from current tasks)
   const activityTypes = useMemo(() => {
     const types = new Set<string>();
-    
+
     // Add types from current tasks
-    upcomingTasks.forEach(task => {
+    upcomingTasks.forEach((task) => {
       if (task.task.toLowerCase().includes("water")) types.add("water");
-      else if (task.task.toLowerCase().includes("fertiliz")) types.add("fertilize");
+      else if (task.task.toLowerCase().includes("fertiliz"))
+        types.add("fertilize");
       else if (task.task.toLowerCase().includes("observ")) types.add("observe");
       else if (task.task.toLowerCase().includes("prune")) types.add("prune");
       else types.add("other");
     });
-    
+
     // Always include common activity types even if no current tasks
     const commonTypes = ["water", "fertilize", "observe", "prune"];
-    commonTypes.forEach(type => types.add(type));
-    
+    commonTypes.forEach((type) => types.add(type));
+
     return Array.from(types).sort();
   }, [upcomingTasks]);
 
   const varietyTypes = useMemo(() => {
-    const varieties = new Set(upcomingTasks.map(task => task.plantName));
+    const varieties = new Set(upcomingTasks.map((task) => task.plantName));
     return Array.from(varieties).sort();
   }, [upcomingTasks]);
 
@@ -289,11 +302,14 @@ export const CatchUpPage = () => {
                 Filters
                 {(activityFilter !== "all" || varietyFilter !== "all") && (
                   <span className="ml-1 px-1.5 py-0.5 bg-blue-500 text-white text-xs rounded-full">
-                    {[activityFilter !== "all" ? 1 : 0, varietyFilter !== "all" ? 1 : 0].reduce((a, b) => a + b)}
+                    {[
+                      activityFilter !== "all" ? 1 : 0,
+                      varietyFilter !== "all" ? 1 : 0,
+                    ].reduce((a, b) => a + b)}
                   </span>
                 )}
               </Button>
-              
+
               {(activityFilter !== "all" || varietyFilter !== "all") && (
                 <Button
                   variant="ghost"
@@ -308,7 +324,7 @@ export const CatchUpPage = () => {
                   Clear Filters
                 </Button>
               )}
-              
+
               <span className="text-sm text-muted-foreground">
                 Showing {filteredTasks.length} of {upcomingTasks.length} tasks
               </span>
@@ -328,14 +344,14 @@ export const CatchUpPage = () => {
                         className="w-full p-2 border border-border rounded-lg bg-background text-foreground"
                       >
                         <option value="all">All Activities</option>
-                        {activityTypes.map(type => (
+                        {activityTypes.map((type) => (
                           <option key={type} value={type}>
                             {type.charAt(0).toUpperCase() + type.slice(1)}
                           </option>
                         ))}
                       </select>
                     </div>
-                    
+
                     <div>
                       <label className="block text-sm font-medium text-foreground mb-2">
                         Plant Variety
@@ -346,7 +362,7 @@ export const CatchUpPage = () => {
                         className="w-full p-2 border border-border rounded-lg bg-background text-foreground"
                       >
                         <option value="all">All Varieties</option>
-                        {varietyTypes.map(variety => (
+                        {varietyTypes.map((variety) => (
                           <option key={variety} value={variety}>
                             {variety}
                           </option>
@@ -386,83 +402,120 @@ export const CatchUpPage = () => {
               <div className="text-4xl mb-4">🔍</div>
               <h3 className="text-lg font-semibold mb-2">No Matching Tasks</h3>
               <p className="text-muted-foreground">
-                No tasks match your current filters. Try adjusting your filter criteria.
+                No tasks match your current filters. Try adjusting your filter
+                criteria.
               </p>
             </CardContent>
           </Card>
         ) : (
           <div className="space-y-4">
-            {filteredTasks.map((task) => (
-              <Card key={task.id} className="border-orange-200 bg-orange-50 dark:border-orange-800 dark:bg-orange-950/30">
+            {filteredTasks.map((task, i) => (
+              <Card
+                key={task.id}
+                data-testid={`catch-up-task-card-${i}`}
+                className="border-orange-200 bg-orange-50 dark:border-orange-800 dark:bg-orange-950/30"
+              >
                 <CardContent className="p-4">
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
                       <div className="flex items-center gap-2 mb-2">
-                        <h3 className="font-semibold text-lg text-foreground">{task.plantName}</h3>
-                        <span className={`px-2 py-1 rounded text-xs font-medium ${{
-                          'overdue': 'bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-200',
-                          'high': 'bg-orange-100 text-orange-800 dark:bg-orange-900/50 dark:text-orange-200',
-                          'medium': 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/50 dark:text-yellow-200',
-                          'low': 'bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-200'
-                        }[task.priority]}`}>
+                        <h3 className="font-semibold text-lg text-foreground">
+                          {task.plantName}
+                        </h3>
+                        <span
+                          className={`px-2 py-1 rounded text-xs font-medium ${
+                            {
+                              overdue:
+                                "bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-200",
+                              high: "bg-orange-100 text-orange-800 dark:bg-orange-900/50 dark:text-orange-200",
+                              medium:
+                                "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/50 dark:text-yellow-200",
+                              low: "bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-200",
+                            }[task.priority]
+                          }`}
+                        >
                           {task.priority}
                         </span>
                       </div>
-                      
+
                       <p className="text-muted-foreground mb-2">
-                        <strong className="text-foreground">{task.task}</strong> - {task.dueIn}
+                        <strong className="text-foreground">{task.task}</strong>{" "}
+                        - {task.dueIn}
                       </p>
-                      
+
                       <div className="text-sm text-muted-foreground">
-                        Growth Stage: <span className="text-foreground">{task.plantStage}</span> | Category: <span className="text-foreground">{task.category}</span>
+                        Growth Stage:{" "}
+                        <span className="text-foreground">
+                          {task.plantStage}
+                        </span>{" "}
+                        | Category:{" "}
+                        <span className="text-foreground">{task.category}</span>
                       </div>
                     </div>
-                    
+
                     <div className="flex gap-2 ml-4">
-                      {task.plantId.startsWith('group_') || task.plantId.startsWith('section_') ? (
+                      {task.plantId.startsWith("group_") ||
+                      task.plantId.startsWith("section_") ? (
                         // For grouped tasks, show bulk care logging option
                         <>
                           <Button
                             onClick={() => {
                               // Find plants that match the group key
-                              const groupPlants = plants?.filter(plant => {
-                                const plantedDateStr = plant.plantedDate.toISOString().split('T')[0];
-                                const location = plant.location || 'unknown';
-                                const soilMix = plant.soilMix || 'default';
-                                const hasSection = plant.section || plant.structuredSection;
-                                
+                              const groupPlants = plants?.filter((plant) => {
+                                const plantedDateStr = plant.plantedDate
+                                  .toISOString()
+                                  .split("T")[0];
+                                const location = plant.location || "unknown";
+                                const soilMix = plant.soilMix || "default";
+                                const hasSection =
+                                  plant.section || plant.structuredSection;
+
                                 let expectedGroupKey: string;
                                 if (hasSection) {
-                                  expectedGroupKey = `section_${plant.container}_${plant.varietyName}_${plant.section || 'section'}_${plantedDateStr}`;
+                                  expectedGroupKey = `section_${
+                                    plant.container
+                                  }_${plant.varietyName}_${
+                                    plant.section || "section"
+                                  }_${plantedDateStr}`;
                                 } else {
                                   expectedGroupKey = `group_${plant.varietyName}_${plant.container}_${plantedDateStr}_${location}_${soilMix}`;
                                 }
-                                
+
                                 return task.plantId === expectedGroupKey;
                               });
-                              
+
                               if (groupPlants && groupPlants.length > 0) {
                                 // Navigate to log care page with first plant pre-selected and activity type
-                                const activityType = task.type === 'observe' ? 'observe' : 
-                                                   task.type === 'water' ? 'water' : 
-                                                   task.type === 'fertilize' ? 'fertilize' : 
-                                                   task.type === 'pruning' ? 'pruning' : 'observe';
-                                
+                                const activityType =
+                                  task.type === "observe"
+                                    ? "observe"
+                                    : task.type === "water"
+                                    ? "water"
+                                    : task.type === "fertilize"
+                                    ? "fertilize"
+                                    : task.type === "pruning"
+                                    ? "pruning"
+                                    : "observe";
+
                                 const params = new URLSearchParams();
-                                params.set('plantId', groupPlants[0].id);
-                                params.set('activityType', activityType);
-                                params.set('groupTask', 'true'); // Indicate this is for a group
+                                params.set("plantId", groupPlants[0].id);
+                                params.set("activityType", activityType);
+                                params.set("groupTask", "true"); // Indicate this is for a group
+
+                                // For fertilization tasks, also pass the product
+                                if (task.type === "fertilize" && task.product) {
+                                  params.set("product", task.product);
+                                }
+
                                 navigate(`/log-care?${params.toString()}`);
                               } else {
-                                console.error('Could not find plants for group:', task.plantId);
-                                console.log('Available plants:', plants?.map(p => ({
-                                  id: p.id,
-                                  varietyName: p.varietyName,
-                                  container: p.container,
-                                  section: p.section,
-                                  plantedDate: p.plantedDate.toISOString().split('T')[0]
-                                })));
-                                alert('Could not find plants for this group. Please try logging care for individual plants.');
+                                console.error(
+                                  "Could not find plants for group:",
+                                  task.plantId
+                                );
+                                alert(
+                                  "Could not find plants for this group. Please try logging care for individual plants."
+                                );
                               }
                             }}
                             size="sm"
@@ -473,28 +526,38 @@ export const CatchUpPage = () => {
                             variant="outline"
                             onClick={() => {
                               // Find plants that match the group key
-                              const groupPlants = plants?.filter(plant => {
-                                const plantedDateStr = plant.plantedDate.toISOString().split('T')[0];
-                                const location = plant.location || 'unknown';
-                                const soilMix = plant.soilMix || 'default';
-                                const hasSection = plant.section || plant.structuredSection;
-                                
+                              const groupPlants = plants?.filter((plant) => {
+                                const plantedDateStr = plant.plantedDate
+                                  .toISOString()
+                                  .split("T")[0];
+                                const location = plant.location || "unknown";
+                                const soilMix = plant.soilMix || "default";
+                                const hasSection =
+                                  plant.section || plant.structuredSection;
+
                                 let expectedGroupKey: string;
                                 if (hasSection) {
-                                  expectedGroupKey = `section_${plant.container}_${plant.varietyName}_${plant.section || 'section'}_${plantedDateStr}`;
+                                  expectedGroupKey = `section_${
+                                    plant.container
+                                  }_${plant.varietyName}_${
+                                    plant.section || "section"
+                                  }_${plantedDateStr}`;
                                 } else {
                                   expectedGroupKey = `group_${plant.varietyName}_${plant.container}_${plantedDateStr}_${location}_${soilMix}`;
                                 }
-                                
+
                                 return task.plantId === expectedGroupKey;
                               });
-                              
+
                               if (groupPlants && groupPlants.length > 0) {
                                 // Navigate to the first plant's detail page
                                 navigate(`/plants/${groupPlants[0].id}`);
                               } else {
-                                console.error('Could not find plants for group:', task.plantId);
-                                alert('Could not find plants for this group.');
+                                console.error(
+                                  "Could not find plants for group:",
+                                  task.plantId
+                                );
+                                alert("Could not find plants for this group.");
                               }
                             }}
                             size="sm"
@@ -507,14 +570,30 @@ export const CatchUpPage = () => {
                         <>
                           <Button
                             onClick={() => {
-                              const activityType = task.type === 'observe' ? 'observe' : 
-                                                 task.type === 'water' ? 'water' : 
-                                                 task.type === 'fertilize' ? 'fertilize' : 
-                                                 task.type === 'pruning' ? 'pruning' : 'observe';
-                              
+                              const activityType =
+                                task.type === "observe"
+                                  ? "observe"
+                                  : task.type === "water"
+                                  ? "water"
+                                  : task.type === "fertilize"
+                                  ? "fertilize"
+                                  : task.type === "pruning"
+                                  ? "pruning"
+                                  : "observe";
+
                               const params = new URLSearchParams();
-                              params.set('plantId', task.plantId);
-                              params.set('activityType', activityType);
+                              params.set("plantId", task.plantId);
+                              params.set("activityType", activityType);
+
+                              // For fertilization tasks, also pass the product
+                              if (task.type === "fertilize" && task.product) {
+                                console.log(
+                                  "Setting product param:",
+                                  task.product
+                                );
+                                params.set("product", task.product);
+                              }
+
                               navigate(`/log-care?${params.toString()}`);
                             }}
                             size="sm"

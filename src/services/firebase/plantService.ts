@@ -20,7 +20,7 @@ import {
 import { PlantRecord } from "../../types";
 import { Logger } from "@/utils/logger";
 import { seedVarieties } from "@/data/seedVarieties";
-import { ProtocolTranspilerService } from "../ProtocolTranspilerService";
+import { TaskManagementService } from "../TaskManagementService";
 import { FirebaseScheduledTaskService } from "./scheduledTaskService";
 
 export class FirebasePlantService {
@@ -79,15 +79,12 @@ export class FirebasePlantService {
           updatedAt: new Date()
         };
 
-        const scheduledTasks = await ProtocolTranspilerService.transpilePlantProtocol(
+        await TaskManagementService.regenerateTasksForPlant(
           plantRecord,
-          variety
+          variety,
+          userId,
+          "firebase-plant-regenerate"
         );
-        
-        if (scheduledTasks.length > 0) {
-          await FirebaseScheduledTaskService.createMultipleTasks(scheduledTasks, userId);
-          console.log(`✅ Regenerated ${scheduledTasks.length} scheduled tasks for plant ${plantRecord.id}`);
-        }
       }
     } catch (error) {
       console.error(`❌ Failed to regenerate tasks for plant ${plantRecord.id}:`, error);
@@ -240,15 +237,12 @@ export class FirebasePlantService {
           updatedAt: new Date()
         };
 
-        const scheduledTasks = await ProtocolTranspilerService.transpilePlantProtocol(
+        await TaskManagementService.generateTasksForPlant(
           finalPlantRecord,
-          variety
+          variety,
+          userId,
+          "firebase-plant-create"
         );
-        
-        if (scheduledTasks.length > 0) {
-          await FirebaseScheduledTaskService.createMultipleTasks(scheduledTasks, userId);
-          console.log(`✅ Created ${scheduledTasks.length} scheduled tasks for new plant ${docRef.id}`);
-        }
       }
     } catch (error) {
       console.error(`❌ Failed to create tasks for plant ${docRef.id}:`, error);
