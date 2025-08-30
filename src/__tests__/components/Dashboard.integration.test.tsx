@@ -17,6 +17,7 @@ import * as dashboardHooks from "@/hooks/dashboard";
 import CatchUpPage from "@/pages/catch-up";
 import LogCare from "@/pages/care/LogCare";
 import { formatDate } from "@/utils/dateUtils";
+import { format } from "date-fns";
 
 // Mock external services and components that we don't want to test
 jest.mock("@/db/seedData", () => ({
@@ -769,6 +770,10 @@ describe("Dashboard Integration Tests", () => {
       });
       expect(activityTypeSelect).toHaveValue("fertilize");
 
+      // Verify the date is pre-filled to today
+      const dateInput = screen.getByLabelText(/Date \*/i) as HTMLInputElement;
+      const todayStr = format(new Date(), "yyyy-MM-dd");
+      expect(dateInput.value).toBe(todayStr);
       // Verify the correct fertilizer product is preselected
       const fertilizerSelect = screen.getByRole("combobox", {
         name: /Fertilizer Product \*/i,
@@ -779,7 +784,7 @@ describe("Dashboard Integration Tests", () => {
       const fertilizerOptions = fertilizerSelect.querySelectorAll(
         'option[value]:not([value=""])'
       );
-      //  expect(fertilizerOptions.length).toBe(2);
+      expect(fertilizerOptions.length).toBe(2);
 
       // Then verify the correct fertilizer is actually selected (not just available)
       await waitFor(() => {
@@ -796,19 +801,21 @@ describe("Dashboard Integration Tests", () => {
         screen.debug(fertilizerSelect);
       });
 
-      // TDD test: Check for duplicate fertilizer options (should fail initially)
+      // Check for duplicate fertilizer options (should fail initially)
       await waitFor(() => {
-        const options = within(fertilizerSelect).getAllByRole('option').slice(1); // Exclude "Choose a fertilizer..."
-        const optionValues = options.map(option => option.value);
+        const options = within(fertilizerSelect)
+          .getAllByRole("option")
+          .slice(1); // Exclude "Choose a fertilizer..."
+        const optionValues = options.map((option) => option.value);
         const uniqueValues = [...new Set(optionValues)];
-        
+
         // TDD assertion - no duplicates should exist
         expect(optionValues).toHaveLength(uniqueValues.length);
         expect(optionValues.length).toBeGreaterThan(0); // Should have at least one fertilizer option
-        
+
         // Verify Neptune's Harvest is available (should be present in any stage)
         expect(uniqueValues).toContain("Neptune's Harvest Fish + Seaweed");
-        
+
         // The test validates deduplication works regardless of which stage is loaded
       });
 
