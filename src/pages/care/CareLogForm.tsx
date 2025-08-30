@@ -376,7 +376,6 @@ export function CareLogForm({
     }
   }, [selectedGroup]);
 
-
   useEffect(() => {
     const loadPlantData = async () => {
       if (!selectedGroup) {
@@ -458,14 +457,18 @@ export function CareLogForm({
                 preselectedProduct &&
                 products.some((p) => p.name === preselectedProduct)
               ) {
-                selectedProduct = products.find((p) => p.name === preselectedProduct) || null;
+                selectedProduct =
+                  products.find((p) => p.name === preselectedProduct) || null;
                 fertilizerToSet = preselectedProduct;
               } else if (products.length === 1) {
                 selectedProduct = products[0];
                 fertilizerToSet = products[0].name;
               }
 
-              if (fertilizerToSet && fertilizerToSet !== watch("fertilizeType")) {
+              if (
+                fertilizerToSet &&
+                fertilizerToSet !== watch("fertilizeType")
+              ) {
                 reset({
                   ...watch(),
                   fertilizeType: fertilizerToSet,
@@ -493,16 +496,22 @@ export function CareLogForm({
         (f) => f.name === selectedFertilizerType
       );
       setSelectedFertilizer(fertilizer || null);
-      
+
       if (fertilizer) {
         const formUpdates: Partial<CareFormData> = {};
         let hasUpdates = false;
 
-        if (fertilizer.dilution && fertilizer.dilution !== watch("fertilizeDilution")) {
+        if (
+          fertilizer.dilution &&
+          fertilizer.dilution !== watch("fertilizeDilution")
+        ) {
           formUpdates.fertilizeDilution = fertilizer.dilution;
           hasUpdates = true;
         }
-        if (fertilizer.amount && fertilizer.amount !== watch("fertilizeAmount")) {
+        if (
+          fertilizer.amount &&
+          fertilizer.amount !== watch("fertilizeAmount")
+        ) {
           formUpdates.fertilizeAmount = fertilizer.amount;
           hasUpdates = true;
         }
@@ -550,7 +559,6 @@ export function CareLogForm({
       setSectionApplyOption(null);
     }
   }, [selectedGroup, plantGroups]);
-
 
   // Handle bulk care submission for section apply
   const handleBulkCareSubmission = async (
@@ -1922,7 +1930,7 @@ export function CareLogForm({
                     onClick={() =>
                       reset({
                         ...watch(),
-                        date: format(subDays(new Date(), 1), "yyyy-MM-dd")
+                        date: format(subDays(new Date(), 1), "yyyy-MM-dd"),
                       })
                     }
                   >
@@ -1935,7 +1943,7 @@ export function CareLogForm({
                     onClick={() =>
                       reset({
                         ...watch(),
-                        date: format(subDays(new Date(), 7), "yyyy-MM-dd")
+                        date: format(subDays(new Date(), 7), "yyyy-MM-dd"),
                       })
                     }
                   >
