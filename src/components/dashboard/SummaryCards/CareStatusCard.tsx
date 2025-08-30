@@ -13,6 +13,8 @@ export const CareStatusCard = ({
 }: CareStatusCardProps) => {
   return (
     <Card
+      role="button"
+      aria-label="Plant Care Status"
       className={`cursor-pointer transition-all duration-200 ${
         careStatusLoading
           ? "border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-gray-800"
@@ -25,7 +27,7 @@ export const CareStatusCard = ({
       <CardContent className="p-4">
         <div className="flex items-center justify-between">
           <div>
-            <p
+            <h2
               className={`text-sm font-medium ${
                 careStatusLoading
                   ? "text-gray-600 dark:text-gray-400"
@@ -35,7 +37,7 @@ export const CareStatusCard = ({
               }`}
             >
               Plant Care Status
-            </p>
+            </h2>
             {careStatusLoading ? (
               <p className="text-2xl font-bold text-gray-700 dark:text-gray-300">
                 ⏳

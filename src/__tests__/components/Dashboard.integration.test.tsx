@@ -66,12 +66,6 @@ jest.mock("@/services/firebase/careActivityService", () => ({
   },
 }));
 
-// jest.mock("@/services/firebaseCareSchedulingService", () => ({
-//   FirebaseCareSchedulingService: {
-//     getUpcomingTasks: jest.fn().mockResolvedValue([]),
-//   },
-// }));
-
 // Mock the Firebase scheduled task service to work with real protocol transpilation
 let storedTasks: any[] = [];
 let subscriberCallbacks: Function[] = [];
@@ -668,7 +662,7 @@ describe("Dashboard Integration Tests", () => {
           </MemoryRouter>
         );
         // Wait for protocol sync and task creation to complete
-        await new Promise((resolve) => setTimeout(resolve, 2000)); // Increased wait time
+        await new Promise((resolve) => setTimeout(resolve, 1000)); // Increased wait time
       });
 
       // Wait for initial render
@@ -704,17 +698,14 @@ describe("Dashboard Integration Tests", () => {
         { timeout: 3000 }
       );
 
-      expect(screen.getByTestId("last-watering-time")).toHaveTextContent(
-        /1 hour ago/i
-      );
-
+      expect(screen.getByText(/about 1 hour ago/i)).toBeInTheDocument();
       // Wait for the care status to detect fertilization tasks - give it more time since we see it working in logs
       await waitFor(
         () => {
           const careStatusElement = screen.getByTestId("care-status-subtext");
           expect(careStatusElement).toHaveTextContent("1");
         },
-        { timeout: 15000 } // Increased timeout to allow for the async task updates to trigger re-renders
+        { timeout: 5000 } // Increased timeout to allow for the async task updates to trigger re-renders
       );
 
       // Wait a bit more to ensure state is stable
@@ -722,20 +713,19 @@ describe("Dashboard Integration Tests", () => {
 
       // Click on the Plant Care Status card to navigate to catch-up page
       // Try multiple approaches to find the clickable card
-      let careStatusCard = screen
-        .getByTestId("care-status-subtext")
-        .closest('[class*="cursor-pointer"]');
+      screen.logTestingPlaygroundURL();
+      // Wait for the care status card to appear
+      await waitFor(() => {
+        expect(
+          screen.getByRole("button", { name: /plant care status/i })
+        ).toBeInTheDocument();
+      });
 
-      if (!careStatusCard) {
-        // Alternative: find by the "Plant Care Status" text
-        careStatusCard = screen
-          .getByText("Plant Care Status")
-          .closest('[class*="cursor-pointer"]');
-      }
+      // Click on the care status card to navigate to the catch-up page
+      await userEvent.click(
+        screen.getByRole("button", { name: /plant care status/i })
+      );
 
-      expect(careStatusCard).toBeInTheDocument();
-
-      await userEvent.click(careStatusCard!);
       await waitFor(() => {
         expect(
           screen.getByText(
@@ -759,7 +749,7 @@ describe("Dashboard Integration Tests", () => {
         screen.getByText("Apply Neptune's Harvest Fish + Seaweed")
       ).toBeInTheDocument();
 
-      await userEvent.click(screen.getByText("Log Care"));
+      await userEvent.click(screen.getByRole("button", { name: /log care/i }));
       screen.getByText(/record care activities for your plants/i);
       screen.getByText(formatDate(plantedDate));
       screen.getByText(/91 days/i);
@@ -819,10 +809,8 @@ describe("Dashboard Integration Tests", () => {
         // The test validates deduplication works regardless of which stage is loaded
       });
 
-      screen.logTestingPlaygroundURL();
-
       // add a test to make sure there's a loading indication
-    }, 30000); // 30 second timeout for the entire test
+    }, 15000); // 15 second timeout for the entire test
   });
 
   describe("Hook Integration - Care Status and Tasks", () => {
