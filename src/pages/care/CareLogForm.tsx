@@ -32,6 +32,7 @@ import {
   requiresWater,
   getWaterAmountForMethod,
 } from "@/utils/fertilizationUtils";
+import { parseDilutionString, parseAmountString } from "@/utils/protocolParser";
 import {
   getTodayDateString,
   createLocalDateFromString,
@@ -438,6 +439,7 @@ export function CareLogForm({
                     method: item.details.method || "soil-drench", // Default to soil-drench if not specified
                   })
                 );
+              
 
               // Deduplicate fertilizer products by name, keeping the first occurrence
               const seenProducts = new Map<string, FertilizerProduct>();
@@ -514,6 +516,43 @@ export function CareLogForm({
         ) {
           formUpdates.fertilizeAmount = fertilizer.amount;
           hasUpdates = true;
+        }
+
+        // Parse protocol data to pre-fill unit fields if they are currently empty
+        if (fertilizer.dilution) {
+          const parsedDilution = parseDilutionString(fertilizer.dilution);
+          if (parsedDilution) {
+            // Only set dilution units if they're currently empty (don't override user input)
+            if (!watch("fertilizerDilutionUnit") && parsedDilution.unit) {
+              formUpdates.fertilizerDilutionUnit = parsedDilution.unit;
+              hasUpdates = true;
+            }
+            if (!watch("fertilizerDilutionPerUnit") && parsedDilution.perUnit) {
+              formUpdates.fertilizerDilutionPerUnit = parsedDilution.perUnit;
+              hasUpdates = true;
+            }
+            // Set dilution value if available and field is empty
+            if (!watch("fertilizerDilutionValue") && parsedDilution.value) {
+              formUpdates.fertilizerDilutionValue = parsedDilution.value;
+              hasUpdates = true;
+            }
+          }
+        }
+
+        if (fertilizer.amount) {
+          const parsedAmount = parseAmountString(fertilizer.amount);
+          if (parsedAmount) {
+            // Only set application unit if it's currently empty (don't override user input)
+            if (!watch("fertilizerApplicationUnit") && parsedAmount.unit) {
+              formUpdates.fertilizerApplicationUnit = parsedAmount.unit;
+              hasUpdates = true;
+            }
+            // Set application amount if available and field is empty
+            if (!watch("fertilizerApplicationAmount") && parsedAmount.amount) {
+              formUpdates.fertilizerApplicationAmount = parsedAmount.amount;
+              hasUpdates = true;
+            }
+          }
         }
 
         if (hasUpdates) {

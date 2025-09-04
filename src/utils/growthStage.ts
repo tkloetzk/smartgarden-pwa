@@ -97,7 +97,6 @@ export function calculateCurrentStageWithVariety(
   for (const [stage, stageDuration] of timelineEntries) {
     if (stageDuration === undefined) continue;
 
-    
     Logger.growthStage(
       variety.name,
       `Stage "${stage}": days ${cumulativeDays}-${
