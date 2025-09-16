@@ -3,6 +3,7 @@ export { useHiddenGroupsManager } from "./useHiddenGroupsManager";
 export { useContainerGroups } from "./useContainerGroups";
 export { useFertilizationTasks } from "./useFertilizationTasks";
 export { useCareStatus } from "./useCareStatus";
+export { useAllUpcomingTasks } from "./useAllUpcomingTasks";
 
 export type { DashboardData } from "./useDashboardData";
 export type { HiddenGroupsManager } from "./useHiddenGroupsManager";
