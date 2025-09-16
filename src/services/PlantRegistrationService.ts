@@ -2,7 +2,7 @@
 import { PlantRecord } from "@/types";
 import { ScheduledTask } from "./ProtocolTranspilerService";
 import { plantService, varietyService } from ".";
-import { generateUUID } from "@/utils/cn";
+import { generateUUID } from "@/utils/core/cn";
 import { TaskManagementService } from "./TaskManagementService";
 
 // We'll need to add this to the database later

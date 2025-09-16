@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/Button";
 import { LoadingSpinner } from "@/components/ui/LoadingSpinner";
 import PlantGroupCard from "@/components/plant/PlantGroupCard";
 import BulkActivityModal from "@/components/plant/BulkActivityModal";
-import { groupPlantsByConditions, PlantGroup } from "@/utils/plantGrouping";
+import { groupPlantsByConditions, PlantGroup } from "@/utils/plant/plantGrouping";
 import { QuickActionType } from "@/components/shared/QuickActionButtons";
 
 const Plants: React.FC = () => {

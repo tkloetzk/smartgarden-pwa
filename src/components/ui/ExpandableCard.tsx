@@ -6,7 +6,7 @@
 import { ReactNode, useState } from "react";
 import { ChevronDown, ChevronUp } from "lucide-react";
 import { ActionCard, ActionCardProps } from "./ActionCard";
-import { cn } from "@/utils/cn";
+import { cn } from "@/utils/core/cn";
 
 export interface ExpandableCardProps extends Omit<ActionCardProps, 'onHeaderClick' | 'children'> {
   // Expandable content

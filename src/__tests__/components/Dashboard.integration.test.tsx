@@ -16,7 +16,7 @@ import { useLastCareActivities } from "@/hooks/useLastCareActivities";
 import * as dashboardHooks from "@/hooks/dashboard";
 import CatchUpPage from "@/pages/catch-up";
 import LogCare from "@/pages/care/LogCare";
-import { formatDate } from "@/utils/dateUtils";
+import { formatDate } from "@/utils/date/dateUtils";
 import { format } from "date-fns";
 
 // Mock external services and components that we don't want to test

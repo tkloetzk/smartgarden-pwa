@@ -11,7 +11,7 @@ import { useFirebaseCareActivities } from "@/hooks/useFirebaseCareActivities";
 import { PlantRecord, GrowthStage } from "@/types";
 import CareHistory from "@/components/plant/CareHistory";
 import PlantReminderSettings from "@/components/plant/PlantReminderSettings";
-import { getPlantDisplayName } from "@/utils/plantDisplay";
+import { getPlantDisplayName } from "@/utils/plant/plantDisplay";
 import PlantInfoCard from "@/components/plant/PlantInfoCard";
 import NextActivityCard from "@/components/plant/NextActivityCard";
 import { toast } from "react-hot-toast";

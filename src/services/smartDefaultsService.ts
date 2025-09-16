@@ -7,9 +7,9 @@ import {
   VarietyRecord,
 } from "@/types/database";
 import { GrowthStage, PlantCategory, CareActivityType } from "@/types";
-import { calculateCurrentStage } from "@/utils/growthStage";
-import { WateringResolver } from "@/utils/wateringResolver";
-import { Logger } from "@/utils/logger";
+import { calculateCurrentStage } from "@/utils/plant/growthStage";
+import { WateringResolver } from "@/utils/care/wateringResolver";
+import { Logger } from "@/utils/core/logger";
 
 export interface QuickCompleteOption {
   label: string;

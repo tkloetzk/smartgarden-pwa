@@ -1,8 +1,8 @@
 // src/services/partialWateringService.ts
-import { WateringResolver } from "@/utils/wateringResolver";
+import { WateringResolver } from "@/utils/care/wateringResolver";
 import { varietyService, PlantRecord } from "@/types/database";
-import { calculateCurrentStageWithVariety } from "@/utils/growthStage";
-import { CareActivityDetails, VolumeUnit } from "@/types/consolidated";
+import { calculateCurrentStageWithVariety } from "@/utils/plant/growthStage";
+import { CareActivityDetails, VolumeUnit } from "@/types";
 import { addDays } from "date-fns";
 
 export interface PartialWateringAnalysis {

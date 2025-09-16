@@ -1,7 +1,7 @@
 import Dexie, { Table } from "dexie";
 import { v4 as uuidv4 } from "uuid";
+import { CareActivityType } from "./core";
 import {
-  CareActivityType,
   PlantRecord,
   VarietyRecord,
   BedRecord,
@@ -9,9 +9,9 @@ import {
   TaskBypassRecord,
   TaskCompletionRecord,
   ScheduledTask,
-} from "./consolidated";
-import { generateUUID } from "@/utils/cn";
-import { Logger } from "@/utils/logger";
+} from "./records";
+import { generateUUID } from "@/utils/core/cn";
+import { Logger } from "@/utils/core/logger";
 
 // Database class
 class SmartGardenDatabase extends Dexie {
@@ -308,4 +308,4 @@ export type {
   TaskCompletionRecord,
   ScheduledTask,
   CareRecord,
-} from "./consolidated";
+} from "./index";

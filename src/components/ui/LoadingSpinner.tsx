@@ -1,6 +1,6 @@
 // src/components/ui/LoadingSpinner.tsx
 import React from "react";
-import { cn } from "@/utils/cn";
+import { cn } from "@/utils/core/cn";
 
 interface LoadingSpinnerProps {
   size?: "sm" | "md" | "lg";

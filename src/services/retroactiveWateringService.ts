@@ -1,7 +1,7 @@
 // src/services/retroactiveWateringService.ts
 import { plantService, db } from "@/types/database";
 import { PartialWateringService } from "./partialWateringService";
-import { Logger } from "@/utils/logger";
+import { Logger } from "@/utils/core/logger";
 import { CareActivityRecord } from "@/types/database";
 
 export class RetroactiveWateringService {

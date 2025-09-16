@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { UpcomingTask } from "@/types";
-import { getRelevantFertilizationTasksForPlant } from "@/utils/fertilizationUtils";
+import { getRelevantFertilizationTasksForPlant } from "@/utils/care/fertilizationUtils";
 
 interface TaskProcessingResult {
   processedFertilizationTasks: UpcomingTask[];

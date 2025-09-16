@@ -12,7 +12,7 @@ import {
 import { PlantRecord } from "@/types/database";
 import { GrowthStage } from "@/types";
 import { visualCues } from "@/data/visualCues";
-import { getNextStage } from "@/utils/growthStage";
+import { getNextStage } from "@/utils/plant/growthStage";
 
 interface StageUpdateModalProps {
   plant: PlantRecord;

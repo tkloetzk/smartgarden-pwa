@@ -15,7 +15,7 @@ import { Clock, CheckCircle, Calendar, X } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import toast from "react-hot-toast";
 import { useCatchUpSummary } from "@/hooks/useCatchUpSummary";
-import { Logger } from "@/utils/logger";
+import { Logger } from "@/utils/core/logger";
 import { PlantRecord } from "@/types/database";
 
 interface CatchUpAssistantProps {

@@ -1,7 +1,7 @@
 // Optimized version of PlantGroupCard with React performance improvements
 import React, { useState, useCallback, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { PlantGroup } from "@/utils/plantGrouping";
+import { PlantGroup } from "@/utils/plant/plantGrouping";
 import { Button } from "@/components/ui/Button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import { StatusBadge } from "@/components/ui/StatusBadge";

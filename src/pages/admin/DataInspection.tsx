@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { useFirebasePlants } from '@/hooks/useFirebasePlants';
 import { useFirebaseCareActivities } from '@/hooks/useFirebaseCareActivities';
-import { inspectPlantData, generatePlantDataReport, createDataBackup } from '@/utils/dataMigration';
+import { inspectPlantData, generatePlantDataReport, createDataBackup } from '@/utils/core/dataMigration';
 
 interface DataStats {
   totalPlants: number;

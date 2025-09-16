@@ -4,7 +4,7 @@
  */
 
 import { useState, useEffect, useCallback, useRef } from "react";
-import { Logger } from "@/utils/logger";
+import { Logger } from "@/utils/core/logger";
 
 export interface SubscriptionConfig<T> {
   serviceName: string;

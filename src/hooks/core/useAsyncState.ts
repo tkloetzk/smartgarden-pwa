@@ -4,7 +4,7 @@
  */
 
 import { useState, useCallback } from "react";
-import { Logger } from "@/utils/logger";
+import { Logger } from "@/utils/core/logger";
 
 export interface AsyncState<T> {
   data: T | null;

@@ -5,7 +5,7 @@
 
 import { ReactNode } from "react";
 import { Button } from "@/components/ui/Button";
-import { cn } from "@/utils/cn";
+import { cn } from "@/utils/core/cn";
 
 export interface ToggleSectionProps {
   // Content

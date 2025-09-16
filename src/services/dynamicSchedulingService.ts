@@ -2,8 +2,8 @@
 import { db, TaskCompletionRecord, careService } from "@/types/database";
 import { CareActivityType, GrowthStage } from "@/types";
 import { addDays, differenceInDays } from "date-fns";
-import { generateUUID } from "@/utils/cn";
-import { Logger } from "@/utils/logger";
+import { generateUUID } from "@/utils/core/cn";
+import { Logger } from "@/utils/core/logger";
 
 export interface SchedulingAdjustment {
   plantId: string;

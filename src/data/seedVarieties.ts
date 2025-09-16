@@ -9,7 +9,7 @@ import {
   ContainerRequirements,
   SuccessionProtocol,
 } from "@/types";
-import { FERTILIZER_PRODUCTS } from "@/constants/fertilizers";
+import { FERTILIZER_PRODUCTS } from "@/constants";
 
 export interface ComprehensivePlantProtocols {
   lighting?: StageSpecificLightingProtocol;

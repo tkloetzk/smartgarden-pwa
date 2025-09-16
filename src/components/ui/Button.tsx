@@ -1,6 +1,6 @@
 // src/components/ui/Button.tsx (Now Tailwind should work!)
 import React from "react";
-import { cn } from "@/utils/cn";
+import { cn } from "@/utils/core/cn";
 
 interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: "primary" | "secondary" | "outline" | "ghost" | "destructive";

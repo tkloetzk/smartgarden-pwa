@@ -2,7 +2,7 @@
  * Service for handling bulk care operations on plants in the same section/location
  */
 
-import { PlantRecord, CareActivityType } from '@/types/consolidated';
+import { PlantRecord, CareActivityType } from '@/types';
 
 export interface SectionPlants {
   sectionKey: string;

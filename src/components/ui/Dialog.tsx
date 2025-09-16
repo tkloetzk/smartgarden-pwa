@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { X } from "lucide-react";
-import { cn } from "@/utils/cn";
+import { cn } from "@/utils/core/cn";
 
 interface DialogProps {
   isOpen: boolean;

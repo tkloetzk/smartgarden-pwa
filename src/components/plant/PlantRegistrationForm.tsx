@@ -16,8 +16,8 @@ import { useFirebasePlants } from "@/hooks/useFirebasePlants";
 import { useFirebaseCareActivities } from "@/hooks/useFirebaseCareActivities";
 import { LoadingSpinner } from "../ui/LoadingSpinner";
 import { PlantSection, CareActivityDetails, VolumeUnit } from "@/types";
-import { Logger } from "@/utils/logger";
-import { getTodayDateString } from "@/utils/dateUtils";
+import { Logger } from "@/utils/core/logger";
+import { getTodayDateString } from "@/utils/date/dateUtils";
 
 const careHistorySchema = z.object({
   lastWatered: z.string().optional(),

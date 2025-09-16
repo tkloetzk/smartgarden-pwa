@@ -1,6 +1,6 @@
 import { plantService, varietyService } from "@/types/database";
 import { differenceInDays } from "date-fns";
-import { estimateStageTransition } from "@/utils/growthStage";
+import { estimateStageTransition } from "@/utils/plant/growthStage";
 
 export class GrowthRateService {
   /**

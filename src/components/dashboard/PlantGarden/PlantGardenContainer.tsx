@@ -1,6 +1,6 @@
 import { ReactNode } from "react";
-import { ContainerGroup as ContainerGroupType } from "@/utils/containerGrouping";
-import { PlantGroup } from "@/utils/plantGrouping";
+import { ContainerGroup as ContainerGroupType } from "@/utils/plant/containerGrouping";
+import { PlantGroup } from "@/utils/plant/plantGrouping";
 import { QuickActionType } from "@/components/shared/QuickActionButtons";
 
 export interface PlantGardenContainerProps {

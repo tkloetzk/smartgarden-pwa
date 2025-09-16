@@ -6,7 +6,7 @@
 import React, { ReactNode, useEffect } from "react";
 import { X } from "lucide-react";
 import { Button } from "@/components/ui/Button";
-import { cn } from "@/utils/cn";
+import { cn } from "@/utils/core/cn";
 
 export interface ModalOverlayProps {
   // Core props

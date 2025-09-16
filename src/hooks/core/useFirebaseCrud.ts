@@ -7,7 +7,7 @@ import { useCallback } from "react";
 import { User } from "firebase/auth";
 import { useFirebaseAuth } from "../useFirebaseAuth";
 import { useAsyncState } from "./useAsyncState";
-import { Logger } from "@/utils/logger";
+import { Logger } from "@/utils/core/logger";
 
 export interface CrudConfig<ServiceType> {
   serviceName: string;

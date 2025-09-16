@@ -1,6 +1,6 @@
 // src/components/ui/LocationToggle.tsx
 import React from "react";
-import { cn } from "@/utils/cn";
+import { cn } from "@/utils/core/cn";
 
 interface LocationToggleProps {
   isOutdoor: boolean;

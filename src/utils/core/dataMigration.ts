@@ -6,7 +6,7 @@
  */
 
 import { PlantRecord } from '@/types/database';
-import { Logger } from '@/utils/logger';
+import { Logger } from '@/utils/core/logger';
 
 // Current schema version
 const CURRENT_SCHEMA_VERSION = '2024-08-07';

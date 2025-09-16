@@ -1,6 +1,6 @@
 // src/components/ui/Switch.tsx
 import React from "react";
-import { cn } from "@/utils/cn";
+import { cn } from "@/utils/core/cn";
 
 interface SwitchProps {
   checked: boolean;

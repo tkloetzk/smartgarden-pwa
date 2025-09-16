@@ -13,9 +13,9 @@ import {
   VarietyRecord,
   CareActivityDetails,
 } from "@/types/database";
-import { groupPlantsByConditions } from "@/utils/plantGrouping";
+import { groupPlantsByConditions } from "@/utils/plant/plantGrouping";
 import { seedVarieties } from "@/data/seedVarieties";
-import { calculateCurrentStageWithVariety } from "@/utils/growthStage";
+import { calculateCurrentStageWithVariety } from "@/utils/plant/growthStage";
 import { GrowthStage } from "@/types";
 import {
   Droplets,
@@ -31,13 +31,13 @@ import {
   getMethodDisplay,
   requiresWater,
   getWaterAmountForMethod,
-} from "@/utils/fertilizationUtils";
-import { parseDilutionString, parseAmountString } from "@/utils/protocolParser";
+} from "@/utils/care/fertilizationUtils";
+import { parseDilutionString, parseAmountString } from "@/utils/care/protocolParser";
 import {
   getTodayDateString,
   createLocalDateFromString,
   createDateForCareLogging,
-} from "@/utils/dateUtils";
+} from "@/utils/date/dateUtils";
 import { ApplicationMethod } from "@/types";
 import { FertilizationScheduleItem } from "@/types";
 import { format, subDays } from "date-fns";

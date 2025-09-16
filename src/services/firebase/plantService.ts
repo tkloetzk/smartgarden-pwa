@@ -18,7 +18,7 @@ import {
   convertPlantFromFirebase,
 } from "../../types";
 import { PlantRecord } from "../../types";
-import { Logger } from "@/utils/logger";
+import { Logger } from "@/utils/core/logger";
 import { seedVarieties } from "@/data/seedVarieties";
 import { TaskManagementService } from "../TaskManagementService";
 import { FirebaseScheduledTaskService } from "./scheduledTaskService";

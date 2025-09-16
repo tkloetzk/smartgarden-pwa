@@ -1,4 +1,4 @@
-// Service interfaces for dependency injection
+// Service interfaces and types
 import { PlantRecord, VarietyRecord, CareActivityRecord } from "@/types/database";
 import { UpcomingTask, CareActivityType, GrowthStage, ReminderPreferences } from "@/types";
 

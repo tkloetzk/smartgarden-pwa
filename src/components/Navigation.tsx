@@ -1,7 +1,7 @@
 // src/components/Navigation.tsx
 import React from "react";
 import { Link, useLocation } from "react-router-dom";
-import { cn } from "@/utils/cn";
+import { cn } from "@/utils/core/cn";
 import { DarkModeToggle } from "@/components/ui/DarkModeToggle";
 
 const Navigation: React.FC = () => {

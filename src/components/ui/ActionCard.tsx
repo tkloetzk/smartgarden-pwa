@@ -6,7 +6,7 @@
 import { ReactNode } from "react";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
-import { cn } from "@/utils/cn";
+import { cn } from "@/utils/core/cn";
 
 export interface ActionCardProps {
   // Content props

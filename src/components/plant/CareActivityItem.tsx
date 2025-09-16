@@ -1,7 +1,7 @@
 // src/components/plant/CareActivityItem.tsx
 import React, { useState } from "react";
 import { CareRecord } from "@/types";
-import { formatDateTime, formatDaysAgo } from "@/utils/dateUtils";
+import { formatDateTime, formatDaysAgo } from "@/utils/date/dateUtils";
 import { Button } from "@/components/ui/Button";
 
 interface CareActivityItemProps {

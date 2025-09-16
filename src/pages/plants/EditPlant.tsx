@@ -16,7 +16,7 @@ import { useFirebasePlants } from "@/hooks/useFirebasePlants";
 import { LoadingSpinner } from "@/components/ui/LoadingSpinner";
 import { PlantSection, PlantRecord } from "@/types";
 import { ArrowLeft } from "lucide-react";
-import { dateToLocalDateString } from "@/utils/dateUtils";
+import { dateToLocalDateString } from "@/utils/date/dateUtils";
 import { FirebasePlantService } from "@/services/firebase/plantService";
 import { useFirebaseAuth } from "@/hooks/useFirebaseAuth";
 

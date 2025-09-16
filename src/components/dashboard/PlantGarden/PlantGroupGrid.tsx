@@ -1,4 +1,4 @@
-import { PlantGroup } from "@/utils/plantGrouping";
+import { PlantGroup } from "@/utils/plant/plantGrouping";
 import { QuickActionType } from "@/components/shared/QuickActionButtons";
 import PlantGroupCard from "@/components/plant/PlantGroupCard";
 

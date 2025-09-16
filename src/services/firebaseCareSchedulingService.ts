@@ -1,17 +1,17 @@
 // src/services/firebaseCareSchedulingService.ts
 import { PlantRecord } from "@/types/database";
 import { GrowthStage, CareActivityType, UpcomingTask } from "@/types";
-import { calculateCurrentStageWithVariety } from "@/utils/growthStage";
-import { getPlantDisplayName } from "@/utils/plantDisplay";
+import { calculateCurrentStageWithVariety } from "@/utils/plant/growthStage";
+import { getPlantDisplayName } from "@/utils/plant/plantDisplay";
 import { addDays, differenceInDays } from "date-fns";
 import { DynamicSchedulingService } from "./dynamicSchedulingService";
 import {
   formatDueIn,
   calculatePriority,
   ensureDateObject,
-} from "@/utils/dateUtils";
-import { Logger } from "@/utils/logger";
-import { WateringResolver } from "@/utils/wateringResolver";
+} from "@/utils/date/dateUtils";
+import { Logger } from "@/utils/core/logger";
+import { WateringResolver } from "@/utils/care/wateringResolver";
 import { seedVarieties, SeedVariety } from "@/data/seedVarieties";
 import { CareRecord } from "@/types";
 

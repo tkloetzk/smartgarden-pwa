@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { useFirebaseCareActivities } from "@/hooks/useFirebaseCareActivities";
 import { useFirebasePlants } from "@/hooks/useFirebasePlants";
-import { groupCareActivities, isGroupedActivity } from "@/utils/careActivityGrouping";
+import { groupCareActivities, isGroupedActivity } from "@/utils/care/careActivityGrouping";
 import CareActivityItem from "@/components/plant/CareActivityItem";
 import GroupedCareActivityItem from "@/components/plant/GroupedCareActivityItem";
 

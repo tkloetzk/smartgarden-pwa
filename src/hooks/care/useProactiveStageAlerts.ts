@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { useFirebasePlants } from "./useFirebasePlants";
 import { varietyService, PlantRecord } from "@/types/database";
 import { GrowthStage } from "@/types";
-import { estimateStageTransition, getNextStage } from "@/utils/growthStage";
+import { estimateStageTransition, getNextStage } from "@/utils/plant/growthStage";
 import { addDays, differenceInDays } from "date-fns";
 
 export interface StageAlert {

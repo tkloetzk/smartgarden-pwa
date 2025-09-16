@@ -1,7 +1,7 @@
 // src/components/plant/GroupedCareActivityItem.tsx
 import React, { useState } from "react";
-import { GroupedCareActivity } from "@/utils/careActivityGrouping";
-import { formatDateTime } from "@/utils/dateUtils";
+import { GroupedCareActivity } from "@/utils/care/careActivityGrouping";
+import { formatDateTime } from "@/utils/date/dateUtils";
 import CareActivityItem from "./CareActivityItem";
 
 interface GroupedCareActivityItemProps {

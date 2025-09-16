@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { FirebaseCareSchedulingService } from "@/services/firebaseCareSchedulingService";
 import { FirebaseCareActivityService } from "@/services/firebase/careActivityService";
-import { getRelevantFertilizationTasksForPlant } from "@/utils/fertilizationUtils";
+import { getRelevantFertilizationTasksForPlant } from "@/utils/care/fertilizationUtils";
 
 export interface CareStatus {
   plantsNeedingCatchUp: number;

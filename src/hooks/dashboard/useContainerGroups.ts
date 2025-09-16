@@ -1,9 +1,9 @@
 import { useMemo } from "react";
-import { groupPlantsByConditions, PlantGroup } from "@/utils/plantGrouping";
+import { groupPlantsByConditions, PlantGroup } from "@/utils/plant/plantGrouping";
 import {
   groupPlantGroupsByContainer,
   ContainerGroup,
-} from "@/utils/containerGrouping";
+} from "@/utils/plant/containerGrouping";
 
 export interface ContainerGroupsManager {
   plantGroups: PlantGroup[];

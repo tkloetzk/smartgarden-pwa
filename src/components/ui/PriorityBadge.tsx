@@ -5,7 +5,7 @@
 
 import React from "react";
 import { Badge } from "@/components/ui/Badge";
-import { cn } from "@/utils/cn";
+import { cn } from "@/utils/core/cn";
 
 export type Priority = "high" | "medium" | "low";
 export type Status = "overdue" | "due-soon" | "due-today" | "upcoming" | "completed" | "cancelled";

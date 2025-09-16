@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import toast from "react-hot-toast";
 import { DynamicSchedulingService } from "@/services/dynamicSchedulingService";
 import { CareActivityDetails } from "@/types";
-import { getRelevantFertilizationTasksForPlant } from "@/utils/fertilizationUtils";
+import { getRelevantFertilizationTasksForPlant } from "@/utils/care/fertilizationUtils";
 import { FirebaseScheduledTaskService } from "@/services/firebase/scheduledTaskService";
 
 export interface FertilizationTasksManager {

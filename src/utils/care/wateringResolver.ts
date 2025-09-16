@@ -5,7 +5,7 @@ import {
   isValidStageForCategory,
   CareActivityType,
 } from "@/types";
-import { requiresWater } from "@/utils/fertilizationUtils";
+import { requiresWater } from "@/utils/care/fertilizationUtils";
 
 interface WateringAmount {
   amount: number;

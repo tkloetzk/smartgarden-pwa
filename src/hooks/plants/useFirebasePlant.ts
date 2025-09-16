@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react';
 import { PlantRecord } from '@/types';
 import { FirebasePlantService } from '@/services/firebase/plantService';
 import { useFirebaseAuth } from './useFirebaseAuth';
-import { Logger } from '@/utils/logger';
+import { Logger } from '@/utils/core/logger';
 
 interface UseFirebasePlantOptions {
   plantId?: string;

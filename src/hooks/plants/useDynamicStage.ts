@@ -2,7 +2,7 @@
 import { useEffect, useState } from "react";
 import { PlantRecord } from "@/types/database";
 import { GrowthStage } from "@/types";
-import { calculateStageFromSeedVarieties } from "@/utils/growthStage";
+import { calculateStageFromSeedVarieties } from "@/utils/plant/growthStage";
 
 export function useDynamicStage(plant: PlantRecord): GrowthStage {
   const [calculatedStage, setCalculatedStage] =

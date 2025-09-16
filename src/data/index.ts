@@ -9,7 +9,7 @@ import {
   StageSpecificLightingProtocol,
   GrowthStage
 } from "@/types";
-import { generateUUID } from "@/utils/cn";
+import { generateUUID } from "@/utils/core/cn";
 
 // Stage name mapping (moved from seedData.ts)
 const stageNameMapping: { [key: string]: GrowthStage } = {

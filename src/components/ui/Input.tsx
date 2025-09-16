@@ -1,6 +1,6 @@
 // src/components/ui/Input.tsx
 import React from "react";
-import { cn } from "@/utils/cn";
+import { cn } from "@/utils/core/cn";
 
 interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
   className?: string;

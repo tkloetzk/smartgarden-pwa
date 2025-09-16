@@ -10,7 +10,7 @@ import { seedVarieties } from "@/data/seedVarieties";
 import { CareActivityDetails } from "@/types";
 import { CareActivityType, ApplicationMethod, VolumeUnit } from "@/types";
 import { PartialWateringService } from "@/services/partialWateringService";
-import { requiresWater, getWaterAmountForMethod, getMethodDisplay } from "@/utils/fertilizationUtils";
+import { requiresWater, getWaterAmountForMethod, getMethodDisplay } from "@/utils/care/fertilizationUtils";
 
 interface BulkActivityModalProps {
   isOpen: boolean;
