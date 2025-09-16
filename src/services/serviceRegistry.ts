@@ -1,7 +1,7 @@
 // src/services/serviceRegistry.ts - Central service registration and configuration
-import { container, SERVICE_KEYS, ICareSchedulingService, IDynamicSchedulingService, IPlantService, ICareService, IVarietyService } from "./interfaces";
-import { CareSchedulingService } from "./careSchedulingService.new";
-import { DynamicSchedulingService } from "./dynamicSchedulingService.new";
+import { container, SERVICE_KEYS, ICareSchedulingService, IDynamicSchedulingService } from "./interfaces";
+import { CareSchedulingService } from "./careSchedulingService";
+import { DynamicSchedulingService } from "./dynamicSchedulingService";
 import { plantService, careService, varietyService } from "@/types/database";
 import { Logger } from "@/utils/logger";
 
@@ -29,25 +29,9 @@ export class ServiceRegistry {
       container.registerSingleton(SERVICE_KEYS.CARE_SERVICE, careService);
       container.registerSingleton(SERVICE_KEYS.VARIETY_SERVICE, varietyService);
 
-      // Register dynamic scheduling service as singleton
-      container.register(SERVICE_KEYS.DYNAMIC_SCHEDULING, () => {
-        return new DynamicSchedulingService();
-      });
-
-      // Register care scheduling service with dependencies
-      container.register(SERVICE_KEYS.CARE_SCHEDULING, () => {
-        const plantSvc = container.get(SERVICE_KEYS.PLANT_SERVICE);
-        const careSvc = container.get(SERVICE_KEYS.CARE_SERVICE);
-        const varietySvc = container.get(SERVICE_KEYS.VARIETY_SERVICE);
-        const dynamicSvc = container.getSingleton(SERVICE_KEYS.DYNAMIC_SCHEDULING);
-
-        return new CareSchedulingService(
-          plantSvc as IPlantService, 
-          careSvc as ICareService, 
-          varietySvc as IVarietyService, 
-          dynamicSvc as IDynamicSchedulingService
-        );
-      });
+      // Register static services
+      container.registerSingleton(SERVICE_KEYS.DYNAMIC_SCHEDULING, DynamicSchedulingService);
+      container.registerSingleton(SERVICE_KEYS.CARE_SCHEDULING, CareSchedulingService);
 
       ServiceRegistry.isBootstrapped = true;
       Logger.info("Service registry bootstrapped successfully");

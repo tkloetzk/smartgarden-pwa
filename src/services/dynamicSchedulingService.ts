@@ -14,7 +14,19 @@ export interface SchedulingAdjustment {
   confidence: number;
 }
 
+export interface CompletionPattern {
+  averageVariance: number;
+  consistency: number;
+  recommendedAdjustment: number;
+  totalCompletions: number;
+  lastCompletion?: Date;
+}
+
 export class DynamicSchedulingService {
+  private static readonly maxLookbackDays = 90;
+  private static readonly minCompletionsForPattern = 3;
+  private static readonly consistencyThreshold = 0.6;
+
   static async recordTaskCompletion(
     plantId: string,
     taskType: CareActivityType,
@@ -24,13 +36,9 @@ export class DynamicSchedulingService {
     plantStage: GrowthStage
   ): Promise<void> {
     try {
-      const varianceDays = differenceInDays(
-        actualCompletionDate,
-        scheduledDate
-      );
+      const varianceDays = differenceInDays(actualCompletionDate, scheduledDate);
 
-      await db.taskCompletions.add({
-        id: generateUUID(),
+      const completionRecord: Omit<TaskCompletionRecord, "id"> = {
         plantId,
         taskType,
         scheduledDate,
@@ -40,9 +48,25 @@ export class DynamicSchedulingService {
         plantStage,
         createdAt: new Date(),
         updatedAt: new Date(),
+      };
+
+      await db.taskCompletions.add({
+        id: generateUUID(),
+        ...completionRecord,
+      });
+
+      Logger.debug("Task completion recorded", {
+        plantId,
+        taskType,
+        varianceDays,
+        plantStage,
       });
     } catch (error) {
-      Logger.error("Failed to record task completion:", error);
+      Logger.error("Failed to record task completion", error, {
+        plantId,
+        taskType,
+        careActivityId,
+      });
       throw error;
     }
   }
@@ -74,29 +98,47 @@ export class DynamicSchedulingService {
 
       const patterns = await this.getCompletionPatterns(plantId, taskType);
 
-      // Base interval of 7 days, adjusted by patterns
-      let intervalDays = 7;
+      // Base interval based on task type
+      let intervalDays = this.getDefaultIntervalForTaskType(taskType);
 
-      if (patterns.recommendedAdjustment !== 0 && patterns.consistency > 0.5) {
+      // Apply dynamic adjustment if we have sufficient data
+      if (
+        patterns.totalCompletions >= this.minCompletionsForPattern &&
+        patterns.consistency > this.consistencyThreshold &&
+        Math.abs(patterns.recommendedAdjustment) > 0
+      ) {
         intervalDays += patterns.recommendedAdjustment;
+        
+        Logger.debug("Applied dynamic scheduling adjustment", {
+          plantId,
+          taskType,
+          originalInterval: this.getDefaultIntervalForTaskType(taskType),
+          adjustedInterval: intervalDays,
+          patterns,
+        });
       }
+
+      // Ensure interval is within reasonable bounds
+      intervalDays = Math.max(1, Math.min(intervalDays, 30));
 
       return addDays(lastCompletionDate, intervalDays);
     } catch (error) {
-      Logger.error("Failed to get next due date for task:", error);
-      // Fallback to default 7-day interval
-      return addDays(lastCompletionDate, 7);
+      Logger.error("Failed to get next due date for task", error, {
+        plantId,
+        taskType,
+      });
+      
+      // Fallback to default interval
+      const defaultInterval = this.getDefaultIntervalForTaskType(taskType);
+      return addDays(lastCompletionDate, defaultInterval);
     }
   }
+
   static async getCompletionPatterns(
     plantId: string,
     taskType: CareActivityType,
-    lookbackDays: number = 90
-  ): Promise<{
-    averageVariance: number;
-    consistency: number;
-    recommendedAdjustment: number;
-  }> {
+    lookbackDays: number = this.maxLookbackDays
+  ): Promise<CompletionPattern> {
     try {
       const cutoffDate = addDays(new Date(), -lookbackDays);
 
@@ -108,50 +150,57 @@ export class DynamicSchedulingService {
             completion.taskType === taskType &&
             new Date(completion.scheduledDate) > cutoffDate
         )
-        .toArray();
+        .reverse()
+        .sortBy("actualCompletionDate");
 
-      if (completions.length < 3) {
+      if (completions.length < this.minCompletionsForPattern) {
         return {
           averageVariance: 0,
           consistency: 0,
           recommendedAdjustment: 0,
+          totalCompletions: completions.length,
+          lastCompletion: completions[0]?.actualCompletionDate,
         };
       }
 
-      const variances = completions.map(
-        (completion: TaskCompletionRecord) => completion.varianceDays
-      );
-      const averageVariance =
-        variances.reduce((sum, variance) => sum + variance, 0) /
-        variances.length;
+      // Calculate statistics
+      const variances = completions.map((c) => c.varianceDays);
+      const averageVariance = variances.reduce((sum, v) => sum + v, 0) / variances.length;
 
       // Calculate consistency (lower standard deviation = higher consistency)
-      const mean = averageVariance;
-      const squaredDiffs = variances.map((variance) =>
-        Math.pow(variance - mean, 2)
-      );
-      const stdDev = Math.sqrt(
-        squaredDiffs.reduce((sum, diff) => sum + diff, 0) / variances.length
-      );
+      const variance = variances.reduce((sum, v) => sum + Math.pow(v - averageVariance, 2), 0) / variances.length;
+      const stdDev = Math.sqrt(variance);
       const consistency = Math.max(0, 1 - stdDev / 7); // Normalize to 0-1 scale
 
-      // Recommend adjustment if consistently early/late
+      // Calculate recommended adjustment
       let recommendedAdjustment = 0;
-      if (Math.abs(averageVariance) > 1 && consistency > 0.6) {
-        recommendedAdjustment = Math.round(averageVariance * 0.7); // Conservative adjustment
+      if (Math.abs(averageVariance) > 1 && consistency > this.consistencyThreshold) {
+        // Conservative adjustment - only apply 70% of the observed variance
+        recommendedAdjustment = Math.round(averageVariance * 0.7);
+        
+        // Cap adjustments to reasonable bounds
+        recommendedAdjustment = Math.max(-7, Math.min(recommendedAdjustment, 7));
       }
 
       return {
         averageVariance,
         consistency,
         recommendedAdjustment,
+        totalCompletions: completions.length,
+        lastCompletion: completions[0]?.actualCompletionDate,
       };
     } catch (error) {
-      Logger.error("Failed to get completion patterns:", error);
+      Logger.error("Failed to get completion patterns", error, {
+        plantId,
+        taskType,
+        lookbackDays,
+      });
+      
       return {
         averageVariance: 0,
         consistency: 0,
         recommendedAdjustment: 0,
+        totalCompletions: 0,
       };
     }
   }
@@ -160,7 +209,7 @@ export class DynamicSchedulingService {
     plantId?: string
   ): Promise<SchedulingAdjustment[]> {
     try {
-      const cutoffDate = addDays(new Date(), -60);
+      const cutoffDate = addDays(new Date(), -this.maxLookbackDays);
 
       let query = db.taskCompletions.where("scheduledDate").above(cutoffDate);
 
@@ -173,46 +222,27 @@ export class DynamicSchedulingService {
       const completions = await query.toArray();
 
       // Group by plant and task type
-      const grouped = completions.reduce(
-        (
-          acc: Record<string, TaskCompletionRecord[]>,
-          completion: TaskCompletionRecord
-        ) => {
-          const key = `${completion.plantId}-${completion.taskType}`;
-          if (!acc[key]) {
-            acc[key] = [];
-          }
-          acc[key].push(completion);
-          return acc;
-        },
-        {}
-      );
-
+      const grouped = this.groupCompletionsByPlantAndTask(completions);
       const adjustments: SchedulingAdjustment[] = [];
 
       for (const [key, taskCompletions] of Object.entries(grouped)) {
-        if (taskCompletions.length < 3) continue;
+        if (taskCompletions.length < this.minCompletionsForPattern) continue;
 
-        const [plantId, taskType] = key.split("-");
+        const [plantIdKey, taskType] = key.split("-");
         const patterns = await this.getCompletionPatterns(
-          plantId,
+          plantIdKey,
           taskType as CareActivityType
         );
 
         if (Math.abs(patterns.recommendedAdjustment) > 0) {
+          const originalInterval = this.getDefaultIntervalForTaskType(taskType as CareActivityType);
+          
           adjustments.push({
-            plantId,
+            plantId: plantIdKey,
             taskType: taskType as CareActivityType,
-            originalInterval: 7, // Default weekly - could be looked up from protocols
-            adjustedInterval: 7 + patterns.recommendedAdjustment,
-            reason:
-              patterns.averageVariance > 0
-                ? `Tasks consistently completed ${Math.abs(
-                    patterns.averageVariance
-                  )} days late`
-                : `Tasks consistently completed ${Math.abs(
-                    patterns.averageVariance
-                  )} days early`,
+            originalInterval,
+            adjustedInterval: originalInterval + patterns.recommendedAdjustment,
+            reason: this.generateAdjustmentReason(patterns.averageVariance),
             confidence: patterns.consistency,
           });
         }
@@ -220,8 +250,46 @@ export class DynamicSchedulingService {
 
       return adjustments.sort((a, b) => b.confidence - a.confidence);
     } catch (error) {
-      Logger.error("Failed to get scheduling adjustments:", error);
+      Logger.error("Failed to get scheduling adjustments", error, { plantId });
       return [];
+    }
+  }
+
+  private static getDefaultIntervalForTaskType(taskType: CareActivityType): number {
+    switch (taskType) {
+      case "water":
+        return 7; // Weekly watering
+      case "fertilize":
+        return 14; // Bi-weekly fertilizing
+      case "observe":
+        return 7; // Weekly observations
+      case "pruning":
+        return 21; // Every 3 weeks
+      case "transplant":
+        return 90; // Quarterly
+      default:
+        return 7; // Default weekly
+    }
+  }
+
+  private static groupCompletionsByPlantAndTask(
+    completions: TaskCompletionRecord[]
+  ): Record<string, TaskCompletionRecord[]> {
+    return completions.reduce((acc, completion) => {
+      const key = `${completion.plantId}-${completion.taskType}`;
+      if (!acc[key]) {
+        acc[key] = [];
+      }
+      acc[key].push(completion);
+      return acc;
+    }, {} as Record<string, TaskCompletionRecord[]>);
+  }
+
+  private static generateAdjustmentReason(averageVariance: number): string {
+    if (averageVariance > 0) {
+      return `Tasks consistently completed ${Math.abs(averageVariance).toFixed(1)} days late`;
+    } else {
+      return `Tasks consistently completed ${Math.abs(averageVariance).toFixed(1)} days early`;
     }
   }
 }

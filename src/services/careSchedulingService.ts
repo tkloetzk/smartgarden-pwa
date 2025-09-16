@@ -42,6 +42,13 @@ const TASK_CONFIGS: Record<string, TaskConfig> = {
     dueSoonThreshold: 1,
     fallbackInterval: 3,
   },
+  fertilize: {
+    type: "fertilize",
+    taskName: "Fertilize",
+    category: "fertilizing",
+    dueSoonThreshold: 2,
+    fallbackInterval: 14,
+  },
 };
 
 const TASK_TYPE_MAP: Record<
@@ -90,19 +97,15 @@ export class CareSchedulingService {
 
       const tasks: UpcomingTask[] = [];
 
-      const wateringTask = await this.createTaskForType(
-        plant,
-        currentStage,
-        "water"
-      );
-      if (wateringTask) tasks.push(wateringTask);
-
-      const observationTask = await this.createTaskForType(
-        plant,
-        currentStage,
-        "observe"
-      );
-      if (observationTask) tasks.push(observationTask);
+      // Generate tasks for each configured type
+      for (const [taskType, _config] of Object.entries(TASK_CONFIGS)) {
+        const task = await this.createTaskForType(
+          plant,
+          currentStage,
+          taskType as keyof typeof TASK_CONFIGS
+        );
+        if (task) tasks.push(task);
+      }
 
       return tasks;
     } catch (error) {
