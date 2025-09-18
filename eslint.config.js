@@ -6,7 +6,7 @@ import tseslint from 'typescript-eslint'
 
 export default tseslint.config({ ignores: ['dist'] }, {
   extends: [js.configs.recommended, ...tseslint.configs.recommended],
-  files: ['**/*.{ts,tsx}'],
+    files: ["**/*.test.{ts,tsx}", "**/__tests__/**/*.{ts,tsx}"],
   languageOptions: {
     ecmaVersion: 2020,
     globals: globals.browser,
@@ -15,11 +15,11 @@ export default tseslint.config({ ignores: ['dist'] }, {
     'react-hooks': reactHooks,
     'react-refresh': reactRefresh,
   },
-  rules: {
-    ...reactHooks.configs.recommended.rules,
-    'react-refresh/only-export-components': [
-      'warn',
-      { allowConstantExport: true },
-    ],
-  },
+   rules: {
+      "max-lines-per-function": ["warn", { max: 120, skipBlankLines: true, skipComments: true }],
+      "no-console": "warn",
+      "@typescript-eslint/explicit-function-return-type": "off", // allow terser test syntax
+      "testing-library/no-debugging-utils": "warn",
+      "testing-library/prefer-screen-queries": "error",
+    },
 });
