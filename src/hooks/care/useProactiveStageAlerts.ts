@@ -1,7 +1,6 @@
 // In: src/hooks/useProactiveStageAlerts.ts
 
 import { useState, useEffect } from "react";
-import { useFirebasePlants } from "./useFirebasePlants";
 import { varietyService, PlantRecord } from "@/types/database";
 import { GrowthStage } from "@/types";
 import { estimateStageTransition, getNextStage } from "@/utils/plant/growthStage";
@@ -14,18 +13,24 @@ export interface StageAlert {
   daysUntilTransition: number;
 }
 
-export const useProactiveStageAlerts = (): {
+export const useProactiveStageAlerts = (
+  plants: PlantRecord[],
+  isLoading?: boolean
+): {
   alerts: StageAlert[];
   isLoading: boolean;
 } => {
-  const { plants, loading: plantsLoading } = useFirebasePlants();
   const [alerts, setAlerts] = useState<StageAlert[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [alertsLoading, setAlertsLoading] = useState(true);
 
   useEffect(() => {
     const calculateAlerts = async () => {
-      if (plantsLoading) return;
+      if (isLoading || !plants) {
+        setAlertsLoading(false);
+        return;
+      }
 
+      setAlertsLoading(true);
       const potentialAlerts: StageAlert[] = [];
 
       for (const plant of plants) {
@@ -82,11 +87,11 @@ export const useProactiveStageAlerts = (): {
           (a, b) => a.daysUntilTransition - b.daysUntilTransition
         )
       );
-      setIsLoading(false);
+      setAlertsLoading(false);
     };
 
     calculateAlerts();
-  }, [plants, plantsLoading]);
+  }, [plants, isLoading]);
 
-  return { alerts, isLoading };
+  return { alerts, isLoading: isLoading || alertsLoading };
 };

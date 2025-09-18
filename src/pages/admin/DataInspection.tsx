@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
-import { useFirebasePlants } from '@/hooks/useFirebasePlants';
-import { useFirebaseCareActivities } from '@/hooks/useFirebaseCareActivities';
+import { useFirebasePlants } from '@/hooks/plants/useFirebasePlants';
+import { useCareActivities } from '@/hooks/care/useCareActivities';
 import { inspectPlantData, generatePlantDataReport, createDataBackup } from '@/utils/core/dataMigration';
 
 interface DataStats {
@@ -16,7 +16,7 @@ interface DataStats {
 
 export function DataInspection() {
   const { plants, loading: plantsLoading } = useFirebasePlants(true); // Include inactive
-  const { activities, loading: activitiesLoading } = useFirebaseCareActivities();
+  const { activities, loading: activitiesLoading } = useCareActivities();
   const [stats, setStats] = useState<DataStats | null>(null);
   const [inspectionDetails, setInspectionDetails] = useState<any>(null);
 

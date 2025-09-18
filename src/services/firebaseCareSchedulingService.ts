@@ -1,4 +1,7 @@
 // src/services/firebaseCareSchedulingService.ts
+// DEPRECATED: Calculation logic moved to frontend for better performance
+// Use utils/care/localCareCalculations.ts for new implementations
+// This service now serves as legacy support only
 import { PlantRecord } from "@/types/database";
 import { GrowthStage, CareActivityType, UpcomingTask } from "@/types";
 import { calculateCurrentStageWithVariety } from "@/utils/plant/growthStage";

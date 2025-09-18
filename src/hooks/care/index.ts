@@ -1,4 +1,4 @@
 // Care activity related hooks
-export * from './useFirebaseCareActivities';
-export * from './useLastCareActivities';
+export * from './useCareActivities';
+export * from './useLastCareActivitiesLocal';
 export * from './useProactiveStageAlerts';

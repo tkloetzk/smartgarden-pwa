@@ -1,65 +1,65 @@
-import { useState, useEffect } from "react";
-import { FirebaseCareSchedulingService } from "@/services/firebaseCareSchedulingService";
-import { FirebaseCareActivityService } from "@/services/firebase/careActivityService";
+import { useState, useEffect, useRef, useMemo } from "react";
+import { calculateUpcomingTasks } from "@/utils/care/localCareCalculations";
 import { getRelevantFertilizationTasksForPlant } from "@/utils/care/fertilizationUtils";
+import { CareActivityType, CareRecord, PlantRecord } from "@/types";
 
 export interface CareStatus {
-  plantsNeedingCatchUp: number;
+  groupsNeedingCatchUp: number;
   careStatusLoading: boolean;
 }
 
 export const useCareStatus = (
-  plants: any[] | null,
-  userUid: string | undefined,
+  plants: PlantRecord[] | null,
+  getLastActivityByType: (plantId: string, type: CareActivityType) => Promise<CareRecord | null>,
   activityLoggedTrigger: number,
   hiddenGroups: Set<string>,
   getUpcomingFertilizationTasks: ((days: number) => any[]) | undefined
 ): CareStatus => {
-  const [plantsNeedingCatchUp, setPlantsNeedingCatchUp] = useState(0);
+  const [groupsNeedingCatchUp, setGroupsNeedingCatchUp] = useState(0);
   const [careStatusLoading, setCareStatusLoading] = useState(true);
+  const debounceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Load catch-up data count for summary card
+  // Memoize visible plants to prevent unnecessary recalculations
+  const visiblePlants = useMemo(() => {
+    return plants || [];
+  }, [plants]);
+
+  // Load catch-up data count for summary card with debouncing
   useEffect(() => {
+    // Clear existing timeout
+    if (debounceTimeoutRef.current) {
+      clearTimeout(debounceTimeoutRef.current);
+    }
+
     const loadCatchUpCount = async () => {
-      if (!plants || !userUid) {
-        setPlantsNeedingCatchUp(0);
+      if (!plants || plants.length === 0) {
+        setGroupsNeedingCatchUp(0);
         setCareStatusLoading(false);
         return;
       }
 
       setCareStatusLoading(true);
       try {
-        // For Plant Care Status, use plants directly (plantGroups might not be ready yet)
-        // We'll handle hiding logic by checking individual plant group membership
-        const allPlants = plants || [];
-
-        // Simple visible plants logic: just use all plants for now
-        // (Plant hiding is a UI convenience, not a core care tracking feature)
-        const visiblePlants = allPlants;
+        // Use memoized visible plants to prevent unnecessary object creation
 
         // Debug logging removed for cleaner test output
 
         // TODO: Add retroactive analysis back later
         // Skip retroactive analysis for now
 
-        // Get upcoming tasks using the Firebase care scheduling service
-        const getLastActivityByType = async (plantId: string, type: any) => {
-          return FirebaseCareActivityService.getLastActivityByType(
-            plantId,
-            userUid,
-            type
-          );
-        };
-
-        // Get standard care tasks (watering, observation)
-        const careTasks = await FirebaseCareSchedulingService.getUpcomingTasks(
-          visiblePlants, // Use visible plants only, not all plants
-          getLastActivityByType
+        // Get standard care tasks (watering, observation) using local calculation
+        // Note: Enable grouping for care status to match catch-up page experience
+        const careTasks = await calculateUpcomingTasks(
+          visiblePlants,
+          getLastActivityByType,
+          true // Enable grouping to count task groups instead of individual plants
         );
 
         // Get fertilization tasks using the SAME logic as the dashboard fertilization section
-        const allFertilizationTasks = getUpcomingFertilizationTasks
-          ? getUpcomingFertilizationTasks(365)
+        // Note: We capture the function reference at the time of effect execution to avoid dependency issues
+        const fertTasksFunction = getUpcomingFertilizationTasks;
+        const allFertilizationTasks = fertTasksFunction
+          ? fertTasksFunction(365)
           : [];
 
         // Filter fertilization tasks to only include visible plants
@@ -80,7 +80,7 @@ export const useCareStatus = (
         const relevantFertilizationTasks: any[] = [];
         const now = new Date();
 
-        tasksByPlant.forEach((tasks, plantId) => {
+        tasksByPlant.forEach((tasks) => {
           const plantRelevantTasks = getRelevantFertilizationTasksForPlant(
             tasks,
             now
@@ -89,34 +89,59 @@ export const useCareStatus = (
         });
 
         //  console.log("relevantFertilizationTasks:", relevantFertilizationTasks);
-        // Count unique plants that have any tasks (indicating they need care)
-        const uniquePlantIds = new Set();
+        // Count unique task groups (care tasks are already grouped, fertilization tasks need grouping)
+        const uniqueTaskGroups = new Set();
+
+        // Care tasks are already grouped by calculateUpcomingTasks, so each task represents a group
         careTasks.forEach((task) => {
-          uniquePlantIds.add(task.plantId);
+          uniqueTaskGroups.add(task.id); // Use task ID as each represents a unique group
         });
+
+        // For fertilization tasks, we need to count unique groups (same logic as useTaskProcessing)
         relevantFertilizationTasks.forEach((task) => {
-          uniquePlantIds.add(task.plantId);
+          // Find the plant for this task to get grouping info
+          const plant = visiblePlants.find((p) => p.id === task.plantId);
+          if (!plant) return;
+
+          // Create the same grouping key as useTaskProcessing uses
+          const dueDateStr = task.dueDate.toDateString();
+          const groupKey = `${plant.varietyName}-${task.taskName}-${task.details?.product || 'no-product'}-${dueDateStr}`;
+          uniqueTaskGroups.add(`fert-${groupKey}`);
         });
-        setPlantsNeedingCatchUp(uniquePlantIds.size);
+
+        setGroupsNeedingCatchUp(uniqueTaskGroups.size);
       } catch (error) {
         console.error("Failed to load catch-up count:", error);
-        setPlantsNeedingCatchUp(0);
+        setGroupsNeedingCatchUp(0);
       } finally {
         setCareStatusLoading(false);
       }
     };
 
-    loadCatchUpCount();
+    // Debounce the calculation to prevent rapid successive calls
+    // Use shorter timeout in test environment to avoid test timing issues
+    const debounceDelay = process.env.NODE_ENV === 'test' ? 0 : 300;
+    debounceTimeoutRef.current = setTimeout(() => {
+      loadCatchUpCount();
+    }, debounceDelay);
+
+    // Cleanup timeout on unmount
+    return () => {
+      if (debounceTimeoutRef.current) {
+        clearTimeout(debounceTimeoutRef.current);
+      }
+    };
   }, [
-    plants,
-    userUid,
+    visiblePlants,
+    getLastActivityByType,
     activityLoggedTrigger,
     hiddenGroups,
-    getUpcomingFertilizationTasks,
-  ]); // Re-added getUpcomingFertilizationTasks - it should be stable from useCallback
+    // Note: getUpcomingFertilizationTasks removed from deps to prevent constant re-renders
+    // The function is stable enough and fertilization tasks are fetched inside the effect
+  ]);
 
   return {
-    plantsNeedingCatchUp,
+    groupsNeedingCatchUp,
     careStatusLoading,
   };
 };

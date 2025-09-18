@@ -8,6 +8,8 @@ import { findContainerMates } from "@/utils/plant/containerGrouping";
 import BulkActivityModal from "@/components/plant/BulkActivityModal";
 import { QuickActionType } from "@/components/shared/QuickActionButtons";
 import FertilizationDashboardSection from "@/components/fertilization/FertilizationDashboardSection";
+import WateringDashboardSection from "@/components/watering/WateringDashboardSection";
+import ObservationDashboardSection from "@/components/observation/ObservationDashboardSection";
 import toast from "react-hot-toast";
 import {
   initializeDatabase,
@@ -22,6 +24,8 @@ import {
   useFertilizationTasks,
   useCareStatus,
 } from "@/hooks/dashboard";
+import { useWateringTasks } from "@/hooks/dashboard/useWateringTasks";
+import { useObservationTasks } from "@/hooks/dashboard/useObservationTasks";
 import { SummaryCards } from "@/components/dashboard/SummaryCards";
 import { PlantGarden } from "@/components/dashboard/PlantGarden";
 
@@ -77,18 +81,28 @@ export const Dashboard = () => {
   const { plantGroups, containerGroups, visiblePlants, visiblePlantsCount } =
     useContainerGroups(plants, loading, hiddenGroups);
 
-  const { plantsNeedingCatchUp, careStatusLoading } = useCareStatus(
-    plants,
-    user?.uid,
-    activityLoggedTrigger,
-    hiddenGroups,
-    getUpcomingFertilizationTasks
-  );
-
   const handleActivityLogged = useCallback(() => {
     // Trigger refresh for all components that need to update after activity logging
     setActivityLoggedTrigger((prev) => prev + 1);
   }, []);
+
+  // Create wrapper function for getLastActivityByType
+  const getLastActivityByType = useCallback(
+    async (plantId: string, type: string) => {
+      if (!user?.uid) return null;
+      const { FirebaseCareActivityService } = await import("@/services/firebase/careActivityService");
+      return FirebaseCareActivityService.getLastActivityByType(plantId, user.uid, type);
+    },
+    [user?.uid]
+  );
+
+  const { groupsNeedingCatchUp, careStatusLoading } = useCareStatus(
+    plants,
+    getLastActivityByType,
+    activityLoggedTrigger,
+    hiddenGroups,
+    getUpcomingFertilizationTasks
+  );
 
   const {
     upcomingFertilization,
@@ -99,7 +113,34 @@ export const Dashboard = () => {
     visiblePlants,
     logActivity,
     navigate,
-    handleActivityLogged
+    handleActivityLogged,
+    getLastActivityByType
+  );
+
+  const {
+    upcomingWatering,
+    handleTaskComplete: handleWateringTaskComplete,
+    handleTaskBypass: handleWateringTaskBypass,
+    handleTaskLogActivity: handleWateringTaskLogActivity,
+  } = useWateringTasks(
+    visiblePlants,
+    logActivity,
+    navigate,
+    handleActivityLogged,
+    getLastActivityByType
+  );
+
+  const {
+    upcomingObservation,
+    handleTaskComplete: handleObservationTaskComplete,
+    handleTaskBypass: handleObservationTaskBypass,
+    handleTaskLogActivity: handleObservationTaskLogActivity,
+  } = useObservationTasks(
+    visiblePlants,
+    logActivity,
+    navigate,
+    handleActivityLogged,
+    getLastActivityByType
   );
 
   // Initialize database and sync protocols
@@ -123,9 +164,9 @@ export const Dashboard = () => {
 
   // Navigate to catch-up page
   const handleCatchUpClick = () => {
-    console.log("📊 Plants needing catch-up:", plantsNeedingCatchUp);
+    console.log("📊 Plants needing catch-up:", groupsNeedingCatchUp);
 
-    if (plantsNeedingCatchUp === 0) {
+    if (groupsNeedingCatchUp === 0) {
       console.log("✅ No plants need catch-up, showing success toast");
       toast.success("All plants are up to date! 🌱");
       return;
@@ -249,7 +290,7 @@ export const Dashboard = () => {
         {/* Summary Cards */}
         <SummaryCards>
           <SummaryCards.CareStatus
-            plantsNeedingCatchUp={plantsNeedingCatchUp}
+            groupsNeedingCatchUp={groupsNeedingCatchUp}
             careStatusLoading={careStatusLoading}
             onCatchUpClick={handleCatchUpClick}
           />
@@ -270,6 +311,20 @@ export const Dashboard = () => {
           onTaskComplete={handleTaskComplete}
           onTaskBypass={handleTaskBypass}
           onTaskLogActivity={handleTaskLogActivity}
+        />
+
+        <WateringDashboardSection
+          tasks={upcomingWatering}
+          onTaskComplete={handleWateringTaskComplete}
+          onTaskBypass={handleWateringTaskBypass}
+          onTaskLogActivity={handleWateringTaskLogActivity}
+        />
+
+        <ObservationDashboardSection
+          tasks={upcomingObservation}
+          onTaskComplete={handleObservationTaskComplete}
+          onTaskBypass={handleObservationTaskBypass}
+          onTaskLogActivity={handleObservationTaskLogActivity}
         />
 
         {/* Plant Garden */}

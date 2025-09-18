@@ -1,10 +1,10 @@
 // src/utils/growthStage.ts - Complete updated file
-import { GrowthStage } from "../types";
+import { GrowthStage } from "@/types";
 import { addDays, differenceInDays } from "date-fns";
 import { VarietyRecord } from "@/types/database";
 import { seedVarieties } from "@/data/seedVarieties";
 import { GrowthTimeline } from "@/types";
-import { Logger } from "./logger";
+import { Logger } from "@/utils/core/logger";
 
 export interface GrowthStageInfo {
   stage: GrowthStage;

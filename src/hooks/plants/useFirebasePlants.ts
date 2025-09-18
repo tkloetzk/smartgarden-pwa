@@ -1,6 +1,6 @@
-import { PlantRecord } from "../types/database";
-import { FirebasePlantService } from "../services/firebase/plantService";
-import { useFirebaseResource } from "./useFirebaseResource";
+import { PlantRecord } from "@/types/database";
+import { FirebasePlantService } from "@/services/firebase/plantService";
+import { useFirebaseResource } from "@/hooks/core/useFirebaseResource";
 
 interface PlantsParams {
   includeInactive: boolean;

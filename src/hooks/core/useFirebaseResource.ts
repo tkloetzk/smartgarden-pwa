@@ -5,7 +5,7 @@
 
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { User } from "firebase/auth";
-import { useFirebaseAuth } from "./useFirebaseAuth";
+import { useFirebaseAuth } from "@/hooks/auth/useFirebaseAuth";
 import { Logger } from "@/utils/core/logger";
 
 export interface FirebaseResourceConfig<P, ServiceType> {

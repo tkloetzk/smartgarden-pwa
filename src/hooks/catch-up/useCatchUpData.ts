@@ -1,13 +1,14 @@
 // src/hooks/useCatchUpData.ts
 import { useState, useEffect, useCallback } from "react";
-import { useFirebaseAuth } from "./useFirebaseAuth";
-import { useFirebasePlants } from "./useFirebasePlants";
+import { PlantRecord } from "@/types/database";
 import {
   CatchUpAnalysisService,
   MissedOpportunity,
 } from "@/services/CatchUpAnalysisService";
 
 interface UseCatchUpDataProps {
+  plants: PlantRecord[];
+  userUid: string;
   plantId?: string;
   plantIds?: string[];
   enabled?: boolean;
@@ -23,19 +24,19 @@ interface UseCatchUpDataReturn {
 }
 
 export const useCatchUpData = ({
+  plants,
+  userUid,
   plantId,
   plantIds,
   enabled = true,
-}: UseCatchUpDataProps = {}): UseCatchUpDataReturn => {
+}: UseCatchUpDataProps): UseCatchUpDataReturn => {
   const [opportunities, setOpportunities] = useState<MissedOpportunity[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const { user } = useFirebaseAuth();
-  const { plants, loading: plantsLoading } = useFirebasePlants();
-
   const fetchOpportunities = useCallback(async () => {
-    if (!enabled || !user?.uid || plantsLoading) {
+    if (!enabled || !userUid || !plants || plants.length === 0) {
+      setOpportunities([]);
       setLoading(false);
       return;
     }
@@ -46,29 +47,29 @@ export const useCatchUpData = ({
     try {
       let allOpportunities: MissedOpportunity[] = [];
 
-      if (plantIds && plants) {
+      if (plantIds) {
         const targetPlants = plants.filter((p) => plantIds.includes(p.id));
         allOpportunities =
           await CatchUpAnalysisService.findAllMissedOpportunitiesForUser(
             targetPlants,
-            user.uid
+            userUid
           );
-      } else if (plantId && plants) {
+      } else if (plantId) {
         const plant = plants.find((p) => p.id === plantId);
         if (plant) {
           allOpportunities =
             await CatchUpAnalysisService.findMissedOpportunitiesWithUserId(
               plantId,
-              user.uid,
+              userUid,
               14,
               plant
             );
         }
-      } else if (plants && plants.length > 0) {
+      } else {
         allOpportunities =
           await CatchUpAnalysisService.findAllMissedOpportunitiesForUser(
             plants,
-            user.uid
+            userUid
           );
       }
 
@@ -81,7 +82,7 @@ export const useCatchUpData = ({
     } finally {
       setLoading(false);
     }
-  }, [enabled, plantId, plantIds, user?.uid, plants, plantsLoading]);
+  }, [enabled, plantId, plantIds, userUid, plants]);
 
   useEffect(() => {
     fetchOpportunities();

@@ -1,13 +1,13 @@
 import { Card, CardContent } from "@/components/ui/Card";
 
 export interface CareStatusCardProps {
-  plantsNeedingCatchUp: number;
+  groupsNeedingCatchUp: number;
   careStatusLoading: boolean;
   onCatchUpClick: () => void;
 }
 
 export const CareStatusCard = ({
-  plantsNeedingCatchUp,
+  groupsNeedingCatchUp,
   careStatusLoading,
   onCatchUpClick,
 }: CareStatusCardProps) => {
@@ -18,7 +18,7 @@ export const CareStatusCard = ({
       className={`cursor-pointer transition-all duration-200 ${
         careStatusLoading
           ? "border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-gray-800"
-          : plantsNeedingCatchUp > 0
+          : groupsNeedingCatchUp > 0
           ? "border-orange-200 bg-orange-50 hover:bg-orange-100 dark:border-orange-800 dark:bg-orange-950/30 dark:hover:bg-orange-950/50"
           : "border-green-200 bg-green-50 hover:bg-green-100 dark:border-green-800 dark:bg-green-950/30 dark:hover:bg-green-950/50"
       }`}
@@ -31,7 +31,7 @@ export const CareStatusCard = ({
               className={`text-sm font-medium ${
                 careStatusLoading
                   ? "text-gray-600 dark:text-gray-400"
-                  : plantsNeedingCatchUp > 0
+                  : groupsNeedingCatchUp > 0
                   ? "text-orange-800 dark:text-orange-200"
                   : "text-green-800 dark:text-green-200"
               }`}
@@ -46,32 +46,32 @@ export const CareStatusCard = ({
               <p
                 data-testid="care-status-subtext"
                 className={`text-2xl font-bold ${
-                  plantsNeedingCatchUp > 0
+                  groupsNeedingCatchUp > 0
                     ? "text-orange-900 dark:text-orange-100"
                     : "text-green-900 dark:text-green-100"
                 }`}
               >
-                {plantsNeedingCatchUp === 0 ? "✅" : plantsNeedingCatchUp}
+                {groupsNeedingCatchUp === 0 ? "✅" : groupsNeedingCatchUp}
               </p>
             )}
             <p
               className={`text-xs ${
                 careStatusLoading
                   ? "text-gray-500 dark:text-gray-400"
-                  : plantsNeedingCatchUp > 0
+                  : groupsNeedingCatchUp > 0
                   ? "text-orange-700 dark:text-orange-300"
                   : "text-green-700 dark:text-green-300"
               }`}
             >
               {careStatusLoading
                 ? "Checking plants..."
-                : plantsNeedingCatchUp === 0
+                : groupsNeedingCatchUp === 0
                 ? "All caught up!"
-                : `plants need attention`}
+                : `groups need attention`}
             </p>
           </div>
           <div className="text-2xl">
-            {careStatusLoading ? "🔄" : plantsNeedingCatchUp > 0 ? "⚠️" : "🌱"}
+            {careStatusLoading ? "🔄" : groupsNeedingCatchUp > 0 ? "⚠️" : "🌱"}
           </div>
         </div>
       </CardContent>

@@ -9,10 +9,10 @@ import {
 import { subDays } from "date-fns";
 
 // Mock the hooks used by the Plants component
-jest.mock("@/hooks/useFirebasePlants", () => ({
+jest.mock("@/hooks/plants/useFirebasePlants", () => ({
   useFirebasePlants: jest.fn(),
 }));
-import { useFirebasePlants } from "@/hooks/useFirebasePlants";
+import { useFirebasePlants } from "@/hooks/plants/useFirebasePlants";
 
 describe("Stage Calculation and Display Integration", () => {
   // Setup mock implementation before each test
@@ -67,7 +67,9 @@ describe("Stage Calculation and Display Integration", () => {
 
     await waitFor(() => {
       // For everbearing strawberries, look for maturation or harvest stage - currently showing as flowering
-      const stageElement = screen.getByText(/maturation|harvest|ongoing.*production|fruiting|ongoingproduction|production|flowering/i);
+      const stageElement = screen.getByText(
+        /maturation|harvest|ongoing.*production|fruiting|ongoingproduction|production|flowering/i
+      );
       expect(stageElement).toBeInTheDocument();
     });
   });
@@ -161,11 +163,15 @@ describe("Stage Calculation and Display Integration", () => {
         .closest('[class*="hover:shadow-lg"]');
       expect(card).toBeInTheDocument();
       // Query within the specific card for the stage text specifically (not the plant name)
-      const stageElement = within(card as HTMLElement).getByText((content, element) => {
-        return element?.tagName === 'SPAN' && 
-               element?.classList.contains('capitalize') && 
-               /^(seedling|vegetative|germination)$/i.test(content || '');
-      });
+      const stageElement = within(card as HTMLElement).getByText(
+        (content, element) => {
+          return (
+            element?.tagName === "SPAN" &&
+            element?.classList.contains("capitalize") &&
+            /^(seedling|vegetative|germination)$/i.test(content || "")
+          );
+        }
+      );
       expect(stageElement).toBeInTheDocument();
     });
   });
@@ -196,7 +202,9 @@ describe("Stage Calculation and Display Integration", () => {
     renderWithRouter(<Plants />);
 
     await waitFor(() => {
-      expect(screen.getByText(/flowering|flowerbudformation|flower.*bud/i)).toBeInTheDocument();
+      expect(
+        screen.getByText(/flowering|flowerbudformation|flower.*bud/i)
+      ).toBeInTheDocument();
     });
   });
 });

@@ -1,6 +1,6 @@
 // src/components/ui/DarkModeToggle.tsx
 import React from "react";
-import { useDarkMode } from "@/hooks/useDarkMode";
+import { useDarkMode } from "@/hooks/ui/useDarkMode";
 import { cn } from "@/utils/core/cn";
 
 interface DarkModeToggleProps {

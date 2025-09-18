@@ -4,7 +4,7 @@ import React from "react";
 import { Card, CardContent } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
-import { StageAlert } from "@/hooks/useProactiveStageAlerts";
+import { StageAlert } from "@/hooks/care/useProactiveStageAlerts";
 import { getPlantDisplayName } from "@/utils/plant/plantDisplay";
 import { ArrowRight, Check, X } from "lucide-react";
 import { GrowthStage } from "@/types";

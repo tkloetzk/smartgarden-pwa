@@ -1,4 +1,7 @@
 // src/services/careSchedulingService.ts
+// DEPRECATED: Calculation logic moved to frontend for better performance
+// Use utils/care/localCareCalculations.ts for new implementations
+// This service now serves as legacy support only
 import {
   plantService,
   careService,

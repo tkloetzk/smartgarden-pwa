@@ -1,7 +1,7 @@
 // src/pages/plants/Plants.tsx - Simple version without search/filters
 import React, { useState, useMemo, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import { useFirebasePlants } from "@/hooks/useFirebasePlants";
+import { useFirebasePlants } from "@/hooks/plants/useFirebasePlants";
 import { Card, CardContent } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { LoadingSpinner } from "@/components/ui/LoadingSpinner";

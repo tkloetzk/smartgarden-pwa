@@ -1,7 +1,8 @@
-import { useFirebaseAuth } from "@/hooks/useFirebaseAuth";
-import { useFirebasePlants } from "@/hooks/useFirebasePlants";
-import { useFirebaseCareActivities } from "@/hooks/useFirebaseCareActivities";
-import { useScheduledTasks } from "@/hooks/useScheduledTasks";
+import { useFirebaseAuth } from "@/hooks/auth/useFirebaseAuth";
+import { useFirebasePlants } from "@/hooks/plants/useFirebasePlants";
+import { useCareActivities } from "@/hooks/care/useCareActivities";
+import { useScheduledTasks } from "@/hooks/tasks/useScheduledTasks";
+import { useCallback } from "react";
 
 export interface DashboardData {
   plants: any[] | null;
@@ -16,9 +17,19 @@ export interface DashboardData {
 export const useDashboardData = (): DashboardData => {
   const { plants, loading } = useFirebasePlants();
   const { user, signOut } = useFirebaseAuth();
-  const { logActivity } = useFirebaseCareActivities();
+  const { logActivity } = useCareActivities();
 
-  const scheduledTasksResult = useScheduledTasks();
+  // Create wrapper function for getLastActivityByType
+  const getLastActivityByType = useCallback(
+    async (plantId: string, type: string) => {
+      if (!user?.uid) return null;
+      const { FirebaseCareActivityService } = await import("@/services/firebase/careActivityService");
+      return FirebaseCareActivityService.getLastActivityByType(plantId, user.uid, type);
+    },
+    [user?.uid]
+  );
+
+  const scheduledTasksResult = useScheduledTasks(plants || [], getLastActivityByType);
 
   const { getUpcomingFertilizationTasks, error: scheduledTasksError } =
     scheduledTasksResult;

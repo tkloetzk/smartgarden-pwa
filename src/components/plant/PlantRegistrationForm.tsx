@@ -12,8 +12,8 @@ import { SimplifiedLocationSelector } from "./SimplifiedLocationSelector";
 import toast from "react-hot-toast";
 import SoilMixtureSelector from "./SoilMixtureSelector";
 import ReminderPreferencesSection from "@/components/plant/ReminderPreferencesSection";
-import { useFirebasePlants } from "@/hooks/useFirebasePlants";
-import { useFirebaseCareActivities } from "@/hooks/useFirebaseCareActivities";
+import { useFirebasePlants } from "@/hooks/plants/useFirebasePlants";
+import { useCareActivities } from "@/hooks/care/useCareActivities";
 import { LoadingSpinner } from "../ui/LoadingSpinner";
 import { PlantSection, CareActivityDetails, VolumeUnit } from "@/types";
 import { Logger } from "@/utils/core/logger";
@@ -75,7 +75,7 @@ export function PlantRegistrationForm({
   onCancel,
 }: PlantRegistrationFormProps) {
   const { createPlant } = useFirebasePlants();
-  const { logActivity } = useFirebaseCareActivities();
+  const { logActivity } = useCareActivities();
 
   const [varieties, setVarieties] = useState<VarietyRecord[]>([]);
   const [isLoading, setIsLoading] = useState(false);

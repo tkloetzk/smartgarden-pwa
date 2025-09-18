@@ -1,16 +1,28 @@
 // src/pages/catch-up/index.tsx
-import { useState, useMemo } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/Button";
 import { Card, CardContent } from "@/components/ui/Card";
-import { useFirebasePlants } from "@/hooks/useFirebasePlants";
-import { useAllUpcomingTasks } from "@/hooks/useAllUpcomingTasks";
-import { useTaskProcessing } from "@/hooks/useTaskProcessing";
+import { useFirebasePlants } from "@/hooks/plants/useFirebasePlants";
+import { useFirebaseAuth } from "@/hooks/auth/useFirebaseAuth";
+import { useAllUpcomingTasks } from "@/hooks/dashboard/useAllUpcomingTasks";
+import { useTaskProcessing } from "@/hooks/tasks/useTaskProcessing";
 import { ArrowLeft, Filter, X } from "lucide-react";
 
 export const CatchUpPage = () => {
   const navigate = useNavigate();
   const { plants, loading: plantsLoading } = useFirebasePlants();
+  const { user } = useFirebaseAuth();
+
+  // Create wrapper function for getLastActivityByType
+  const getLastActivityByType = useCallback(
+    async (plantId: string, type: string) => {
+      if (!user?.uid) return null;
+      const { FirebaseCareActivityService } = await import("@/services/firebase/careActivityService");
+      return FirebaseCareActivityService.getLastActivityByType(plantId, user.uid, type);
+    },
+    [user?.uid]
+  );
 
   // Use shared task hooks
   const {
@@ -18,7 +30,7 @@ export const CatchUpPage = () => {
     fertilizationTasks,
     loading: tasksLoading,
     error,
-  } = useAllUpcomingTasks();
+  } = useAllUpcomingTasks(plants || [], getLastActivityByType);
   const { allProcessedTasks: upcomingTasks } = useTaskProcessing({
     plants: plants || [],
     fertilizationTasks,
@@ -32,9 +44,10 @@ export const CatchUpPage = () => {
 
   // Calculate combined loading state
   const loading = plantsLoading || tasksLoading;
-  
+
   // Check if we're still processing tasks (race condition fix)
-  const isProcessing = !loading && plants?.length > 0 && upcomingTasks.length === 0;
+  const isProcessing =
+    !loading && plants?.length > 0 && upcomingTasks.length === 0;
 
   // Filtered tasks and filter options
   const filteredTasks = useMemo(() => {

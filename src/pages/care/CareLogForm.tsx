@@ -6,8 +6,8 @@ import { useSearchParams } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { LoadingSpinner } from "@/components/ui/LoadingSpinner";
-import { useFirebasePlants } from "@/hooks/useFirebasePlants";
-import { useFirebaseCareActivities } from "@/hooks/useFirebaseCareActivities";
+import { useFirebasePlants } from "@/hooks/plants/useFirebasePlants";
+import { useCareActivities } from "@/hooks/care/useCareActivities";
 import {
   varietyService,
   VarietyRecord,
@@ -32,7 +32,10 @@ import {
   requiresWater,
   getWaterAmountForMethod,
 } from "@/utils/care/fertilizationUtils";
-import { parseDilutionString, parseAmountString } from "@/utils/care/protocolParser";
+import {
+  parseDilutionString,
+  parseAmountString,
+} from "@/utils/care/protocolParser";
 import {
   getTodayDateString,
   createLocalDateFromString,
@@ -182,7 +185,7 @@ export function CareLogForm({
   preselectedProduct,
 }: CareLogFormProps) {
   const { plants, loading: plantsLoading } = useFirebasePlants();
-  const { logActivity } = useFirebaseCareActivities();
+  const { logActivity } = useCareActivities();
   // Group plants by sections/containers
   const plantGroups = plants.length > 0 ? groupPlantsByConditions(plants) : [];
   const [isLoading, setIsLoading] = useState(false);
@@ -439,7 +442,6 @@ export function CareLogForm({
                     method: item.details.method || "soil-drench", // Default to soil-drench if not specified
                   })
                 );
-              
 
               // Deduplicate fertilizer products by name, keeping the first occurrence
               const seenProducts = new Map<string, FertilizerProduct>();

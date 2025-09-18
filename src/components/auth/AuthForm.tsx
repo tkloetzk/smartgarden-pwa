@@ -1,6 +1,6 @@
 // src/components/auth/AuthForm.tsx
 import React, { useState } from "react";
-import { useFirebaseAuth } from "../../hooks/auth/useFirebaseAuth";
+import { useFirebaseAuth } from "@/hooks/auth/useFirebaseAuth";
 import { Card, CardContent, CardHeader, CardTitle } from "../ui/Card";
 import { Button } from "../ui/Button";
 import { Input } from "../ui/Input";

@@ -1,10 +1,6 @@
 import { useState, useEffect } from "react";
-import { useFirebasePlants } from "./useFirebasePlants";
-import { useFirebaseAuth } from "./useFirebaseAuth";
-import { useScheduledTasks } from "./useScheduledTasks";
-import { FirebaseCareSchedulingService } from "@/services/firebaseCareSchedulingService";
-import { FirebaseCareActivityService } from "@/services/firebase/careActivityService";
-import { UpcomingTask } from "@/types";
+import { calculateUpcomingTasks } from "@/utils/care/localCareCalculations";
+import { UpcomingTask, CareActivityType, CareRecord, PlantRecord } from "@/types";
 
 interface AllUpcomingTasksResult {
   careTasks: UpcomingTask[];
@@ -14,10 +10,11 @@ interface AllUpcomingTasksResult {
   error: string | null;
 }
 
-export const useAllUpcomingTasks = (): AllUpcomingTasksResult => {
-  const { plants, loading: plantsLoading } = useFirebasePlants();
-  const { user } = useFirebaseAuth();
-  const { getUpcomingFertilizationTasks } = useScheduledTasks();
+export const useAllUpcomingTasks = (
+  plants: PlantRecord[],
+  getLastActivityByType: (plantId: string, type: CareActivityType) => Promise<CareRecord | null>,
+  getUpcomingFertilizationTasks?: (days: number) => any[]
+): AllUpcomingTasksResult => {
 
   const [careTasks, setCareTasks] = useState<UpcomingTask[]>([]);
   const [fertilizationTasks, setFertilizationTasks] = useState<any[]>([]);
@@ -26,13 +23,10 @@ export const useAllUpcomingTasks = (): AllUpcomingTasksResult => {
 
   useEffect(() => {
     const loadAllTasks = async () => {
-      if (!plants || !user?.uid) {
+      if (!plants || plants.length === 0) {
+        setCareTasks([]);
+        setFertilizationTasks([]);
         setLoading(false);
-        return;
-      }
-
-      // Don't start loading if plants are still loading
-      if (plantsLoading) {
         return;
       }
 
@@ -40,27 +34,17 @@ export const useAllUpcomingTasks = (): AllUpcomingTasksResult => {
       setError(null);
 
       try {
-        // Get last activity function for care tasks
-        const getLastActivityByType = async (plantId: string, type: any) => {
-          return FirebaseCareActivityService.getLastActivityByType(
-            plantId,
-            user.uid,
-            type
-          );
-        };
+        // Get standard care tasks (watering, observation) using local calculation with grouping enabled
+        const careTasksResult = await calculateUpcomingTasks(
+          plants,
+          getLastActivityByType,
+          true // Enable grouping for catch-up page
+        );
 
-        // Get standard care tasks (watering, observation)
-        const careTasksResult =
-          await FirebaseCareSchedulingService.getUpcomingTasks(
-            plants,
-            getLastActivityByType
-          );
-
-        // Get fertilization tasks from scheduled tasks hook (get all tasks for filtering/grouping)
+        // Get fertilization tasks from hook parameter
         const fertTasksResult = getUpcomingFertilizationTasks
           ? getUpcomingFertilizationTasks(365)
           : [];
-
 
         setCareTasks(careTasksResult);
         setFertilizationTasks(fertTasksResult);
@@ -75,7 +59,7 @@ export const useAllUpcomingTasks = (): AllUpcomingTasksResult => {
     };
 
     loadAllTasks();
-  }, [plants, user?.uid, plantsLoading, getUpcomingFertilizationTasks]);
+  }, [plants, getLastActivityByType, getUpcomingFertilizationTasks]);
 
   // Combine all tasks for convenience
   const allTasks = [...careTasks];

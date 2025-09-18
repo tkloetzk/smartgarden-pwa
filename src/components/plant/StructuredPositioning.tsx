@@ -7,7 +7,7 @@ import { Position } from "@/types";
 import { successionPlanningService } from "@/services/successionPlanningService";
 import { Button } from "../ui/Button";
 import { BedLayoutVisualizer } from "./BedLayoutVisualizer";
-import { useFirebasePlants } from "@/hooks/useFirebasePlants";
+import { useFirebasePlants } from "@/hooks/plants/useFirebasePlants";
 
 interface StructuredPositioningProps {
   selectedBed: BedRecord | null;

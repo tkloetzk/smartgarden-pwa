@@ -9,12 +9,12 @@ import {
   MissedOpportunity,
 } from "@/services/CatchUpAnalysisService";
 import { useNavigate } from "react-router-dom";
-import { useFirebaseAuth } from "@/hooks/useFirebaseAuth";
-import { useFirebasePlants } from "@/hooks/useFirebasePlants";
+import { useFirebaseAuth } from "@/hooks/auth/useFirebaseAuth";
+import { useFirebasePlants } from "@/hooks/plants/useFirebasePlants";
 import { Clock, CheckCircle, Calendar, X } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import toast from "react-hot-toast";
-import { useCatchUpSummary } from "@/hooks/useCatchUpSummary";
+import { useCatchUpSummary } from "@/hooks/catch-up/useCatchUpSummary";
 import { Logger } from "@/utils/core/logger";
 import { PlantRecord } from "@/types/database";
 

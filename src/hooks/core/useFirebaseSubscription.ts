@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useFirebaseAuth } from "./useFirebaseAuth";
+import { useFirebaseAuth } from "@/hooks/auth/useFirebaseAuth";
 
 type SubscriptionCallback<T> = (data: T[]) => void;
 type UnsubscribeFunction = () => void;

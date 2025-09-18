@@ -44,28 +44,7 @@ export class FirebaseCareActivityService {
     return docRef.id;
   }
 
-  static subscribeToPlantActivities(
-    plantId: string,
-    userId: string,
-    callback: (activities: CareRecord[]) => void,
-    limitCount = 50
-  ): () => void {
-    const activitiesQuery = query(
-      this.careActivitiesCollection,
-      where("userId", "==", userId),
-      where("plantId", "==", plantId),
-      orderBy("date", "desc"),
-      limit(limitCount)
-    );
-
-    return onSnapshot(activitiesQuery, (snapshot) => {
-      const activities = snapshot.docs.map((doc) => {
-        const data = doc.data() as FirebaseCareRecord;
-        return convertCareActivityFromFirebase({ ...data, id: doc.id });
-      });
-      callback(activities);
-    });
-  }
+  // REMOVED: subscribeToPlantActivities - replaced with getPlantCareHistory for local state management
 
   static subscribeToUserActivities(
     userId: string,
@@ -118,6 +97,36 @@ export class FirebaseCareActivityService {
     } catch (error) {
       console.error("Error getting last activity by type:", error);
       return null;
+    }
+  }
+
+  /**
+   * Get all care activities for a plant (non-subscription)
+   */
+  static async getPlantCareHistory(
+    plantId: string,
+    userId: string,
+    limitCount = 50
+  ): Promise<CareRecord[]> {
+    try {
+      const activitiesQuery = query(
+        this.careActivitiesCollection,
+        where("userId", "==", userId),
+        where("plantId", "==", plantId),
+        orderBy("date", "desc"),
+        limit(limitCount)
+      );
+
+      const snapshot = await getDocs(activitiesQuery);
+      const activities = snapshot.docs.map((doc) => {
+        const data = doc.data() as FirebaseCareRecord;
+        return convertCareActivityFromFirebase({ ...data, id: doc.id });
+      });
+
+      return activities;
+    } catch (error) {
+      console.error("Error getting plant care history:", error);
+      return [];
     }
   }
 

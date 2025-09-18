@@ -1,7 +1,7 @@
 import { Routes, Route } from "react-router-dom";
-import { useFirebaseAuth } from "./hooks/auth/useFirebaseAuth";
+import { useFirebaseAuth } from "@/hooks/auth/useFirebaseAuth";
 import { useAppInitialization } from "./hooks/core/useAppInitialization";
-import { useDarkMode } from "./hooks/ui/useDarkMode";
+import { useDarkMode } from "@/hooks/ui/useDarkMode";
 import LogCare from "./pages/care/LogCare";
 import { Dashboard } from "./pages/dashboard";
 import Plants from "./pages/plants/Plants";

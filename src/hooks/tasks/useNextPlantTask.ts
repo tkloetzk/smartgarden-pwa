@@ -1,41 +1,21 @@
-// Create src/hooks/useNextPlantTask.ts
+import { CareActivityType, CareRecord, PlantRecord } from "@/types";
+import { useLocalNextTask } from "@/hooks/care/useLocalNextTask";
 
-import { useState, useEffect } from "react";
-import { CareSchedulingService } from "@/services/careSchedulingService";
-import { UpcomingTask } from "@/types";
+export const useNextPlantTask = (
+  plantId: string,
+  plant: PlantRecord | null,
+  getLastActivityByType: (plantId: string, type: CareActivityType) => Promise<CareRecord | null>,
+  isLoading?: boolean
+) => {
+  const { nextTask, isLoading: taskLoading } = useLocalNextTask({
+    plantId,
+    plant,
+    getLastActivityByType,
+    isLoading: isLoading || false
+  });
 
-export const useNextPlantTask = (plantId: string) => {
-  const [nextTask, setNextTask] = useState<UpcomingTask | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-
-  useEffect(() => {
-    let mounted = true;
-
-    const loadNextTask = async () => {
-      try {
-        setIsLoading(true);
-        const task = await CareSchedulingService.getNextTaskForPlant(plantId);
-        if (mounted) {
-          setNextTask(task);
-        }
-      } catch (error) {
-        console.error(`Failed to load next task for plant ${plantId}:`, error);
-        if (mounted) {
-          setNextTask(null);
-        }
-      } finally {
-        if (mounted) {
-          setIsLoading(false);
-        }
-      }
-    };
-
-    loadNextTask();
-
-    return () => {
-      mounted = false;
-    };
-  }, [plantId]);
-
-  return { nextTask, isLoading };
+  return {
+    nextTask,
+    isLoading: isLoading || taskLoading
+  };
 };

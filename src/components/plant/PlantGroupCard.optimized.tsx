@@ -5,7 +5,7 @@ import { PlantGroup } from "@/utils/plant/plantGrouping";
 import { Button } from "@/components/ui/Button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import { StatusBadge } from "@/components/ui/StatusBadge";
-import { useDynamicStage } from "@/hooks/useDynamicStage";
+import { useDynamicStage } from "@/hooks/plants/useDynamicStage";
 import { differenceInDays } from "date-fns";
 import { QuickActionButtons, QuickActionType } from "@/components/shared/QuickActionButtons";
 

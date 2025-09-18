@@ -12,13 +12,13 @@ import { SimplifiedLocationSelector } from "@/components/plant/SimplifiedLocatio
 import toast from "react-hot-toast";
 import SoilMixtureSelector from "@/components/plant/SoilMixtureSelector";
 import ReminderPreferencesSection from "@/components/plant/ReminderPreferencesSection";
-import { useFirebasePlants } from "@/hooks/useFirebasePlants";
+import { useFirebasePlants } from "@/hooks/plants/useFirebasePlants";
 import { LoadingSpinner } from "@/components/ui/LoadingSpinner";
 import { PlantSection, PlantRecord } from "@/types";
 import { ArrowLeft } from "lucide-react";
 import { dateToLocalDateString } from "@/utils/date/dateUtils";
 import { FirebasePlantService } from "@/services/firebase/plantService";
-import { useFirebaseAuth } from "@/hooks/useFirebaseAuth";
+import { useFirebaseAuth } from "@/hooks/auth/useFirebaseAuth";
 
 const plantEditSchema = z.object({
   varietyId: z.string().min(1, "Please select a variety"),

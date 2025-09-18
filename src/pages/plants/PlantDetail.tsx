@@ -6,8 +6,8 @@ import { Button } from "@/components/ui/Button";
 import { LoadingSpinner } from "@/components/ui/LoadingSpinner";
 import { FirebasePlantService } from "@/services/firebase/plantService";
 import { FirebaseCareActivityService } from "@/services/firebase/careActivityService";
-import { useFirebaseAuth } from "@/hooks/useFirebaseAuth";
-import { useFirebaseCareActivities } from "@/hooks/useFirebaseCareActivities";
+import { useFirebaseAuth } from "@/hooks/auth/useFirebaseAuth";
+import { useCareActivities } from "@/hooks/care/useCareActivities";
 import { PlantRecord, GrowthStage } from "@/types";
 import CareHistory from "@/components/plant/CareHistory";
 import PlantReminderSettings from "@/components/plant/PlantReminderSettings";
@@ -17,7 +17,7 @@ import NextActivityCard from "@/components/plant/NextActivityCard";
 import { toast } from "react-hot-toast";
 import { StageUpdateModal } from "@/components/plant/StageUpdateModal";
 import { StageManagementService } from "@/services/StageManagementService";
-import { useDynamicStage } from "@/hooks/useDynamicStage";
+import { useDynamicStage } from "@/hooks/plants/useDynamicStage";
 import { Badge } from "@/components/ui/Badge";
 import { ArrowLeft } from "lucide-react";
 import { CatchUpAssistant } from "@/components/plant/CatchUpAssistant";
@@ -51,7 +51,7 @@ const PlantDetail: React.FC = () => {
   }, [plantId]);
 
   // Only call the hook when we have a valid plantId
-  const { activities: careHistory } = useFirebaseCareActivities(
+  const { activities: careHistory } = useCareActivities(
     plantId && typeof plantId === "string" ? plantId : undefined
   );
   const plantStage = useDynamicStage(plant!);

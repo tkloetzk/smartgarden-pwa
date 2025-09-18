@@ -14,7 +14,7 @@ import {
   validateBulkCareOperation,
   findPlantsInSameSection
 } from '@/services/sectionBulkService';
-import { PlantRecord, CareActivityType } from '@/types/consolidated';
+import { PlantRecord, CareActivityType } from '@/types/database';
 
 export interface SectionApplyCardProps {
   targetPlant: PlantRecord;

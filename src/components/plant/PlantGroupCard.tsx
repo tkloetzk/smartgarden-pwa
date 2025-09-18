@@ -6,13 +6,15 @@ import { PlantGroup } from "@/utils/plant/plantGrouping";
 import { Button } from "@/components/ui/Button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import { StatusBadge } from "@/components/ui/StatusBadge";
-import { useDynamicStage } from "@/hooks/useDynamicStage";
-import { useLastCareActivities } from "@/hooks/useLastCareActivities";
+import { useDynamicStage } from "@/hooks/plants/useDynamicStage";
+import { useLastCareActivitiesLocal } from "@/hooks/care/useLastCareActivitiesLocal";
+import { useLocalOverdueCalculation } from "@/hooks/plants/useLocalOverdueCalculation";
 import { differenceInDays, formatDistanceToNow } from "date-fns";
 import {
   QuickActionButtons,
   QuickActionType,
 } from "@/components/shared/QuickActionButtons";
+import { AlertTriangle } from "lucide-react";
 
 interface PlantGroupCardProps {
   group: PlantGroup;
@@ -55,7 +57,16 @@ const PlantGroupCard = memo(
       activities: lastCareActivities,
       loading: careActivitiesLoading,
       refetch: refetchCareActivities,
-    } = useLastCareActivities(representativePlant.id);
+    } = useLastCareActivitiesLocal(representativePlant.id);
+
+    const { nextTask, isLoading: nextTaskLoading } = useLocalOverdueCalculation(
+      representativePlant,
+      lastCareActivities,
+      calculatedStage,
+      careActivitiesLoading
+    );
+
+
 
     const handlePlantClick = useCallback(() => {
       navigate(`/plants/${representativePlant.id}`);
@@ -101,8 +112,14 @@ const PlantGroupCard = memo(
       }
     }, [refreshTrigger, refetchCareActivities, representativePlant.id]);
 
+    // Harvest stage styling
+    const isHarvestStage = calculatedStage === "harvest" || calculatedStage === "ongoing-production";
+    const cardClassName = isHarvestStage
+      ? "hover:shadow-lg transition-shadow border-2 border-amber-400 bg-gradient-to-br from-amber-50 to-orange-50 dark:from-amber-950/20 dark:to-orange-950/20 dark:border-amber-500"
+      : "hover:shadow-lg transition-shadow";
+
     return (
-      <Card className="hover:shadow-lg transition-shadow">
+      <Card className={cardClassName}>
         <CardHeader>
           <div className="flex items-start gap-3">
             <div className="flex-1 min-w-0">
@@ -117,6 +134,15 @@ const PlantGroupCard = memo(
             </div>
             <div className="flex items-center gap-2 flex-shrink-0">
               <StatusBadge status="healthy" size="sm" />
+              {!nextTaskLoading && nextTask?.priority === "overdue" && (
+                <div
+                  className="flex items-center gap-1 px-2 py-1 bg-red-200 text-red-900 border border-red-300 rounded-full text-xs font-medium dark:bg-red-900/30 dark:text-red-300 dark:border-red-600"
+                  title={`Overdue: ${nextTask.task}`}
+                >
+                  <AlertTriangle className="h-3 w-3" />
+                  <span>OVERDUE</span>
+                </div>
+              )}
               {onRemoveFromView && (
                 <Button
                   variant="ghost"
@@ -143,7 +169,12 @@ const PlantGroupCard = memo(
                       ? `${group.plants.length} plants`
                       : representativePlant.name}
                   </span>
-                  <span className="text-xs text-muted-foreground capitalize">
+                  <span className={`text-xs capitalize flex items-center gap-1 ${
+                    isHarvestStage
+                      ? "text-amber-700 dark:text-amber-300 font-medium"
+                      : "text-muted-foreground"
+                  }`}>
+                    {isHarvestStage && <span className="text-sm">🌾</span>}
                     {calculatedStage}
                   </span>
                 </div>
@@ -245,7 +276,10 @@ const PlantGroupCard = memo(
               {showQuickActions && (
                 <QuickActionButtons
                   onAction={handleAction}
-                  actions={["water", "fertilize", "observe", "more"]}
+                  actions={isHarvestStage
+                    ? ["harvest", "water", "fertilize", "observe", "more"]
+                    : ["water", "fertilize", "observe", "more"]
+                  }
                   layout="grid"
                   preventPropagation={true}
                 />

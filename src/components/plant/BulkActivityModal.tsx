@@ -3,8 +3,8 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/Button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import { Input } from "@/components/ui/Input";
-import { useFirebaseCareActivities } from "@/hooks/useFirebaseCareActivities";
-import { useFirebasePlants } from "@/hooks/useFirebasePlants";
+import { useCareActivities } from "@/hooks/care/useCareActivities";
+import { useFirebasePlants } from "@/hooks/plants/useFirebasePlants";
 import { toast } from "react-hot-toast";
 import { seedVarieties } from "@/data/seedVarieties";
 import { CareActivityDetails } from "@/types";
@@ -103,7 +103,7 @@ const BulkActivityModal = ({
   // Container-aware logging state
   const [selectedContainerMates, setSelectedContainerMates] = useState<string[]>([]);
 
-  const { logActivity } = useFirebaseCareActivities();
+  const { logActivity } = useCareActivities();
   const { plants, deletePlant } = useFirebasePlants();
 
   const isIndividual = plantCount === 1;

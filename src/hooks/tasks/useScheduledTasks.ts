@@ -1,39 +1,70 @@
 // src/hooks/useScheduledTasks.ts
 import { useState, useEffect, useCallback } from "react";
-import { FirebaseScheduledTaskService } from "../services/firebase/scheduledTaskService";
-import { ScheduledTask } from "../services/ProtocolTranspilerService";
-import { useFirebaseAuth } from "./useFirebaseAuth";
+import { ScheduledTask } from "@/services/ProtocolTranspilerService";
+import { CareRecord, PlantRecord } from "@/types";
+import { calculateUpcomingTasks } from "@/utils/care/localCareCalculations";
 import { addDays } from "date-fns";
 
-export function useScheduledTasks() {
+export function useScheduledTasks(
+  plants: PlantRecord[],
+  getLastActivityByType: (plantId: string, type: string) => Promise<CareRecord | null>
+) {
   const [tasks, setTasks] = useState<ScheduledTask[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const { user } = useFirebaseAuth();
 
   useEffect(() => {
-    if (!user) {
-      setTasks([]);
-      setLoading(false);
-      return;
-    }
-
-    const unsubscribe = FirebaseScheduledTaskService.subscribeToUserTasks(
-      user.uid,
-      (userTasks) => {
-        setTasks(userTasks);
+    const calculateTasks = async () => {
+      if (!plants || plants.length === 0) {
+        setTasks([]);
         setLoading(false);
+        return;
+      }
+
+      try {
+        setLoading(true);
         setError(null);
-      },
-      (err) => {
-        // Handle the error from the service
-        setError(err.message);
+
+        // Calculate tasks locally using plant data and care history
+        const upcomingTasks = await calculateUpcomingTasks(
+          plants,
+          getLastActivityByType,
+          true // Enable grouping
+        );
+
+        // Convert to ScheduledTask format for compatibility
+        const scheduledTasks: ScheduledTask[] = upcomingTasks.map(task => ({
+          id: task.id,
+          plantId: task.plantId,
+          taskName: task.task,
+          taskType: task.type as any,
+          details: {
+            type: task.type,
+            product: 'Default Product',
+            dilution: '1:10',
+            amount: '200ml',
+            method: 'soil-drench'
+          },
+          dueDate: task.dueDate,
+          status: 'pending',
+          sourceProtocol: 'local-calculation',
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          isCompleted: false,
+          isDynamic: true
+        }));
+
+        setTasks(scheduledTasks);
+        setLoading(false);
+      } catch (err) {
+        console.error('Error calculating scheduled tasks:', err);
+        setError(err instanceof Error ? err.message : 'Failed to calculate tasks');
         setLoading(false);
       }
-    );
+    };
 
-    return unsubscribe;
-  }, [user]);
+    calculateTasks();
+  }, [plants, getLastActivityByType]);
 
   const getFertilizationTasksBeforeNextWatering = useCallback(
     async (plantId?: string) => {
@@ -61,7 +92,7 @@ export function useScheduledTasks() {
     [tasks]
   );
 
-  // Get fertilization tasks due soon
+  // Get fertilization tasks due soon - memoized to prevent unnecessary re-creation
   const getUpcomingFertilizationTasks = useCallback(
     (daysAhead = 7) => {
       const cutoffDate = new Date();

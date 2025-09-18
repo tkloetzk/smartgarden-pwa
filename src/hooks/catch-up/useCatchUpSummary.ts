@@ -1,7 +1,6 @@
 // src/hooks/useCatchUpSummary.ts
 import { useState, useEffect, useCallback } from "react";
-import { useFirebaseAuth } from "./useFirebaseAuth";
-import { useFirebasePlants } from "./useFirebasePlants";
+import { PlantRecord } from "@/types/database";
 import { CatchUpAnalysisService } from "@/services/CatchUpAnalysisService";
 
 interface CatchUpSummary {
@@ -12,17 +11,17 @@ interface CatchUpSummary {
   refetch: () => Promise<void>;
 }
 
-export const useCatchUpSummary = (): CatchUpSummary => {
+export const useCatchUpSummary = (
+  plants: PlantRecord[],
+  userUid: string
+): CatchUpSummary => {
   const [totalOpportunities, setTotalOpportunities] = useState(0);
   const [plantsNeedingCatchUp, setPlantsNeedingCatchUp] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const { user } = useFirebaseAuth();
-  const { plants, loading: plantsLoading } = useFirebasePlants();
-
   const loadCatchUpData = useCallback(async () => {
-    if (!plants || !user?.uid || plantsLoading) {
+    if (!plants || plants.length === 0 || !userUid) {
       setTotalOpportunities(0);
       setPlantsNeedingCatchUp(0);
       setLoading(false);
@@ -40,7 +39,7 @@ export const useCatchUpSummary = (): CatchUpSummary => {
         const opportunities =
           await CatchUpAnalysisService.findMissedOpportunitiesWithUserId(
             plant.id,
-            user.uid,
+            userUid,
             14,
             plant
           );
@@ -61,7 +60,7 @@ export const useCatchUpSummary = (): CatchUpSummary => {
     } finally {
       setLoading(false);
     }
-  }, [plants, user?.uid, plantsLoading]);
+  }, [plants, userUid]);
 
   useEffect(() => {
     loadCatchUpData();

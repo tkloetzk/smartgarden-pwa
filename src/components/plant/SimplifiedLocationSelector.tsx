@@ -6,7 +6,7 @@ import { Switch } from "@/components/ui/Switch";
 import { BedRecord, bedService } from "@/types/database";
 import { PlantSection, Position } from "@/types";
 import { BedLayoutVisualizer } from "./BedLayoutVisualizer";
-import { useFirebasePlants } from "@/hooks/useFirebasePlants";
+import { useFirebasePlants } from "@/hooks/plants/useFirebasePlants";
 import toast from "react-hot-toast";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";

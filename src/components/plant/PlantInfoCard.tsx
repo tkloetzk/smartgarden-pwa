@@ -3,7 +3,7 @@ import { Card, CardContent } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { PlantRecord, VarietyRecord } from "@/types/database";
-import { useDynamicStage } from "@/hooks/useDynamicStage";
+import { useDynamicStage } from "@/hooks/plants/useDynamicStage";
 import { formatDate, getDaysSincePlanting } from "@/utils/date/dateUtils";
 import { getPlantDisplayName } from "@/utils/plant/plantDisplay";
 import { useNavigate } from "react-router-dom";
@@ -107,9 +107,15 @@ const PlantInfoCard = ({
     navigate(`/plants/${plant.id}`);
   };
 
+  // Harvest stage styling
+  const isHarvestStage = stage === "harvest" || stage === "ongoing-production";
+  const cardClassName = isHarvestStage
+    ? `transition-all duration-200 hover:shadow-md border-2 border-amber-400 bg-gradient-to-br from-amber-50 to-orange-50 dark:from-amber-950/20 dark:to-orange-950/20 dark:border-amber-500 ${className}`
+    : `transition-all duration-200 hover:shadow-md ${className}`;
+
   return (
     <Card
-      className={`transition-all duration-200 hover:shadow-md ${className}`}
+      className={cardClassName}
     >
       <CardContent className="p-4">
         <div onClick={handleCardClick} className="cursor-pointer space-y-3">
@@ -119,7 +125,15 @@ const PlantInfoCard = ({
                 {plantDisplayName}
               </h3>
               <div className="flex items-center gap-2 mt-1">
-                <Badge variant="secondary" className="text-xs">
+                <Badge
+                  variant="secondary"
+                  className={`text-xs flex items-center gap-1 ${
+                    isHarvestStage
+                      ? "bg-amber-100 text-amber-800 border-amber-300 dark:bg-amber-950/50 dark:text-amber-200 dark:border-amber-600"
+                      : ""
+                  }`}
+                >
+                  {isHarvestStage && <span className="text-xs">🌾</span>}
                   {stage}
                 </Badge>
                 <span className="text-xs text-muted-foreground">
@@ -228,7 +242,10 @@ const PlantInfoCard = ({
             {showActions && (
               <QuickActionButtons
                 onAction={handleQuickAction}
-                actions={["water", "fertilize", "observe", "photo"]}
+                actions={isHarvestStage
+                  ? ["harvest", "water", "fertilize", "observe", "photo"]
+                  : ["water", "fertilize", "observe", "photo"]
+                }
                 layout="grid"
                 preventPropagation={true}
                 className="mt-3"

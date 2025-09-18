@@ -1,6 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
-import { useNextPlantTask } from "@/hooks/useNextPlantTask";
+import { useNextPlantTask } from "@/hooks/tasks/useNextPlantTask";
 import { AlertTriangle, Calendar, CheckCircle2, Clock } from "lucide-react";
 import Badge from "../ui/Badge";
 import { getActivityIcon } from "@/components/shared/QuickActionButtons";

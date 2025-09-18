@@ -7,7 +7,7 @@ import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { Droplets, Plus, CheckCircle } from 'lucide-react';
 import { PartialWateringAnalysis } from '@/services/partialWateringService';
 import { PlantRecord } from '@/types/database';
-import { VolumeUnit } from '@/types/consolidated';
+import { VolumeUnit } from '@/types/core';
 
 export interface SupplementalWateringCardProps {
   plant: PlantRecord;

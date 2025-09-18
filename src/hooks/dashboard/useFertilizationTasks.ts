@@ -1,9 +1,18 @@
 import { useState, useEffect, useCallback } from "react";
 import toast from "react-hot-toast";
 import { DynamicSchedulingService } from "@/services/dynamicSchedulingService";
-import { CareActivityDetails } from "@/types";
+import { CareActivityDetails, CareRecord } from "@/types";
 import { getRelevantFertilizationTasksForPlant } from "@/utils/care/fertilizationUtils";
-import { FirebaseScheduledTaskService } from "@/services/firebase/scheduledTaskService";
+import { seedVarieties } from "@/data/seedVarieties";
+import { differenceInDays, addDays } from "date-fns";
+import { calculateCurrentStageWithVariety } from "@/utils/plant/growthStage";
+import { getPlantDisplayName } from "@/utils/plant/plantDisplay";
+import {
+  groupTasksByVarietyAndDetails,
+  GroupingKeyGenerators,
+  completeGroupedTask,
+  bypassGroupedTask
+} from "@/utils/tasks/taskGrouping";
 
 export interface FertilizationTasksManager {
   upcomingFertilization: any[];
@@ -16,7 +25,8 @@ export const useFertilizationTasks = (
   visiblePlants: any[],
   logActivity: (activity: any) => Promise<string | null>,
   navigate: (path: string) => void,
-  onActivityLogged: () => void
+  onActivityLogged: () => void,
+  getLastActivityByType: (plantId: string, type: string) => Promise<CareRecord | null>
 ): FertilizationTasksManager => {
   // Calculate fertilization tasks directly from plant data (no Firebase dependency)
   const [upcomingFertilization, setUpcomingFertilization] = useState<any[]>([]);
@@ -31,40 +41,45 @@ export const useFertilizationTasks = (
       const allFertilizationTasks: any[] = [];
       const now = new Date();
 
-      // Load existing fertilization tasks from Firebase for each visible plant  
+      // Generate fertilization tasks locally for each visible plant
       for (const plant of visiblePlants) {
         try {
           console.log(
-            `Loading existing tasks for plant ${plant.name} from Firebase`
+            `Calculating fertilization tasks for plant ${plant.name} locally`
           );
-          
-          // Get existing tasks from Firebase instead of generating fresh
-          const plantTasks = await FirebaseScheduledTaskService.getTasksForPlant(plant.id);
-          
-          // Filter to only fertilization tasks within our time horizon
-          const now = new Date();
-          const futureHorizonDays = 21; // 3 weeks ahead
-          const pastHorizonDays = 14; // 2 weeks behind for overdue tasks
-          
-          const filteredTasks = plantTasks.filter(task => {
-            if (task.taskType !== 'fertilize') return false;
-            
-            const daysDiff = Math.floor(
-              (task.dueDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)
-            );
-            
-            return daysDiff >= -pastHorizonDays && daysDiff <= futureHorizonDays;
+
+          // Get the seed variety for this plant
+          const variety = seedVarieties.find(v => v.name === plant.varietyName);
+          if (!variety) {
+            console.log(`No variety found for ${plant.varietyName}`);
+            continue;
+          }
+
+          // Calculate current growth stage
+          const currentStage = calculateCurrentStageWithVariety(plant.plantedDate, {
+            ...variety,
+            id: plant.varietyId || "seed-variety",
+            normalizedName: variety.name.toLowerCase(),
+            isCustom: false,
+            createdAt: new Date(),
+            updatedAt: new Date(),
           });
 
-          console.log(
-            `Loaded ${filteredTasks.length} fertilization tasks for plant ${plant.name} (${plantTasks.length} total tasks in Firebase)`
-          );
+          // Get last fertilizing activity
+          const lastFertilizing = await getLastActivityByType(plant.id, "fertilize");
 
-          // Add the filtered fertilization tasks to our collection
-          allFertilizationTasks.push(...filteredTasks);
+          // Create fertilizing task using local calculation
+          const fertilizingTask = createFertilizingTask(plant, variety, currentStage, lastFertilizing, now);
+
+          if (fertilizingTask) {
+            console.log(
+              `Created fertilization task for plant ${plant.name}: due ${fertilizingTask.dueDate.toDateString()}`
+            );
+            allFertilizationTasks.push(fertilizingTask);
+          }
         } catch (error) {
           console.error(
-            `Error loading fertilization tasks for plant ${plant.name}:`,
+            `Error calculating fertilization tasks for plant ${plant.name}:`,
             error
           );
         }
@@ -90,52 +105,18 @@ export const useFertilizationTasks = (
         relevantTasks.push(...plantRelevantTasks);
       });
 
-      // Group identical tasks by variety, task name, product, and due date
-      const groupedTasks = new Map<string, any>();
+      // Group identical tasks using shared utility
+      const groupedTasks = groupTasksByVarietyAndDetails(
+        relevantTasks,
+        visiblePlants,
+        GroupingKeyGenerators.fertilization
+      );
 
-      relevantTasks.forEach((task) => {
-        // Find the plant for this task to get variety info
-        const plant = visiblePlants.find((p) => p.id === task.plantId);
-        if (!plant) return;
-
-        // Create a unique key for grouping identical tasks
-        const dueDateStr = task.dueDate.toDateString();
-        const groupKey = `${plant.varietyName}-${task.taskName}-${task.details.product}-${dueDateStr}`;
-
-        if (groupedTasks.has(groupKey)) {
-          // Add this plant to the existing group
-          const existingTask = groupedTasks.get(groupKey);
-          existingTask.plantIds.push(task.plantId);
-          existingTask.plantCount = existingTask.plantIds.length;
-          existingTask.affectedPlants.push({
-            id: plant.id,
-            name: plant.name,
-            varietyName: plant.varietyName,
-          });
-        } else {
-          // Create a new grouped task
-          groupedTasks.set(groupKey, {
-            ...task,
-            id: `grouped-${groupKey}`, // Use a grouped ID
-            plantIds: [task.plantId], // Array of all plant IDs in this group
-            plantCount: 1,
-            varietyName: plant.varietyName,
-            affectedPlants: [
-              {
-                id: plant.id,
-                name: plant.name,
-                varietyName: plant.varietyName,
-              },
-            ],
-          });
-        }
-      });
-
-      setUpcomingFertilization(Array.from(groupedTasks.values()));
+      setUpcomingFertilization(groupedTasks);
     };
 
     calculateFertilizationTasks();
-  }, [visiblePlants]);
+  }, [visiblePlants, getLastActivityByType]);
 
   const handleTaskComplete = useCallback(
     async (taskId: string, quickData?: any) => {
@@ -210,22 +191,29 @@ export const useFertilizationTasks = (
 
   const handleTaskBypass = useCallback(
     async (taskId: string, reason?: string) => {
-      // TODO: Implement actual task bypass logic with taskId
-      // For now, we'll just show a success message
-      const message = reason
-        ? `Task bypassed: ${reason}`
-        : "Task bypassed successfully";
+      try {
+        const task = upcomingFertilization.find((t) => t.id === taskId);
+        if (!task) {
+          toast.error("Task not found");
+          return;
+        }
 
-      toast.success(message);
+        // Use shared utility for grouped task bypass
+        await bypassGroupedTask(task, reason, logActivity);
 
-      // TODO: Add actual implementation to update task status in the database
-      console.log(
-        `Bypassing task ${taskId} with reason: ${
-          reason || "No reason provided"
-        }`
-      );
+        // Remove the bypassed task from the list
+        setUpcomingFertilization((prev) => prev.filter((t) => t.id !== taskId));
+
+        toast.success(reason ? `Task bypassed: ${reason}` : "Task bypassed successfully");
+        onActivityLogged();
+
+        console.log(`✅ Bypassed fertilization task ${taskId}`);
+      } catch (error) {
+        console.error(`❌ Error bypassing fertilization task ${taskId}:`, error);
+        toast.error("Failed to bypass task");
+      }
     },
-    []
+    [upcomingFertilization, logActivity, onActivityLogged]
   );
 
   const handleTaskLogActivity = useCallback(
@@ -245,3 +233,53 @@ export const useFertilizationTasks = (
     handleTaskLogActivity,
   };
 };
+
+// Helper function to create fertilizing task locally (adapted from localCareCalculations)
+function createFertilizingTask(
+  plant: any,
+  variety: any,
+  currentStage: any,
+  lastFertilizing: CareRecord | null,
+  today: Date
+): any | null {
+  const stageFertilizing = variety.protocols?.fertilization?.[currentStage];
+  if (!stageFertilizing?.schedule?.length) return null;
+
+  const firstSchedule = stageFertilizing.schedule[0];
+  const frequencyDays = firstSchedule.frequencyDays || 14;
+
+  const lastFertilizingDate = lastFertilizing ? new Date(lastFertilizing.date) : plant.plantedDate;
+
+  const dueDate = addDays(lastFertilizingDate, frequencyDays);
+  const thresholdDate = addDays(today, 21); // 3 weeks ahead threshold
+
+  if (dueDate > thresholdDate) return null;
+
+  const daysOverdue = differenceInDays(today, dueDate);
+  const isOverdue = daysOverdue > 0;
+
+  // Create detailed fertilization task with Firebase-compatible format
+  return {
+    id: `fertilize-${plant.id}`,
+    plantId: plant.id,
+    plantName: getPlantDisplayName(plant),
+    taskName: `Apply ${firstSchedule.product || 'Fertilizer'}`,
+    taskType: 'fertilize',
+    details: {
+      type: 'fertilize',
+      product: firstSchedule.product || 'Liquid Fertilizer',
+      dilution: firstSchedule.dilution || '1:10',
+      amount: firstSchedule.amount || '200ml',
+      method: firstSchedule.applicationMethod || 'soil-drench'
+    },
+    dueDate,
+    status: 'pending',
+    sourceProtocol: 'fertilization',
+    createdAt: today,
+    updatedAt: today,
+    isCompleted: false,
+    isDynamic: true,
+    isOverdue,
+    priority: isOverdue ? 'high' : 'medium'
+  };
+}
