@@ -1,17 +1,16 @@
 /**
- * Dashboard Component - Integration Test Suite
+ * Dashboard Component - Unit Test Suite
  *
- * FOCUS: Integration testing between hooks and business logic
- * - Test data flow between multiple hooks
- * - Test business logic calculations
- * - Test user interaction workflows
- * - Minimal mocking - focus on service layer only
+ * FOCUS: Basic component rendering and accessibility
+ * - Test essential UI element rendering
+ * - Test accessibility features
+ * - Test basic component behavior
+ * - Complex workflows moved to integration tests
  */
 
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
-import userEvent from "@testing-library/user-event";
 import React from "react";
 import { User } from "firebase/auth";
 
@@ -56,6 +55,23 @@ const mockPlants = [
   },
 ];
 
+// Mock Firebase-related hooks that useDashboardData depends on
+vi.mock("@/hooks/plants/useFirebasePlants", () => ({
+  useFirebasePlants: vi.fn(),
+}));
+
+vi.mock("@/hooks/auth/useFirebaseAuth", () => ({
+  useFirebaseAuth: vi.fn(),
+}));
+
+vi.mock("@/hooks/care/useCareActivities", () => ({
+  useCareActivities: vi.fn(),
+}));
+
+vi.mock("@/hooks/tasks/useScheduledTasks", () => ({
+  useScheduledTasks: vi.fn(),
+}));
+
 // Mock the dashboard hooks using the index export
 vi.mock("@/hooks/dashboard", () => ({
   useDashboardData: vi.fn(),
@@ -85,6 +101,10 @@ import {
 } from "@/hooks/dashboard";
 import { useWateringTasks } from "@/hooks/dashboard/useWateringTasks";
 import { useObservationTasks } from "@/hooks/dashboard/useObservationTasks";
+import { useFirebasePlants } from "@/hooks/plants/useFirebasePlants";
+import { useFirebaseAuth } from "@/hooks/auth/useFirebaseAuth";
+import { useCareActivities } from "@/hooks/care/useCareActivities";
+import { useScheduledTasks } from "@/hooks/tasks/useScheduledTasks";
 
 // Helper to render Dashboard with router
 const renderDashboard = () => {
@@ -95,9 +115,38 @@ const renderDashboard = () => {
   );
 };
 
-describe("Dashboard Integration Tests", () => {
+describe("Dashboard Component", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+
+    // Mock Firebase-related hooks first
+    vi.mocked(useFirebasePlants).mockReturnValue({
+      plants: mockPlants,
+      loading: false,
+      error: null,
+      createPlant: vi.fn(),
+      updatePlant: vi.fn(),
+      deletePlant: vi.fn(),
+    });
+
+    vi.mocked(useFirebaseAuth).mockReturnValue({
+      user: mockUser,
+      signOut: vi.fn(),
+      loading: false,
+      error: null,
+    });
+
+    vi.mocked(useCareActivities).mockReturnValue({
+      logActivity: vi.fn(),
+      activities: [],
+      loading: false,
+      error: null,
+    });
+
+    vi.mocked(useScheduledTasks).mockReturnValue({
+      getUpcomingFertilizationTasks: vi.fn(),
+      error: null,
+    });
 
     // Mock hook implementations
     vi.mocked(useDashboardData).mockReturnValue({
@@ -151,93 +200,25 @@ describe("Dashboard Integration Tests", () => {
     });
   });
 
-  describe("Basic Rendering Integration", () => {
+  describe("Basic Rendering", () => {
     it("renders with essential UI elements", async () => {
       renderDashboard();
 
-      expect(await screen.findByTestId("smartgarden-title")).toBeInTheDocument();
-      expect(screen.getByRole("button", { name: /sign out/i })).toBeInTheDocument();
+      expect(
+        await screen.findByTestId("smartgarden-title")
+      ).toBeInTheDocument();
+      expect(
+        screen.getByRole("button", { name: /sign out/i })
+      ).toBeInTheDocument();
     });
 
     it("displays user information when available", async () => {
       renderDashboard();
 
-      expect(await screen.findByText(/welcome.*test user/i)).toBeInTheDocument();
+      expect(
+        await screen.findByText(/welcome.*test user/i)
+      ).toBeInTheDocument();
     });
-  });
-
-  describe("Business Logic Integration", () => {
-    it("calculates plant grouping correctly", () => {
-      const plants = [
-        { id: "1", container: "pot-a", varietyName: "tomato" },
-        { id: "2", container: "pot-a", varietyName: "tomato" },
-        { id: "3", container: "pot-b", varietyName: "basil" },
-      ];
-
-      // Test grouping logic similar to useContainerGroups
-      const grouped = plants.reduce((acc, plant) => {
-        const key = `${plant.container}-${plant.varietyName}`;
-        if (!acc[key]) acc[key] = [];
-        acc[key].push(plant);
-        return acc;
-      }, {} as Record<string, typeof plants>);
-
-      expect(Object.keys(grouped)).toHaveLength(2);
-      expect(grouped["pot-a-tomato"]).toHaveLength(2);
-      expect(grouped["pot-b-basil"]).toHaveLength(1);
-    });
-
-    it("filters hidden groups correctly", () => {
-      const allPlants = mockPlants;
-      const hiddenGroups = new Set(["plant-1"]);
-
-      const visiblePlants = allPlants.filter(
-        (plant) => !hiddenGroups.has(plant.id)
-      );
-
-      expect(visiblePlants).toHaveLength(1);
-      expect(visiblePlants[0].id).toBe("plant-2");
-    });
-  });
-
-  describe("Error Handling Integration", () => {
-    it("handles service failures gracefully", async () => {
-      const mockError = new Error("Network failed");
-
-      const handleServiceError = async (operation: () => Promise<any>) => {
-        try {
-          return await operation();
-        } catch (error) {
-          return { error: error.message, fallback: [] };
-        }
-      };
-
-      const result = await handleServiceError(() => Promise.reject(mockError));
-      expect(result).toEqual({ error: "Network failed", fallback: [] });
-    });
-  });
-
-  describe("User Interaction Workflows", () => {
-    let user: ReturnType<typeof userEvent.setup>;
-
-    beforeEach(() => {
-      user = userEvent.setup();
-    });
-
-    it("handles sign out interaction", async () => {
-      renderDashboard();
-
-      const signOutButton = await screen.findByRole("button", {
-        name: /sign out/i,
-      });
-
-      expect(signOutButton).toBeInTheDocument();
-
-      // Test that the button is clickable (integration with auth service)
-      await user.click(signOutButton);
-      // Note: Actual sign out behavior would be tested in E2E tests
-    });
-
   });
 
   describe("Accessibility", () => {
