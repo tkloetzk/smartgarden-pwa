@@ -211,7 +211,17 @@ function groupTasksByPlantConditions(tasks: UpcomingTask[], plants: PlantRecord[
     if (!plant) return;
 
     // Create grouping key based on plant conditions (same logic as Firebase services)
-    const plantedDateStr = plant.plantedDate.toISOString().split("T")[0];
+    // Ensure plantedDate is a Date object and valid
+    const plantedDateObj = plant.plantedDate instanceof Date ? plant.plantedDate : new Date(plant.plantedDate);
+
+    // Handle invalid dates gracefully
+    let plantedDateStr: string;
+    if (isNaN(plantedDateObj.getTime())) {
+      console.warn(`Invalid plantedDate for plant ${plant.id}:`, plant.plantedDate);
+      plantedDateStr = new Date().toISOString().split("T")[0]; // Use today as fallback
+    } else {
+      plantedDateStr = plantedDateObj.toISOString().split("T")[0];
+    }
     const location = plant.location || "unknown";
     const soilMix = plant.soilMix || "default";
     const hasSection = plant.section || plant.structuredSection;
@@ -253,7 +263,14 @@ function groupTasksByPlantConditions(tasks: UpcomingTask[], plants: PlantRecord[
       const plantCount = group.plants.length;
 
       // Determine the group plant ID for navigation
-      const plantedDateStr = firstPlant.plantedDate.toISOString().split("T")[0];
+      const firstPlantDateObj = firstPlant.plantedDate instanceof Date ? firstPlant.plantedDate : new Date(firstPlant.plantedDate);
+      let plantedDateStr: string;
+      if (isNaN(firstPlantDateObj.getTime())) {
+        console.warn(`Invalid plantedDate for firstPlant ${firstPlant.id}:`, firstPlant.plantedDate);
+        plantedDateStr = new Date().toISOString().split("T")[0]; // Use today as fallback
+      } else {
+        plantedDateStr = firstPlantDateObj.toISOString().split("T")[0];
+      }
       const location = firstPlant.location || "unknown";
       const soilMix = firstPlant.soilMix || "default";
       const hasSection = firstPlant.section || firstPlant.structuredSection;

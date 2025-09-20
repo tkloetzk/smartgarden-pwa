@@ -1,4 +1,5 @@
 import { render, screen, waitFor, within } from "@testing-library/react";
+import { vi } from "vitest";
 import { BrowserRouter } from "react-router-dom";
 import Plants from "../../pages/plants/Plants";
 import { varietyService, PlantRecord } from "@/types/database";
@@ -9,8 +10,8 @@ import {
 import { subDays } from "date-fns";
 
 // Mock the hooks used by the Plants component
-jest.mock("@/hooks/plants/useFirebasePlants", () => ({
-  useFirebasePlants: jest.fn(),
+vi.mock("@/hooks/plants/useFirebasePlants", () => ({
+  useFirebasePlants: vi.fn(),
 }));
 import { useFirebasePlants } from "@/hooks/plants/useFirebasePlants";
 
@@ -18,7 +19,7 @@ describe("Stage Calculation and Display Integration", () => {
   // Setup mock implementation before each test
   beforeEach(async () => {
     // Clear the mock before each run
-    (useFirebasePlants as jest.Mock).mockClear();
+    (useFirebasePlants as vi.Mock).mockClear();
 
     // Clear and re-initialize the mock database
     resetDatabaseInitializationFlag();
@@ -35,7 +36,7 @@ describe("Stage Calculation and Display Integration", () => {
 
   // Helper function to set up the mock implementation for the useFirebasePlants hook
   const setupMockPlants = (plants: PlantRecord[]) => {
-    (useFirebasePlants as jest.Mock).mockReturnValue({
+    (useFirebasePlants as vi.Mock).mockReturnValue({
       plants: plants,
       loading: false,
       error: null,

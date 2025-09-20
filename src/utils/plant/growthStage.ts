@@ -28,8 +28,11 @@ export function calculateStageFromSeedVarieties(
     return "germination";
   }
 
+  // Ensure plantedDate is a Date object
+  const plantedDateObj = plantedDate instanceof Date ? plantedDate : new Date(plantedDate);
+
   const daysSincePlanted = Math.floor(
-    (currentDate.getTime() - plantedDate.getTime()) / (1000 * 60 * 60 * 24)
+    (currentDate.getTime() - plantedDateObj.getTime()) / (1000 * 60 * 60 * 24)
   );
 
   if (daysSincePlanted < 0) return "germination";

@@ -3,12 +3,13 @@
  */
 
 import { render, screen, fireEvent } from "@testing-library/react";
+import { vi } from "vitest";
 import { Settings } from "lucide-react";
-import { 
-  ActionButtonGroup, 
-  PrimaryCancelButtons, 
+import {
+  ActionButtonGroup,
+  PrimaryCancelButtons,
   QuickActionButtons,
-  ToggleActionButton 
+  ToggleActionButton
 } from "@/components/ui/ActionButtonGroup";
 
 describe("ActionButtonGroup", () => {
@@ -16,34 +17,34 @@ describe("ActionButtonGroup", () => {
     {
       id: "save",
       label: "Save",
-      onClick: jest.fn(),
+      onClick: vi.fn(),
     },
     {
       id: "cancel",
       label: "Cancel",
       variant: "outline" as const,
-      onClick: jest.fn(),
+      onClick: vi.fn(),
     },
   ];
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   it("renders buttons with correct labels", () => {
     render(<ActionButtonGroup buttons={mockButtons} />);
-    
-    expect(screen.getByText("Save")).toBeInTheDocument();
-    expect(screen.getByText("Cancel")).toBeInTheDocument();
+
+    expect(screen.getByRole("button", { name: "Save" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Cancel" })).toBeInTheDocument();
   });
 
   it("handles button clicks", () => {
     render(<ActionButtonGroup buttons={mockButtons} />);
-    
-    fireEvent.click(screen.getByText("Save"));
+
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
     expect(mockButtons[0].onClick).toHaveBeenCalledTimes(1);
-    
-    fireEvent.click(screen.getByText("Cancel"));
+
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
     expect(mockButtons[1].onClick).toHaveBeenCalledTimes(1);
   });
 
@@ -53,14 +54,14 @@ describe("ActionButtonGroup", () => {
         id: "settings",
         label: "Settings",
         icon: <Settings data-testid="settings-icon" />,
-        onClick: jest.fn(),
+        onClick: vi.fn(),
       },
     ];
 
     render(<ActionButtonGroup buttons={buttonsWithIcons} />);
     
     expect(screen.getByTestId("settings-icon")).toBeInTheDocument();
-    expect(screen.getByText("Settings")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Settings" })).toBeInTheDocument();
   });
 
   it("applies grid layout correctly", () => {
@@ -102,7 +103,7 @@ describe("ActionButtonGroup", () => {
       {
         id: "disabled",
         label: "Disabled",
-        onClick: jest.fn(),
+        onClick: vi.fn(),
         disabled: true,
       },
     ];
@@ -121,7 +122,7 @@ describe("ActionButtonGroup", () => {
       {
         id: "loading",
         label: "Loading",
-        onClick: jest.fn(),
+        onClick: vi.fn(),
         loading: true,
       },
     ];
@@ -139,11 +140,11 @@ describe("ActionButtonGroup", () => {
 });
 
 describe("PrimaryCancelButtons", () => {
-  const mockOnPrimary = jest.fn();
-  const mockOnCancel = jest.fn();
+  const mockOnPrimary = vi.fn();
+  const mockOnCancel = vi.fn();
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   it("renders with default labels", () => {
@@ -154,8 +155,8 @@ describe("PrimaryCancelButtons", () => {
       />
     );
     
-    expect(screen.getByText("Confirm")).toBeInTheDocument();
-    expect(screen.getByText("Cancel")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Confirm" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Cancel" })).toBeInTheDocument();
   });
 
   it("renders with custom labels", () => {
@@ -168,8 +169,8 @@ describe("PrimaryCancelButtons", () => {
       />
     );
     
-    expect(screen.getByText("Delete")).toBeInTheDocument();
-    expect(screen.getByText("Keep")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Delete" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Keep" })).toBeInTheDocument();
   });
 
   it("handles primary button click", () => {
@@ -180,7 +181,7 @@ describe("PrimaryCancelButtons", () => {
       />
     );
     
-    fireEvent.click(screen.getByText("Confirm"));
+    fireEvent.click(screen.getByRole("button", { name: "Confirm" }));
     expect(mockOnPrimary).toHaveBeenCalledTimes(1);
   });
 
@@ -192,7 +193,7 @@ describe("PrimaryCancelButtons", () => {
       />
     );
     
-    fireEvent.click(screen.getByText("Cancel"));
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
     expect(mockOnCancel).toHaveBeenCalledTimes(1);
   });
 
@@ -213,39 +214,39 @@ describe("PrimaryCancelButtons", () => {
 
 describe("QuickActionButtons", () => {
   const mockActions = {
-    onWater: jest.fn(),
-    onFertilize: jest.fn(),
-    onObserve: jest.fn(),
-    onPrune: jest.fn(),
+    onWater: vi.fn(),
+    onFertilize: vi.fn(),
+    onObserve: vi.fn(),
+    onPrune: vi.fn(),
   };
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   it("renders all provided action buttons", () => {
     render(<QuickActionButtons {...mockActions} />);
     
-    expect(screen.getByText("💧 Water")).toBeInTheDocument();
-    expect(screen.getByText("🌱 Fertilize")).toBeInTheDocument();
-    expect(screen.getByText("👁️ Observe")).toBeInTheDocument();
-    expect(screen.getByText("✂️ Prune")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "💧 Water" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "🌱 Fertilize" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "👁️ Observe" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "✂️ Prune" })).toBeInTheDocument();
   });
 
   it("only renders provided actions", () => {
     render(<QuickActionButtons onWater={mockActions.onWater} />);
     
-    expect(screen.getByText("💧 Water")).toBeInTheDocument();
-    expect(screen.queryByText("🌱 Fertilize")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "💧 Water" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "🌱 Fertilize" })).not.toBeInTheDocument();
   });
 
   it("handles action clicks", () => {
     render(<QuickActionButtons {...mockActions} />);
     
-    fireEvent.click(screen.getByText("💧 Water"));
+    fireEvent.click(screen.getByRole("button", { name: "💧 Water" }));
     expect(mockActions.onWater).toHaveBeenCalledTimes(1);
-    
-    fireEvent.click(screen.getByText("🌱 Fertilize"));
+
+    fireEvent.click(screen.getByRole("button", { name: "🌱 Fertilize" }));
     expect(mockActions.onFertilize).toHaveBeenCalledTimes(1);
   });
 
@@ -260,10 +261,10 @@ describe("QuickActionButtons", () => {
 });
 
 describe("ToggleActionButton", () => {
-  const mockOnClick = jest.fn();
+  const mockOnClick = vi.fn();
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   it("renders inactive state", () => {
@@ -275,7 +276,7 @@ describe("ToggleActionButton", () => {
       />
     );
     
-    expect(screen.getByText("Enable")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Enable" })).toBeInTheDocument();
   });
 
   it("renders active state with different label", () => {
@@ -288,7 +289,7 @@ describe("ToggleActionButton", () => {
       />
     );
     
-    expect(screen.getByText("Disable")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Disable" })).toBeInTheDocument();
   });
 
   it("handles toggle click", () => {
@@ -300,7 +301,7 @@ describe("ToggleActionButton", () => {
       />
     );
     
-    fireEvent.click(screen.getByText("Toggle"));
+    fireEvent.click(screen.getByRole("button", { name: "Toggle" }));
     expect(mockOnClick).toHaveBeenCalledTimes(1);
   });
 

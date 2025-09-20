@@ -1,0 +1,39 @@
+name: Qwen3 Coder 480B A35B
+version: 1.1.0
+schema: v1
+models:
+  - name: qwen2.5-coder 32blmstudio
+    provider: lmstudio
+    model: qwen/qwen2.5-coder-32b
+    roles:
+      - apply
+      - chat
+      - edit
+  - name: qwen2.5-coder 32b
+    provider: ollama
+    model: qwen2.5-coder:32b
+    roles:
+      - apply
+      - autocomplete
+      - chat
+      - edit
+  - name: Qwen3 Coder 480B A35B
+    provider: openrouter
+    model: qwen/qwen3-coder
+    apiKey: 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
+    defaultCompletionOptions:
+      contextLength: 362144
+    capabilities:
+      - tool_use
+    roles:
+      - apply
+      - chat
+      - edit
+  - name: qwen2.5-coder 7b
+    provider: ollama
+    model: qwen2.5-coder:7b
+    roles:
+      - apply
+      - autocomplete
+      - chat
+      - edit

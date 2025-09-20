@@ -59,7 +59,10 @@ function checkWateringOverdue(
   const maxDaysBetweenWatering = parseWateringFrequency(stageWatering.volume?.frequency || "2-3x/week");
 
   // Calculate days since last watering
-  const lastWateringDate = lastWatering ? new Date(lastWatering.date) : plant.plantedDate;
+  // Ensure we have proper Date objects
+  const lastWateringDate = lastWatering
+    ? new Date(lastWatering.date)
+    : (plant.plantedDate instanceof Date ? plant.plantedDate : new Date(plant.plantedDate));
   const daysSinceWatering = differenceInDays(today, lastWateringDate);
 
   // Check if overdue

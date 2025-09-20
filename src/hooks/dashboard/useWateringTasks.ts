@@ -159,7 +159,9 @@ function createWateringTask(
   lastWatering: any,
   now: Date
 ): WateringTask | null {
-  const plantAge = Math.floor((now.getTime() - plant.plantedDate.getTime()) / (1000 * 60 * 60 * 24));
+  // Ensure plantedDate is a Date object
+  const plantedDateObj = plant.plantedDate instanceof Date ? plant.plantedDate : new Date(plant.plantedDate);
+  const plantAge = Math.floor((now.getTime() - plantedDateObj.getTime()) / (1000 * 60 * 60 * 24));
 
   // Determine watering frequency based on plant age and type
   let wateringIntervalDays = 2; // Default to every 2 days

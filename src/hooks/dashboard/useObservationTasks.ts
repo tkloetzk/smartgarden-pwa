@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { PlantRecord } from "@/types/database";
+import toast from "react-hot-toast";
 import {
   groupTasksByVarietyAndDetails,
   GroupingKeyGenerators,
@@ -126,9 +127,14 @@ export const useObservationTasks = (
         setUpcomingObservation((prev) => prev.filter((t) => t.id !== taskId));
         handleActivityLogged();
 
+        toast.success(
+          reason ? `Task bypassed: ${reason}` : "Task bypassed successfully"
+        );
+
         console.log(`⏭️ Bypassed observation task ${taskId}`);
       } catch (error) {
         console.error(`❌ Error bypassing observation task ${taskId}:`, error);
+        toast.error("Failed to bypass task");
       }
     },
     [upcomingObservation, logActivity, handleActivityLogged]
@@ -159,7 +165,9 @@ function createObservationTask(
   lastObservation: any,
   now: Date
 ): ObservationTask | null {
-  const plantAge = Math.floor((now.getTime() - plant.plantedDate.getTime()) / (1000 * 60 * 60 * 24));
+  // Ensure plantedDate is a Date object
+  const plantedDateObj = plant.plantedDate instanceof Date ? plant.plantedDate : new Date(plant.plantedDate);
+  const plantAge = Math.floor((now.getTime() - plantedDateObj.getTime()) / (1000 * 60 * 60 * 24));
 
   // Determine observation frequency based on plant age and type
   let observationIntervalDays = 7; // Default to weekly observations

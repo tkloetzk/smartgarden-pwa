@@ -3,6 +3,7 @@
  */
 
 import { render, screen, fireEvent } from "@testing-library/react";
+import { vi } from "vitest";
 import { Calendar } from "lucide-react";
 import { ActionCard, StatusCard, LoadingCard } from "@/components/ui/ActionCard";
 
@@ -50,7 +51,7 @@ describe("ActionCard", () => {
   });
 
   it("handles click events", () => {
-    const handleClick = jest.fn();
+    const handleClick = vi.fn();
     render(<ActionCard {...defaultProps} onClick={handleClick} />);
     
     fireEvent.click(screen.getByText("Test Card Title").closest('[role="button"], div')!);
@@ -58,7 +59,7 @@ describe("ActionCard", () => {
   });
 
   it("handles header click events", () => {
-    const handleHeaderClick = jest.fn();
+    const handleHeaderClick = vi.fn();
     render(<ActionCard {...defaultProps} onHeaderClick={handleHeaderClick} />);
     
     fireEvent.click(screen.getByText("Test Card Title"));

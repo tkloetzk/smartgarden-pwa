@@ -110,12 +110,12 @@ export function useFirebaseResource<T, P, ServiceType>(
     try {
       // Handle different subscription method signatures
       let unsubscribe: () => void;
-      
+
       if (config.serviceName === "plants") {
         // FirebasePlantService.subscribeToPlantsChanges(userUid, callback, options)
         unsubscribe = subscriptionMethod.call(
-          service, 
-          (subscriptionParams as any).userUid, 
+          service,
+          (subscriptionParams as any).userUid,
           (newData: T[]) => {
             Logger.service(config.serviceName, `Received ${newData.length} items`);
             setData(newData);
@@ -149,7 +149,9 @@ export function useFirebaseResource<T, P, ServiceType>(
 
       return () => {
         Logger.service(config.serviceName, "Cleaning up subscription");
-        unsubscribe();
+        if (typeof unsubscribe === 'function') {
+          unsubscribe();
+        }
       };
     } catch (err) {
       handleError(err, "setup subscription");

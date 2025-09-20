@@ -19,15 +19,15 @@ import { formatDate } from "@/utils/date/dateUtils";
 import { format } from "date-fns";
 
 // Mock external services and components that we don't want to test
-jest.mock("@/db/seedData", () => ({
-  initializeDatabase: jest.fn().mockResolvedValue(undefined),
-  resetDatabaseInitializationFlag: jest.fn(),
+vi.mock("@/db/seedData", () => ({
+  initializeDatabase: vi.fn().mockResolvedValue(undefined),
+  resetDatabaseInitializationFlag: vi.fn(),
 }));
 
 // Mock Firebase services with REALISTIC ASYNC DELAYS to simulate network latency
-jest.mock("@/services/firebase/careActivityService", () => ({
+vi.mock("@/services/firebase/careActivityService", () => ({
   FirebaseCareActivityService: {
-    getLastActivityByType: jest
+    getLastActivityByType: vi
       .fn()
       .mockImplementation(async (plantId, userId, type) => {
         // Simulate realistic Firebase network latency (100-300ms)
@@ -59,21 +59,21 @@ jest.mock("@/services/firebase/careActivityService", () => ({
         }
         return null;
       }),
-    subscribeToPlantActivities: jest.fn(
+    subscribeToPlantActivities: vi.fn(
       (_plantId, _userId, callback, _limit) => {
         // Simulate real-time subscription with delay
         setTimeout(() => callback([]), 100);
         // Return unsubscribe function
-        return jest.fn();
+        return vi.fn();
       }
     ),
   },
 }));
 
 // Mock FirebaseCareSchedulingService with realistic delays
-jest.mock("@/services/firebaseCareSchedulingService", () => ({
+vi.mock("@/services/firebaseCareSchedulingService", () => ({
   FirebaseCareSchedulingService: {
-    getUpcomingTasks: jest
+    getUpcomingTasks: vi
       .fn()
       .mockImplementation(async (plants, getLastActivityByType) => {
         // Simulate Firebase query latency (200-500ms)
@@ -91,9 +91,9 @@ jest.mock("@/services/firebaseCareSchedulingService", () => ({
 let storedTasks: any[] = [];
 let subscriberCallbacks: Function[] = [];
 
-jest.mock("@/services/firebase/scheduledTaskService", () => ({
+vi.mock("@/services/firebase/scheduledTaskService", () => ({
   FirebaseScheduledTaskService: {
-    subscribeToUserTasks: jest.fn((userId, onSuccess, onError) => {
+    subscribeToUserTasks: vi.fn((userId, onSuccess, onError) => {
       // Store the callback for later use
       subscriberCallbacks.push(onSuccess);
 
@@ -104,16 +104,16 @@ jest.mock("@/services/firebase/scheduledTaskService", () => ({
         }
       }, 100 + Math.random() * 100); // 100-200ms delay
 
-      return jest.fn(); // unsubscribe function
+      return vi.fn(); // unsubscribe function
     }),
-    deletePendingTasksForPlant: jest.fn().mockImplementation(async () => {
+    deletePendingTasksForPlant: vi.fn().mockImplementation(async () => {
       // Add realistic Firebase write latency
       await new Promise((resolve) =>
         setTimeout(resolve, 50 + Math.random() * 100)
       );
       return undefined;
     }),
-    createMultipleTasks: jest.fn().mockImplementation(async (tasks, userId) => {
+    createMultipleTasks: vi.fn().mockImplementation(async (tasks, userId) => {
       // Add realistic Firebase write latency (this is often the slowest operation)
       await new Promise((resolve) =>
         setTimeout(resolve, 300 + Math.random() * 200)
@@ -134,52 +134,55 @@ jest.mock("@/services/firebase/scheduledTaskService", () => ({
   },
 }));
 
-jest.mock("@/components/ui/OfflineIndicator", () => ({
+vi.mock("@/components/ui/OfflineIndicator", () => ({
   OfflineIndicator: () => (
     <div data-testid="offline-indicator">Offline Indicator</div>
   ),
 }));
 
-jest.mock("react-hot-toast", () => ({
+vi.mock("react-hot-toast", () => ({
   __esModule: true,
   default: {
-    success: jest.fn(),
-    error: jest.fn(),
+    success: vi.fn(),
+    error: vi.fn(),
   },
   toast: {
-    success: jest.fn(),
-    error: jest.fn(),
+    success: vi.fn(),
+    error: vi.fn(),
   },
 }));
 
 // Mock only specific hook behaviors while allowing real implementations to run
-jest.mock("@/hooks/auth/useFirebaseAuth");
-jest.mock("@/hooks/plants/useFirebasePlants");
-// Don't mock useScheduledTasks - let it use the real implementation with mocked Firebase service
-jest.mock("@/hooks/care/useCareActivities");
-jest.mock("@/hooks/care/useLastCareActivitiesLocal");
+vi.mock("@/hooks/auth/useFirebaseAuth");
+vi.mock("@/hooks/plants/useFirebasePlants");
+vi.mock("@/hooks/care/useCareActivities");
+// Don't mock useScheduledTasks - let it use real implementation with mocked Firebase service
+vi.mock("@/hooks/care/useLastCareActivitiesLocal");
 
 // Mock only some dashboard hooks, let useDashboardData, useCareStatus, and useFertilizationTasks run real logic
-jest.mock("@/hooks/dashboard", () => ({
-  ...jest.requireActual("@/hooks/dashboard"),
-  useHiddenGroupsManager: jest.fn(() => ({
-    hiddenGroups: new Set(),
-    hideGroup: jest.fn(),
-    restoreAllHidden: jest.fn(),
-  })),
-  useContainerGroups: jest.fn(() => ({
-    plantGroups: [],
-    containerGroups: [],
-    visiblePlants: [],
-    visiblePlantsCount: 0,
-  })),
-  // useDashboardData, useCareStatus, and useFertilizationTasks will use real implementations
-}));
+vi.mock("@/hooks/dashboard", async (importOriginal) => {
+  const actual = await importOriginal();
+  return {
+    ...actual,
+    useHiddenGroupsManager: vi.fn(() => ({
+      hiddenGroups: new Set(),
+      hideGroup: vi.fn(),
+      restoreAllHidden: vi.fn(),
+    })),
+    useContainerGroups: vi.fn(() => ({
+      plantGroups: [],
+      containerGroups: [],
+      visiblePlants: [],
+      visiblePlantsCount: 0,
+    })),
+    // useDashboardData, useCareStatus, and useFertilizationTasks will use real implementations
+  };
+});
 
-const mockUseFirebaseAuth = useFirebaseAuth as jest.Mock;
-const mockUseFirebasePlants = useFirebasePlants as jest.Mock;
-const mockUseCareActivities = useCareActivities as jest.Mock;
-const mockUseLastCareActivitiesLocal = useLastCareActivitiesLocal as jest.Mock;
+const mockUseFirebaseAuth = useFirebaseAuth as vi.Mock;
+const mockUseFirebasePlants = useFirebasePlants as vi.Mock;
+const mockUseCareActivities = useCareActivities as vi.Mock;
+const mockUseLastCareActivitiesLocal = useLastCareActivitiesLocal as vi.Mock;
 
 const renderWithRouter = (
   ui: React.ReactElement,
@@ -211,11 +214,11 @@ class IntegrationTestDataFactory {
       providerData: [],
       refreshToken: "mock-refresh-token",
       tenantId: null,
-      delete: jest.fn(),
-      getIdToken: jest.fn(),
-      getIdTokenResult: jest.fn(),
-      reload: jest.fn(),
-      toJSON: jest.fn(),
+      delete: vi.fn(),
+      getIdToken: vi.fn(),
+      getIdTokenResult: vi.fn(),
+      reload: vi.fn(),
+      toJSON: vi.fn(),
       phoneNumber: null,
       photoURL: null,
       providerId: "firebase",
@@ -321,7 +324,7 @@ class IntegrationTestDataFactory {
 }
 
 describe("Dashboard Integration Tests", () => {
-  const mockLogActivity = jest.fn();
+  const mockLogActivity = vi.fn();
 
   beforeEach(() => {
     console.error = (...args) => {
@@ -329,31 +332,33 @@ describe("Dashboard Integration Tests", () => {
       // originalError(...args);
     };
 
-    jest.clearAllMocks();
+    vi.clearAllMocks();
     IntegrationTestDataFactory.resetCounters();
 
-    // Reset Firebase mock state
-    storedTasks = [];
-    subscriberCallbacks = [];
+    // Reset Firebase mock state - defensive clearing to prevent state leakage
+    storedTasks.length = 0;
+    storedTasks.splice(0);
+    subscriberCallbacks.length = 0;
+    subscriberCallbacks.splice(0);
 
     // Setup default mock returns for hooks
     mockUseFirebaseAuth.mockReturnValue({
       user: IntegrationTestDataFactory.createMockFirebaseUser(),
       loading: false,
       error: null,
-      signIn: jest.fn(),
-      signUp: jest.fn(),
-      signOut: jest.fn(),
-      resetPassword: jest.fn(),
+      signIn: vi.fn(),
+      signUp: vi.fn(),
+      signOut: vi.fn(),
+      resetPassword: vi.fn(),
     });
 
     mockUseFirebasePlants.mockReturnValue({
       plants: [],
       loading: false,
       error: null,
-      createPlant: jest.fn(),
-      updatePlant: jest.fn(),
-      deletePlant: jest.fn(),
+      createPlant: vi.fn(),
+      updatePlant: vi.fn(),
+      deletePlant: vi.fn(),
     });
 
     // useScheduledTasks now uses real implementation with mocked Firebase service
@@ -363,13 +368,13 @@ describe("Dashboard Integration Tests", () => {
       loading: false,
       error: null,
       logActivity: mockLogActivity,
-      refresh: jest.fn(),
+      refresh: vi.fn(),
     });
 
     mockUseLastCareActivitiesLocal.mockReturnValue({
       activities: { watering: null, fertilizing: null },
       loading: false,
-      refetch: jest.fn(),
+      refetch: vi.fn(),
     });
 
     mockLogActivity.mockResolvedValue(undefined);
@@ -379,8 +384,14 @@ describe("Dashboard Integration Tests", () => {
     await new Promise((resolve) => setTimeout(resolve, 100));
 
     // Clear any pending timers
-    jest.clearAllTimers();
-    jest.clearAllMocks();
+    vi.clearAllTimers();
+    vi.clearAllMocks();
+
+    // Clear shared mock state to prevent state leakage - defensive clearing
+    storedTasks.length = 0;
+    storedTasks.splice(0);
+    subscriberCallbacks.length = 0;
+    subscriberCallbacks.splice(0);
 
     // Flush any remaining microtasks
     await Promise.resolve();
@@ -407,14 +418,14 @@ describe("Dashboard Integration Tests", () => {
         plants,
         loading: false,
         error: null,
-        createPlant: jest.fn(),
-        updatePlant: jest.fn(),
-        deletePlant: jest.fn(),
+        createPlant: vi.fn(),
+        updatePlant: vi.fn(),
+        deletePlant: vi.fn(),
       });
 
       // Set up mock for useContainerGroups to return expected groupings
       const mockUseContainerGroups =
-        dashboardHooks.useContainerGroups as jest.Mock;
+        dashboardHooks.useContainerGroups as vi.Mock;
       mockUseContainerGroups.mockReturnValue({
         plantGroups: [],
         containerGroups: [
@@ -469,6 +480,7 @@ describe("Dashboard Integration Tests", () => {
       });
     });
     it.only("shows fertilization is due, previous water displays for strawberries, when planted 91 days ago ongoingProduction", async () => {
+      const user = userEvent.setup();
       const plantedDate = new Date();
       plantedDate.setDate(plantedDate.getDate() - 91); // Planting date is 91 days ago, putting it in ongoing production
       const albionStrawberries =
@@ -484,30 +496,25 @@ describe("Dashboard Integration Tests", () => {
         plants: [albionStrawberries],
         loading: false,
         error: null,
-        createPlant: jest.fn(),
-        updatePlant: jest.fn(),
-        deletePlant: jest.fn(),
+        createPlant: vi.fn(),
+        updatePlant: vi.fn(),
+        deletePlant: vi.fn(),
       });
 
       // Mock only the container groups hook, let other hooks run real logic
       const mockUseContainerGroups =
-        dashboardHooks.useContainerGroups as jest.Mock;
+        dashboardHooks.useContainerGroups as vi.Mock;
       // Protocol sync will automatically generate fertilization tasks based on the Albion Strawberry variety protocol
 
       // Set up test data for real hooks to use
       mockUseFirebaseAuth.mockReturnValue({
         user: IntegrationTestDataFactory.createMockFirebaseUser(),
-        signOut: jest.fn(),
+        signOut: vi.fn(),
         loading: false,
         error: null,
       });
 
       mockUseCareActivities.mockReturnValue({
-        activities: [],
-        loading: false,
-        error: null,
-        logActivity: jest.fn(),
-        refresh: jest.fn(),
         activities: [
           {
             id: "observe-plant-1",
@@ -529,6 +536,8 @@ describe("Dashboard Integration Tests", () => {
         ],
         loading: false,
         error: null,
+        logActivity: vi.fn(),
+        refresh: vi.fn(),
       });
 
       // Mock useLastCareActivities for PlantGroupCard Recent Care display
@@ -548,7 +557,7 @@ describe("Dashboard Integration Tests", () => {
           fertilizing: null,
         },
         loading: false,
-        refetch: jest.fn(),
+        refetch: vi.fn(),
       });
 
       // Use the existing mockUseContainerGroups from the earlier declaration
@@ -614,7 +623,7 @@ describe("Dashboard Integration Tests", () => {
       // Wait for initial render
       await waitFor(
         () => {
-          expect(screen.getByText("SmartGarden")).toBeInTheDocument();
+          expect(screen.getByRole("heading", { name: "SmartGarden" })).toBeInTheDocument();
         },
         { timeout: 5000 }
       );
@@ -667,7 +676,7 @@ describe("Dashboard Integration Tests", () => {
       });
 
       // Click on the care status card to navigate to the catch-up page
-      await userEvent.click(
+      await user.click(
         screen.getByRole("button", { name: /plant care status/i })
       );
 
@@ -730,7 +739,7 @@ describe("Dashboard Integration Tests", () => {
         screen.getByText("Apply Neptune's Harvest Fish + Seaweed")
       ).toBeInTheDocument();
 
-      await userEvent.click(screen.getByRole("button", { name: /log care/i }));
+      await user.click(screen.getByRole("button", { name: /log care/i }));
       screen.getByText(/Record care activities for your plants/i);
       screen.getByText(formatDate(plantedDate));
       screen.getByText(/91 days/i);
@@ -815,6 +824,7 @@ describe("Dashboard Integration Tests", () => {
     }, 15000); // 15 second timeout for the entire test
 
     it("TDD: catch-up page should not show 'All caught up!' during loading race condition", async () => {
+      const user = userEvent.setup();
       // Arrange: Set up plant with fertilization tasks using same setup as main test
       const plantedDate = new Date();
       plantedDate.setDate(plantedDate.getDate() - 91);
@@ -833,24 +843,19 @@ describe("Dashboard Integration Tests", () => {
         plants: [albionStrawberries],
         loading: false,
         error: null,
-        createPlant: jest.fn(),
-        updatePlant: jest.fn(),
-        deletePlant: jest.fn(),
+        createPlant: vi.fn(),
+        updatePlant: vi.fn(),
+        deletePlant: vi.fn(),
       });
 
       mockUseFirebaseAuth.mockReturnValue({
         user: IntegrationTestDataFactory.createMockFirebaseUser(),
-        signOut: jest.fn(),
+        signOut: vi.fn(),
         loading: false,
         error: null,
       });
 
       mockUseCareActivities.mockReturnValue({
-        activities: [],
-        loading: false,
-        error: null,
-        logActivity: jest.fn(),
-        refresh: jest.fn(),
         activities: [
           {
             id: "completed-watering-1",
@@ -863,6 +868,8 @@ describe("Dashboard Integration Tests", () => {
         ],
         loading: false,
         error: null,
+        logActivity: vi.fn(),
+        refresh: vi.fn(),
       });
 
       mockUseLastCareActivitiesLocal.mockReturnValue({
@@ -878,12 +885,12 @@ describe("Dashboard Integration Tests", () => {
           fertilizing: null,
         },
         loading: false,
-        refetch: jest.fn(),
+        refetch: vi.fn(),
       });
 
       // Mock container groups to prevent infinite loops during dashboard render
       const mockUseContainerGroups =
-        dashboardHooks.useContainerGroups as jest.Mock;
+        dashboardHooks.useContainerGroups as vi.Mock;
       mockUseContainerGroups.mockReturnValue({
         plantGroups: [],
         containerGroups: [
@@ -922,7 +929,7 @@ describe("Dashboard Integration Tests", () => {
 
       // Wait for dashboard to load
       await waitFor(() => {
-        expect(screen.getByText("SmartGarden")).toBeInTheDocument();
+        expect(screen.getByRole("heading", { name: "SmartGarden" })).toBeInTheDocument();
       });
 
       // Wait for care status to show fertilization task
@@ -935,7 +942,7 @@ describe("Dashboard Integration Tests", () => {
       );
 
       // Click Plant Care Status to navigate to catch-up (real navigation)
-      await userEvent.click(
+      await user.click(
         screen.getByRole("button", { name: /plant care status/i })
       );
 
@@ -1033,9 +1040,9 @@ describe("Dashboard Integration Tests", () => {
         plants: plantsNeedingCare,
         loading: false,
         error: null,
-        createPlant: jest.fn(),
-        updatePlant: jest.fn(),
-        deletePlant: jest.fn(),
+        createPlant: vi.fn(),
+        updatePlant: vi.fn(),
+        deletePlant: vi.fn(),
       });
 
       // Act: Render the Dashboard
@@ -1043,7 +1050,7 @@ describe("Dashboard Integration Tests", () => {
 
       // Assert: Verify care status components are rendered
       await waitFor(() => {
-        expect(screen.getByText("Plant Care Status")).toBeInTheDocument();
+        expect(screen.getByRole("heading", { name: "Plant Care Status" })).toBeInTheDocument();
       });
 
       // The care status should reflect the presence of plants
@@ -1077,20 +1084,20 @@ describe("Dashboard Integration Tests", () => {
       ];
 
       // Use the same dashboard hook mocking pattern that works
-      const mockUseDashboardData = dashboardHooks.useDashboardData as jest.Mock;
+      const mockUseDashboardData = dashboardHooks.useDashboardData as vi.Mock;
       const mockUseContainerGroups =
-        dashboardHooks.useContainerGroups as jest.Mock;
-      const mockUseCareStatus = dashboardHooks.useCareStatus as jest.Mock;
+        dashboardHooks.useContainerGroups as vi.Mock;
+      const mockUseCareStatus = dashboardHooks.useCareStatus as vi.Mock;
       const mockUseFertilizationTasks =
-        dashboardHooks.useFertilizationTasks as jest.Mock;
+        dashboardHooks.useFertilizationTasks as vi.Mock;
 
       // mockUseDashboardData.mockReturnValue({
       //   plants: plantsNeedingFertilization,
       //   loading: false,
       //   user: IntegrationTestDataFactory.createMockFirebaseUser(),
-      //   signOut: jest.fn(),
-      //   logActivity: jest.fn(),
-      //   getUpcomingFertilizationTasks: jest.fn(() => fertTasks),
+      //   signOut: vi.fn(),
+      //   logActivity: vi.fn(),
+      //   getUpcomingFertilizationTasks: vi.fn(() => fertTasks),
       //   scheduledTasksError: null,
       // });
 
@@ -1118,9 +1125,9 @@ describe("Dashboard Integration Tests", () => {
 
       mockUseFertilizationTasks.mockReturnValue({
         upcomingFertilization: fertTasks,
-        handleTaskComplete: jest.fn(),
-        handleTaskBypass: jest.fn(),
-        handleTaskLogActivity: jest.fn(),
+        handleTaskComplete: vi.fn(),
+        handleTaskBypass: vi.fn(),
+        handleTaskLogActivity: vi.fn(),
       });
 
       // Act: Render the Dashboard
@@ -1128,7 +1135,7 @@ describe("Dashboard Integration Tests", () => {
 
       // Assert: Verify fertilization section appears (correct text without emoji)
       await waitFor(() => {
-        expect(screen.getByText("Fertilization Tasks")).toBeInTheDocument();
+        expect(screen.getByRole("heading", { name: "Fertilization Tasks" })).toBeInTheDocument();
       });
 
       // Verify we have fertilization tasks showing
@@ -1164,24 +1171,23 @@ describe("Dashboard Integration Tests", () => {
       ];
 
       // Use the working dashboard hooks pattern
-      const mockUseDashboardData = dashboardHooks.useDashboardData as jest.Mock;
+      const mockUseDashboardData = dashboardHooks.useDashboardData as vi.Mock;
       const mockUseContainerGroups =
-        dashboardHooks.useContainerGroups as jest.Mock;
-      const mockUseCareStatus = dashboardHooks.useCareStatus as jest.Mock;
+        dashboardHooks.useContainerGroups as vi.Mock;
+      const mockUseCareStatus = dashboardHooks.useCareStatus as vi.Mock;
       const mockUseFertilizationTasks =
-        dashboardHooks.useFertilizationTasks as jest.Mock;
+        dashboardHooks.useFertilizationTasks as vi.Mock;
 
       mockUseDashboardData.mockReturnValue({
         plants: herbGarden,
         loading: false,
         user: IntegrationTestDataFactory.createMockFirebaseUser(),
-        signOut: jest.fn(),
+        signOut: vi.fn(),
         activities: [],
-        loading: false,
         error: null,
-        logActivity: jest.fn(),
-        refresh: jest.fn(),
-        getUpcomingFertilizationTasks: jest.fn(() => []),
+        logActivity: vi.fn(),
+        refresh: vi.fn(),
+        getUpcomingFertilizationTasks: vi.fn(() => []),
         scheduledTasksError: null,
       });
 
@@ -1218,9 +1224,9 @@ describe("Dashboard Integration Tests", () => {
 
       mockUseFertilizationTasks.mockReturnValue({
         upcomingFertilization: [],
-        handleTaskComplete: jest.fn(),
-        handleTaskBypass: jest.fn(),
-        handleTaskLogActivity: jest.fn(),
+        handleTaskComplete: vi.fn(),
+        handleTaskBypass: vi.fn(),
+        handleTaskLogActivity: vi.fn(),
       });
 
       const user = userEvent.setup();
@@ -1259,24 +1265,23 @@ describe("Dashboard Integration Tests", () => {
 
     it("navigates to add plant page when no plants exist", async () => {
       // Arrange: Empty plants state using dashboard hooks pattern
-      const mockUseDashboardData = dashboardHooks.useDashboardData as jest.Mock;
+      const mockUseDashboardData = dashboardHooks.useDashboardData as vi.Mock;
       const mockUseContainerGroups =
-        dashboardHooks.useContainerGroups as jest.Mock;
-      const mockUseCareStatus = dashboardHooks.useCareStatus as jest.Mock;
+        dashboardHooks.useContainerGroups as vi.Mock;
+      const mockUseCareStatus = dashboardHooks.useCareStatus as vi.Mock;
       const mockUseFertilizationTasks =
-        dashboardHooks.useFertilizationTasks as jest.Mock;
+        dashboardHooks.useFertilizationTasks as vi.Mock;
 
       mockUseDashboardData.mockReturnValue({
         plants: [],
         loading: false,
         user: IntegrationTestDataFactory.createMockFirebaseUser(),
-        signOut: jest.fn(),
+        signOut: vi.fn(),
         activities: [],
-        loading: false,
         error: null,
-        logActivity: jest.fn(),
-        refresh: jest.fn(),
-        getUpcomingFertilizationTasks: jest.fn(() => []),
+        logActivity: vi.fn(),
+        refresh: vi.fn(),
+        getUpcomingFertilizationTasks: vi.fn(() => []),
         scheduledTasksError: null,
       });
 
@@ -1294,9 +1299,9 @@ describe("Dashboard Integration Tests", () => {
 
       mockUseFertilizationTasks.mockReturnValue({
         upcomingFertilization: [],
-        handleTaskComplete: jest.fn(),
-        handleTaskBypass: jest.fn(),
-        handleTaskLogActivity: jest.fn(),
+        handleTaskComplete: vi.fn(),
+        handleTaskBypass: vi.fn(),
+        handleTaskLogActivity: vi.fn(),
       });
 
       const user = userEvent.setup();
@@ -1304,7 +1309,7 @@ describe("Dashboard Integration Tests", () => {
 
       // Act: Wait for empty state and click add plant button
       await waitFor(() => {
-        expect(screen.getByText(/Welcome to SmartGarden/i)).toBeInTheDocument();
+        expect(screen.getByRole("heading", { name: /Welcome to SmartGarden/i })).toBeInTheDocument();
       });
 
       const addPlantButton = screen.getByRole("button", {
@@ -1320,15 +1325,15 @@ describe("Dashboard Integration Tests", () => {
     it("handles user authentication state changes", async () => {
       // Arrange: Start with authenticated user
       const mockUser = IntegrationTestDataFactory.createMockFirebaseUser();
-      const mockSignOut = jest.fn();
+      const mockSignOut = vi.fn();
 
       // Use dashboard hooks pattern with signOut function provided through useDashboardData
-      const mockUseDashboardData = dashboardHooks.useDashboardData as jest.Mock;
+      const mockUseDashboardData = dashboardHooks.useDashboardData as vi.Mock;
       const mockUseContainerGroups =
-        dashboardHooks.useContainerGroups as jest.Mock;
-      const mockUseCareStatus = dashboardHooks.useCareStatus as jest.Mock;
+        dashboardHooks.useContainerGroups as vi.Mock;
+      const mockUseCareStatus = dashboardHooks.useCareStatus as vi.Mock;
       const mockUseFertilizationTasks =
-        dashboardHooks.useFertilizationTasks as jest.Mock;
+        dashboardHooks.useFertilizationTasks as vi.Mock;
 
       mockUseDashboardData.mockReturnValue({
         plants: [],
@@ -1336,11 +1341,10 @@ describe("Dashboard Integration Tests", () => {
         user: mockUser,
         signOut: mockSignOut,
         activities: [],
-        loading: false,
         error: null,
-        logActivity: jest.fn(),
-        refresh: jest.fn(),
-        getUpcomingFertilizationTasks: jest.fn(() => []),
+        logActivity: vi.fn(),
+        refresh: vi.fn(),
+        getUpcomingFertilizationTasks: vi.fn(() => []),
         scheduledTasksError: null,
       });
 
@@ -1358,9 +1362,9 @@ describe("Dashboard Integration Tests", () => {
 
       mockUseFertilizationTasks.mockReturnValue({
         upcomingFertilization: [],
-        handleTaskComplete: jest.fn(),
-        handleTaskBypass: jest.fn(),
-        handleTaskLogActivity: jest.fn(),
+        handleTaskComplete: vi.fn(),
+        handleTaskBypass: vi.fn(),
+        handleTaskLogActivity: vi.fn(),
       });
 
       const user = userEvent.setup();
@@ -1388,9 +1392,9 @@ describe("Dashboard Integration Tests", () => {
         plants: null,
         loading: false,
         error: "Failed to load plants",
-        createPlant: jest.fn(),
-        updatePlant: jest.fn(),
-        deletePlant: jest.fn(),
+        createPlant: vi.fn(),
+        updatePlant: vi.fn(),
+        deletePlant: vi.fn(),
       });
 
       // Act: Render the Dashboard
@@ -1398,30 +1402,29 @@ describe("Dashboard Integration Tests", () => {
 
       // Assert: Should still render basic structure
       await waitFor(() => {
-        expect(screen.getByText("SmartGarden")).toBeInTheDocument();
+        expect(screen.getByRole("heading", { name: "SmartGarden" })).toBeInTheDocument();
       });
     });
 
     it("handles loading state properly", async () => {
       // Arrange: Mock loading state using dashboard hooks
-      const mockUseDashboardData = dashboardHooks.useDashboardData as jest.Mock;
+      const mockUseDashboardData = dashboardHooks.useDashboardData as vi.Mock;
       const mockUseContainerGroups =
-        dashboardHooks.useContainerGroups as jest.Mock;
-      const mockUseCareStatus = dashboardHooks.useCareStatus as jest.Mock;
+        dashboardHooks.useContainerGroups as vi.Mock;
+      const mockUseCareStatus = dashboardHooks.useCareStatus as vi.Mock;
       const mockUseFertilizationTasks =
-        dashboardHooks.useFertilizationTasks as jest.Mock;
+        dashboardHooks.useFertilizationTasks as vi.Mock;
 
       mockUseDashboardData.mockReturnValue({
         plants: null,
         loading: true,
         user: IntegrationTestDataFactory.createMockFirebaseUser(),
-        signOut: jest.fn(),
+        signOut: vi.fn(),
         activities: [],
-        loading: false,
         error: null,
-        logActivity: jest.fn(),
-        refresh: jest.fn(),
-        getUpcomingFertilizationTasks: jest.fn(() => []),
+        logActivity: vi.fn(),
+        refresh: vi.fn(),
+        getUpcomingFertilizationTasks: vi.fn(() => []),
         scheduledTasksError: null,
       });
 
@@ -1439,9 +1442,9 @@ describe("Dashboard Integration Tests", () => {
 
       mockUseFertilizationTasks.mockReturnValue({
         upcomingFertilization: [],
-        handleTaskComplete: jest.fn(),
-        handleTaskBypass: jest.fn(),
-        handleTaskLogActivity: jest.fn(),
+        handleTaskComplete: vi.fn(),
+        handleTaskBypass: vi.fn(),
+        handleTaskLogActivity: vi.fn(),
       });
 
       // Act: Render the Dashboard
@@ -1483,24 +1486,23 @@ describe("Dashboard Integration Tests", () => {
       ];
 
       // Use dashboard hooks pattern for consistent behavior
-      const mockUseDashboardData = dashboardHooks.useDashboardData as jest.Mock;
+      const mockUseDashboardData = dashboardHooks.useDashboardData as vi.Mock;
       const mockUseContainerGroups =
-        dashboardHooks.useContainerGroups as jest.Mock;
-      const mockUseCareStatus = dashboardHooks.useCareStatus as jest.Mock;
+        dashboardHooks.useContainerGroups as vi.Mock;
+      const mockUseCareStatus = dashboardHooks.useCareStatus as vi.Mock;
       const mockUseFertilizationTasks =
-        dashboardHooks.useFertilizationTasks as jest.Mock;
+        dashboardHooks.useFertilizationTasks as vi.Mock;
 
       mockUseDashboardData.mockReturnValue({
         plants: categorizedPlants,
         loading: false,
         user: IntegrationTestDataFactory.createMockFirebaseUser(),
-        signOut: jest.fn(),
+        signOut: vi.fn(),
         activities: [],
-        loading: false,
         error: null,
-        logActivity: jest.fn(),
-        refresh: jest.fn(),
-        getUpcomingFertilizationTasks: jest.fn(() => []),
+        logActivity: vi.fn(),
+        refresh: vi.fn(),
+        getUpcomingFertilizationTasks: vi.fn(() => []),
         scheduledTasksError: null,
       });
 
@@ -1528,9 +1530,9 @@ describe("Dashboard Integration Tests", () => {
 
       mockUseFertilizationTasks.mockReturnValue({
         upcomingFertilization: [],
-        handleTaskComplete: jest.fn(),
-        handleTaskBypass: jest.fn(),
-        handleTaskLogActivity: jest.fn(),
+        handleTaskComplete: vi.fn(),
+        handleTaskBypass: vi.fn(),
+        handleTaskLogActivity: vi.fn(),
       });
 
       // Act: Render the Dashboard

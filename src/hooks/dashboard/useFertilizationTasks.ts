@@ -11,7 +11,7 @@ import {
   groupTasksByVarietyAndDetails,
   GroupingKeyGenerators,
   completeGroupedTask,
-  bypassGroupedTask
+  bypassGroupedTask,
 } from "@/utils/tasks/taskGrouping";
 
 export interface FertilizationTasksManager {
@@ -26,7 +26,10 @@ export const useFertilizationTasks = (
   logActivity: (activity: any) => Promise<string | null>,
   navigate: (path: string) => void,
   onActivityLogged: () => void,
-  getLastActivityByType: (plantId: string, type: string) => Promise<CareRecord | null>
+  getLastActivityByType: (
+    plantId: string,
+    type: string
+  ) => Promise<CareRecord | null>
 ): FertilizationTasksManager => {
   // Calculate fertilization tasks directly from plant data (no Firebase dependency)
   const [upcomingFertilization, setUpcomingFertilization] = useState<any[]>([]);
@@ -49,31 +52,47 @@ export const useFertilizationTasks = (
           );
 
           // Get the seed variety for this plant
-          const variety = seedVarieties.find(v => v.name === plant.varietyName);
+          const variety = seedVarieties.find(
+            (v) => v.name === plant.varietyName
+          );
           if (!variety) {
             console.log(`No variety found for ${plant.varietyName}`);
             continue;
           }
 
           // Calculate current growth stage
-          const currentStage = calculateCurrentStageWithVariety(plant.plantedDate, {
-            ...variety,
-            id: plant.varietyId || "seed-variety",
-            normalizedName: variety.name.toLowerCase(),
-            isCustom: false,
-            createdAt: new Date(),
-            updatedAt: new Date(),
-          });
+          const currentStage = calculateCurrentStageWithVariety(
+            plant.plantedDate,
+            {
+              ...variety,
+              id: plant.varietyId || "seed-variety",
+              normalizedName: variety.name.toLowerCase(),
+              isCustom: false,
+              createdAt: new Date(),
+              updatedAt: new Date(),
+            }
+          );
 
           // Get last fertilizing activity
-          const lastFertilizing = await getLastActivityByType(plant.id, "fertilize");
+          const lastFertilizing = await getLastActivityByType(
+            plant.id,
+            "fertilize"
+          );
 
           // Create fertilizing task using local calculation
-          const fertilizingTask = createFertilizingTask(plant, variety, currentStage, lastFertilizing, now);
+          const fertilizingTask = createFertilizingTask(
+            plant,
+            variety,
+            currentStage,
+            lastFertilizing,
+            now
+          );
 
           if (fertilizingTask) {
             console.log(
-              `Created fertilization task for plant ${plant.name}: due ${fertilizingTask.dueDate.toDateString()}`
+              `Created fertilization task for plant ${
+                plant.name
+              }: due ${fertilizingTask.dueDate.toDateString()}`
             );
             allFertilizationTasks.push(fertilizingTask);
           }
@@ -204,12 +223,17 @@ export const useFertilizationTasks = (
         // Remove the bypassed task from the list
         setUpcomingFertilization((prev) => prev.filter((t) => t.id !== taskId));
 
-        toast.success(reason ? `Task bypassed: ${reason}` : "Task bypassed successfully");
+        toast.success(
+          reason ? `Task bypassed: ${reason}` : "Task bypassed successfully"
+        );
         onActivityLogged();
 
         console.log(`✅ Bypassed fertilization task ${taskId}`);
       } catch (error) {
-        console.error(`❌ Error bypassing fertilization task ${taskId}:`, error);
+        console.error(
+          `❌ Error bypassing fertilization task ${taskId}:`,
+          error
+        );
         toast.error("Failed to bypass task");
       }
     },
@@ -248,7 +272,9 @@ function createFertilizingTask(
   const firstSchedule = stageFertilizing.schedule[0];
   const frequencyDays = firstSchedule.frequencyDays || 14;
 
-  const lastFertilizingDate = lastFertilizing ? new Date(lastFertilizing.date) : plant.plantedDate;
+  const lastFertilizingDate = lastFertilizing
+    ? new Date(lastFertilizing.date)
+    : plant.plantedDate;
 
   const dueDate = addDays(lastFertilizingDate, frequencyDays);
   const thresholdDate = addDays(today, 21); // 3 weeks ahead threshold
@@ -263,23 +289,23 @@ function createFertilizingTask(
     id: `fertilize-${plant.id}`,
     plantId: plant.id,
     plantName: getPlantDisplayName(plant),
-    taskName: `Apply ${firstSchedule.product || 'Fertilizer'}`,
-    taskType: 'fertilize',
+    taskName: `Apply ${firstSchedule.product || "Fertilizer"}`,
+    taskType: "fertilize",
     details: {
-      type: 'fertilize',
-      product: firstSchedule.product || 'Liquid Fertilizer',
-      dilution: firstSchedule.dilution || '1:10',
-      amount: firstSchedule.amount || '200ml',
-      method: firstSchedule.applicationMethod || 'soil-drench'
+      type: "fertilize",
+      product: firstSchedule.product || "Liquid Fertilizer",
+      dilution: firstSchedule.dilution || "1:10",
+      amount: firstSchedule.amount || "200ml",
+      method: firstSchedule.applicationMethod || "soil-drench",
     },
     dueDate,
-    status: 'pending',
-    sourceProtocol: 'fertilization',
+    status: "pending",
+    sourceProtocol: "fertilization",
     createdAt: today,
     updatedAt: today,
     isCompleted: false,
     isDynamic: true,
     isOverdue,
-    priority: isOverdue ? 'high' : 'medium'
+    priority: isOverdue ? "high" : "medium",
   };
 }
