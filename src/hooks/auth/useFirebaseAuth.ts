@@ -1,7 +1,7 @@
 // src/hooks/useFirebaseAuth.ts
-import { useState, useEffect } from "react";
-import { User } from "firebase/auth";
 import { FirebaseAuthService } from "@/services/firebase/authService";
+import { User } from "firebase/auth";
+import { useEffect, useState } from "react";
 
 // Test mode user mock
 const createMockUser = (): User =>
@@ -50,7 +50,18 @@ export function useFirebaseAuth() {
     const isTestMode =
       import.meta.env.VITE_TEST_MODE === "true" ||
       (window as any).__TEST_MODE === true ||
-      (window as any).__VITE_TEST_MODE === "true";
+      (window as any).__VITE_TEST_MODE === "true" ||
+      import.meta.env.MODE === "test" ||
+      process.env.NODE_ENV === "test";
+
+    console.log("🔧 Auth hook - checking test mode:", {
+      VITE_TEST_MODE: import.meta.env.VITE_TEST_MODE,
+      window_TEST_MODE: (window as any).__TEST_MODE,
+      window_VITE_TEST_MODE: (window as any).__VITE_TEST_MODE,
+      MODE: import.meta.env.MODE,
+      NODE_ENV: process.env.NODE_ENV,
+      isTestMode
+    });
 
     if (isTestMode) {
       // In test mode, immediately set a mock user

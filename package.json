@@ -16,6 +16,7 @@
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
     "test:ci": "vitest run --coverage --reporter=verbose",
+    "playwright": "playwright",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
     "test:all": "npm run test:ci && npm run test:e2e",
@@ -25,6 +26,10 @@
     "storybook": "storybook dev -p 6006",
     "build-storybook": "storybook build",
     "test:storybook": "test-storybook",
+    "playwright:install": "playwright install",
+    "playwright:install:chromium": "playwright install chromium",
+    "test:e2e:chromium": "playwright test --project=chromium",
+    "test:e2e:chromium:ui": "playwright test --project=chromium --ui",
     "test:storybook:ci": "concurrently -k -s first -n \"SB,TEST\" -c \"magenta,blue\" \"npm run build-storybook --quiet\" \"wait-on tcp:6006 && npm run test:storybook\""
   },
   "dependencies": {

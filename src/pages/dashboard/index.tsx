@@ -1,33 +1,33 @@
-import { useState, useEffect, useCallback } from "react";
+import { PlantGarden } from "@/components/dashboard/PlantGarden";
+import { SummaryCards } from "@/components/dashboard/SummaryCards";
+import FertilizationDashboardSection from "@/components/fertilization/FertilizationDashboardSection";
+import ObservationDashboardSection from "@/components/observation/ObservationDashboardSection";
+import BulkActivityModal from "@/components/plant/BulkActivityModal";
+import { QuickActionType } from "@/components/shared/QuickActionButtons";
 import { Button } from "@/components/ui/Button";
 import { Card, CardContent } from "@/components/ui/Card";
 import { OfflineIndicator } from "@/components/ui/OfflineIndicator";
-import { useNavigate } from "react-router-dom";
-import { PlantGroup } from "@/utils/plant/plantGrouping";
-import { findContainerMates } from "@/utils/plant/containerGrouping";
-import BulkActivityModal from "@/components/plant/BulkActivityModal";
-import { QuickActionType } from "@/components/shared/QuickActionButtons";
-import FertilizationDashboardSection from "@/components/fertilization/FertilizationDashboardSection";
 import WateringDashboardSection from "@/components/watering/WateringDashboardSection";
-import ObservationDashboardSection from "@/components/observation/ObservationDashboardSection";
-import toast from "react-hot-toast";
-import {
-  initializeDatabase,
-  resetDatabaseInitializationFlag,
-} from "@/db/seedData";
 import { seedVarieties } from "@/data/seedVarieties";
-import { TaskManagementService } from "@/services/TaskManagementService";
 import {
-  useDashboardData,
-  useHiddenGroupsManager,
-  useContainerGroups,
-  useFertilizationTasks,
-  useCareStatus,
+    initializeDatabase,
+    resetDatabaseInitializationFlag,
+} from "@/db/seedData";
+import {
+    useCareStatus,
+    useContainerGroups,
+    useDashboardData,
+    useFertilizationTasks,
+    useHiddenGroupsManager,
 } from "@/hooks/dashboard";
-import { useWateringTasks } from "@/hooks/dashboard/useWateringTasks";
 import { useObservationTasks } from "@/hooks/dashboard/useObservationTasks";
-import { SummaryCards } from "@/components/dashboard/SummaryCards";
-import { PlantGarden } from "@/components/dashboard/PlantGarden";
+import { useWateringTasks } from "@/hooks/dashboard/useWateringTasks";
+import { TaskManagementService } from "@/services/TaskManagementService";
+import { findContainerMates } from "@/utils/plant/containerGrouping";
+import { PlantGroup } from "@/utils/plant/plantGrouping";
+import { useCallback, useEffect, useState } from "react";
+import toast from "react-hot-toast";
+import { useNavigate } from "react-router-dom";
 
 // Protocol sync function
 async function syncPlantProtocols(plants: any[], userId: string) {

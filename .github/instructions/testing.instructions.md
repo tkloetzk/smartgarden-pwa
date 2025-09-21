@@ -6,7 +6,7 @@ applyTo: "**/*.test.ts*"
 
 ## Core Testing Philosophy for AI Agents
 
-**Primary Directive**: Always test user-observable behavior, never implementation details. Focus on what users see, interact with, and experience. Generate tests that provide confidence while remaining maintainable and readable.
+**Primary Directive**: Always test user-observable behavior, never implementation details but make sure you're not testing mock behavior. Focus on what users see, interact with, and experience. Generate tests that provide confidence while remaining maintainable and readable.
 
 **TypeScript-First Approach**: Leverage TypeScript's type system for test safety, better IDE support, and self-documenting test code. Every test should be properly typed to catch errors early and improve maintainability.
 
@@ -284,13 +284,16 @@ export const ComplexInteraction: Story = {
 
 ### Component vs Integration vs E2E Testing Boundaries
 
-**Decision Matrix for AI Agents**
+**Enhanced Decision Matrix for AI Agents (2025)**
 
-| Test Type       | Use When                          | Tools                     | Speed  | Example                                |
-| --------------- | --------------------------------- | ------------------------- | ------ | -------------------------------------- |
-| **Component**   | Single component logic, UI states | Storybook + Vitest        | Fast   | Button click handlers, form validation |
-| **Integration** | Component interactions, data flow | Cypress Component Testing | Medium | Form submission with API calls         |
-| **E2E**         | Complete user workflows           | Cypress E2E               | Slow   | Full checkout process                  |
+| Test Type            | Use When                          | Tools                     | Speed  | Mock Level | Example                                |
+| -------------------- | --------------------------------- | ------------------------- | ------ | ---------- | -------------------------------------- |
+| **Component Unit**   | Single component logic, UI states | Vitest + Real Components  | Fast   | Services   | Button click handlers, form validation |
+| **Component Visual** | Component states, design system   | Storybook + MSW           | Fast   | API        | All button variants, loading states    |
+| **Integration**      | Component interactions, data flow | Cypress Component Testing | Medium | None/DB    | Form submission with API calls         |
+| **E2E**              | Complete user workflows           | Cypress E2E               | Slow   | None       | Full checkout process                  |
+
+**Key Principle**: Test **real components** with **service-level mocking**, not **mock components** with real services.
 
 ```typescript
 // Component Test Example
@@ -311,18 +314,261 @@ cy.completeCheckoutFlow(testUser, testPayment);
 cy.url().should("include", "/order-confirmation");
 ```
 
-## Testing Anti-Patterns and Solutions
+## Enhanced Component Testing Strategy (2025)
+
+### The Component Mocking Problem
+
+**❌ AVOID: Component Mocking (False Confidence Anti-Pattern)**
+
+```typescript
+// DON'T: Mock the entire component you're testing
+vi.mock("@/components/Dashboard", () => ({
+  Dashboard: () => <div>Fake Dashboard</div>,
+}));
+
+// This tests your mock, not your real component!
+test("dashboard renders", () => {
+  render(<Dashboard />);
+  expect(screen.getByText("Fake Dashboard")).toBeInTheDocument();
+});
+```
+
+**Problems with Component Mocking:**
+
+- ✅ Tests pass but real component might be completely broken
+- ✅ False confidence in component functionality
+- ✅ Tests become maintenance burden when component changes
+- ✅ Missing integration issues between component parts
+
+### ✅ SOLUTION: Service-Level Mocking with Real Components
+
+**The Right Approach: Mock External Dependencies, Test Real Components**
+
+```typescript
+// ✅ DO: Mock external services, test real components
+vi.mock("@/services/firebase/plantService", () => ({
+  FirebasePlantService: {
+    getPlants: vi.fn().mockResolvedValue([mockPlant1, mockPlant2]),
+    subscribeToPlantsChanges: vi.fn(() => vi.fn()), // Return unsubscribe function
+    createPlant: vi.fn().mockResolvedValue("new-plant-id"),
+  },
+}));
+
+vi.mock("@/services/firebase/authService", () => ({
+  FirebaseAuthService: {
+    getCurrentUser: vi.fn().mockReturnValue(mockUser),
+    signOut: vi.fn().mockResolvedValue(undefined),
+  },
+}));
+
+// Test the REAL Dashboard component
+test("dashboard displays plants correctly", async () => {
+  render(<Dashboard />);
+
+  // Test real component behavior
+  expect(await screen.findByText("My Tomato Plant")).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: /sign out/i })).toBeInTheDocument();
+});
+```
+
+### Component Testing Strategy Decision Tree
+
+```
+Complex Component Testing Decision Tree:
+
+1. Is the component slow/hanging in tests?
+   YES → Mock external services (Firebase, APIs, etc.)
+   NO → Test with real dependencies
+
+2. Does the component have multiple visual states?
+   YES → Add Storybook stories for visual testing
+   NO → Standard unit tests sufficient
+
+3. Does the component coordinate multiple sub-components?
+   YES → Test composition + test sub-components separately
+   NO → Single component testing sufficient
+
+4. Are there complex user interaction flows?
+   YES → Add integration tests in separate file
+   NO → Unit test interactions sufficient
+
+5. Does the component handle errors/edge cases?
+   YES → Mock service failures and test error states
+   NO → Focus on happy path testing
+```
+
+### Storybook Component State Testing
+
+**Use Storybook for Visual Component Testing**
+
+```typescript
+// Dashboard.stories.tsx
+import type { Meta, StoryObj } from "@storybook/react";
+import { http, HttpResponse } from "msw";
+import { Dashboard } from "./Dashboard";
+
+const meta: Meta<typeof Dashboard> = {
+  title: "Pages/Dashboard",
+  component: Dashboard,
+  parameters: {
+    layout: "fullscreen",
+  },
+};
+
+export default meta;
+type Story = StoryObj<typeof meta>;
+
+// Test empty state
+export const EmptyDashboard: Story = {
+  parameters: {
+    msw: {
+      handlers: [
+        http.get("/api/plants/:userId", () => {
+          return HttpResponse.json({ data: [] });
+        }),
+      ],
+    },
+  },
+};
+
+// Test populated state
+export const PopulatedDashboard: Story = {
+  parameters: {
+    msw: {
+      handlers: [
+        http.get("/api/plants/:userId", () => {
+          return HttpResponse.json({
+            data: [
+              { id: "1", name: "Tomato", varietyName: "Cherry Tomato" },
+              { id: "2", name: "Basil", varietyName: "Sweet Basil" },
+            ],
+          });
+        }),
+      ],
+    },
+  },
+};
+
+// Test error state
+export const ErrorDashboard: Story = {
+  parameters: {
+    msw: {
+      handlers: [
+        http.get("/api/plants/:userId", () => {
+          return new HttpResponse(null, { status: 500 });
+        }),
+      ],
+    },
+  },
+};
+
+// Test loading state with delay
+export const LoadingDashboard: Story = {
+  parameters: {
+    msw: {
+      handlers: [
+        http.get("/api/plants/:userId", async () => {
+          await delay(2000); // 2 second delay
+          return HttpResponse.json({ data: [] });
+        }),
+      ],
+    },
+  },
+};
+```
+
+### Component Composition Testing
+
+**Strategy: Test Composition + Sub-components Separately**
+
+```typescript
+// Dashboard.test.tsx - Test the composition
+describe("Dashboard Component Composition", () => {
+  beforeEach(() => {
+    // Mock external services only
+    vi.mocked(FirebasePlantService.getPlants).mockResolvedValue(mockPlants);
+    vi.mocked(FirebaseAuthService.getCurrentUser).mockReturnValue(mockUser);
+  });
+
+  it("renders all dashboard sections correctly", async () => {
+    render(<Dashboard />);
+
+    // Test that real component renders real sub-components
+    expect(screen.getByTestId("dashboard-header")).toBeInTheDocument();
+    expect(screen.getByTestId("summary-cards")).toBeInTheDocument();
+    expect(screen.getByTestId("plant-garden")).toBeInTheDocument();
+  });
+
+  it("coordinates data flow between sections", async () => {
+    render(<Dashboard />);
+
+    // Test real data coordination
+    expect(await screen.findByText("Plants: 2")).toBeInTheDocument();
+    expect(screen.getByText("Groups needing care: 1")).toBeInTheDocument();
+  });
+});
+
+// SummaryCards.test.tsx - Test sub-component in isolation
+describe("SummaryCards Sub-component", () => {
+  it("displays plant count correctly", () => {
+    render(<SummaryCards plantCount={5} careGroups={2} />);
+    expect(screen.getByText("Plants: 5")).toBeInTheDocument();
+  });
+});
+```
+
+## Testing Anti-Patterns and Solutions (Enhanced 2025)
 
 ### Critical Anti-Patterns to Avoid
+
+**❌ CRITICAL: Component Mocking Anti-Pattern**
+
+```typescript
+// DON'T: Mock the component you're testing
+vi.mock("@/components/Dashboard", () => ({
+  Dashboard: () => <div data-testid="fake-dashboard">Mocked Dashboard</div>,
+}));
+
+test("dashboard renders", () => {
+  render(<Dashboard />);
+  expect(screen.getByTestId("fake-dashboard")).toBeInTheDocument();
+  // ❌ This tests the MOCK, not the real component!
+});
+```
+
+**❌ Shallow Component Testing**
+
+```typescript
+// DON'T: Overly mock sub-components
+vi.mock("@/components/SummaryCards", () => () => <div>Fake Summary</div>);
+vi.mock("@/components/PlantGarden", () => () => <div>Fake Garden</div>);
+
+// ❌ Now you're testing a frankenstein component
+render(<Dashboard />);
+```
 
 **❌ Testing Implementation Details**
 
 ```typescript
-// DON'T: Test internal state
+// DON'T: Test internal state or props
 expect(component.instance().state.isVisible).toBe(true);
 
 // ✅ DO: Test user-observable behavior
 expect(screen.getByText("Content is visible")).toBeInTheDocument();
+```
+
+**❌ Testing Mock Interactions**
+
+```typescript
+// DON'T: Test that mocks are called correctly
+const mockFunction = vi.fn();
+mockFunction("test");
+expect(mockFunction).toHaveBeenCalledWith("test");
+// ❌ This just tests that vi.fn() works (it does!)
+
+// ✅ DO: Test real user interactions
+await user.click(screen.getByRole("button", { name: /submit/i }));
+expect(screen.getByText("Form submitted successfully")).toBeInTheDocument();
 ```
 
 **❌ Using fireEvent Instead of userEvent**
@@ -345,28 +591,59 @@ await new Promise((resolve) => setTimeout(resolve, 1000));
 await waitFor(() => expect(element).toBeVisible());
 ```
 
-## Optimal Test Structure and Organization
+## Optimal Test Structure and Organization (Enhanced 2025)
 
-### Project Structure Template
+### Enhanced Project Structure Template
 
 ```
 src/
 ├── components/
-│   ├── Button/
-│   │   ├── Button.tsx
-│   │   ├── Button.test.tsx
-│   │   ├── Button.stories.tsx
+│   ├── Dashboard/
+│   │   ├── Dashboard.tsx
+│   │   ├── Dashboard.test.tsx           // Real component unit tests
+│   │   ├── Dashboard.integration.test.tsx // Complex user flows
+│   │   ├── Dashboard.stories.tsx        // Visual state testing
+│   │   └── index.ts
+│   ├── SummaryCards/
+│   │   ├── SummaryCards.tsx
+│   │   ├── SummaryCards.test.tsx        // Sub-component unit tests
+│   │   ├── SummaryCards.stories.tsx
 │   │   └── index.ts
 ├── hooks/
 │   ├── useApi/
 │   │   ├── useApi.ts
 │   │   ├── useApi.test.ts
 │   │   └── index.ts
+├── services/
+│   ├── firebase/
+│   │   ├── plantService.ts
+│   │   ├── plantService.test.ts         // Service unit tests
+│   │   └── __mocks__/
+│   │       └── plantService.ts          // Service mocks
 ├── test/
 │   ├── setup.ts
-│   ├── mocks/handlers.ts
-│   └── utils/test-utils.tsx
+│   ├── mocks/
+│   │   ├── handlers.ts                  // MSW handlers
+│   │   ├── data/                        // Mock data factories
+│   │   │   ├── plants.ts
+│   │   │   └── users.ts
+│   │   └── services/                    // Service mocks
+│   │       ├── firebase.ts
+│   │       └── api.ts
+│   └── utils/
+│       ├── test-utils.tsx               // Custom render functions
+│       └── storybook-utils.ts           // Storybook test utilities
 ```
+
+### Testing File Naming Conventions
+
+| File Type                        | Purpose                                          | Example                          |
+| -------------------------------- | ------------------------------------------------ | -------------------------------- |
+| `Component.test.tsx`             | Real component unit tests with service mocking   | `Dashboard.test.tsx`             |
+| `Component.integration.test.tsx` | Complex user flows, multi-component interactions | `Dashboard.integration.test.tsx` |
+| `Component.stories.tsx`          | Visual state testing, design system validation   | `Dashboard.stories.tsx`          |
+| `service.test.ts`                | Service/utility unit tests                       | `plantService.test.ts`           |
+| `hook.test.ts`                   | Custom hook testing                              | `usePlants.test.ts`              |
 
 ### Test Naming Conventions for AI Generation
 
@@ -433,18 +710,27 @@ jobs:
 
 ## AI-Optimized Testing Templates for Continue.dev
 
-### Component Test Generation Template
+### Enhanced Component Test Generation Template (2025)
 
 ```typescript
 /**
- * AI TEMPLATE: Generate comprehensive component test
+ * AI TEMPLATE: Generate comprehensive REAL component tests with service mocking
  *
  * USAGE: Apply this template when generating tests for React components
- * CONTEXT REQUIRED: Component props interface, expected behaviors, edge cases
+ * CONTEXT REQUIRED: Component props interface, external services, expected behaviors
+ * PRINCIPLE: Test REAL components with SERVICE-LEVEL mocking
  */
 
-describe('[ComponentName] Component', () => {
-  // Setup with typed props
+// Mock external services, NOT the component being tested
+vi.mock('@/services/[serviceName]', () => ({
+  [ServiceName]: {
+    [method]: vi.fn().mockResolvedValue([mockData]),
+    [subscriptionMethod]: vi.fn(() => vi.fn()), // Return unsubscribe function
+  }
+}))
+
+describe('[ComponentName] Component - Real Component Tests', () => {
+  // Setup with typed props and service mocks
   const defaultProps: [ComponentProps] = {
     // Define sensible defaults for required props
   }
@@ -453,43 +739,132 @@ describe('[ComponentName] Component', () => {
     return render(<[ComponentName] {...defaultProps} {...props} />)
   }
 
-  describe('Rendering', () => {
-    it('renders with default props', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    // Configure service mocks for each test
+    vi.mocked([ServiceName].[method]).mockResolvedValue([mockData])
+  })
+
+  describe('Real Component Rendering', () => {
+    it('renders real component with mocked services', async () => {
       render[ComponentName]()
-      expect(screen.getByRole('[expected-role]')).toBeInTheDocument()
+
+      // Test real component behavior, not mock behavior
+      expect(await screen.findByRole('[expected-role]')).toBeInTheDocument()
+      expect(screen.getByText('[expected-text]')).toBeInTheDocument()
     })
 
-    it('applies custom props correctly', () => {
-      render[ComponentName]({ customProp: 'value' })
-      expect(screen.getByText('value')).toBeInTheDocument()
+    it('handles different service data states', async () => {
+      // Test empty state
+      vi.mocked([ServiceName].[method]).mockResolvedValue([])
+      render[ComponentName]()
+      expect(await screen.findByText('[empty-state-text]')).toBeInTheDocument()
+
+      // Test populated state
+      vi.mocked([ServiceName].[method]).mockResolvedValue([mockData])
+      render[ComponentName]()
+      expect(await screen.findByText('[populated-state-text]')).toBeInTheDocument()
     })
   })
 
-  describe('User Interactions', () => {
-    it('handles [interaction] correctly', async () => {
+  describe('Real User Interactions', () => {
+    it('handles real user interactions with service calls', async () => {
       const user = userEvent.setup()
-      const mockHandler = vi.fn()
-      render[ComponentName]({ on[Event]: mockHandler })
+      render[ComponentName]()
 
-      await user.[interaction](screen.getByRole('[role]'))
-      expect(mockHandler).toHaveBeenCalledTimes(1)
+      await user.click(screen.getByRole('button', { name: /[action]/i }))
+
+      // Verify real service was called
+      expect([ServiceName].[method]).toHaveBeenCalledWith([expectedArgs])
+
+      // Verify real UI response
+      expect(await screen.findByText('[success-message]')).toBeInTheDocument()
     })
   })
 
-  describe('Edge Cases', () => {
-    it('handles [edge-case] gracefully', () => {
-      render[ComponentName]({ problematicProp: null })
-      expect(screen.getByText('fallback')).toBeInTheDocument()
+  describe('Service Error Handling', () => {
+    it('handles service errors gracefully', async () => {
+      vi.mocked([ServiceName].[method]).mockRejectedValue(new Error('Service failed'))
+
+      render[ComponentName]()
+
+      expect(await screen.findByText('[error-message]')).toBeInTheDocument()
     })
   })
 
   describe('Accessibility', () => {
-    it('provides proper accessibility attributes', () => {
+    it('provides proper accessibility in real component', async () => {
       render[ComponentName]()
-      expect(screen.getByRole('[role]')).toHaveAccessibleName()
+      expect(await screen.findByRole('[role]')).toHaveAccessibleName()
     })
   })
 })
+```
+
+### Storybook Story Generation Template
+
+```typescript
+/**
+ * AI TEMPLATE: Generate Storybook stories for visual component testing
+ */
+
+import type { Meta, StoryObj } from '@storybook/react'
+import { http, HttpResponse } from 'msw'
+import { [ComponentName] } from './[ComponentName]'
+
+const meta: Meta<typeof [ComponentName]> = {
+  title: '[Category]/[ComponentName]',
+  component: [ComponentName],
+  parameters: {
+    layout: 'centered',
+  },
+}
+
+export default meta
+type Story = StoryObj<typeof meta>
+
+// Test different component states visually
+export const [State1]: Story = {
+  args: {
+    [prop]: [value1],
+  },
+  parameters: {
+    msw: {
+      handlers: [
+        http.get('/api/[endpoint]', () => {
+          return HttpResponse.json({ data: [mockData1] })
+        }),
+      ],
+    },
+  },
+}
+
+export const [State2]: Story = {
+  args: {
+    [prop]: [value2],
+  },
+  parameters: {
+    msw: {
+      handlers: [
+        http.get('/api/[endpoint]', () => {
+          return HttpResponse.json({ data: [mockData2] })
+        }),
+      ],
+    },
+  },
+}
+
+export const ErrorState: Story = {
+  parameters: {
+    msw: {
+      handlers: [
+        http.get('/api/[endpoint]', () => {
+          return new HttpResponse(null, { status: 500 })
+        }),
+      ],
+    },
+  },
+}
 ```
 
 ### Custom Hook Testing Template
@@ -788,32 +1163,51 @@ beforeEach(() => {
 
 ## Continue.dev System Prompt Optimization
 
-### Core Directives for AI Test Generation
+### Enhanced Core Directives for AI Test Generation (2025)
 
 ```
-TESTING PHILOSOPHY:
+ENHANCED TESTING PHILOSOPHY:
+- Test REAL components with SERVICE-LEVEL mocking, never mock components
 - Always test user-observable behavior, never implementation details
 - Use semantic queries (getByRole, getByLabelText) over test IDs
 - Prioritize async patterns with proper waiting strategies
 - Generate TypeScript-safe tests with explicit typing
 
+CRITICAL COMPONENT TESTING RULES:
+- NEVER mock the component being tested (use real components)
+- Mock external services (Firebase, APIs, etc.) not components
+- Use Storybook for visual state testing with MSW integration
+- Test component composition AND sub-components separately
+- Include integration tests for complex user flows
+
 REQUIRED PATTERNS:
 - Use userEvent.setup() for all user interactions
+- Mock services: vi.mock('@/services/firebase/plantService')
 - Include accessibility testing for interactive components
-- Mock external dependencies with MSW for API calls
-- Structure tests with clear describe blocks: Rendering, Interactions, Edge Cases
+- Structure tests: Real Component Rendering, User Interactions, Service Errors
+- Create Storybook stories for visual testing
 
-ANTI-PATTERNS TO AVOID:
+CRITICAL ANTI-PATTERNS TO AVOID:
+- NEVER mock entire components: vi.mock('@/components/Dashboard')
 - Never use fireEvent instead of userEvent
 - Never test component internal state or props directly
 - Never use arbitrary timeouts or delays
 - Never create interdependent tests
+- Never test mock behavior instead of real component behavior
+
+REQUIRED FILE STRUCTURE:
+- Component.test.tsx: Real component unit tests with service mocking
+- Component.integration.test.tsx: Complex user flows
+- Component.stories.tsx: Visual state testing with MSW
+- service.test.ts: Service unit tests
 
 OUTPUT REQUIREMENTS:
 - Complete, runnable test files with proper imports
+- Real component rendering with mocked external services
 - TypeScript types for all test data and mocks
 - Clear test descriptions explaining expected behavior
 - Appropriate cleanup and setup patterns
+- Storybook stories for visual component state testing
 ```
 
 ### Decision Tree for Test Type Selection
