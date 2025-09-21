@@ -81,7 +81,7 @@
         {
           "title": "Add Plant Form",
           "file": "add-plant.spec.ts",
-          "line": 10,
+          "line": 12,
           "column": 6,
           "specs": [
             {
@@ -100,12 +100,12 @@
                       "workerIndex": 0,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 1057,
+                      "duration": 993,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2025-09-21T06:28:58.707Z",
+                      "startTime": "2025-09-21T06:37:29.533Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -115,7 +115,7 @@
               ],
               "id": "8c93b9ab1d068d2f1685-7d150644d4c52d2652ba",
               "file": "add-plant.spec.ts",
-              "line": 20,
+              "line": 18,
               "column": 3
             },
             {
@@ -134,16 +134,12 @@
                       "workerIndex": 1,
                       "parallelIndex": 1,
                       "status": "passed",
-                      "duration": 665,
+                      "duration": 880,
                       "errors": [],
-                      "stdout": [
-                        {
-                          "text": "⚠️ No varieties loaded - database may need seeding in test environment\n"
-                        }
-                      ],
+                      "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2025-09-21T06:28:58.703Z",
+                      "startTime": "2025-09-21T06:37:29.527Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -153,7 +149,7 @@
               ],
               "id": "8c93b9ab1d068d2f1685-ef50bf3b48d7520c9e4d",
               "file": "add-plant.spec.ts",
-              "line": 57,
+              "line": 55,
               "column": 3
             },
             {
@@ -172,12 +168,12 @@
                       "workerIndex": 2,
                       "parallelIndex": 2,
                       "status": "passed",
-                      "duration": 998,
+                      "duration": 989,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2025-09-21T06:28:58.702Z",
+                      "startTime": "2025-09-21T06:37:29.529Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -187,7 +183,7 @@
               ],
               "id": "8c93b9ab1d068d2f1685-4d7f21bec8b66121adf3",
               "file": "add-plant.spec.ts",
-              "line": 96,
+              "line": 90,
               "column": 3
             },
             {
@@ -206,12 +202,12 @@
                       "workerIndex": 3,
                       "parallelIndex": 3,
                       "status": "passed",
-                      "duration": 1264,
+                      "duration": 1276,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2025-09-21T06:28:58.705Z",
+                      "startTime": "2025-09-21T06:37:29.528Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -221,7 +217,7 @@
               ],
               "id": "8c93b9ab1d068d2f1685-3a558705f8f0951e992c",
               "file": "add-plant.spec.ts",
-              "line": 113,
+              "line": 107,
               "column": 3
             },
             {
@@ -240,12 +236,12 @@
                       "workerIndex": 4,
                       "parallelIndex": 4,
                       "status": "passed",
-                      "duration": 673,
+                      "duration": 942,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2025-09-21T06:28:58.707Z",
+                      "startTime": "2025-09-21T06:37:29.529Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -255,7 +251,7 @@
               ],
               "id": "8c93b9ab1d068d2f1685-02f8c0d765c7aa87daee",
               "file": "add-plant.spec.ts",
-              "line": 135,
+              "line": 129,
               "column": 3
             }
           ]
@@ -272,7 +268,7 @@
         {
           "title": "Dashboard Integration (Test Mode)",
           "file": "dashboard.spec.ts",
-          "line": 15,
+          "line": 17,
           "column": 6,
           "specs": [
             {
@@ -291,12 +287,12 @@
                       "workerIndex": 1,
                       "parallelIndex": 1,
                       "status": "passed",
-                      "duration": 620,
+                      "duration": 510,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2025-09-21T06:28:59.610Z",
+                      "startTime": "2025-09-21T06:37:30.618Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -306,7 +302,7 @@
               ],
               "id": "90cda532ab82d274b30b-80eb636e4087143181f2",
               "file": "dashboard.spec.ts",
-              "line": 24,
+              "line": 23,
               "column": 3
             },
             {
@@ -325,12 +321,12 @@
                       "workerIndex": 4,
                       "parallelIndex": 4,
                       "status": "passed",
-                      "duration": 669,
+                      "duration": 682,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2025-09-21T06:28:59.623Z",
+                      "startTime": "2025-09-21T06:37:30.689Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -340,7 +336,7 @@
               ],
               "id": "90cda532ab82d274b30b-24035cdd8aadf616d223",
               "file": "dashboard.spec.ts",
-              "line": 47,
+              "line": 46,
               "column": 3
             },
             {
@@ -359,12 +355,12 @@
                       "workerIndex": 2,
                       "parallelIndex": 2,
                       "status": "passed",
-                      "duration": 781,
+                      "duration": 844,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2025-09-21T06:28:59.960Z",
+                      "startTime": "2025-09-21T06:37:30.724Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -374,7 +370,7 @@
               ],
               "id": "90cda532ab82d274b30b-58250ceaf85016798bf2",
               "file": "dashboard.spec.ts",
-              "line": 76,
+              "line": 72,
               "column": 3
             },
             {
@@ -393,12 +389,12 @@
                       "workerIndex": 0,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 618,
+                      "duration": 753,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2025-09-21T06:28:59.986Z",
+                      "startTime": "2025-09-21T06:37:30.740Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -408,7 +404,7 @@
               ],
               "id": "90cda532ab82d274b30b-620244fc20af866e67b2",
               "file": "dashboard.spec.ts",
-              "line": 113,
+              "line": 105,
               "column": 3
             },
             {
@@ -427,12 +423,12 @@
                       "workerIndex": 3,
                       "parallelIndex": 3,
                       "status": "passed",
-                      "duration": 1018,
+                      "duration": 1032,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2025-09-21T06:29:00.206Z",
+                      "startTime": "2025-09-21T06:37:31.027Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -442,7 +438,7 @@
               ],
               "id": "90cda532ab82d274b30b-d07b4922749811138380",
               "file": "dashboard.spec.ts",
-              "line": 130,
+              "line": 122,
               "column": 3
             },
             {
@@ -461,12 +457,12 @@
                       "workerIndex": 1,
                       "parallelIndex": 1,
                       "status": "passed",
-                      "duration": 976,
+                      "duration": 975,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2025-09-21T06:29:00.245Z",
+                      "startTime": "2025-09-21T06:37:31.147Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -476,7 +472,7 @@
               ],
               "id": "90cda532ab82d274b30b-ec00ef2619a516fc4bed",
               "file": "dashboard.spec.ts",
-              "line": 164,
+              "line": 156,
               "column": 3
             },
             {
@@ -491,7 +487,7 @@
                       "type": "skip",
                       "location": {
                         "file": "/Users/tucker/Dropbox/workspace/smartgarden-app/tests/e2e/dashboard.spec.ts",
-                        "line": 190,
+                        "line": 182,
                         "column": 8
                       }
                     }
@@ -509,7 +505,7 @@
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2025-09-21T06:29:00.309Z",
+                      "startTime": "2025-09-21T06:37:31.384Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -519,7 +515,7 @@
               ],
               "id": "90cda532ab82d274b30b-204ab4c0f906a692aeeb",
               "file": "dashboard.spec.ts",
-              "line": 190,
+              "line": 182,
               "column": 8
             }
           ]
@@ -529,8 +525,8 @@
   ],
   "errors": [],
   "stats": {
-    "startTime": "2025-09-21T06:28:57.554Z",
-    "duration": 3729.6790000000005,
+    "startTime": "2025-09-21T06:37:28.318Z",
+    "duration": 3844.8830000000003,
     "expected": 11,
     "skipped": 1,
     "unexpected": 0,
