@@ -11,7 +11,7 @@
     "grepInvert": null,
     "maxFailures": 0,
     "metadata": {
-      "actualWorkers": 3
+      "actualWorkers": 5
     },
     "preserveOutput": "always",
     "reporter": [
@@ -37,7 +37,7 @@
         "repeatEach": 1,
         "retries": 0,
         "metadata": {
-          "actualWorkers": 3
+          "actualWorkers": 5
         },
         "id": "chromium",
         "name": "chromium",
@@ -100,12 +100,12 @@
                       "workerIndex": 0,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 591,
+                      "duration": 915,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2025-09-21T04:52:57.826Z",
+                      "startTime": "2025-09-21T06:16:16.328Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -134,12 +134,12 @@
                       "workerIndex": 1,
                       "parallelIndex": 1,
                       "status": "passed",
-                      "duration": 590,
+                      "duration": 717,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2025-09-21T04:52:57.827Z",
+                      "startTime": "2025-09-21T06:16:16.328Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -150,6 +150,40 @@
               "id": "90cda532ab82d274b30b-24035cdd8aadf616d223",
               "file": "dashboard.spec.ts",
               "line": 47,
+              "column": 3
+            },
+            {
+              "title": "shows empty garden state when user has no plants",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 2,
+                      "parallelIndex": 2,
+                      "status": "passed",
+                      "duration": 998,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2025-09-21T06:16:16.330Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "90cda532ab82d274b30b-58250ceaf85016798bf2",
+              "file": "dashboard.spec.ts",
+              "line": 76,
               "column": 3
             },
             {
@@ -165,15 +199,15 @@
                   "projectName": "chromium",
                   "results": [
                     {
-                      "workerIndex": 2,
-                      "parallelIndex": 2,
+                      "workerIndex": 3,
+                      "parallelIndex": 3,
                       "status": "passed",
-                      "duration": 591,
+                      "duration": 825,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2025-09-21T04:52:57.827Z",
+                      "startTime": "2025-09-21T06:16:16.330Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -183,8 +217,119 @@
               ],
               "id": "90cda532ab82d274b30b-620244fc20af866e67b2",
               "file": "dashboard.spec.ts",
-              "line": 76,
+              "line": 113,
               "column": 3
+            },
+            {
+              "title": "navigation links work correctly",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 4,
+                      "parallelIndex": 4,
+                      "status": "passed",
+                      "duration": 1339,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2025-09-21T06:16:16.332Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "90cda532ab82d274b30b-d07b4922749811138380",
+              "file": "dashboard.spec.ts",
+              "line": 130,
+              "column": 3
+            },
+            {
+              "title": "active navigation state is highlighted correctly",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 1,
+                      "parallelIndex": 1,
+                      "status": "passed",
+                      "duration": 789,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2025-09-21T06:16:17.264Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "90cda532ab82d274b30b-ec00ef2619a516fc4bed",
+              "file": "dashboard.spec.ts",
+              "line": 164,
+              "column": 3
+            },
+            {
+              "title": "dark mode toggle works correctly",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [
+                    {
+                      "type": "skip",
+                      "location": {
+                        "file": "/Users/tucker/Dropbox/workspace/smartgarden-app/tests/e2e/dashboard.spec.ts",
+                        "line": 190,
+                        "column": 8
+                      }
+                    }
+                  ],
+                  "expectedStatus": "skipped",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": -1,
+                      "parallelIndex": -1,
+                      "status": "skipped",
+                      "duration": 0,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2025-09-21T06:16:17.378Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "skipped"
+                }
+              ],
+              "id": "90cda532ab82d274b30b-204ab4c0f906a692aeeb",
+              "file": "dashboard.spec.ts",
+              "line": 190,
+              "column": 8
             }
           ]
         }
@@ -193,10 +338,10 @@
   ],
   "errors": [],
   "stats": {
-    "startTime": "2025-09-21T04:52:56.587Z",
-    "duration": 2074.592,
-    "expected": 3,
-    "skipped": 0,
+    "startTime": "2025-09-21T06:16:15.133Z",
+    "duration": 2957.3869999999997,
+    "expected": 6,
+    "skipped": 1,
     "unexpected": 0,
     "flaky": 0
   }
