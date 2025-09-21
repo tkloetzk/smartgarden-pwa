@@ -61,7 +61,7 @@ test.describe("Dashboard Integration (Test Mode)", () => {
 
     // Should see either the auth form or loading state
     const authForm = page.locator("form");
-    const loadingElement = page.getByText("Loading...");
+    const loadingElement = page.getByText("Loading dashboard...");
 
     const isAuthFormVisible = await authForm
       .isVisible({ timeout: 5000 })
@@ -87,6 +87,6 @@ test.describe("Dashboard Integration (Test Mode)", () => {
     const links = page.locator("a[href]");
     // We should have at least some links on the page
     const linksCount = await links.count().catch(() => 0);
-    expect(linksCount).toBeGreaterThanOrEqual(0); // At least 0, might be more when data loads
+    expect(linksCount).toBeGreaterThan(0); // Should have actual navigation links
   });
 });
