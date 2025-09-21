@@ -72,6 +72,197 @@
   },
   "suites": [
     {
+      "title": "add-plant.spec.ts",
+      "file": "add-plant.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [],
+      "suites": [
+        {
+          "title": "Add Plant Form",
+          "file": "add-plant.spec.ts",
+          "line": 10,
+          "column": 6,
+          "specs": [
+            {
+              "title": "form loads and displays all required fields",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 1057,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2025-09-21T06:28:58.707Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "8c93b9ab1d068d2f1685-7d150644d4c52d2652ba",
+              "file": "add-plant.spec.ts",
+              "line": 20,
+              "column": 3
+            },
+            {
+              "title": "plant variety dropdown loads and has expected state",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 1,
+                      "parallelIndex": 1,
+                      "status": "passed",
+                      "duration": 665,
+                      "errors": [],
+                      "stdout": [
+                        {
+                          "text": "⚠️ No varieties loaded - database may need seeding in test environment\n"
+                        }
+                      ],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2025-09-21T06:28:58.703Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "8c93b9ab1d068d2f1685-ef50bf3b48d7520c9e4d",
+              "file": "add-plant.spec.ts",
+              "line": 57,
+              "column": 3
+            },
+            {
+              "title": "required fields are marked with asterisks",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 2,
+                      "parallelIndex": 2,
+                      "status": "passed",
+                      "duration": 998,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2025-09-21T06:28:58.702Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "8c93b9ab1d068d2f1685-4d7f21bec8b66121adf3",
+              "file": "add-plant.spec.ts",
+              "line": 96,
+              "column": 3
+            },
+            {
+              "title": "quantity controls work correctly",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 3,
+                      "parallelIndex": 3,
+                      "status": "passed",
+                      "duration": 1264,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2025-09-21T06:28:58.705Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "8c93b9ab1d068d2f1685-3a558705f8f0951e992c",
+              "file": "add-plant.spec.ts",
+              "line": 113,
+              "column": 3
+            },
+            {
+              "title": "form has submit functionality",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 4,
+                      "parallelIndex": 4,
+                      "status": "passed",
+                      "duration": 673,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2025-09-21T06:28:58.707Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "8c93b9ab1d068d2f1685-02f8c0d765c7aa87daee",
+              "file": "add-plant.spec.ts",
+              "line": 135,
+              "column": 3
+            }
+          ]
+        }
+      ]
+    },
+    {
       "title": "dashboard.spec.ts",
       "file": "dashboard.spec.ts",
       "column": 0,
@@ -97,15 +288,15 @@
                   "projectName": "chromium",
                   "results": [
                     {
-                      "workerIndex": 0,
-                      "parallelIndex": 0,
+                      "workerIndex": 1,
+                      "parallelIndex": 1,
                       "status": "passed",
-                      "duration": 915,
+                      "duration": 620,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2025-09-21T06:16:16.328Z",
+                      "startTime": "2025-09-21T06:28:59.610Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -131,15 +322,15 @@
                   "projectName": "chromium",
                   "results": [
                     {
-                      "workerIndex": 1,
-                      "parallelIndex": 1,
+                      "workerIndex": 4,
+                      "parallelIndex": 4,
                       "status": "passed",
-                      "duration": 717,
+                      "duration": 669,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2025-09-21T06:16:16.328Z",
+                      "startTime": "2025-09-21T06:28:59.623Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -168,12 +359,12 @@
                       "workerIndex": 2,
                       "parallelIndex": 2,
                       "status": "passed",
-                      "duration": 998,
+                      "duration": 781,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2025-09-21T06:16:16.330Z",
+                      "startTime": "2025-09-21T06:28:59.960Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -199,15 +390,15 @@
                   "projectName": "chromium",
                   "results": [
                     {
-                      "workerIndex": 3,
-                      "parallelIndex": 3,
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 825,
+                      "duration": 618,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2025-09-21T06:16:16.330Z",
+                      "startTime": "2025-09-21T06:28:59.986Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -233,15 +424,15 @@
                   "projectName": "chromium",
                   "results": [
                     {
-                      "workerIndex": 4,
-                      "parallelIndex": 4,
+                      "workerIndex": 3,
+                      "parallelIndex": 3,
                       "status": "passed",
-                      "duration": 1339,
+                      "duration": 1018,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2025-09-21T06:16:16.332Z",
+                      "startTime": "2025-09-21T06:29:00.206Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -270,12 +461,12 @@
                       "workerIndex": 1,
                       "parallelIndex": 1,
                       "status": "passed",
-                      "duration": 789,
+                      "duration": 976,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2025-09-21T06:16:17.264Z",
+                      "startTime": "2025-09-21T06:29:00.245Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -318,7 +509,7 @@
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2025-09-21T06:16:17.378Z",
+                      "startTime": "2025-09-21T06:29:00.309Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -338,9 +529,9 @@
   ],
   "errors": [],
   "stats": {
-    "startTime": "2025-09-21T06:16:15.133Z",
-    "duration": 2957.3869999999997,
-    "expected": 6,
+    "startTime": "2025-09-21T06:28:57.554Z",
+    "duration": 3729.6790000000005,
+    "expected": 11,
     "skipped": 1,
     "unexpected": 0,
     "flaky": 0
