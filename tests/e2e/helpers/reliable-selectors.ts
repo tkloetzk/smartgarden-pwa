@@ -48,6 +48,8 @@ export async function getNavigationLink(
         return [
           SELECTORS.NAV.MOBILE[pathKey as keyof typeof SELECTORS.NAV.MOBILE],
           SELECTORS.NAV.DESKTOP[pathKey as keyof typeof SELECTORS.NAV.DESKTOP],
+          `nav a[href="${path}"]`, // Generic nav selector
+          `navigation a[href="${path}"]`, // Navigation element selector
           SELECTORS.NAV.ANY[pathKey as keyof typeof SELECTORS.NAV.ANY]
         ];
     }
@@ -63,7 +65,10 @@ export async function getNavigationLink(
     if (count > 0) {
       // If multiple elements, try to find the visible one
       if (count === 1) {
-        return element;
+        // Check if the single element is visible
+        if (await element.isVisible({ timeout: TIMEOUTS.ELEMENT_VISIBLE }).catch(() => false)) {
+          return element;
+        }
       } else {
         // Multiple elements found, return the first visible one
         for (let i = 0; i < count; i++) {
@@ -72,8 +77,6 @@ export async function getNavigationLink(
             return nth;
           }
         }
-        // If none are visible, return the first one
-        return element.first();
       }
     }
   }
@@ -164,4 +167,66 @@ export async function waitForAnyVisible(
   } catch (error) {
     throw new Error(`None of the selectors became visible: ${selectors.join(', ')}`);
   }
+}
+
+/**
+ * Get the first visible element from a locator that matches multiple elements
+ * @param locator Playwright locator that may match multiple elements
+ * @param timeout Timeout for checking visibility
+ */
+export async function getFirstVisible(
+  locator: Locator,
+  timeout: number = TIMEOUTS.ELEMENT_VISIBLE
+): Promise<Locator> {
+  const count = await locator.count();
+
+  if (count === 0) {
+    throw new Error('No elements found for locator');
+  }
+
+  if (count === 1) {
+    return locator;
+  }
+
+  // Multiple elements found, return the first visible one
+  for (let i = 0; i < count; i++) {
+    const element = locator.nth(i);
+    if (await element.isVisible({ timeout }).catch(() => false)) {
+      return element;
+    }
+  }
+
+  throw new Error('No visible elements found');
+}
+
+/**
+ * Get submit button with fallback strategies
+ * @param page Playwright page instance
+ * @param formSelector Optional form selector to scope the search
+ */
+export async function getSubmitButton(
+  page: Page,
+  formSelector?: string
+): Promise<Locator> {
+  const scope = formSelector ? page.locator(formSelector) : page;
+
+  const selectors = [
+    'button[type="submit"]',
+    'button:has-text("Save")',
+    'button:has-text("Add")',
+    'button:has-text("Register")',
+    'button:has-text("Submit")',
+    'input[type="submit"]',
+  ];
+
+  for (const selector of selectors) {
+    const buttons = scope.locator(selector);
+    const count = await buttons.count();
+
+    if (count > 0) {
+      return getFirstVisible(buttons);
+    }
+  }
+
+  throw new Error('No submit button found with any selector strategy');
 }

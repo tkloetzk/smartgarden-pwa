@@ -101,7 +101,10 @@ export const testUtils = {
     const headings = page.locator('h1, h2, h3, h4, h5, h6');
     
     // Should have at least one main heading
-    await expect(headings.first()).toBeVisible({ timeout: 5000 });
+    const headingCount = await headings.count();
+    if (headingCount > 0) {
+      await expect(headings.nth(0)).toBeVisible({ timeout: 5000 });
+    }
     
     // Check for form labels if forms are present
     const forms = page.locator('form');

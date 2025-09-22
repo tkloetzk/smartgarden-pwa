@@ -1,8 +1,8 @@
 import { expect } from "@playwright/test";
 import { test } from "./helpers/testModeSetup";
 import { TIMEOUTS, SELECTORS, TEXT_CONTENT } from "./helpers/test-constants";
-import { TestModes, applyTestMode } from "./helpers/test-modes";
-import { getFormInput, getDropdownOption } from "./helpers/reliable-selectors";
+import { TestSetups, setupTest, teardownTest } from "./helpers/test-setup";
+import { getFormInput, getDropdownOption, getSubmitButton } from "./helpers/reliable-selectors";
 
 /**
  * Add Plant Form Tests
@@ -12,8 +12,11 @@ import { getFormInput, getDropdownOption } from "./helpers/reliable-selectors";
 
 test.describe("Add Plant Form", () => {
   test.beforeEach(async ({ page }) => {
-    // Set test mode flags to ensure mock user is used
-    await applyTestMode(page, TestModes.withDbInit());
+    await setupTest(page, TestSetups.formTesting());
+  });
+
+  test.afterEach(async ({ page }) => {
+    await teardownTest(page);
   });
 
   test("form loads and displays all required fields", async ({ page }) => {
@@ -131,15 +134,8 @@ test.describe("Add Plant Form", () => {
     await page.goto("/add-plant");
     await page.waitForSelector(SELECTORS.FORMS.PLANT_REGISTRATION, { timeout: TIMEOUTS.FORM_LOAD });
 
-    // Look for submit/save buttons
-    const submitButtons = page.locator('button[type="submit"], button:has-text("Save"), button:has-text("Add"), button:has-text("Register")');
-    const submitButtonCount = await submitButtons.count();
-
-    // Should have at least one submit button
-    expect(submitButtonCount).toBeGreaterThan(0);
-
-    // Verify at least one submit button is visible
-    const visibleSubmitButton = submitButtons.first();
-    await expect(visibleSubmitButton).toBeVisible();
+    // Use reliable selector helper to find submit button
+    const submitButton = await getSubmitButton(page, SELECTORS.FORMS.PLANT_REGISTRATION);
+    await expect(submitButton).toBeVisible();
   });
 });

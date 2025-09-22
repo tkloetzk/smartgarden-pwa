@@ -1,7 +1,7 @@
 import { expect } from "@playwright/test";
 import { test } from "./helpers/testModeSetup";
 import { TIMEOUTS, SELECTORS, TEXT_CONTENT } from "./helpers/test-constants";
-import { TestModes, applyTestMode } from "./helpers/test-modes";
+import { TestSetups, setupTest, teardownTest } from "./helpers/test-setup";
 import { getNavigationLink } from "./helpers/reliable-selectors";
 
 /**
@@ -17,8 +17,11 @@ import { getNavigationLink } from "./helpers/reliable-selectors";
 // Use test mode for all other tests
 test.describe("Dashboard Integration (Test Mode)", () => {
   test.beforeEach(async ({ page }) => {
-    // Set test mode flags to ensure mock user is used
-    await applyTestMode(page, TestModes.standard());
+    await setupTest(page, TestSetups.authenticated());
+  });
+
+  test.afterEach(async ({ page }) => {
+    await teardownTest(page);
   });
 
   test("loads app and shows loading state or dashboard", async ({ page }) => {
@@ -45,8 +48,8 @@ test.describe("Dashboard Integration (Test Mode)", () => {
   });
 
   test("shows auth form when not authenticated", async ({ page }) => {
-    // Temporarily disable test mode to test the auth flow
-    await applyTestMode(page, TestModes.noAuth());
+    // Override setup for this specific test
+    await setupTest(page, TestSetups.unauthenticated());
 
     await page.goto("/");
 
@@ -71,8 +74,8 @@ test.describe("Dashboard Integration (Test Mode)", () => {
   });
 
   test("shows empty garden state when user has no plants", async ({ page }) => {
-    // Set test mode with empty plants override
-    await applyTestMode(page, TestModes.emptyPlants());
+    // Override setup for this specific test
+    await setupTest(page, TestSetups.emptyGarden());
 
     await page.goto("/");
 
@@ -160,24 +163,26 @@ test.describe("Dashboard Integration (Test Mode)", () => {
     await page.waitForSelector(SELECTORS.APP.ROOT, { timeout: TIMEOUTS.FORM_LOAD });
 
     // Check that Dashboard link has active styling (primary color)
-    const dashboardLink = page.locator(SELECTORS.NAV.DASHBOARD_LINK).first();
+    const dashboardLink = await getNavigationLink(page, "/");
     await expect(dashboardLink).toHaveClass(/text-primary/);
 
     // Navigate to Plants page
-    await page.locator(SELECTORS.NAV.PLANTS_LINK).first().click();
+    const plantsLink = await getNavigationLink(page, "/plants");
+    await plantsLink.click();
     await page.waitForURL("**/plants", { timeout: TIMEOUTS.NAVIGATION });
 
     // Check that Plants link now has active styling
-    const plantsLink = page.locator(SELECTORS.NAV.PLANTS_LINK).first();
-    await expect(plantsLink).toHaveClass(/text-primary/);
+    const activePlantsLink = await getNavigationLink(page, "/plants");
+    await expect(activePlantsLink).toHaveClass(/text-primary/);
 
     // Navigate to Add Plant page
-    await page.locator(SELECTORS.NAV.ADD_PLANT_LINK).first().click();
+    const addPlantLink = await getNavigationLink(page, "/add-plant");
+    await addPlantLink.click();
     await page.waitForURL("**/add-plant", { timeout: TIMEOUTS.NAVIGATION });
 
     // Check that Add Plant link now has active styling
-    const addPlantLink = page.locator(SELECTORS.NAV.ADD_PLANT_LINK).first();
-    await expect(addPlantLink).toHaveClass(/text-primary/);
+    const activeAddPlantLink = await getNavigationLink(page, "/add-plant");
+    await expect(activeAddPlantLink).toHaveClass(/text-primary/);
   });
 
   test.skip("dark mode toggle works correctly", async ({ page }) => {
@@ -190,7 +195,8 @@ test.describe("Dashboard Integration (Test Mode)", () => {
     await expect(darkModeToggle).toBeVisible();
 
     // Check initial state (should show sun icon for light mode or moon for dark mode)
-    const initialIcon = await darkModeToggle.locator('span').last().textContent();
+    const iconLocator = darkModeToggle.locator('span').last();
+    const initialIcon = await iconLocator.textContent();
     const isInitiallyDark = initialIcon?.includes('🌙');
 
     // Click the toggle
@@ -200,7 +206,7 @@ test.describe("Dashboard Integration (Test Mode)", () => {
     await page.waitForTimeout(TIMEOUTS.QUICK_ACTION);
 
     // Check that the icon changed
-    const newIcon = await darkModeToggle.locator('span').last().textContent();
+    const newIcon = await iconLocator.textContent();
     const isNowDark = newIcon?.includes('🌙');
 
     // The state should have switched
@@ -211,7 +217,7 @@ test.describe("Dashboard Integration (Test Mode)", () => {
     await page.waitForTimeout(TIMEOUTS.QUICK_ACTION);
 
     // Should be back to original state
-    const finalIcon = await darkModeToggle.locator('span').last().textContent();
+    const finalIcon = await iconLocator.textContent();
     const isFinallyDark = finalIcon?.includes('🌙');
     expect(isFinallyDark).toBe(isInitiallyDark);
   });
