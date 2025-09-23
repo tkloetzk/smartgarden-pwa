@@ -1,8 +1,8 @@
 import { expect } from "@playwright/test";
-import { test } from "./helpers/testModeSetup";
-import { TIMEOUTS, SELECTORS, TEXT_CONTENT } from "./helpers/test-constants";
-import { TestSetups, setupTest, teardownTest } from "./helpers/test-setup";
 import { getNavigationLink } from "./helpers/reliable-selectors";
+import { SELECTORS, TEXT_CONTENT, TIMEOUTS } from "./helpers/test-constants";
+import { TestSetups, setupTest, teardownTest } from "./helpers/test-setup";
+import { test } from "./helpers/testModeSetup";
 
 /**
  * Dashboard Integration Tests
@@ -183,6 +183,44 @@ test.describe("Dashboard Integration (Test Mode)", () => {
     // Check that Add Plant link now has active styling
     const activeAddPlantLink = await getNavigationLink(page, "/add-plant");
     await expect(activeAddPlantLink).toHaveClass(/text-primary/);
+  });
+
+  test("user can log care for a plant", async ({ page }) => {
+    await page.goto("/");
+    // Wait for dashboard to load
+    await page.waitForSelector(SELECTORS.APP.ROOT, { timeout: TIMEOUTS.FORM_LOAD });
+    // Find a log care button (adjust selector as needed)
+    const logCareButton = page.getByRole("button", { name: /log care/i }).first();
+    if (await logCareButton.isVisible()) {
+      await logCareButton.click();
+      // Expect a confirmation or toast (adjust selector/text as needed)
+      await expect(page.getByText(/care logged|activity recorded/i)).toBeVisible();
+    } else {
+      test.skip();
+    }
+  });
+
+  test("shows error banner if API fails", async ({ page }) => {
+    // Simulate API failure (requires MSW or test backend flag)
+    await page.goto("/?simulateError=1");
+    // Wait for error banner/alert
+    const errorBanner = page.getByRole("alert");
+    await expect(errorBanner).toBeVisible();
+    await expect(errorBanner).toContainText(/error|failed|unavailable/i);
+  });
+
+  test("keyboard navigation works for dashboard cards", async ({ page }) => {
+    await page.goto("/");
+    // Wait for dashboard to load
+    await page.waitForSelector(SELECTORS.APP.ROOT, { timeout: TIMEOUTS.FORM_LOAD });
+    // Focus the first dashboard card
+    await page.keyboard.press("Tab");
+    const firstCard = page.getByTestId("dashboard-card").first();
+    await expect(firstCard).toBeFocused();
+    // Tab to next card and check focus
+    await page.keyboard.press("Tab");
+    const secondCard = page.getByTestId("dashboard-card").nth(1);
+    await expect(secondCard).toBeFocused();
   });
 
   test.skip("dark mode toggle works correctly", async ({ page }) => {

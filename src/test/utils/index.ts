@@ -5,17 +5,18 @@
  * Import from this file to get everything you need for testing.
  */
 
+import { PlantFactory, TestDataBuilder, VarietyFactory } from "@/test/factories/plantFactory";
+import { clearMockData } from "@/test/mocks/handlers";
+import renderWithProviders, { createMockUser, createTestQueryClient, mockUser, renderDashboard, renderForm, renderWithRouter, screen, setupTest, userEvent, waitFor } from "@/test/utils/renderUtils";
+
 // ============================================================================
 // FACTORIES
 // ============================================================================
 
 export {
-  PlantFactory,
-  VarietyFactory,
   BedFactory,
-  CareActivityFactory,
-  ScheduledTaskFactory,
-  TestDataBuilder,
+  CareActivityFactory, PlantFactory, ScheduledTaskFactory,
+  TestDataBuilder, VarietyFactory
 } from "../factories/plantFactory";
 
 // ============================================================================
@@ -23,39 +24,20 @@ export {
 // ============================================================================
 
 export {
-  // Custom render functions
-  renderWithRouter,
-  renderWithQueryClient,
-  renderWithProviders,
-  renderSmart,
-
-  // Specialized render functions
-  renderDashboard,
-  renderForm,
-  renderPlantDetail,
-  renderInPage,
-
+  act, cleanup, cleanupTest,
   // Mock data utilities
-  createMockUser,
-  mockUser,
-
-  // Testing utilities
-  waitForAsyncOperations,
-  createTestQueryClient,
-  setupTest,
-  cleanupTest,
-
+  createMockUser, createTestQueryClient, fireEvent, mockUser,
   // Re-exported testing library utilities
   render,
-  screen,
-  waitFor,
-  fireEvent,
-  cleanup,
-  act,
-  userEvent,
-
+  // Specialized render functions
+  renderDashboard,
+  renderForm, renderInPage, renderPlantDetail, renderSmart, renderWithProviders, renderWithQueryClient,
+  // Custom render functions
+  renderWithRouter, screen, setupTest, userEvent, waitFor,
+  // Testing utilities
+  waitForAsyncOperations,
   // Types
-  type CustomRenderOptions,
+  type CustomRenderOptions
 } from "./renderUtils";
 
 // ============================================================================
@@ -63,8 +45,7 @@ export {
 // ============================================================================
 
 export {
-  setMockData,
-  clearMockData,
+  clearMockData, setMockData
 } from "../mocks/server";
 
 // ============================================================================

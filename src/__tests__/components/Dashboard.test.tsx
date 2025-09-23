@@ -8,17 +8,14 @@
  * - Complex workflows moved to integration tests
  */
 
-import { describe, it, expect, beforeEach, vi } from "vitest";
-import React from "react";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 // Import test utilities
 import {
-  PlantFactory,
-  setupDashboardTest,
-  renderDashboard,
-  screen,
   assertions,
-  mockUser,
+  PlantFactory,
+  screen,
+  setupDashboardTest
 } from "@/test/utils";
 
 // Mock Firebase-related hooks that useDashboardData depends on
@@ -58,18 +55,18 @@ vi.mock("@/hooks/dashboard/useObservationTasks", () => ({
 import { Dashboard } from "@/pages/dashboard";
 
 // Import the mocked hooks
-import {
-  useDashboardData,
-  useHiddenGroupsManager,
-  useContainerGroups,
-  useCareStatus,
-  useFertilizationTasks,
-} from "@/hooks/dashboard";
-import { useWateringTasks } from "@/hooks/dashboard/useWateringTasks";
-import { useObservationTasks } from "@/hooks/dashboard/useObservationTasks";
-import { useFirebasePlants } from "@/hooks/plants/useFirebasePlants";
 import { useFirebaseAuth } from "@/hooks/auth/useFirebaseAuth";
 import { useCareActivities } from "@/hooks/care/useCareActivities";
+import {
+  useCareStatus,
+  useContainerGroups,
+  useDashboardData,
+  useFertilizationTasks,
+  useHiddenGroupsManager,
+} from "@/hooks/dashboard";
+import { useObservationTasks } from "@/hooks/dashboard/useObservationTasks";
+import { useWateringTasks } from "@/hooks/dashboard/useWateringTasks";
+import { useFirebasePlants } from "@/hooks/plants/useFirebasePlants";
 import { useScheduledTasks } from "@/hooks/tasks/useScheduledTasks";
 
 describe("Dashboard Component", () => {
