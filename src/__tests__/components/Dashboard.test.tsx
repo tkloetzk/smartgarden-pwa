@@ -9,51 +9,17 @@
  */
 
 import { describe, it, expect, beforeEach, vi } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
-import { MemoryRouter } from "react-router-dom";
 import React from "react";
-import { User } from "firebase/auth";
 
-// Test data
-const mockUser: User = {
-  uid: "test-user-id",
-  email: "test@example.com",
-  displayName: "Test User",
-  emailVerified: true,
-  isAnonymous: false,
-  metadata: {
-    creationTime: "2024-08-01T00:00:00Z",
-    lastSignInTime: "2024-08-01T00:00:00Z",
-  },
-  providerData: [],
-  refreshToken: "mock-token",
-  tenantId: null,
-  delete: vi.fn(),
-  getIdToken: vi.fn().mockResolvedValue("mock-token"),
-  getIdTokenResult: vi.fn().mockResolvedValue({}),
-  reload: vi.fn(),
-  toJSON: vi.fn(),
-  phoneNumber: null,
-  photoURL: null,
-  providerId: "firebase",
-} as User;
-
-const mockPlants = [
-  {
-    id: "plant-1",
-    name: "Cherry Tomato",
-    varietyName: "Cherry Tomato",
-    plantedDate: new Date("2024-08-01"),
-    container: "6-inch pot",
-  },
-  {
-    id: "plant-2",
-    name: "Sweet Basil",
-    varietyName: "Sweet Basil",
-    plantedDate: new Date("2024-08-01"),
-    container: "4-inch pot",
-  },
-];
+// Import test utilities
+import {
+  PlantFactory,
+  setupDashboardTest,
+  renderDashboard,
+  screen,
+  assertions,
+  mockUser,
+} from "@/test/utils";
 
 // Mock Firebase-related hooks that useDashboardData depends on
 vi.mock("@/hooks/plants/useFirebasePlants", () => ({
@@ -106,20 +72,20 @@ import { useFirebaseAuth } from "@/hooks/auth/useFirebaseAuth";
 import { useCareActivities } from "@/hooks/care/useCareActivities";
 import { useScheduledTasks } from "@/hooks/tasks/useScheduledTasks";
 
-// Helper to render Dashboard with router
-const renderDashboard = () => {
-  return render(
-    <MemoryRouter>
-      <Dashboard />
-    </MemoryRouter>
-  );
-};
-
 describe("Dashboard Component", () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
+  let testData: ReturnType<typeof setupDashboardTest>;
 
-    // Mock Firebase-related hooks first
+  beforeEach(() => {
+    // Use the comprehensive test setup
+    testData = setupDashboardTest();
+
+    // Create test plants using factory
+    const mockPlants = [
+      PlantFactory.tomato({ name: "Cherry Tomato" }),
+      PlantFactory.basil({ name: "Sweet Basil" }),
+    ];
+
+    // Mock Firebase-related hooks with factory data
     vi.mocked(useFirebasePlants).mockReturnValue({
       plants: mockPlants,
       loading: false,
@@ -130,7 +96,7 @@ describe("Dashboard Component", () => {
     });
 
     vi.mocked(useFirebaseAuth).mockReturnValue({
-      user: mockUser,
+      user: testData.mockUser,
       signOut: vi.fn(),
       loading: false,
       error: null,
@@ -148,11 +114,11 @@ describe("Dashboard Component", () => {
       error: null,
     });
 
-    // Mock hook implementations
+    // Mock hook implementations with cleaner data
     vi.mocked(useDashboardData).mockReturnValue({
       plants: mockPlants,
       loading: false,
-      user: mockUser,
+      user: testData.mockUser,
       signOut: vi.fn(),
       logActivity: vi.fn(),
       getUpcomingFertilizationTasks: vi.fn(),
@@ -202,39 +168,37 @@ describe("Dashboard Component", () => {
 
   describe("Basic Rendering", () => {
     it("renders with essential UI elements", async () => {
-      renderDashboard();
+      testData.render(<Dashboard />);
 
-      expect(
-        await screen.findByTestId("smartgarden-title")
-      ).toBeInTheDocument();
-      expect(
-        screen.getByRole("button", { name: /sign out/i })
-      ).toBeInTheDocument();
+      // Use assertion helpers for cleaner test code
+      const title = await screen.findByTestId("smartgarden-title");
+      assertions.isVisible(title);
+
+      const signOutButton = assertions.clickableButton(/sign out/i);
+      assertions.isVisible(signOutButton);
     });
 
     it("displays user information when available", async () => {
-      renderDashboard();
+      testData.render(<Dashboard />);
 
-      expect(
-        await screen.findByText(/welcome.*test user/i)
-      ).toBeInTheDocument();
+      // Use assertion helper for text content
+      assertions.hasVisibleText(/welcome.*test user/i);
     });
   });
 
   describe("Accessibility", () => {
     it("maintains proper heading hierarchy", async () => {
-      renderDashboard();
+      testData.render(<Dashboard />);
 
       const mainHeading = await screen.findByRole("heading", { level: 1 });
+      assertions.isVisible(mainHeading);
       expect(mainHeading).toHaveTextContent("SmartGarden");
     });
 
     it("provides accessible button labels", async () => {
-      renderDashboard();
+      testData.render(<Dashboard />);
 
-      const signOutButton = await screen.findByRole("button", {
-        name: /sign out/i,
-      });
+      const signOutButton = assertions.clickableButton(/sign out/i);
       expect(signOutButton).toHaveAccessibleName();
     });
   });
