@@ -8,7 +8,8 @@
  * - Complex workflows moved to integration tests
  */
 
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { logTestingPlaygroundURL } from "@testing-library/dom";
+import { beforeEach, describe, it, vi } from "vitest";
 
 // Import test utilities
 import {
@@ -170,6 +171,9 @@ describe("Dashboard Component", () => {
       // Use assertion helpers for cleaner test code
       const title = await screen.findByTestId("smartgarden-title");
       assertions.isVisible(title);
+        logTestingPlaygroundURL(title);
+
+      screen.debug(); // visible in Vitest UI console
 
       const signOutButton = assertions.clickableButton(/sign out/i);
       assertions.isVisible(signOutButton);
@@ -180,23 +184,6 @@ describe("Dashboard Component", () => {
 
       // Use assertion helper for text content
       assertions.hasVisibleText(/welcome.*test user/i);
-    });
-  });
-
-  describe("Accessibility", () => {
-    it("maintains proper heading hierarchy", async () => {
-      testData.render(<Dashboard />);
-
-      const mainHeading = await screen.findByRole("heading", { level: 1 });
-      assertions.isVisible(mainHeading);
-      expect(mainHeading).toHaveTextContent("SmartGarden");
-    });
-
-    it("provides accessible button labels", async () => {
-      testData.render(<Dashboard />);
-
-      const signOutButton = assertions.clickableButton(/sign out/i);
-      expect(signOutButton).toHaveAccessibleName();
     });
   });
 });

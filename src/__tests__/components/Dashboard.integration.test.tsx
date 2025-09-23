@@ -8,7 +8,7 @@
  * - Minimal mocking - focus on service layer only
  */
 
-import { render, screen, within } from "@testing-library/react";
+import { cleanup, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { User } from "firebase/auth";
 import { MemoryRouter } from "react-router-dom";
@@ -72,16 +72,21 @@ vi.mock("@/hooks/dashboard/useObservationTasks", () => ({
   useObservationTasks: vi.fn(),
 }));
 
+// Explicitly mock the direct care-status module in case the component imports it directly
+vi.mock("@/hooks/dashboard/useCareStatus", () => ({
+  useCareStatus: vi.fn(),
+}));
+
 import { Dashboard } from "@/pages/dashboard";
 
 // Import the mocked hooks
 import {
-  useCareStatus,
   useContainerGroups,
   useDashboardData,
   useFertilizationTasks,
   useHiddenGroupsManager,
 } from "@/hooks/dashboard";
+import { useCareStatus } from "@/hooks/dashboard/useCareStatus";
 import { useObservationTasks } from "@/hooks/dashboard/useObservationTasks";
 import { useWateringTasks } from "@/hooks/dashboard/useWateringTasks";
 
@@ -148,6 +153,20 @@ describe("Dashboard Integration Tests", () => {
       handleTaskBypass: vi.fn(),
       handleTaskLogActivity: vi.fn(),
     });
+  });
+
+  afterEach(() => {
+    // Ensure DOM is cleaned and mocks/timers are reset between tests to avoid flakiness
+    cleanup();
+    // Reset mock call history and implementations
+    vi.resetAllMocks();
+    vi.restoreAllMocks();
+    // Ensure timers are real for predictable behavior
+    try {
+      vi.useRealTimers();
+    } catch (e) {
+      // ignore if real timers already in use
+    }
   });
 
   describe("Business Logic Integration", () => {
@@ -219,8 +238,9 @@ describe("Dashboard Integration Tests", () => {
       const catchUpCard = catchUpCards[0];
       
       expect(catchUpCard).toBeDefined();
-  const subtext = within(catchUpCard).getByTestId("care-status-subtext");
+  const subtext = await within(catchUpCard).findByTestId("care-status-subtext");
   expect(subtext).toHaveTextContent("3");
+
       
       // Test the interaction
       await user.click(catchUpCard);
@@ -245,7 +265,7 @@ describe("Dashboard Integration Tests", () => {
       const catchUpCard = catchUpCards[0];
       
       expect(catchUpCard).toBeDefined();
-  const subtext = within(catchUpCard).getByTestId("care-status-subtext");
+  const subtext = await within(catchUpCard).findByTestId("care-status-subtext");
   expect(subtext).toHaveTextContent("✅");
       
       // Test the interaction
