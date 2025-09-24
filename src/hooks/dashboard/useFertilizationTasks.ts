@@ -1,18 +1,17 @@
-import { useState, useEffect, useCallback } from "react";
-import toast from "react-hot-toast";
+import { findVarietyByName } from "@/lib/seedVarietiesUtils";
 import { DynamicSchedulingService } from "@/services/dynamicSchedulingService";
 import { CareActivityDetails, CareRecord } from "@/types";
 import { getRelevantFertilizationTasksForPlant } from "@/utils/care/fertilizationUtils";
-import { seedVarieties } from "@/data/seedVarieties";
-import { differenceInDays, addDays } from "date-fns";
 import { calculateCurrentStageWithVariety } from "@/utils/plant/growthStage";
 import { getPlantDisplayName } from "@/utils/plant/plantDisplay";
 import {
-  groupTasksByVarietyAndDetails,
-  GroupingKeyGenerators,
-  completeGroupedTask,
-  bypassGroupedTask,
+    GroupingKeyGenerators,
+    bypassGroupedTask,
+    groupTasksByVarietyAndDetails
 } from "@/utils/tasks/taskGrouping";
+import { addDays, differenceInDays } from "date-fns";
+import { useCallback, useEffect, useState } from "react";
+import toast from "react-hot-toast";
 
 export interface FertilizationTasksManager {
   upcomingFertilization: any[];
@@ -52,9 +51,7 @@ export const useFertilizationTasks = (
           );
 
           // Get the seed variety for this plant
-          const variety = seedVarieties.find(
-            (v) => v.name === plant.varietyName
-          );
+          const variety = findVarietyByName(plant.varietyName);
           if (!variety) {
             console.log(`No variety found for ${plant.varietyName}`);
             continue;

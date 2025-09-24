@@ -2,21 +2,20 @@
 // DEPRECATED: Calculation logic moved to frontend for better performance
 // Use utils/care/localCareCalculations.ts for new implementations
 // This service now serves as legacy support only
+import { findVarietyByName } from "@/lib/seedVarietiesUtils";
+import { CareActivityType, CareRecord, GrowthStage, UpcomingTask } from "@/types";
 import { PlantRecord } from "@/types/database";
-import { GrowthStage, CareActivityType, UpcomingTask } from "@/types";
+import { WateringResolver } from "@/utils/care/wateringResolver";
+import { Logger } from "@/utils/core/logger";
+import {
+    calculatePriority,
+    ensureDateObject,
+    formatDueIn,
+} from "@/utils/date/dateUtils";
 import { calculateCurrentStageWithVariety } from "@/utils/plant/growthStage";
 import { getPlantDisplayName } from "@/utils/plant/plantDisplay";
 import { addDays, differenceInDays } from "date-fns";
 import { DynamicSchedulingService } from "./dynamicSchedulingService";
-import {
-  formatDueIn,
-  calculatePriority,
-  ensureDateObject,
-} from "@/utils/date/dateUtils";
-import { Logger } from "@/utils/core/logger";
-import { WateringResolver } from "@/utils/care/wateringResolver";
-import { seedVarieties, SeedVariety } from "@/data/seedVarieties";
-import { CareRecord } from "@/types";
 
 interface TaskConfig {
   type: CareActivityType;
@@ -130,9 +129,7 @@ export class FirebaseCareSchedulingService {
   ): Promise<UpcomingTask[]> {
     try {
       // Find variety by name in seed data instead of IndexedDB lookup
-      const seedVariety = seedVarieties.find(
-        (v: SeedVariety) => v.name === plant.varietyName
-      );
+  const seedVariety = findVarietyByName(plant.varietyName);
 
       if (!seedVariety) {
         console.warn(`No variety found for ${plant.varietyName}`);

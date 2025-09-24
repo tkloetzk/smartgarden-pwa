@@ -1,10 +1,10 @@
 // src/hooks/plants/useLocalOverdueCalculation.ts
-import { useMemo } from "react";
+import { findVarietyByName } from "@/lib/seedVarietiesUtils";
+import { CareRecord, GrowthStage, UpcomingTask } from "@/types";
 import { PlantRecord } from "@/types/database";
-import { GrowthStage, UpcomingTask, CareRecord } from "@/types";
-import { seedVarieties } from "@/data/seedVarieties";
+import { calculatePriority, formatDueIn } from "@/utils/date/dateUtils";
 import { differenceInDays } from "date-fns";
-import { formatDueIn, calculatePriority } from "@/utils/date/dateUtils";
+import { useMemo } from "react";
 
 interface LastCareActivities {
   watering: CareRecord | null;
@@ -22,7 +22,7 @@ export function useLocalOverdueCalculation(
     if (isLoading || !plant) return null;
 
     // Find the plant's variety in seedVarieties
-    const variety = seedVarieties.find(v => v.name === plant.varietyName);
+  const variety = findVarietyByName(plant.varietyName);
     if (!variety) return null;
 
     const today = new Date();

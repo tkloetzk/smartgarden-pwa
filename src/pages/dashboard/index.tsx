@@ -8,20 +8,20 @@ import { Button } from "@/components/ui/Button";
 import { Card, CardContent } from "@/components/ui/Card";
 import { OfflineIndicator } from "@/components/ui/OfflineIndicator";
 import WateringDashboardSection from "@/components/watering/WateringDashboardSection";
-import { seedVarieties } from "@/data/seedVarieties";
 import {
-    initializeDatabase,
-    resetDatabaseInitializationFlag,
+  initializeDatabase,
+  resetDatabaseInitializationFlag,
 } from "@/db/seedData";
 import {
-    useCareStatus,
-    useContainerGroups,
-    useDashboardData,
-    useFertilizationTasks,
-    useHiddenGroupsManager,
+  useCareStatus,
+  useContainerGroups,
+  useDashboardData,
+  useFertilizationTasks,
+  useHiddenGroupsManager,
 } from "@/hooks/dashboard";
 import { useObservationTasks } from "@/hooks/dashboard/useObservationTasks";
 import { useWateringTasks } from "@/hooks/dashboard/useWateringTasks";
+import { findVarietyByName } from "@/lib/seedVarietiesUtils";
 import { TaskManagementService } from "@/services/TaskManagementService";
 import { findContainerMates } from "@/utils/plant/containerGrouping";
 import { PlantGroup } from "@/utils/plant/plantGrouping";
@@ -40,7 +40,7 @@ async function syncPlantProtocols(plants: any[], userId: string) {
         const plant = plants.find(p => p.id === plantId);
         if (!plant) return undefined;
         
-        const variety = seedVarieties.find((v) => v.name === plant.varietyName);
+  const variety = findVarietyByName(plant.varietyName);
         if (!variety) return undefined;
         
         return {

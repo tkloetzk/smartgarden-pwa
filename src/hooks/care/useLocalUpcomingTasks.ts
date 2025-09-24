@@ -1,11 +1,11 @@
-import { useState, useEffect, useMemo } from "react";
+import { findVarietyByName } from "@/lib/seedVarietiesUtils";
+import { CareActivityType, CareRecord, UpcomingTask } from "@/types";
 import { PlantRecord } from "@/types/database";
-import { UpcomingTask, CareActivityType, CareRecord } from "@/types";
-import { seedVarieties } from "@/data/seedVarieties";
-import { differenceInDays, addDays } from "date-fns";
-import { formatDueIn, calculatePriority } from "@/utils/date/dateUtils";
+import { calculatePriority, formatDueIn } from "@/utils/date/dateUtils";
 import { calculateCurrentStageWithVariety } from "@/utils/plant/growthStage";
 import { getPlantDisplayName } from "@/utils/plant/plantDisplay";
+import { addDays, differenceInDays } from "date-fns";
+import { useEffect, useMemo, useState } from "react";
 
 interface UseLocalUpcomingTasksProps {
   plants: PlantRecord[];
@@ -34,7 +34,7 @@ export function useLocalUpcomingTasks({
         const allTasks: UpcomingTask[] = [];
 
         for (const plant of plants) {
-          const variety = seedVarieties.find(v => v.name === plant.varietyName);
+          const variety = findVarietyByName(plant.varietyName);
           if (!variety) continue;
 
           // Calculate current growth stage

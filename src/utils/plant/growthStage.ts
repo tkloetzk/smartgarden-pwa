@@ -1,10 +1,9 @@
 // src/utils/growthStage.ts - Complete updated file
-import { GrowthStage } from "@/types";
-import { addDays, differenceInDays } from "date-fns";
+import { findVarietyByName } from "@/lib/seedVarietiesUtils";
+import { GrowthStage, GrowthTimeline } from "@/types";
 import { VarietyRecord } from "@/types/database";
-import { seedVarieties } from "@/data/seedVarieties";
-import { GrowthTimeline } from "@/types";
 import { Logger } from "@/utils/core/logger";
+import { addDays, differenceInDays } from "date-fns";
 
 export interface GrowthStageInfo {
   stage: GrowthStage;
@@ -21,7 +20,7 @@ export function calculateStageFromSeedVarieties(
   varietyName: string,
   currentDate: Date = new Date()
 ): GrowthStage {
-  const variety = seedVarieties.find((v) => v.name === varietyName);
+  const variety = findVarietyByName(varietyName);
 
   if (!variety?.growthTimeline) {
     Logger.warn(`Variety ${varietyName} not found in seedVarieties`);

@@ -1,26 +1,26 @@
 // src/services/firebase/plantService.ts
+import { findVarietyByName } from "@/lib/seedVarietiesUtils";
+import { Logger } from "@/utils/core/logger";
 import {
+  Timestamp,
+  addDoc,
   collection,
   doc,
-  addDoc,
-  updateDoc,
   onSnapshot,
   query,
-  where,
-  Timestamp,
-  writeBatch,
   serverTimestamp,
+  updateDoc,
+  where,
+  writeBatch,
 } from "firebase/firestore";
-import { db } from "./config";
 import {
   FirebasePlantRecord,
-  convertPlantToFirebase,
+  PlantRecord,
   convertPlantFromFirebase,
+  convertPlantToFirebase,
 } from "../../types";
-import { PlantRecord } from "../../types";
-import { Logger } from "@/utils/core/logger";
-import { seedVarieties } from "@/data/seedVarieties";
 import { TaskManagementService } from "../TaskManagementService";
+import { db } from "./config";
 import { FirebaseScheduledTaskService } from "./scheduledTaskService";
 
 export class FirebasePlantService {
@@ -57,7 +57,7 @@ export class FirebasePlantService {
       await FirebaseScheduledTaskService.deletePendingTasksForPlant(plantRecord.id, userId);
       
       // Generate new tasks if the variety has protocols
-      const seedVariety = seedVarieties.find(v => v.name === plantRecord.varietyName);
+  const seedVariety = findVarietyByName(plantRecord.varietyName);
       
       if (seedVariety?.protocols?.fertilization) {
         // Convert SeedVariety to VarietyRecord format for compatibility
@@ -215,7 +215,7 @@ export class FirebasePlantService {
     
     try {
       // Generate fertilization tasks if the variety has protocols
-      const seedVariety = seedVarieties.find(v => v.name === plant.varietyName);
+  const seedVariety = findVarietyByName(plant.varietyName);
       
       if (seedVariety?.protocols?.fertilization) {
         // Convert SeedVariety to VarietyRecord format for compatibility

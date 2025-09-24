@@ -1,60 +1,58 @@
-import { useState, useEffect } from "react";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
-import { useSearchParams } from "react-router-dom";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
-import { Button } from "@/components/ui/Button";
-import { LoadingSpinner } from "@/components/ui/LoadingSpinner";
-import { useFirebasePlants } from "@/hooks/plants/useFirebasePlants";
-import { useCareActivities } from "@/hooks/care/useCareActivities";
-import {
-  varietyService,
-  VarietyRecord,
-  CareActivityDetails,
-} from "@/types/database";
-import { groupPlantsByConditions } from "@/utils/plant/plantGrouping";
-import { seedVarieties } from "@/data/seedVarieties";
-import { calculateCurrentStageWithVariety } from "@/utils/plant/growthStage";
-import { GrowthStage } from "@/types";
-import {
-  Droplets,
-  Beaker,
-  Eye,
-  Camera,
-  FileText,
-  Calendar,
-  Info,
-  Clock,
-} from "lucide-react";
-import {
-  getMethodDisplay,
-  requiresWater,
-  getWaterAmountForMethod,
-} from "@/utils/care/fertilizationUtils";
-import {
-  parseDilutionString,
-  parseAmountString,
-} from "@/utils/care/protocolParser";
-import {
-  getTodayDateString,
-  createLocalDateFromString,
-  createDateForCareLogging,
-} from "@/utils/date/dateUtils";
-import { ApplicationMethod } from "@/types";
-import { FertilizationScheduleItem } from "@/types";
-import { format, subDays } from "date-fns";
-import toast from "react-hot-toast";
 import SectionApplyCard from "@/components/care/SectionApplyCard";
 import SupplementalWateringCard from "@/components/care/SupplementalWateringCard";
+import { Button } from "@/components/ui/Button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
+import { LoadingSpinner } from "@/components/ui/LoadingSpinner";
+import { useCareActivities } from "@/hooks/care/useCareActivities";
+import { useFirebasePlants } from "@/hooks/plants/useFirebasePlants";
+import { findVarietyByName } from "@/lib/seedVarietiesUtils";
 import {
-  BulkCareResult,
-  SectionApplyOption,
-} from "@/services/sectionBulkService";
-import {
-  PartialWateringService,
-  PartialWateringAnalysis,
+    PartialWateringAnalysis,
+    PartialWateringService,
 } from "@/services/partialWateringService";
+import {
+    BulkCareResult,
+    SectionApplyOption,
+} from "@/services/sectionBulkService";
+import { ApplicationMethod, FertilizationScheduleItem, GrowthStage } from "@/types";
+import {
+    CareActivityDetails,
+    VarietyRecord,
+    varietyService,
+} from "@/types/database";
+import {
+    getMethodDisplay,
+    getWaterAmountForMethod,
+    requiresWater,
+} from "@/utils/care/fertilizationUtils";
+import {
+    parseAmountString,
+    parseDilutionString,
+} from "@/utils/care/protocolParser";
+import {
+    createDateForCareLogging,
+    createLocalDateFromString,
+    getTodayDateString,
+} from "@/utils/date/dateUtils";
+import { calculateCurrentStageWithVariety } from "@/utils/plant/growthStage";
+import { groupPlantsByConditions } from "@/utils/plant/plantGrouping";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { format, subDays } from "date-fns";
+import {
+    Beaker,
+    Calendar,
+    Camera,
+    Clock,
+    Droplets,
+    Eye,
+    FileText,
+    Info,
+} from "lucide-react";
+import { useEffect, useState } from "react";
+import { useForm } from "react-hook-form";
+import toast from "react-hot-toast";
+import { useSearchParams } from "react-router-dom";
+import { z } from "zod";
 
 const careFormSchema = z.object({
   groupId: z.string().min(1, "Please select a plant section"),
@@ -396,9 +394,7 @@ export function CareLogForm({
         let variety = await varietyService.getVariety(plant.varietyId);
         if (!variety) {
           // Fallback to seedVarieties data for Firebase plants
-          const seedVariety = seedVarieties.find(
-            (v) => v.name === plant.varietyName
-          );
+          const seedVariety = findVarietyByName(plant.varietyName);
           if (seedVariety) {
             variety = {
               id: plant.varietyId,

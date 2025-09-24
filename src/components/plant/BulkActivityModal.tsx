@@ -1,16 +1,15 @@
 // src/components/plant/BulkActivityModal.tsx
-import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/Button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import { Input } from "@/components/ui/Input";
 import { useCareActivities } from "@/hooks/care/useCareActivities";
 import { useFirebasePlants } from "@/hooks/plants/useFirebasePlants";
-import { toast } from "react-hot-toast";
-import { seedVarieties } from "@/data/seedVarieties";
-import { CareActivityDetails } from "@/types";
-import { CareActivityType, ApplicationMethod, VolumeUnit } from "@/types";
+import { findVarietyByName } from "@/lib/seedVarietiesUtils";
 import { PartialWateringService } from "@/services/partialWateringService";
-import { requiresWater, getWaterAmountForMethod, getMethodDisplay } from "@/utils/care/fertilizationUtils";
+import { ApplicationMethod, CareActivityDetails, CareActivityType, VolumeUnit } from "@/types";
+import { getMethodDisplay, getWaterAmountForMethod, requiresWater } from "@/utils/care/fertilizationUtils";
+import { useEffect, useState } from "react";
+import { toast } from "react-hot-toast";
 
 interface BulkActivityModalProps {
   isOpen: boolean;
@@ -134,8 +133,8 @@ const BulkActivityModal = ({
         return;
       }
 
-      // ✅ SIMPLE: Find variety directly from seedVarieties by name
-      const variety = seedVarieties.find((v) => v.name === plant.varietyName);
+  // ✅ SIMPLE: Find variety directly from seedVarieties by name
+  const variety = findVarietyByName(plant.varietyName);
 
       if (!variety?.protocols?.fertilization) {
         setAvailableFertilizers([]);

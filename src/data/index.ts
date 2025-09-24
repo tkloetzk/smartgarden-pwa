@@ -1,5 +1,6 @@
 // src/data/index.ts
 import { seedVarieties, SeedVariety } from "./seedVarieties";
+import { getAllVarieties } from "@/lib/seedVarietiesUtils";
 import { VarietyRecord } from "@/types/database";
 import {
   GrowthTimeline,
@@ -144,7 +145,7 @@ const convertSeedVarietyToVarietyRecord = (
 };
 
 // Transform all varieties once at module load
-export const varieties: VarietyRecord[] = seedVarieties.map((variety) =>
+export const varieties: VarietyRecord[] = getAllVarieties().map((variety) =>
   convertSeedVarietyToVarietyRecord(variety)
 );
 
