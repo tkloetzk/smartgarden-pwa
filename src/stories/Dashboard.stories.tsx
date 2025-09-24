@@ -1,7 +1,7 @@
-import type { Meta, StoryObj } from '@storybook/react';
-import { MemoryRouter } from 'react-router-dom';
 import { Dashboard } from '@/pages/dashboard';
+import type { Meta, StoryObj } from '@storybook/react';
 import { http, HttpResponse } from 'msw';
+import { MemoryRouter } from 'react-router-dom';
 
 // Mock Firebase user
 const mockUser = {
