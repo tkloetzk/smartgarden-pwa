@@ -1,6 +1,6 @@
 // src/db/seedData.ts
-import { db } from "@/types/database";
 import { getVarietiesForDatabase } from "@/data";
+import { db } from "@/types/database";
 
 export let isDatabaseInitialized = false;
 export const resetDatabaseInitializationFlag = () => {
@@ -8,6 +8,13 @@ export const resetDatabaseInitializationFlag = () => {
 };
 
 export const initializeDatabase = async (): Promise<void> => {
+  // Skip heavy DB initialization when running in Storybook
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    if ((window as any).__STORYBOOK__) return;
+  } catch (e) {
+    // window may be undefined in some test environments
+  }
   if (isDatabaseInitialized) {
     return;
   }

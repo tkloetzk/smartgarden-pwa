@@ -73,6 +73,13 @@ export class TaskManagementService {
     userId: string,
     callContext: string = "bulk-regenerate"
   ): Promise<void> {
+    // Avoid heavy background work when running in Storybook
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      if ((window as any).__STORYBOOK__) return;
+    } catch (e) {
+      // ignore
+    }
     console.log(`🔄 Bulk regenerating tasks for ${plants.length} plants`);
 
     for (const plant of plants) {

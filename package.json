@@ -91,7 +91,7 @@
     "globals": "^16.0.0",
     "identity-obj-proxy": "^3.0.0",
     "jsdom": "^27.0.0",
-    "msw": "^2.11.2",
+    "msw": "^2.11.3",
     "msw-storybook-addon": "^2.0.5",
     "playwright": "^1.55.0",
     "postcss": "^8.5.5",
@@ -103,5 +103,10 @@
     "vitest": "^3.2.4",
     "wait-on": "^9.0.1",
     "whatwg-fetch": "^3.6.20"
+  },
+  "msw": {
+    "workerDirectory": [
+      "public"
+    ]
   }
 }
