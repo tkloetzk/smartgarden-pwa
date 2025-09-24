@@ -1,16 +1,16 @@
 // src/data/index.ts
-import { seedVarieties, SeedVariety } from "./seedVarieties";
 import { getAllVarieties } from "@/lib/seedVarietiesUtils";
-import { VarietyRecord } from "@/types/database";
 import {
-  GrowthTimeline,
-  VarietyProtocols,
-  StageSpecificWateringProtocol,
-  StageSpecificFertilizationProtocol,
-  StageSpecificLightingProtocol,
-  GrowthStage
+    GrowthStage,
+    GrowthTimeline,
+    StageSpecificFertilizationProtocol,
+    StageSpecificLightingProtocol,
+    StageSpecificWateringProtocol,
+    VarietyProtocols
 } from "@/types";
+import { VarietyRecord } from "@/types/database";
 import { generateUUID } from "@/utils/core/cn";
+import { seedVarieties, SeedVariety } from "./seedVarieties";
 
 // Stage name mapping (moved from seedData.ts)
 const stageNameMapping: { [key: string]: GrowthStage } = {

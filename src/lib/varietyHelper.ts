@@ -1,5 +1,5 @@
 import { SeedVariety } from "@/data/seedVarieties";
-import { getAllVarieties as getAllVarietiesFromUtils, findVarietyByName as findVarietyByNameFromUtils } from "@/lib/seedVarietiesUtils";
+import { findVarietyByName as findVarietyByNameFromUtils, getAllVarieties as getAllVarietiesFromUtils } from "@/lib/seedVarietiesUtils";
 import type { PlantCategory } from "@/types";
 
 /**
